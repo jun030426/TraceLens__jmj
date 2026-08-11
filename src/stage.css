@@ -98,6 +98,20 @@
 }
 .inspector-panel td:first-child { color: #9aa7b8; width: 30%; }
 
+.ai-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #9aa7b8;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.ai-toggle input { accent-color: #ff4fd8; cursor: pointer; }
+.ai-toggle:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
+.ai-toggle:has(input:checked) { color: #ff4fd8; }
+
 .issue-banner {
   padding: 10px 14px;
   border-radius: 10px;
