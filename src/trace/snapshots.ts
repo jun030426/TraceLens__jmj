@@ -44,7 +44,10 @@ export function buildSnapshots(events: TraceEvent[]): Snapshot[] {
       }
     }
     stdout += e.stdout
-    if (e.kind === 'return') stack = stack.filter(f => f.frameId !== e.frameId)
+    // 함수 프레임만 pop — 모듈 프레임(parentFrameId null)은 유지해서
+    // 마지막 장면이 빈 화면이 아니라 최종 변수 상태를 보여주게 한다
+    if (e.kind === 'return' && e.parentFrameId !== null)
+      stack = stack.filter(f => f.frameId !== e.frameId)
     snaps.push({
       seq: e.seq,
       line: e.causedByLine ?? e.observedAtLine,

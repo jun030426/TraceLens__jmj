@@ -21,12 +21,17 @@ ${digest.aliasNote ? `\n참고 — 별칭 관계: ${digest.aliasNote}` : ''}
 
 ## 연출 규칙 (어기면 거부됨)
 1. spanRef는 위 Digest에 있는 spanId만. 실행 순서(sourceSeqRange 오름차순)대로만 배열.
-2. 값·숫자를 template에 직접 쓰지 말 것 — 반드시 {키} + bindings로. 값이 필요 없으면 바인딩 생략.
-3. narration은 관찰형(무슨 일이 일어나는지)으로 짧게. 해석·의도 추측은 챕터 title에만.
-4. 별칭 관계가 있으면 그 장면은 primitive를 objectGraph로, pacing을 slow로.
-5. 중요한 순간(별칭 생성, 예외, 결과 출력)은 slow, 반복(iterations 있는 스팬)은 fast.
-6. 챕터는 2~4개, 학습자가 이해할 이야기 단위로 나눌 것. 모든 스팬을 쓸 필요는 없지만 순서는 지킬 것.
-7. 한국어로 작성.`
+2. {키}는 그 변수의 **값**이 통째로 들어갈 자리다. **변수 이름은 템플릿에 문자 그대로** 쓴다.
+   - 나쁨: "변수 {x}을 통해 리스트가 변경됩니다" → {x}가 값으로 치환되어 "변수 [1, 2]을 통해…"가 됨
+   - 좋음: "team_b를 통해 추가하면 team_a도 바뀝니다" (이름은 리터럴, 값 불필요)
+   - 좋음: "total이 {v}이(가) 됩니다" + bindings {"v":{"name":"total"}} (값이 필요할 때만)
+3. 값·숫자를 template에 직접 쓰지 말 것 — 반드시 {키} + bindings로. 값이 필요 없으면 바인딩 생략.
+4. narration은 관찰형(무슨 일이 일어나는지)으로 짧게, 조사가 자연스러운 완전한 문장으로. 해석·의도 추측은 챕터 title에만.
+5. 별칭 관계가 있으면 그 장면은 primitive를 objectGraph로, pacing을 slow로.
+6. 중요한 순간(별칭 생성, 예외, 결과 출력)은 slow, 반복(iterations 있는 스팬)은 fast.
+7. 마지막 장면은 프로그램의 최종 상태가 보이도록 variables 또는 objectGraph를 사용할 것 (callStack 금지).
+8. 챕터는 2~4개, 학습자가 이해할 이야기 단위로 나눌 것. 모든 스팬을 쓸 필요는 없지만 순서는 지킬 것.
+9. 한국어로 작성.`
 
 const stripFences = (s: string) => {
   const m = s.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
