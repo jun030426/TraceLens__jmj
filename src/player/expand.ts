@@ -43,7 +43,7 @@ export function expandScreenplay(sp: Screenplay, snaps: Snapshot[]): PlaybackSte
       }
       const durationMs = PACING_MS[sc.pacing]
       if (sc.pacing === 'fast' && sc.seqEnd > sc.seqStart) {
-        const label = `${narration} (×${sc.repeat ?? sc.seqEnd - sc.seqStart + 1}회)`
+        const label = sc.repeat && sc.repeat > 1 ? `${narration} (총 ${sc.repeat}회 반복)` : narration
         steps.push({ seq: sc.seqStart, chapterIndex, primitive: sc.primitive, focus: sc.focus, narration: label, durationMs })
         steps.push({ seq: sc.seqEnd, chapterIndex, primitive: sc.primitive, focus: sc.focus, narration: label, durationMs })
       } else {

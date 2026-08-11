@@ -13,6 +13,7 @@ ${code}
 
 ## 실행 요약 (Digest)
 각 스팬은 실제 실행 기록의 한 구간입니다. 당신은 이 spanId만 참조할 수 있습니다.
+iterations는 그 반복 구간이 실제로 돈 총 횟수입니다 — 반복 횟수를 언급할 땐 이 숫자만 사용하세요 (재생기가 자동으로 "(총 N회 반복)"을 덧붙이므로 narration에 횟수를 직접 쓰지 않아도 됩니다).
 ${JSON.stringify(digest.spans)}
 ${digest.aliasNote ? `\n참고 — 별칭 관계: ${digest.aliasNote}` : ''}
 

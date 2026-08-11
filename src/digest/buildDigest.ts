@@ -36,7 +36,17 @@ export function buildDigest(events: TraceEvent[]): Digest {
     ...(e.error ? { exception: e.error } : {}),
   })
 
+  // iterations = 접힌 구간에서 "실제로 반복된 횟수" — 구간 내 줄들의 전체 방문 횟수 중 최솟값
+  // (루프 몸통이 돈 횟수와 일치. 이벤트 개수를 세면 줄 수만큼 부풀려져 거짓 숫자가 된다)
   let folding: DigestSpan | null = null
+  let foldingKeys: Set<string> = new Set()
+  const closeFolding = () => {
+    if (!folding) return
+    folding.iterations = Math.min(...[...foldingKeys].map(k => lineCount.get(k) ?? 1))
+    spans.push(folding)
+    folding = null
+    foldingKeys = new Set()
+  }
   for (const e of events) {
     const key = `${e.frameId}:${e.observedAtLine}`
     const n = (lineCount.get(key) ?? 0) + 1
@@ -44,7 +54,6 @@ export function buildDigest(events: TraceEvent[]): Digest {
     if (n >= 3 && e.kind === 'line') {
       if (folding) {
         folding.sourceSeqRange[1] = e.seq
-        folding.iterations = (folding.iterations ?? 1) + 1
         for (const d of e.localsDelta) {
           if (!folding.changedVars.includes(d.name)) folding.changedVars.push(d.name)
         }
@@ -52,12 +61,13 @@ export function buildDigest(events: TraceEvent[]): Digest {
       } else {
         folding = { ...singleSpan(e), spanId: `loop_${loopCounter++}`, iterations: 1 }
       }
+      foldingKeys.add(key)
       continue
     }
-    if (folding) { spans.push(folding); folding = null }
+    closeFolding()
     spans.push(singleSpan(e))
   }
-  if (folding) spans.push(folding)
+  closeFolding()
 
   // aliasing 요약 — Director가 objectGraph를 고르도록 힌트
   const snaps = buildSnapshots(events)
