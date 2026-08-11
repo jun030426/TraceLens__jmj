@@ -1,102 +1,63 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
-import {
-  Activity,
-  Braces,
-  ChevronLeft,
-  ChevronRight,
-  Cpu,
-  Gauge,
-  Layers3,
-  Pause,
-  Play,
-  RotateCcw,
-  Terminal,
-  Workflow,
-  Zap,
-} from 'lucide-react'
-import PixiStage from './PixiStage'
-import {
-  algorithmPresets,
-  buildPreviewTrace,
-  sampleCode,
-  type TraceFrame,
-} from './tracing'
+import { Activity, Cpu, Film, Play, Terminal, Workflow, Zap } from 'lucide-react'
+import Stage from './components/Stage'
+import PlayerBar from './components/PlayerBar'
+import Inspector from './components/Inspector'
+import { preflight, type PreflightIssue } from './trace/preflight'
+import { runTrace, warmUp, type TraceStage } from './trace/tracerClient'
+import { buildSnapshots, type Snapshot } from './trace/snapshots'
+import { buildScreenplay } from './screenplay/ruleDirector'
+import type { Screenplay } from './screenplay/types'
+import { expandScreenplay, type PlaybackStep } from './player/expand'
+import { usePlayback } from './player/usePlayback'
+import { samples, defaultCode } from './samples'
 import './App.css'
+import './stage.css'
 
 type MonacoApi = Parameters<OnMount>[1]
 
-const speedOptions = [
-  { label: '0.5x', value: 0.5 },
-  { label: '1x', value: 1 },
-  { label: '1.25x', value: 1.25 },
-  { label: '1.5x', value: 1.5 },
-  { label: '2x', value: 2 },
-  { label: '3x', value: 3 },
-  { label: 'CPU', value: 'cpu' },
-] as const
+const stageLabels: Record<TraceStage, string> = {
+  'python-loading': 'Python 환경 준비 중…',
+  executing: '코드 실행·기록 중…',
+  building: '설명 준비 중…',
+}
 
-type PlaybackSpeed = (typeof speedOptions)[number]['value']
-
-const baseStepDelayMs = 1000
-const speedToDelay = (speed: PlaybackSpeed) =>
-  speed === 'cpu' ? 45 : Math.max(220, baseStepDelayMs / speed)
+type RunArtifacts = {
+  steps: PlaybackStep[]
+  snaps: Snapshot[]
+  screenplay: Screenplay
+  clipped: boolean
+  error?: string
+}
 
 function App() {
-  const [code, setCode] = useState(sampleCode)
-  const [trace, setTrace] = useState<TraceFrame[]>(() => buildPreviewTrace(sampleCode))
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState<PlaybackSpeed>(0.5)
+  const [code, setCode] = useState<string>(defaultCode)
+  const [issues, setIssues] = useState<PreflightIssue[]>([])
+  const [loading, setLoading] = useState<TraceStage | null>(null)
+  const [run, setRun] = useState<RunArtifacts | null>(null)
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
   const monacoRef = useRef<MonacoApi | null>(null)
-  const decorationRef = useRef<ReturnType<Parameters<OnMount>[0]['createDecorationsCollection']> | null>(
-    null,
-  )
+  const decorationRef = useRef<ReturnType<Parameters<OnMount>[0]['createDecorationsCollection']> | null>(null)
 
-  const currentFrame = trace[currentIndex]
-  const currentArray = currentFrame?.structures[0]
-  const activePreset = algorithmPresets.find((preset) => preset.code === code)?.id
-  const consoleLines = useMemo(
-    () =>
-      trace
-        .slice(0, currentIndex + 1)
-        .filter((frame) => frame.stdout)
-        .map((frame) => `[${frame.seq}] ${frame.stdout}`),
-    [trace, currentIndex],
-  )
+  const steps = run?.steps ?? []
+  const { index, playing, speed, play, pause, seek, setSpeed } = usePlayback(steps)
 
-  useEffect(() => {
-    if (!playing) {
-      return
-    }
+  const bySeq = useMemo(() => new Map((run?.snaps ?? []).map(s => [s.seq, s])), [run])
+  const currentStep = steps[index]
+  const currentSnap = currentStep ? bySeq.get(currentStep.seq) : undefined
+  const activeSample = samples.find(s => s.code === code)?.id
 
-    const timer = window.setInterval(() => {
-      setCurrentIndex((index) => {
-        if (index >= trace.length - 1) {
-          setPlaying(false)
-          return index
-        }
-
-        return index + 1
-      })
-    }, speedToDelay(speed))
-
-    return () => window.clearInterval(timer)
-  }, [playing, speed, trace.length])
+  useEffect(() => { warmUp() }, [])
 
   useEffect(() => {
     const editor = editorRef.current
     const monaco = monacoRef.current
     const decorations = decorationRef.current
-
-    if (!editor || !monaco || !decorations || !currentFrame) {
-      return
-    }
-
+    if (!editor || !monaco || !decorations || !currentSnap) return
     decorations.set([
       {
-        range: new monaco.Range(currentFrame.currentLine, 1, currentFrame.currentLine, 1),
+        range: new monaco.Range(currentSnap.line, 1, currentSnap.line, 1),
         options: {
           isWholeLine: true,
           className: 'current-line-highlight',
@@ -104,8 +65,8 @@ function App() {
         },
       },
     ])
-    editor.revealLineInCenterIfOutsideViewport(currentFrame.currentLine)
-  }, [currentFrame])
+    editor.revealLineInCenterIfOutsideViewport(currentSnap.line)
+  }, [currentSnap])
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor
@@ -113,34 +74,30 @@ function App() {
     decorationRef.current = editor.createDecorationsCollection()
   }
 
-  const runTrace = () => {
-    const nextTrace = buildPreviewTrace(code)
-    setTrace(nextTrace)
-    setCurrentIndex(0)
-    setPlaying(true)
+  const executeRun = async () => {
+    const found = preflight(code)
+    setIssues(found)
+    if (found.some(i => i.level === 'block')) return
+
+    setLoading('python-loading')
+    setRun(null)
+    try {
+      const result = await runTrace(code, s => setLoading(s))
+      const snaps = buildSnapshots(result.events)
+      const screenplay = buildScreenplay(result.events)
+      const expanded = expandScreenplay(screenplay, snaps)
+      setRun({ steps: expanded, snaps, screenplay, clipped: result.clipped, error: result.error })
+      setLoading(null)
+      if (expanded.length > 0) setTimeout(play, 50)
+    } catch (err) {
+      setLoading(null)
+      setRun({ steps: [], snaps: [], screenplay: { chapters: [] }, clipped: false, error: String(err) })
+    }
   }
 
-  const loadPreset = (presetCode: string) => {
-    const nextTrace = buildPreviewTrace(presetCode)
-    setCode(presetCode)
-    setTrace(nextTrace)
-    setCurrentIndex(0)
-    setPlaying(false)
-  }
-
-  const resetTrace = () => {
-    setPlaying(false)
-    setCurrentIndex(0)
-  }
-
-  const goPrevious = () => {
-    setPlaying(false)
-    setCurrentIndex((index) => Math.max(0, index - 1))
-  }
-
-  const goNext = () => {
-    setPlaying(false)
-    setCurrentIndex((index) => Math.min(trace.length - 1, index + 1))
+  const loadSample = (sampleCode: string) => {
+    setCode(sampleCode)
+    setIssues([])
   }
 
   return (
@@ -152,26 +109,21 @@ function App() {
           </div>
           <div>
             <h1>Algo-Scope</h1>
-            <span>Python Auto Trace Sandbox</span>
+            <span>실제 실행 기반 코드 무비</span>
           </div>
         </div>
-
         <div className="session-strip" aria-label="session status">
           <span className="status-pill">
             <Cpu size={15} />
-            frontend preview
+            Slice 1 · rule-based
           </span>
           <span className="status-pill accent">
-            <Gauge size={15} />
-            {currentIndex + 1}/{trace.length}
+            <Film size={15} />
+            {steps.length ? `${index + 1}/${steps.length}` : 'idle'}
           </span>
           <span className="status-pill event">
             <Zap size={15} />
-            {currentFrame?.event.name ?? 'idle'}
-          </span>
-          <span className="status-pill algorithm">
-            <Workflow size={15} />
-            {currentFrame?.algorithm.label ?? 'Unknown'}
+            {currentStep?.primitive ?? '-'}
           </span>
         </div>
       </header>
@@ -179,31 +131,35 @@ function App() {
       <section className="workbench">
         <section className="left-panel" aria-label="code input">
           <div className="panel-toolbar">
-            <label className="selector-label" htmlFor="language">
-              Language
-            </label>
-            <select id="language" defaultValue="python" aria-label="language selector">
-              <option value="python">Python</option>
-            </select>
-            <div className="preset-strip" aria-label="algorithm presets">
-              {algorithmPresets.map((preset) => (
+            <div className="preset-strip" aria-label="예제 코드">
+              {samples.map(s => (
                 <button
-                  className={activePreset === preset.id ? 'preset-button active' : 'preset-button'}
-                  key={preset.id}
+                  key={s.id}
+                  className={activeSample === s.id ? 'preset-button active' : 'preset-button'}
                   type="button"
-                  title={preset.description}
-                  onClick={() => loadPreset(preset.code)}
+                  title={s.description}
+                  onClick={() => loadSample(s.code)}
                 >
                   <Workflow size={14} />
-                  {preset.label}
+                  {s.label}
                 </button>
               ))}
             </div>
-            <button className="run-button" type="button" onClick={runTrace}>
+            <button className="run-button" type="button" onClick={executeRun} disabled={loading !== null}>
               <Play size={17} fill="currentColor" />
-              Run Visualization
+              Run
             </button>
           </div>
+
+          {issues.map(i => (
+            <div key={i.code} className={`issue-banner ${i.level}`}>{i.message}</div>
+          ))}
+          {run?.clipped && (
+            <div className="issue-banner warn">실행이 길어 여기까지 시각화했어요.</div>
+          )}
+          {run?.error && (
+            <div className="issue-banner block">실행 결과: {run.error}</div>
+          )}
 
           <div className="editor-wrap">
             <Editor
@@ -211,7 +167,7 @@ function App() {
               language="python"
               theme="vs-dark"
               value={code}
-              onChange={(value) => setCode(value ?? '')}
+              onChange={value => setCode(value ?? '')}
               onMount={handleEditorMount}
               options={{
                 minimap: { enabled: false },
@@ -232,123 +188,53 @@ function App() {
               <Terminal size={16} />
               <span>Console Output</span>
             </div>
-            <pre>
-              {consoleLines.length > 0
-                ? consoleLines.join('\n')
-                : 'waiting for trace output...'}
-            </pre>
+            <pre>{currentSnap?.stdout || '아직 출력이 없습니다'}</pre>
           </div>
         </section>
 
         <section className="right-panel" aria-label="visualization output">
           <div className="stage-header">
             <div>
-              <span className="eyebrow">{currentFrame?.algorithm.label ?? 'PixiJS Stage'}</span>
-              <h2>
-                {currentArray?.id ?? 'array'} {currentArray?.view ?? 'state'}
-              </h2>
-            </div>
-            <div className="event-chip">{currentFrame?.event.label ?? 'idle'}</div>
-          </div>
-
-          <PixiStage frame={currentFrame} />
-
-          <div className="playback">
-            <button type="button" onClick={resetTrace} title="Reset trace" aria-label="Reset trace">
-              <RotateCcw size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={goPrevious}
-              title="Previous step"
-              aria-label="Previous step"
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <button
-              className="primary-control"
-              type="button"
-              onClick={() => setPlaying((value) => !value)}
-              title={playing ? 'Pause' : 'Play'}
-              aria-label={playing ? 'Pause' : 'Play'}
-            >
-              {playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-            </button>
-            <button type="button" onClick={goNext} title="Next step" aria-label="Next step">
-              <ChevronRight size={20} />
-            </button>
-            <div className="speed-control" aria-label="playback speed">
-              <span>Speed</span>
-              <div className="speed-options">
-                {speedOptions.map((option) => (
-                  <button
-                    className={[
-                      'speed-button',
-                      speed === option.value ? 'active' : '',
-                      option.value === 'cpu' ? 'cpu' : '',
-                    ].join(' ')}
-                    key={option.label}
-                    type="button"
-                    aria-pressed={speed === option.value}
-                    onClick={() => setSpeed(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <span className="eyebrow">실행 무비</span>
+              <h2>{run ? run.screenplay.chapters[currentStep?.chapterIndex ?? 0]?.title ?? '' : '대기 중'}</h2>
             </div>
           </div>
 
-          <div className="inspectors">
-            <section className="inspector" aria-label="variables">
-              <div className="subhead">
-                <Braces size={16} />
-                <span>Variables</span>
+          <div style={{ position: 'relative', flex: 1, minHeight: 320 }}>
+            <Stage snapshot={currentSnap} step={currentStep} />
+            {loading && (
+              <div className="loading-overlay">
+                <div className="spinner" />
+                <span>{stageLabels[loading]}</span>
               </div>
-              <div className="variable-list">
-                {currentFrame?.variables.map((variable) => (
-                  <div className="variable-row" key={`${variable.name}-${variable.type}`}>
-                    <span>{variable.name}</span>
-                    <strong>{String(variable.value)}</strong>
-                    <small>{variable.type}</small>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="inspector" aria-label="call stack">
-              <div className="subhead">
-                <Layers3 size={16} />
-                <span>Call Stack</span>
-              </div>
-              <div className="stack-list">
-                {currentFrame?.callStack.map((stackFrame) => (
-                  <span key={stackFrame}>{stackFrame}</span>
-                ))}
-              </div>
-            </section>
-
-            <section className="inspector compact" aria-label="step controls">
-              <div className="subhead">
-                <StepIcon />
-                <span>Step</span>
-              </div>
-              <strong className="step-number">{currentFrame?.seq ?? 0}</strong>
-              <small>{currentFrame?.compressedRepeat ? `${currentFrame.compressedRepeat} repeats` : 'live diff'}</small>
-            </section>
+            )}
           </div>
+
+          <div className="narration-bar" aria-live="polite">
+            <span className="chapter-tag">
+              {run?.screenplay.chapters[currentStep?.chapterIndex ?? 0]?.title ?? '자막'}
+            </span>
+            <span key={index}>{currentStep?.narration ?? 'Run을 누르면 설명이 시작됩니다'}</span>
+          </div>
+
+          {run && steps.length > 0 && (
+            <PlayerBar
+              steps={steps}
+              screenplay={run.screenplay}
+              index={index}
+              playing={playing}
+              speed={speed}
+              onPlay={play}
+              onPause={pause}
+              onSeek={seek}
+              onSpeed={setSpeed}
+            />
+          )}
+
+          {!playing && currentSnap && <Inspector snapshot={currentSnap} />}
         </section>
       </section>
     </main>
-  )
-}
-
-function StepIcon() {
-  return (
-    <span className="step-icon" aria-hidden="true">
-      <ChevronLeft size={13} />
-      <ChevronRight size={13} />
-    </span>
   )
 }
 
