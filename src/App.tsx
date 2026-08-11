@@ -43,7 +43,6 @@ function App() {
   const [issues, setIssues] = useState<PreflightIssue[]>([])
   const [loading, setLoading] = useState<LoadingStage | null>(null)
   const [run, setRun] = useState<RunArtifacts | null>(null)
-  const [aiEnabled, setAiEnabled] = useState(false)
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
   const monacoRef = useRef<MonacoApi | null>(null)
   const decorationRef = useRef<ReturnType<Parameters<OnMount>[0]['createDecorationsCollection']> | null>(null)
@@ -94,7 +93,7 @@ function App() {
 
       let screenplay: Screenplay
       let directorMode: DirectorMode = 'rule'
-      if (aiEnabled && geminiApiKey && result.events.length > 0) {
+      if (geminiApiKey && result.events.length > 0) {
         setLoading('directing')
         try {
           screenplay = await generateScreenplay(code, buildDigest(result.events), makeGeminiCall(geminiApiKey))
@@ -148,20 +147,11 @@ function App() {
       <section className="workbench">
         <section className="left-panel" aria-label="code input">
           <div className="panel-toolbar">
-            <label
-              className="ai-toggle"
-              title={geminiApiKey
-                ? '켜면 코드와 실행 요약이 Google Gemini API로 전송되어 AI가 연출을 맡습니다. 값은 항상 실제 실행 기록에서만 나옵니다.'
-                : '.env.local에 VITE_GEMINI_API_KEY를 설정하면 사용할 수 있어요'}
-            >
-              <input
-                type="checkbox"
-                checked={aiEnabled}
-                disabled={!geminiApiKey}
-                onChange={e => setAiEnabled(e.target.checked)}
-              />
-              AI 연출
-            </label>
+            <span className="transfer-notice">
+              {geminiApiKey
+                ? 'AI 연출 사용 중 — 코드·실행 요약이 Gemini API로 전송됩니다. 실패 시 자동으로 규칙 연출.'
+                : '규칙 연출 모드 — .env.local에 VITE_GEMINI_API_KEY를 설정하면 AI 연출이 켜져요.'}
+            </span>
             <button className="run-button" type="button" onClick={executeRun} disabled={loading !== null || !code.trim()}>
               <Play size={17} fill="currentColor" />
               Run
