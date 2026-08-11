@@ -149,10 +149,13 @@ def run_traced(code, emit, max_events=5000):
     tracer = _Tracer(emit, max_events)
     error = None
     compiled = compile(code, '<user>', 'exec')
+    # __name__을 '__main__'으로 주입 — 빈 globals면 builtins의 __name__('builtins')이 잡혀서
+    # AI 생성 스크립트에 흔한 `if __name__ == "__main__":` 블록이 통째로 건너뛰어진다
+    user_globals = {'__name__': '__main__'}
     with contextlib.redirect_stdout(tracer.stdout):
         sys.settrace(tracer)
         try:
-            exec(compiled, {})
+            exec(compiled, user_globals)
         except _Stop:
             pass
         except BaseException as e:
