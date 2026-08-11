@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+src/bench/summary.json
+src/bench/llm-summary.json
