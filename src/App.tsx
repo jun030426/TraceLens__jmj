@@ -8,6 +8,9 @@ import { preflight, type PreflightIssue } from './trace/preflight'
 import { runTrace, warmUp, type TraceStage } from './trace/tracerClient'
 import { buildSnapshots, type Snapshot } from './trace/snapshots'
 import { buildScreenplay } from './screenplay/ruleDirector'
+import { buildDigest } from './digest/buildDigest'
+import { generateScreenplay } from './director/llmDirector'
+import { makeGeminiCall, geminiApiKey } from './director/gemini'
 import type { Screenplay } from './screenplay/types'
 import { expandScreenplay, type PlaybackStep } from './player/expand'
 import { usePlayback } from './player/usePlayback'
@@ -17,11 +20,15 @@ import './stage.css'
 
 type MonacoApi = Parameters<OnMount>[1]
 
-const stageLabels: Record<TraceStage, string> = {
+type LoadingStage = TraceStage | 'directing'
+const stageLabels: Record<LoadingStage, string> = {
   'python-loading': 'Python 환경 준비 중…',
   executing: '코드 실행·기록 중…',
   building: '설명 준비 중…',
+  directing: 'AI 연출 생성 중…',
 }
+
+type DirectorMode = 'rule' | 'ai' | 'ai-fallback'
 
 type RunArtifacts = {
   steps: PlaybackStep[]
@@ -29,13 +36,15 @@ type RunArtifacts = {
   screenplay: Screenplay
   clipped: boolean
   error?: string
+  directorMode: DirectorMode
 }
 
 function App() {
   const [code, setCode] = useState<string>(defaultCode)
   const [issues, setIssues] = useState<PreflightIssue[]>([])
-  const [loading, setLoading] = useState<TraceStage | null>(null)
+  const [loading, setLoading] = useState<LoadingStage | null>(null)
   const [run, setRun] = useState<RunArtifacts | null>(null)
+  const [aiEnabled, setAiEnabled] = useState(false)
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
   const monacoRef = useRef<MonacoApi | null>(null)
   const decorationRef = useRef<ReturnType<Parameters<OnMount>[0]['createDecorationsCollection']> | null>(null)
@@ -84,14 +93,29 @@ function App() {
     try {
       const result = await runTrace(code, s => setLoading(s))
       const snaps = buildSnapshots(result.events)
-      const screenplay = buildScreenplay(result.events)
+
+      let screenplay: Screenplay
+      let directorMode: DirectorMode = 'rule'
+      if (aiEnabled && geminiApiKey && result.events.length > 0) {
+        setLoading('directing')
+        try {
+          screenplay = await generateScreenplay(code, buildDigest(result.events), makeGeminiCall(geminiApiKey))
+          directorMode = 'ai'
+        } catch {
+          screenplay = buildScreenplay(result.events)
+          directorMode = 'ai-fallback'
+        }
+      } else {
+        screenplay = buildScreenplay(result.events)
+      }
+
       const expanded = expandScreenplay(screenplay, snaps)
-      setRun({ steps: expanded, snaps, screenplay, clipped: result.clipped, error: result.error })
+      setRun({ steps: expanded, snaps, screenplay, clipped: result.clipped, error: result.error, directorMode })
       setLoading(null)
       if (expanded.length > 0) setTimeout(play, 50)
     } catch (err) {
       setLoading(null)
-      setRun({ steps: [], snaps: [], screenplay: { chapters: [] }, clipped: false, error: String(err) })
+      setRun({ steps: [], snaps: [], screenplay: { chapters: [] }, clipped: false, error: String(err), directorMode: 'rule' })
     }
   }
 
@@ -115,7 +139,7 @@ function App() {
         <div className="session-strip" aria-label="session status">
           <span className="status-pill">
             <Cpu size={15} />
-            Slice 1 · rule-based
+            {run?.directorMode === 'ai' ? 'AI 연출' : run?.directorMode === 'ai-fallback' ? '규칙 폴백(AI 실패)' : '규칙 연출'}
           </span>
           <span className="status-pill accent">
             <Film size={15} />
@@ -145,6 +169,20 @@ function App() {
                 </button>
               ))}
             </div>
+            <label
+              className="ai-toggle"
+              title={geminiApiKey
+                ? '켜면 코드와 실행 요약이 Google Gemini API로 전송되어 AI가 연출을 맡습니다. 값은 항상 실제 실행 기록에서만 나옵니다.'
+                : '.env.local에 VITE_GEMINI_API_KEY를 설정하면 사용할 수 있어요'}
+            >
+              <input
+                type="checkbox"
+                checked={aiEnabled}
+                disabled={!geminiApiKey}
+                onChange={e => setAiEnabled(e.target.checked)}
+              />
+              AI 연출
+            </label>
             <button className="run-button" type="button" onClick={executeRun} disabled={loading !== null}>
               <Play size={17} fill="currentColor" />
               Run
