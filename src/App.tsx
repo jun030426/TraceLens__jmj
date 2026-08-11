@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
-import { Activity, Cpu, Film, Play, Terminal, Workflow, Zap } from 'lucide-react'
+import { Activity, Cpu, Film, Play, Terminal, Zap } from 'lucide-react'
 import Stage from './components/Stage'
 import PlayerBar from './components/PlayerBar'
 import Inspector from './components/Inspector'
@@ -14,7 +14,6 @@ import { makeGeminiCall, geminiApiKey } from './director/gemini'
 import type { Screenplay } from './screenplay/types'
 import { expandScreenplay, type PlaybackStep } from './player/expand'
 import { usePlayback } from './player/usePlayback'
-import { samples, defaultCode } from './samples'
 import './App.css'
 import './stage.css'
 
@@ -40,7 +39,7 @@ type RunArtifacts = {
 }
 
 function App() {
-  const [code, setCode] = useState<string>(defaultCode)
+  const [code, setCode] = useState<string>('')
   const [issues, setIssues] = useState<PreflightIssue[]>([])
   const [loading, setLoading] = useState<LoadingStage | null>(null)
   const [run, setRun] = useState<RunArtifacts | null>(null)
@@ -55,7 +54,6 @@ function App() {
   const bySeq = useMemo(() => new Map((run?.snaps ?? []).map(s => [s.seq, s])), [run])
   const currentStep = steps[index]
   const currentSnap = currentStep ? bySeq.get(currentStep.seq) : undefined
-  const activeSample = samples.find(s => s.code === code)?.id
 
   useEffect(() => { warmUp() }, [])
 
@@ -119,11 +117,6 @@ function App() {
     }
   }
 
-  const loadSample = (sampleCode: string) => {
-    setCode(sampleCode)
-    setIssues([])
-  }
-
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -155,20 +148,6 @@ function App() {
       <section className="workbench">
         <section className="left-panel" aria-label="code input">
           <div className="panel-toolbar">
-            <div className="preset-strip" aria-label="예제 코드">
-              {samples.map(s => (
-                <button
-                  key={s.id}
-                  className={activeSample === s.id ? 'preset-button active' : 'preset-button'}
-                  type="button"
-                  title={s.description}
-                  onClick={() => loadSample(s.code)}
-                >
-                  <Workflow size={14} />
-                  {s.label}
-                </button>
-              ))}
-            </div>
             <label
               className="ai-toggle"
               title={geminiApiKey
@@ -183,7 +162,7 @@ function App() {
               />
               AI 연출
             </label>
-            <button className="run-button" type="button" onClick={executeRun} disabled={loading !== null}>
+            <button className="run-button" type="button" onClick={executeRun} disabled={loading !== null || !code.trim()}>
               <Play size={17} fill="currentColor" />
               Run
             </button>
