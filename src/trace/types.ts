@@ -34,5 +34,5 @@ export type TraceResult = {
   error?: string
 }
 
-export const MAX_EVENTS = 5000
+export const MAX_EVENTS = 20000   // 스파이크 실측 근거: fib(15)=7,896 이벤트, 20k×~300B ≈ 6MB
 export const EXEC_TIMEOUT_MS = 10000
