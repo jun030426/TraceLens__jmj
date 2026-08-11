@@ -46,4 +46,8 @@ assert tail3.get('error'), "예외 요약 누락"
 _, tail4 = collect("i = 0\nwhile True:\n    i += 1\n", max_events=500)
 assert tail4['clipped'] is True, "clipped 미설정"
 
+# 7) __main__ 가드: AI 생성 스크립트에 흔한 패턴이 건너뛰어지면 안 됨
+events5, _ = collect("def main():\n    print('ran')\n\nif __name__ == '__main__':\n    main()\n")
+assert any('ran' in e['stdout'] for e in events5), "__main__ 가드 블록이 실행되지 않음"
+
 print("tracer_test: ALL PASS")
