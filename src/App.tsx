@@ -108,7 +108,7 @@ function App() {
             <Activity size={21} strokeWidth={2.2} />
           </div>
           <div>
-            <h1>Algo-Scope</h1>
+            <h1>TraceLens</h1>
             <span>실제 실행 기반 코드 무비</span>
           </div>
         </div>
