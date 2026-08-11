@@ -147,11 +147,6 @@ function App() {
       <section className="workbench">
         <section className="left-panel" aria-label="code input">
           <div className="panel-toolbar">
-            <span className="transfer-notice">
-              {geminiApiKey
-                ? 'AI 연출 사용 중 — 코드·실행 요약이 Gemini API로 전송됩니다. 실패 시 자동으로 규칙 연출.'
-                : '규칙 연출 모드 — .env.local에 VITE_GEMINI_API_KEY를 설정하면 AI 연출이 켜져요.'}
-            </span>
             <button className="run-button" type="button" onClick={executeRun} disabled={loading !== null || !code.trim()}>
               <Play size={17} fill="currentColor" />
               Run
