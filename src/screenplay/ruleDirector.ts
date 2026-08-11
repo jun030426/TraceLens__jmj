@@ -53,25 +53,35 @@ export function buildScreenplay(events: TraceEvent[]): Screenplay {
     }
   }
 
+  // repeat = 접힌 구간이 실제로 반복된 횟수 (구간 내 줄들의 방문 횟수 최솟값 = 루프 몸통 실행 수)
   const scenes: Scene[] = []
   let folding: Scene | null = null
+  let foldingKeys: Set<string> = new Set()
+  const closeFolding = () => {
+    if (!folding) return
+    folding.repeat = Math.min(...[...foldingKeys].map(k => lineCount.get(k) ?? 1))
+    scenes.push(folding)
+    folding = null
+    foldingKeys = new Set()
+  }
   events.forEach((e, i) => {
     const key = `${e.frameId}:${e.observedAtLine}`
     const n = (lineCount.get(key) ?? 0) + 1
     lineCount.set(key, n)
     if (n >= 3 && e.kind === 'line') {
-      if (folding) { folding.seqEnd = e.seq; folding.repeat = (folding.repeat ?? 1) + 1 }
+      if (folding) folding.seqEnd = e.seq
       else folding = {
         seqStart: e.seq, seqEnd: e.seq, primitive: 'variables', focus: [],
         pacing: 'fast', repeat: 1,
         narration: { template: '같은 반복이 계속됩니다', bindings: {} },
       }
+      foldingKeys.add(key)
       return
     }
-    if (folding) { scenes.push(folding); folding = null }
+    closeFolding()
     scenes.push(sceneFor(e, i))
   })
-  if (folding) scenes.push(folding)
+  closeFolding()
 
   const bySeq = new Map(events.map(e => [e.seq, e]))
   const chapters: Chapter[] = []

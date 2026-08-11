@@ -21,10 +21,11 @@ describe('expandScreenplay', () => {
     expect(set).toBeDefined()
     expect(set!.narration).toMatch(/[0-9]/)
   })
-  it('fast 장면은 접히고 ×N이 붙는다', () => {
+  it('fast 장면은 접히고 실제 반복 횟수(5회)가 붙는다', () => {
     const fast = steps.filter(s => s.durationMs === PACING_MS.fast)
     expect(fast.length).toBeLessThanOrEqual(4)
-    expect(fast.some(s => /×\d+회/.test(s.narration))).toBe(true)
+    // loop fixture는 range(5) — 몸통이 정확히 5회 실행되므로 "총 5회 반복"이어야 한다
+    expect(fast.some(s => s.narration.includes('총 5회 반복'))).toBe(true)
   })
   it('chapterIndex가 존재한다', () => {
     expect(new Set(steps.map(s => s.chapterIndex)).size).toBeGreaterThanOrEqual(1)
