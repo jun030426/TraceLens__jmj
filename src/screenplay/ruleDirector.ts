@@ -19,8 +19,14 @@ export function buildScreenplay(events: TraceEvent[]): Screenplay {
     const bindings: Scene['narration']['bindings'] = {}
     const firstSet = e.localsDelta.find(d => d.op === 'set')
 
-    if (e.kind === 'call') { primitive = 'callStack'; template = `${e.func} 함수가 호출됩니다` }
-    else if (e.kind === 'return') { primitive = 'callStack'; template = `${e.func} 함수가 값을 돌려주고 종료됩니다` }
+    if (e.kind === 'call') {
+      if (e.func === '<module>') { primitive = 'variables'; template = '실행을 시작합니다' }
+      else { primitive = 'callStack'; template = `${e.func} 함수가 호출됩니다` }
+    }
+    else if (e.kind === 'return') {
+      if (e.func === '<module>') { primitive = 'variables'; template = '실행이 끝났습니다' }
+      else { primitive = 'callStack'; template = `${e.func} 함수가 값을 돌려주고 종료됩니다` }
+    }
     else if (e.kind === 'exception') { primitive = 'variables'; template = `여기서 ${e.error ?? '예외'}가 발생합니다` }
     else if (touchedAlias) {
       primitive = 'objectGraph'

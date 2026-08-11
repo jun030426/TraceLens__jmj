@@ -8,7 +8,9 @@ export default function VariablesView({ snapshot, focus }: { snapshot: Snapshot;
 
   return (
     <svg className="stage-svg" viewBox="0 0 720 420" role="img" aria-label="변수 상태">
-      <text x={24} y={36} className="svg-title">{frame?.func === '<module>' ? '전역 변수' : `${frame?.func} 지역 변수`}</text>
+      <text x={24} y={36} className="svg-title">
+        {frame ? (frame.func === '<module>' ? '전역 변수' : `${frame.func} 지역 변수`) : '실행 종료'}
+      </text>
       {rows.map(([name, v], i) => {
         const active = focus.includes(name)
         const y = 64 + i * 34
