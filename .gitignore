@@ -25,3 +25,8 @@ dist-ssr
 
 src/bench/summary.json
 src/bench/llm-summary.json
+
+# Claude Code 로컬 도구 (프로젝트 소스 아님)
+.claude/skills/
+.claude/settings.local.json
+skills-lock.json
