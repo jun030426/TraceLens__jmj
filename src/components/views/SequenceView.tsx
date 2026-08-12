@@ -27,10 +27,11 @@ export default function SequenceView({ snapshot, focus }: { snapshot: Snapshot; 
   useEffect(() => {
     if (!groupRef.current) return
     const cells = groupRef.current.querySelectorAll('.seq-cell-new')
-    if (cells.length) {
-      gsap.fromTo(cells, { scale: 0.6, opacity: 0, transformOrigin: 'center' },
-        { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)' })
-    }
+    if (!cells.length) return
+    // JS 트윈은 CSS의 transition/animation 오버라이드가 닿지 않는다 — 직접 확인한다
+    const still = document.documentElement.dataset.still === 'true'
+    gsap.fromTo(cells, { scale: still ? 1 : 0.6, opacity: still ? 1 : 0, transformOrigin: 'center' },
+      { scale: 1, opacity: 1, duration: still ? 0 : 0.45, ease: 'back.out(2)' })
   }, [count])
 
   if (!found) {
@@ -58,8 +59,8 @@ export default function SequenceView({ snapshot, focus }: { snapshot: Snapshot; 
           return (
             <g key={i} className={isLast ? 'seq-cell-new' : undefined}>
               <rect x={x} y={y} width={cellW} height={64} rx={8}
-                fill={isLast ? 'rgba(255,79,216,0.14)' : 'rgba(56,215,232,0.10)'}
-                stroke={isLast ? '#ff4fd8' : '#38d7e8'} strokeWidth={isLast ? 2 : 1} />
+                fill={isLast ? 'var(--accent-wash)' : 'var(--panel)'}
+                stroke={isLast ? 'var(--accent)' : 'var(--line-strong)'} strokeWidth={isLast ? 2 : 1} />
               <text x={x + cellW / 2} y={y + 38} textAnchor="middle" className="svg-value">
                 {label.length > 8 ? label.slice(0, 8) + '…' : label}
               </text>

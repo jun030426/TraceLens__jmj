@@ -19,8 +19,8 @@ export default function VariablesView({ snapshot, focus }: { snapshot: Snapshot;
         return (
           <g key={name} className={active ? 'var-row active' : 'var-row'}>
             <rect x={24} y={y - 20} width={672} height={28} rx={6}
-              fill={active ? 'rgba(255,79,216,0.12)' : 'rgba(56,215,232,0.05)'}
-              stroke={active ? '#ff4fd8' : '#25303a'} strokeWidth={1} />
+              fill={active ? 'var(--accent-wash)' : 'var(--panel)'}
+              stroke={active ? 'var(--accent)' : 'var(--line)'} strokeWidth={1} />
             <text x={40} y={y} className="svg-name">{name}</text>
             <text x={200} y={y} className={active ? 'svg-value active' : 'svg-value'}>
               {label.length > 52 ? label.slice(0, 52) + '…' : label}

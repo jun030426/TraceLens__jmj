@@ -10,16 +10,25 @@ export function warmUp() {
   if (!worker) worker = makeWorker()
 }
 
-export function runTrace(code: string, onStage: (s: TraceStage) => void): Promise<TraceResult> {
+/** 사용자가 설정에서 올리고 내릴 수 있는 실행 상한. 넘기지 않으면 기본값을 쓴다. */
+export type TraceLimits = { maxEvents?: number; timeoutMs?: number }
+
+export function runTrace(
+  code: string,
+  onStage: (s: TraceStage) => void,
+  limits: TraceLimits = {},
+): Promise<TraceResult> {
   if (!worker) worker = makeWorker()
   const w = worker
+  const maxEvents = limits.maxEvents ?? MAX_EVENTS
+  const timeoutMs = limits.timeoutMs ?? EXEC_TIMEOUT_MS
   const events: TraceEvent[] = []
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       w.terminate()
       worker = null
-      finish({ events, clipped: true, error: '실행 시간이 너무 깁니다 (10초 제한)' })
-    }, EXEC_TIMEOUT_MS)
+      finish({ events, clipped: true, error: `실행 시간이 너무 깁니다 (${Math.round(timeoutMs / 1000)}초 제한)` })
+    }, timeoutMs)
     const finish = (r: TraceResult) => {
       clearTimeout(timeout)
       w.onmessage = null
@@ -37,6 +46,6 @@ export function runTrace(code: string, onStage: (s: TraceStage) => void): Promis
         }
       } else if (m.type === 'fatal') finish({ events, clipped: false, error: m.message })
     }
-    w.postMessage({ code, maxEvents: MAX_EVENTS })
+    w.postMessage({ code, maxEvents })
   })
 }

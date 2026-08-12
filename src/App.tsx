@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
-import { Activity, Cpu, Film, Play, Terminal, Zap } from 'lucide-react'
+import { Play, Terminal } from 'lucide-react'
 import Stage from './components/Stage'
 import PlayerBar from './components/PlayerBar'
 import Inspector from './components/Inspector'
@@ -13,9 +13,15 @@ import { generateScreenplay } from './director/llmDirector'
 import { makeGeminiCall, geminiApiKey } from './director/gemini'
 import type { Screenplay } from './screenplay/types'
 import { expandScreenplay, type PlaybackStep } from './player/expand'
-import { usePlayback } from './player/usePlayback'
-import './App.css'
-import './stage.css'
+import { buildStage } from './film/buildStage'
+import { layoutStage, type StageLayout } from './film/layout'
+import { choreograph } from './film/choreograph'
+import type { Shot, StagePlan } from './film/types'
+import WorldStage from './film/WorldStage'
+import { useFilm } from './film/useFilm'
+import { Nav } from './ui/Chrome'
+import { useSettings } from './settings/store'
+import './ui/app.css'
 
 type MonacoApi = Parameters<OnMount>[1]
 
@@ -29,6 +35,14 @@ const stageLabels: Record<LoadingStage, string> = {
 
 type DirectorMode = 'rule' | 'ai' | 'ai-fallback'
 
+const primitiveLabels: Record<string, string> = {
+  variables: '변수',
+  sequence: '시퀀스',
+  callStack: '호출 스택',
+  objectGraph: '객체 참조',
+  generic: '변수 표',
+}
+
 type RunArtifacts = {
   steps: PlaybackStep[]
   snaps: Snapshot[]
@@ -36,6 +50,43 @@ type RunArtifacts = {
   clipped: boolean
   error?: string
   directorMode: DirectorMode
+  plan: StagePlan
+  layout: StageLayout
+  shots: Shot[]
+}
+
+const EMPTY_PLAN: StagePlan = {
+  objects: [], variables: [], frames: [],
+  slotCount: 0, maxStackDepth: 0, maxListLength: 0, leadObjectId: null,
+}
+
+/* 에디터도 같은 세계를 쓴다 — 페이지와 다른 명도로 튀지 않게 토큰 값으로 테마를 정의한다 */
+function defineEditorTheme(monaco: MonacoApi) {
+  monaco.editor.defineTheme('tracelens', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '8a877c', fontStyle: 'italic' },
+      { token: 'keyword', foreground: '16409f' },
+      { token: 'string', foreground: '0f7b3e' },
+      { token: 'number', foreground: 'bd2b1c' },
+    ],
+    colors: {
+      'editor.background': '#ffffff',
+      'editor.foreground': '#1a1a17',
+      'editorLineNumber.foreground': '#a8a49a',
+      'editorLineNumber.activeForeground': '#55534c',
+      'editor.lineHighlightBackground': '#faf9f6',
+      'editor.lineHighlightBorder': '#00000000',
+      'editorIndentGuide.background1': '#eceae4',
+      'editorCursor.foreground': '#1b57e0',
+      'editor.selectionBackground': '#dbe4fb',
+      'editorWidget.background': '#ffffff',
+      'editorWidget.border': '#e4e2dc',
+      'scrollbarSlider.background': '#e4e2dc99',
+      'scrollbarSlider.hoverBackground': '#cfccc3',
+    },
+  })
 }
 
 function App() {
@@ -47,12 +98,39 @@ function App() {
   const monacoRef = useRef<MonacoApi | null>(null)
   const decorationRef = useRef<ReturnType<Parameters<OnMount>[0]['createDecorationsCollection']> | null>(null)
 
+  const settings = useSettings()
   const steps = run?.steps ?? []
-  const { index, playing, speed, play, pause, seek, setSpeed } = usePlayback(steps)
+  const shots = useMemo(() => run?.shots ?? [], [run])
+  const { index, playing, speed, play, pause, seek, setSpeed, register } = useFilm(shots)
+  const film = { index, playing, speed, play, pause, seek, setSpeed, register }
+
+  // 설정의 기본 배속은 시작 값이다 — 재생 중 바꾼 값을 덮어쓰지 않도록 설정이 바뀔 때만 적용한다
+  useEffect(() => { setSpeed(settings.speed) }, [settings.speed, setSpeed])
 
   const bySeq = useMemo(() => new Map((run?.snaps ?? []).map(s => [s.seq, s])), [run])
-  const currentStep = steps[index]
-  const currentSnap = currentStep ? bySeq.get(currentStep.seq) : undefined
+
+  // 샷과 스텝은 개수가 다르다 — 샷마다 "그 seq를 넘지 않는 마지막 스텝"의 자막·챕터를 물려준다.
+  // 그래야 진행바·자막·인스펙터가 전부 같은 축(샷)에서 움직인다.
+  const shotSteps = useMemo<PlaybackStep[]>(() => {
+    let cursor = 0
+    let carried: PlaybackStep | undefined
+    return shots.map(sh => {
+      while (cursor < steps.length && steps[cursor].seq <= sh.seq) carried = steps[cursor++]
+      return {
+        seq: sh.seq,
+        chapterIndex: carried?.chapterIndex ?? 0,
+        primitive: carried?.primitive ?? 'variables',
+        focus: carried?.focus ?? [],
+        narration: sh.timelapse ? `같은 반복이 계속됩니다 (총 ${sh.timelapse}회 더)` : carried?.narration ?? '',
+        durationMs: sh.durationMs,
+      }
+    })
+  }, [shots, steps])
+
+  const currentShot = shots[index]
+  const currentStep = shotSteps[index]
+  const currentSnap = currentShot ? bySeq.get(currentShot.seq) : undefined
+  const chapterTitle = run?.screenplay.chapters[currentStep?.chapterIndex ?? 0]?.title
 
   useEffect(() => { warmUp() }, [])
 
@@ -77,6 +155,8 @@ function App() {
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor
     monacoRef.current = monaco
+    defineEditorTheme(monaco)
+    monaco.editor.setTheme('tracelens')
     decorationRef.current = editor.createDecorationsCollection()
   }
 
@@ -88,12 +168,15 @@ function App() {
     setLoading('python-loading')
     setRun(null)
     try {
-      const result = await runTrace(code, s => setLoading(s))
+      const result = await runTrace(code, s => setLoading(s), {
+        maxEvents: settings.maxEvents,
+        timeoutMs: settings.timeoutMs,
+      })
       const snaps = buildSnapshots(result.events)
 
       let screenplay: Screenplay
       let directorMode: DirectorMode = 'rule'
-      if (geminiApiKey && result.events.length > 0) {
+      if (settings.aiDirector && geminiApiKey && result.events.length > 0) {
         setLoading('directing')
         try {
           screenplay = await generateScreenplay(code, buildDigest(result.events), makeGeminiCall(geminiApiKey))
@@ -107,103 +190,114 @@ function App() {
       }
 
       const expanded = expandScreenplay(screenplay, snaps)
-      setRun({ steps: expanded, snaps, screenplay, clipped: result.clipped, error: result.error, directorMode })
+      // 무대는 AI와 무관하게 트레이스에서 계산된다 — 콘티가 없어도 영화는 나온다
+      const plan = buildStage(result.events)
+      const layout = layoutStage(plan)
+      const filmShots = choreograph(result.events, plan)
+      setRun({
+        steps: expanded, snaps, screenplay, clipped: result.clipped, error: result.error, directorMode,
+        plan, layout, shots: filmShots,
+      })
       setLoading(null)
-      if (expanded.length > 0) setTimeout(play, 50)
+      if (filmShots.length > 0 && settings.autoplay) setTimeout(play, 120)
     } catch (err) {
       setLoading(null)
-      setRun({ steps: [], snaps: [], screenplay: { chapters: [] }, clipped: false, error: String(err), directorMode: 'rule' })
+      setRun({
+        steps: [], snaps: [], screenplay: { chapters: [] }, clipped: false, error: String(err), directorMode: 'rule',
+        plan: EMPTY_PLAN, layout: layoutStage(EMPTY_PLAN), shots: [],
+      })
     }
   }
 
-  return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark">
-            <Activity size={21} strokeWidth={2.2} />
-          </div>
-          <div>
-            <h1>TraceLens</h1>
-            <span>실제 실행 기반 코드 무비</span>
-          </div>
-        </div>
-        <div className="session-strip" aria-label="session status">
-          <span className="status-pill">
-            <Cpu size={15} />
-            {run?.directorMode === 'ai' ? 'AI 연출' : run?.directorMode === 'ai-fallback' ? '규칙 폴백(AI 실패)' : '규칙 연출'}
-          </span>
-          <span className="status-pill accent">
-            <Film size={15} />
-            {steps.length ? `${index + 1}/${steps.length}` : 'idle'}
-          </span>
-          <span className="status-pill event">
-            <Zap size={15} />
-            {currentStep?.primitive ?? '-'}
-          </span>
-        </div>
-      </header>
+  const directorLabel =
+    run?.directorMode === 'ai' ? 'AI 연출' : run?.directorMode === 'ai-fallback' ? '규칙 폴백' : '규칙 연출'
 
-      <section className="workbench">
-        <section className="left-panel" aria-label="code input">
-          <div className="panel-toolbar">
-            <button className="run-button" type="button" onClick={executeRun} disabled={loading !== null || !code.trim()}>
-              <Play size={17} fill="currentColor" />
-              Run
+  return (
+    <div className="tl tl-app">
+      <Nav
+        trailing={
+          <div className="tl-status" aria-label="실행 상태">
+            {run && (
+              <span className={`tl-tag ${run.directorMode === 'ai' ? 'tl-tag--info' : ''}`}>{directorLabel}</span>
+            )}
+            <span className="tl-tag">{steps.length ? `${index + 1} / ${steps.length}` : '대기'}</span>
+          </div>
+        }
+      />
+
+      <div className="tl-work">
+        {/* ── 코드 ── */}
+        <section className="tl-col tl-panel" aria-label="코드 입력">
+          <div className="tl-panel__bar tl-runbar">
+            <button className="tl-btn tl-btn--sm" type="button" onClick={executeRun} disabled={loading !== null || !code.trim()}>
+              <Play size={13} fill="currentColor" />
+              실행
             </button>
+            <span className="tl-runbar__hint">
+              {code.trim() ? '표준 라이브러리 중심 · 단일 파일 파이썬' : '파이썬 코드를 붙여넣으세요'}
+            </span>
           </div>
 
           {issues.map(i => (
-            <div key={i.code} className={`issue-banner ${i.level}`}>{i.message}</div>
+            <div key={i.code} className={`issue-banner ${i.level}`}>
+              {i.message}
+            </div>
           ))}
-          {run?.clipped && (
-            <div className="issue-banner warn">실행이 길어 여기까지 시각화했어요.</div>
-          )}
-          {run?.error && (
-            <div className="issue-banner block">실행 결과: {run.error}</div>
-          )}
+          {run?.clipped && <div className="issue-banner warn">실행이 길어 여기까지 시각화했어요.</div>}
+          {run?.error && <div className="issue-banner block">실행 결과: {run.error}</div>}
 
-          <div className="editor-wrap">
+          <div className="tl-editor">
             <Editor
               defaultLanguage="python"
               language="python"
-              theme="vs-dark"
+              theme="tracelens"
               value={code}
               onChange={value => setCode(value ?? '')}
               onMount={handleEditorMount}
               options={{
                 minimap: { enabled: false },
-                fontSize: 14,
-                fontFamily: 'JetBrains Mono, Consolas, monospace',
+                fontSize: 13.5,
+                fontFamily: 'JetBrains Mono, ui-monospace, Consolas, monospace',
                 lineHeight: 22,
                 scrollBeyondLastLine: false,
                 smoothScrolling: true,
                 padding: { top: 14, bottom: 14 },
                 glyphMargin: true,
                 automaticLayout: true,
+                renderLineHighlight: 'none',
+                overviewRulerLanes: 0,
               }}
             />
           </div>
 
-          <div className="console-panel">
-            <div className="subhead">
-              <Terminal size={16} />
-              <span>Console Output</span>
+          <div className="tl-console">
+            <div className="tl-console__head">
+              <Terminal size={13} />
+              <span className="tl-label">콘솔 출력</span>
             </div>
-            <pre>{currentSnap?.stdout || '아직 출력이 없습니다'}</pre>
+            <pre className={currentSnap?.stdout ? undefined : 'is-empty'}>
+              {currentSnap?.stdout || '아직 출력이 없습니다'}
+            </pre>
           </div>
         </section>
 
-        <section className="right-panel" aria-label="visualization output">
-          <div className="stage-header">
-            <div>
-              <span className="eyebrow">실행 무비</span>
-              <h2>{run ? run.screenplay.chapters[currentStep?.chapterIndex ?? 0]?.title ?? '' : '대기 중'}</h2>
-            </div>
+        {/* ── 재생 ── */}
+        <section className="tl-col tl-panel" aria-label="실행 시각화">
+          <div className="tl-panel__bar">
+            <span className="tl-label">{chapterTitle || '실행 기록'}</span>
+            {currentShot?.timelapse ? (
+              <span className="tl-tag">×{currentShot.timelapse}회 압축</span>
+            ) : (
+              currentStep && <span className="tl-tag">{primitiveLabels[currentStep.primitive] ?? currentStep.primitive}</span>
+            )}
           </div>
 
-          <div style={{ position: 'relative', flex: 1, minHeight: 320 }}>
-            <Stage snapshot={currentSnap} step={currentStep} />
+          <div className="tl-stage">
+            {run && shots.length > 0 ? (
+              <WorldStage plan={run.plan} layout={run.layout} shots={shots} film={film} />
+            ) : (
+              <Stage snapshot={currentSnap} step={currentStep} />
+            )}
             {loading && (
               <div className="loading-overlay">
                 <div className="spinner" />
@@ -212,16 +306,14 @@ function App() {
             )}
           </div>
 
-          <div className="narration-bar" aria-live="polite">
-            <span className="chapter-tag">
-              {run?.screenplay.chapters[currentStep?.chapterIndex ?? 0]?.title ?? '자막'}
-            </span>
-            <span key={index}>{currentStep?.narration ?? 'Run을 누르면 설명이 시작됩니다'}</span>
+          <div className="narration-bar" data-size={settings.captionSize} aria-live="polite">
+            {chapterTitle && <span className="chapter-tag">{chapterTitle}</span>}
+            <span key={index}>{currentStep?.narration ?? '실행을 누르면 설명이 시작됩니다'}</span>
           </div>
 
-          {run && steps.length > 0 && (
+          {run && shotSteps.length > 0 && (
             <PlayerBar
-              steps={steps}
+              steps={shotSteps}
               screenplay={run.screenplay}
               index={index}
               playing={playing}
@@ -235,8 +327,8 @@ function App() {
 
           {!playing && currentSnap && <Inspector snapshot={currentSnap} />}
         </section>
-      </section>
-    </main>
+      </div>
+    </div>
   )
 }
 

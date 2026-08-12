@@ -1,0 +1,421 @@
+/* ── the workbench ──────────────────────────────────────────────────────
+   Same system as the site: one accent, hairlines, panels, mono for values.
+   An Operate surface, so the task outranks expression — the editor and the
+   stage take the room, chrome stays at the edges. */
+
+.tl-app {
+  display: flex;
+  flex-direction: column;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.tl-work {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+  gap: 12px;
+  padding: 12px var(--gutter);
+}
+
+.tl-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* the panel becomes a column of hairline-separated regions, never nested */
+.tl-col.tl-panel > * {
+  min-height: 0;
+}
+
+.tl-runbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tl-runbar__hint {
+  margin-left: auto;
+  font-size: var(--t-2xs);
+  color: var(--ink-3);
+}
+
+/* ── editor ───────────────────────────────────────────────────────────── */
+
+.tl-editor {
+  flex: 1;
+  min-height: 160px;
+  overflow: hidden;
+}
+
+.tl-editor .current-line-highlight {
+  background: var(--accent-wash);
+}
+
+.tl-editor .current-line-glyph {
+  background: var(--accent);
+  width: 3px !important;
+  margin-left: 3px;
+}
+
+/* ── console ──────────────────────────────────────────────────────────── */
+
+.tl-console {
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+  display: flex;
+  flex-direction: column;
+  max-height: 152px;
+}
+
+.tl-console__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  color: var(--ink-3);
+}
+
+.tl-console pre {
+  margin: 0;
+  padding: 0 14px 12px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.tl-console pre:empty::before,
+.tl-console pre.is-empty {
+  color: var(--ink-3);
+}
+
+/* ── stage ────────────────────────────────────────────────────────────── */
+
+.tl-stage {
+  position: relative;
+  flex: 1;
+  min-height: 220px;
+  background: var(--panel);
+}
+
+.stage-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--panel);
+}
+
+.stage-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 220px;
+  padding: 24px;
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+  text-align: center;
+}
+
+/* the stage draws on the same in-viewBox sub-scale as the diagram */
+.svg-title {
+  fill: var(--ink-3);
+  font-family: var(--font);
+  font-size: var(--d-md);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.svg-name {
+  fill: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--d-lg);
+  font-weight: 600;
+}
+.svg-value {
+  fill: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--d-lg);
+}
+.svg-value.active {
+  fill: var(--accent-ink);
+  font-weight: 600;
+}
+.svg-type {
+  fill: var(--ink-3);
+  font-family: var(--font);
+  font-size: var(--d-sm);
+}
+
+/* ── narration ────────────────────────────────────────────────────────── */
+
+.narration-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  min-height: 44px;
+}
+.narration-bar[data-size="sm"] {
+  font-size: var(--t-xs);
+}
+.narration-bar[data-size="lg"] {
+  font-size: var(--t-body);
+}
+
+.narration-bar .chapter-tag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  border-radius: var(--r-pill);
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+  font-size: var(--t-2xs);
+  font-weight: 700;
+}
+
+/* ── transport ────────────────────────────────────────────────────────── */
+
+.playback {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.chapter-progress {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  height: 14px;
+  align-items: center;
+  cursor: pointer;
+}
+.chapter-progress .chapter-seg {
+  position: relative;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+  transform-origin: center;
+  transition: transform 120ms var(--ease);
+}
+.chapter-progress:hover .chapter-seg {
+  transform: scaleY(1.6);
+}
+.chapter-seg .seg-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform 160ms var(--ease);
+}
+
+.primary-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.primary-control button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 120ms var(--ease), color 120ms var(--ease), border-color 120ms var(--ease);
+}
+.primary-control button:hover {
+  background: var(--panel-2);
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+.primary-control button.accent {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.primary-control button.accent:hover {
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+
+.tl-playhead {
+  font-size: var(--t-2xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: var(--t-2xs);
+  color: var(--ink-3);
+}
+
+.speed-options {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+}
+.speed-options button {
+  padding: 3px 8px;
+  white-space: nowrap;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.speed-options button[aria-pressed="true"] {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+/* ── inspector ────────────────────────────────────────────────────────── */
+
+.inspector-panel {
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+  padding: 10px 14px 12px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+.inspector-panel h3 {
+  margin: 0 0 8px;
+  font-size: var(--t-label);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.inspector-panel table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-xs);
+}
+.inspector-panel td {
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-family: var(--mono);
+  vertical-align: top;
+}
+.inspector-panel tr:last-child td {
+  border-bottom: 0;
+}
+.inspector-panel td:first-child {
+  width: 30%;
+  color: var(--ink-3);
+}
+
+/* ── banners: the product's states, in the product's state colours ────── */
+
+.issue-banner {
+  margin: 10px 14px 0;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-xs);
+  line-height: 1.55;
+}
+.issue-banner.block {
+  border: 1px solid color-mix(in srgb, var(--stop) 28%, var(--line));
+  background: var(--stop-wash);
+  color: var(--stop);
+}
+.issue-banner.warn {
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, var(--line));
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+
+/* ── loading ──────────────────────────────────────────────────────────── */
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(2px);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.loading-overlay .spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: tl-spin 0.8s linear infinite;
+}
+@keyframes tl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── status strip in the app bar ──────────────────────────────────────── */
+
+.tl-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── responsive: below the split, the shell scrolls instead of filling ── */
+
+@media (max-width: 1000px) {
+  .tl-app {
+    height: auto;
+    overflow: visible;
+  }
+  .tl-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tl-col {
+    overflow: visible;
+  }
+  .tl-editor {
+    height: 320px;
+    flex: none;
+  }
+  .tl-stage {
+    min-height: 300px;
+  }
+}

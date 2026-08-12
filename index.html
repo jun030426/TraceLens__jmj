@@ -4,9 +4,47 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TraceLens</title>
+    <meta
+      name="description"
+      content="AI가 준 파이썬 코드를 브라우저 안에서 실제로 실행하고, 그 실행 기록만으로 자동 재생되는 설명 화면을 만듭니다."
+    />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      as="style"
+      crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // 페인트 전에 표면을 정한다 — 라우트에 맞지 않는 배경이 한 프레임도 비치면 안 된다
+      document.documentElement.dataset.surface = location.pathname.replace(/\/+$/, '') === '/app' ? 'app' : 'site'
+    </script>
+    <title>TraceLens — 붙여넣기 전에 돌아가는 걸 봅니다</title>
   </head>
   <body>
+    <!--
+      THESIS: TraceLens shows a real Python run as a diagram that moves, so the page is the tool's
+        own canvas rather than an advertisement for it. Refuses the near-black neon dev-tool hero
+        and equally refuses an invented illustrated world; the category's own language, played straight.
+      OWN-WORLD: The visualization-tool canon at full fidelity — Observable, Excalidraw, Python Tutor
+        as the craft bar. Canvas #FBFAF8, white panels on 1px #E4E2DC hairlines, one technical blue
+        #1B57E0, and green/amber/red reserved for support verdicts. Pretendard for all prose and UI,
+        JetBrains Mono for every value. 8px radius, hairline separation, no gradient, no ornament.
+      STORY: A learner holding code they did not write sees it run, trusts the values because the run
+        produced them, learns what the tool refuses to run, and enters the workbench.
+      FIRST VIEWPORT: A tight left-aligned headline, lede and two actions over a full-width panel that
+        plays a real recorded trace — code with the current line marked on the left, the object diagram
+        with two name boxes arrowing into one list on the right, narration along the bottom bar.
+      FORM: category canon, taken as the standing exit after the rolled and challenger worlds were
+        rejected; craft bar Observable · Excalidraw · Python Tutor; prior seed f8c065c0 superseded.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+    -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

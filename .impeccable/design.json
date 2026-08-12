@@ -1,0 +1,1043 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-12T00:58:58.237Z",
+  "title": "Design System: TraceLens",
+  "extensions": {
+    "scope": {
+      "covers": "The whole product — the marketing and support routes at /, /about, /help, /settings and the 404, AND the workbench at /app. There is no longer a second visual system in this repo. src/App.css and src/stage.css are deleted; the last #080b10 ground, cyan radial gradient and Inter literal are gone from running code. Tokens are declared once, on .tl in src/ui/ui.css. The ground is unconditional — declared once on :root and inherited by html, body and #root — so no surface can flash another’s colour. html[data-surface] survives as a route-kind flag and nothing more: no CSS is keyed on it at all — not a colour, not a layout, not a scroll behaviour. It is resolved before first paint from location.pathname and kept in sync by the router, so a script can ask which kind of route is showing and future route-kind logic has somewhere to hang, but the stylesheets do not read it. That is the strongest form the guarantee can take: the two surfaces cannot diverge on appearance through this attribute, because there is no rule for a future edit to extend.",
+      "layers": [
+        {
+          "file": "src/ui/ui.css",
+          "role": "Declares every token on .tl, plus the reading-surface components."
+        },
+        {
+          "file": "src/ui/app.css",
+          "role": "The workbench regions. Defines NO tokens of its own — not a colour, not a type step, not a radius. It is a consumer, and that is the test for any future layer."
+        }
+      ],
+      "registers": "The two surfaces differ in register, not vocabulary. Site = Read: air, measure caps, 1160px centred shell, document scroll. Workbench = Operate: 100svh shell with overflow hidden, flat 12px gutters, scrolling inside regions rather than at the document. Same paper, hairlines, one blue, mono-for-values — arranged for a different job. The one thing they share exactly is the horizontal gutter, so their outer edges line up.",
+      "deadButPresent": "src/PixiStage.tsx (a deliberately held asset per the planning document) and src/tracing.ts (marked for disposal) remain in the tree and are imported by nothing. They are not a live boundary and no rule accommodates them. PixiStage.tsx still contains an Inter font literal — the single finding the house detector reports across src/ and index.html, and a dead-code finding rather than a system one. Anything revived from either file gets migrated onto these tokens first.",
+      "indexCss": "src/index.css contains exactly three things: the :root ground and base type; the reset plus html/body/#root; and the document-wide html[data-still=\"true\"] motion rule. The workbench manages its own height through .tl-app (100svh, overflow hidden), not through anything keyed on the route."
+    },
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#fbfaf8",
+        "tonalRamp": [
+          "oklch(15% 0.003 84.6)",
+          "oklch(26% 0.003 84.6)",
+          "oklch(38% 0.003 84.6)",
+          "oklch(49% 0.003 84.6)",
+          "oklch(61% 0.003 84.6)",
+          "oklch(72% 0.003 84.6)",
+          "oklch(84% 0.003 84.6)",
+          "oklch(95% 0.003 84.6)"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Card White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(38% 0.000 90)",
+          "oklch(49% 0.000 90)",
+          "oklch(61% 0.000 90)",
+          "oklch(72% 0.000 90)",
+          "oklch(84% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ]
+      },
+      "panel-2": {
+        "role": "neutral",
+        "displayName": "Rail Grey",
+        "canonical": "#f6f5f2",
+        "tonalRamp": [
+          "oklch(15% 0.004 91.4)",
+          "oklch(26% 0.004 91.4)",
+          "oklch(38% 0.004 91.4)",
+          "oklch(49% 0.004 91.4)",
+          "oklch(61% 0.004 91.4)",
+          "oklch(72% 0.004 91.4)",
+          "oklch(84% 0.004 91.4)",
+          "oklch(95% 0.004 91.4)"
+        ]
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Sunken Grey",
+        "canonical": "#f2f1ed",
+        "tonalRamp": [
+          "oklch(15% 0.005 95.1)",
+          "oklch(26% 0.005 95.1)",
+          "oklch(38% 0.005 95.1)",
+          "oklch(49% 0.005 95.1)",
+          "oklch(61% 0.005 95.1)",
+          "oklch(72% 0.005 95.1)",
+          "oklch(84% 0.005 95.1)",
+          "oklch(95% 0.005 95.1)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e4e2dc",
+        "tonalRamp": [
+          "oklch(15% 0.008 91.5)",
+          "oklch(26% 0.008 91.5)",
+          "oklch(38% 0.008 91.5)",
+          "oklch(49% 0.008 91.5)",
+          "oklch(61% 0.008 91.5)",
+          "oklch(72% 0.008 91.5)",
+          "oklch(84% 0.008 91.5)",
+          "oklch(95% 0.008 91.5)"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "#cfccc3",
+        "tonalRamp": [
+          "oklch(15% 0.013 91.5)",
+          "oklch(26% 0.013 91.5)",
+          "oklch(38% 0.013 91.5)",
+          "oklch(49% 0.013 91.5)",
+          "oklch(61% 0.013 91.5)",
+          "oklch(72% 0.013 91.5)",
+          "oklch(84% 0.013 91.5)",
+          "oklch(95% 0.013 91.5)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1a1a17",
+        "tonalRamp": [
+          "oklch(15% 0.006 106.9)",
+          "oklch(26% 0.006 106.9)",
+          "oklch(38% 0.006 106.9)",
+          "oklch(49% 0.006 106.9)",
+          "oklch(61% 0.006 106.9)",
+          "oklch(72% 0.006 106.9)",
+          "oklch(84% 0.006 106.9)",
+          "oklch(95% 0.006 106.9)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink Two",
+        "canonical": "#55534c",
+        "tonalRamp": [
+          "oklch(15% 0.011 93.7)",
+          "oklch(26% 0.011 93.7)",
+          "oklch(38% 0.011 93.7)",
+          "oklch(49% 0.011 93.7)",
+          "oklch(61% 0.011 93.7)",
+          "oklch(72% 0.011 93.7)",
+          "oklch(84% 0.011 93.7)",
+          "oklch(95% 0.011 93.7)"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Ink Three",
+        "canonical": "#6b6860",
+        "tonalRamp": [
+          "oklch(15% 0.013 89.8)",
+          "oklch(26% 0.013 89.8)",
+          "oklch(38% 0.013 89.8)",
+          "oklch(49% 0.013 89.8)",
+          "oklch(61% 0.013 89.8)",
+          "oklch(72% 0.013 89.8)",
+          "oklch(84% 0.013 89.8)",
+          "oklch(95% 0.013 89.8)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Technical Blue",
+        "canonical": "#1b57e0",
+        "tonalRamp": [
+          "oklch(15% 0.217 263.1)",
+          "oklch(26% 0.217 263.1)",
+          "oklch(38% 0.217 263.1)",
+          "oklch(49% 0.217 263.1)",
+          "oklch(61% 0.217 263.1)",
+          "oklch(72% 0.217 263.1)",
+          "oklch(84% 0.217 263.1)",
+          "oklch(95% 0.217 263.1)"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Deep Blue",
+        "canonical": "#16409f",
+        "tonalRamp": [
+          "oklch(15% 0.161 263.1)",
+          "oklch(26% 0.161 263.1)",
+          "oklch(38% 0.161 263.1)",
+          "oklch(49% 0.161 263.1)",
+          "oklch(61% 0.161 263.1)",
+          "oklch(72% 0.161 263.1)",
+          "oklch(84% 0.161 263.1)",
+          "oklch(95% 0.161 263.1)"
+        ]
+      },
+      "accent-wash": {
+        "role": "primary",
+        "displayName": "Blue Wash",
+        "canonical": "#eef2fe",
+        "tonalRamp": [
+          "oklch(15% 0.017 271.2)",
+          "oklch(26% 0.017 271.2)",
+          "oklch(38% 0.017 271.2)",
+          "oklch(49% 0.017 271.2)",
+          "oklch(61% 0.017 271.2)",
+          "oklch(72% 0.017 271.2)",
+          "oklch(84% 0.017 271.2)",
+          "oklch(95% 0.017 271.2)"
+        ]
+      },
+      "ok": {
+        "role": "secondary",
+        "displayName": "Run Green",
+        "canonical": "#0f7b3e",
+        "tonalRamp": [
+          "oklch(15% 0.131 151.6)",
+          "oklch(26% 0.131 151.6)",
+          "oklch(38% 0.131 151.6)",
+          "oklch(49% 0.131 151.6)",
+          "oklch(61% 0.131 151.6)",
+          "oklch(72% 0.131 151.6)",
+          "oklch(84% 0.131 151.6)",
+          "oklch(95% 0.131 151.6)"
+        ]
+      },
+      "ok-wash": {
+        "role": "secondary",
+        "displayName": "Green Wash",
+        "canonical": "#eaf5ee",
+        "tonalRamp": [
+          "oklch(15% 0.015 158.2)",
+          "oklch(26% 0.015 158.2)",
+          "oklch(38% 0.015 158.2)",
+          "oklch(49% 0.015 158.2)",
+          "oklch(61% 0.015 158.2)",
+          "oklch(72% 0.015 158.2)",
+          "oklch(84% 0.015 158.2)",
+          "oklch(95% 0.015 158.2)"
+        ]
+      },
+      "warn": {
+        "role": "secondary",
+        "displayName": "Caution Amber",
+        "canonical": "#8a5a00",
+        "tonalRamp": [
+          "oklch(15% 0.108 73.3)",
+          "oklch(26% 0.108 73.3)",
+          "oklch(38% 0.108 73.3)",
+          "oklch(49% 0.108 73.3)",
+          "oklch(61% 0.108 73.3)",
+          "oklch(72% 0.108 73.3)",
+          "oklch(84% 0.108 73.3)",
+          "oklch(95% 0.108 73.3)"
+        ]
+      },
+      "warn-wash": {
+        "role": "secondary",
+        "displayName": "Amber Wash",
+        "canonical": "#fbf2e0",
+        "tonalRamp": [
+          "oklch(15% 0.026 84.6)",
+          "oklch(26% 0.026 84.6)",
+          "oklch(38% 0.026 84.6)",
+          "oklch(49% 0.026 84.6)",
+          "oklch(61% 0.026 84.6)",
+          "oklch(72% 0.026 84.6)",
+          "oklch(84% 0.026 84.6)",
+          "oklch(95% 0.026 84.6)"
+        ]
+      },
+      "stop": {
+        "role": "secondary",
+        "displayName": "Refusal Red",
+        "canonical": "#bd2b1c",
+        "tonalRamp": [
+          "oklch(15% 0.185 30.2)",
+          "oklch(26% 0.185 30.2)",
+          "oklch(38% 0.185 30.2)",
+          "oklch(49% 0.185 30.2)",
+          "oklch(61% 0.185 30.2)",
+          "oklch(72% 0.185 30.2)",
+          "oklch(84% 0.185 30.2)",
+          "oklch(95% 0.185 30.2)"
+        ]
+      },
+      "stop-wash": {
+        "role": "secondary",
+        "displayName": "Red Wash",
+        "canonical": "#fdeceb",
+        "tonalRamp": [
+          "oklch(15% 0.019 21.6)",
+          "oklch(26% 0.019 21.6)",
+          "oklch(38% 0.019 21.6)",
+          "oklch(49% 0.019 21.6)",
+          "oklch(61% 0.019 21.6)",
+          "oklch(72% 0.019 21.6)",
+          "oklch(84% 0.019 21.6)",
+          "oklch(95% 0.019 21.6)"
+        ]
+      }
+    },
+    "contrast": [
+      {
+        "pair": "ink on canvas",
+        "ratio": 16.72,
+        "passes": "AAA"
+      },
+      {
+        "pair": "ink-2 on canvas",
+        "ratio": 7.38,
+        "passes": "AAA"
+      },
+      {
+        "pair": "ink-2 on panel",
+        "ratio": 7.7,
+        "passes": "AAA"
+      },
+      {
+        "pair": "ink-3 on canvas",
+        "ratio": 5.33,
+        "passes": "AA"
+      },
+      {
+        "pair": "ink-3 on panel",
+        "ratio": 5.56,
+        "passes": "AA"
+      },
+      {
+        "pair": "ink-3 on panel-2",
+        "ratio": 5.1,
+        "passes": "AA"
+      },
+      {
+        "pair": "ink-3 on sunken",
+        "ratio": 4.92,
+        "passes": "AA"
+      },
+      {
+        "pair": "accent on canvas",
+        "ratio": 5.77,
+        "passes": "AA"
+      },
+      {
+        "pair": "white on accent",
+        "ratio": 6.02,
+        "passes": "AA"
+      },
+      {
+        "pair": "white on accent-ink",
+        "ratio": 9.26,
+        "passes": "AAA"
+      },
+      {
+        "pair": "accent-ink on accent-wash",
+        "ratio": 8.27,
+        "passes": "AAA"
+      },
+      {
+        "pair": "ok on ok-wash",
+        "ratio": 4.79,
+        "passes": "AA"
+      },
+      {
+        "pair": "warn on warn-wash",
+        "ratio": 5.33,
+        "passes": "AA"
+      },
+      {
+        "pair": "stop on stop-wash",
+        "ratio": 5.21,
+        "passes": "AA"
+      },
+      {
+        "pair": "line on canvas",
+        "ratio": 1.24,
+        "passes": "surface separation only — below the 3:1 non-text minimum, so a hairline may never be the sole indicator of a control boundary"
+      },
+      {
+        "pair": "line-strong on panel",
+        "ratio": 1.61,
+        "passes": "below the 3:1 non-text minimum for control boundaries — remaining debt on quiet button, number field, switch track"
+      },
+      {
+        "pair": "line-strong on canvas",
+        "ratio": 1.54,
+        "passes": "below the 3:1 non-text minimum — remaining debt"
+      }
+    ],
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "One per route, top of page. Hand-broken in the hero so the thesis lands as two lines."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section openers, always paired with a body paragraph inside a 62ch head block."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Definition rows, pipeline steps, panel bar headings, settings group titles. Set additionally in mono when the title is a module identifier."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "The single paragraph under a display heading. Capped at 58ch, set in ink-2."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All prose. 1rem / 1.62 in ink-2, capped at 68ch, measured from the 16px base on .tl. Pretendard cv03 + cv04 alternates on. Also the brand wordmark and the large button — the two places chrome should read at reading size."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Panel-bar labels only — the machine-side naming of a region. Never an editorial eyebrow above a headline. Sits below --t-2xs because uppercase tracked caps read larger than their point size."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Every value, identifier, line number and stdout line. The face is an evidence claim, not a style."
+      },
+      "num": {
+        "displayName": "Numeral",
+        "purpose": "Step counters and measured results. Tabular figures so a column aligns on its digits."
+      },
+      "md": {
+        "displayName": "Medium",
+        "purpose": "The name of a setting — one notch under prose because it labels a control, not a sentence."
+      },
+      "sm": {
+        "displayName": "Small",
+        "purpose": "The workhorse secondary step: notes, nav links, default button, demo caption, all table body text, skip link."
+      },
+      "xs": {
+        "displayName": "Extra small",
+        "purpose": "Dense controls and dense data: small buttons, tags, segmented buttons, step counter, field help, demo code lines."
+      },
+      "2xs": {
+        "displayName": "Double extra small",
+        "purpose": "The smallest text allowed — table headers, code line numbers, pipeline number badge. Nothing may be set smaller."
+      },
+      "d-lg": {
+        "displayName": "Drawing large",
+        "purpose": "Values and identifiers inside a viewBox — the only drawing step that carries data."
+      },
+      "d-md": {
+        "displayName": "Drawing medium",
+        "purpose": "A drawing’s own title inside a viewBox."
+      },
+      "d-sm": {
+        "displayName": "Drawing small",
+        "purpose": "Annotations and type hints inside a viewBox."
+      },
+      "d-xs": {
+        "displayName": "Drawing extra small",
+        "purpose": "Axis labels and index numerals inside a viewBox."
+      }
+    },
+    "fonts": [
+      {
+        "family": "Pretendard Variable",
+        "source": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css",
+        "purpose": "All prose and UI, Korean and Latin on one rhythm."
+      },
+      {
+        "family": "JetBrains Mono",
+        "source": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700",
+        "purpose": "Every value, code, and numeral that represents data."
+      }
+    ],
+    "shadows": [
+      {
+        "name": "panel-lift",
+        "value": "0 1px 2px rgba(26,26,23,0.05), 0 4px 12px rgba(26,26,23,0.05)",
+        "purpose": "The landing page's trace panel. The only ambient shadow in the system."
+      },
+      {
+        "name": "knob-contact",
+        "value": "0 1px 2px rgba(26,26,23,0.25)",
+        "purpose": "The switch knob only — sells a physical control, not a surface rank."
+      },
+      {
+        "name": "segment-contact",
+        "value": "0 1px 2px rgba(26,26,23,0.1)",
+        "purpose": "The pressed segment in a segmented control only."
+      },
+      {
+        "name": "press-inset",
+        "value": "inset 0 1px 2px color-mix(in srgb, var(--ink) 24%, transparent)",
+        "purpose": "Primary button :active — the button darkens and sinks; the quiet button only darkens. Mixed from ink rather than literal black so the press reads as the page’s own darkest ink and would follow the palette if ink moved."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.2, 0, 0, 1)",
+        "purpose": "The only easing curve in the system."
+      },
+      {
+        "name": "duration-fast",
+        "value": "120ms",
+        "purpose": "Nav link fill, button ground, segmented control."
+      },
+      {
+        "name": "duration-base",
+        "value": "140ms",
+        "purpose": "Link underline colour, switch track."
+      },
+      {
+        "name": "duration-slow",
+        "value": "160ms",
+        "purpose": "Current code line highlight, switch knob transform — the reading surface moving."
+      },
+      {
+        "name": "duration-watch",
+        "value": "200ms",
+        "purpose": "The system's ceiling, reserved for one thing: the state diagram's name boxes changing fill and stroke as focus moves between variables. The single transition a user is meant to watch rather than register. Nothing else may claim it."
+      },
+      {
+        "name": "still",
+        "value": "0.001ms",
+        "purpose": "Document-wide, from ONE CSS rule: html[data-still=\"true\"] * in src/index.css zeroes animation and transition duration, pins animation-iteration-count to 1, and forces scroll-behavior: auto for every element on the page, both surfaces included. The duplicate .tl[data-still=\"true\"] block in the site stylesheet was deleted; two rules doing one job is two places to forget. @media (prefers-reduced-motion: reduce) remains in the site stylesheet as the no-JS floor. Two inputs feed the flag and either alone switches it on: the OS preference read in JS, and the product’s 모션 줄이기 setting, folded into one still boolean written to document.documentElement. still is additionally threaded into TraceDiagram as a prop so the trace holds its final frame rather than flickering through steps at zero duration."
+      },
+      {
+        "name": "js-tween-optout",
+        "value": "document.documentElement.dataset.still === \"true\"",
+        "purpose": "A CSS override cannot stop a JavaScript tween — GSAP writes inline styles frame by frame and transition-duration never touches it. Any JS-driven animation reads the flag itself and zeroes its own duration, as src/components/views/SequenceView.tsx does. The CSS rule is a floor, not a guarantee."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "split",
+        "value": "900px",
+        "purpose": "Below: the demo's code/diagram split and the prose/panel split collapse to one column; the code pane's right border becomes a bottom border."
+      },
+      {
+        "name": "compact",
+        "value": "720px",
+        "purpose": "Below: the nav unsticks and wraps, links move to a scrollable third row; settings fields go single-column."
+      },
+      {
+        "name": "workbench",
+        "value": "1000px",
+        "purpose": "Below: columns stack, .tl-app releases its fixed height and overflow, the page scrolls normally; editor fixes to 320px and stage to a 300px minimum. Set by the point at which two panes stop fitting, not by a device class."
+      }
+    ],
+    "layout": [
+      {
+        "name": "shell",
+        "value": "1160px",
+        "purpose": "Max content width, shared by nav, main and footer."
+      },
+      {
+        "name": "gutter",
+        "value": "clamp(20px, 4vw, 44px)",
+        "purpose": "One left edge for brand, headline and footer at every width."
+      },
+      {
+        "name": "measure-body",
+        "value": "68ch"
+      },
+      {
+        "name": "measure-lede",
+        "value": "58ch"
+      },
+      {
+        "name": "measure-head",
+        "value": "62ch"
+      },
+      {
+        "name": "measure-help",
+        "value": "52ch"
+      },
+      {
+        "name": "measure-tagline",
+        "value": "36ch"
+      },
+      {
+        "name": "split-demo",
+        "value": "minmax(0,0.82fr) minmax(0,1.18fr)",
+        "purpose": "Code narrower than diagram — the diagram is the protagonist."
+      },
+      {
+        "name": "split-prose-panel",
+        "value": "minmax(0,1.05fr) minmax(0,0.95fr)"
+      },
+      {
+        "name": "split-def",
+        "value": "minmax(0,0.42fr) minmax(0,1fr)",
+        "purpose": "Term / definition inside one full-width row. Collapses to one column at 720px."
+      },
+      {
+        "name": "focus-ring",
+        "value": "2px solid #1b57e0, offset 2px, radius 3px, on :focus-visible"
+      },
+      {
+        "name": "korean-typesetting",
+        "value": "word-break: keep-all; overflow-wrap: anywhere",
+        "purpose": "Korean breaks at 어절 boundaries only; long Latin identifiers may break anywhere rather than widen the layout."
+      },
+      {
+        "name": "app-shell",
+        "value": "100svh, overflow hidden",
+        "purpose": "The workbench does not scroll; its regions do."
+      },
+      {
+        "name": "work-split",
+        "value": "minmax(0,0.88fr) minmax(0,1.12fr)",
+        "purpose": "Stage side wider than editor side — the drawing is the thing being read."
+      },
+      {
+        "name": "work-gap",
+        "value": "12px",
+        "purpose": "Flat, not fluid. On an Operate surface every pixel of air is a pixel not showing the trace."
+      }
+    ],
+    "typeScale": [
+      {
+        "name": "--t-title",
+        "value": "1.05rem",
+        "usedBy": "definition-row terms, pipeline steps, panel bar headings, settings group titles"
+      },
+      {
+        "name": "--t-body",
+        "value": "1rem",
+        "usedBy": "all prose; brand wordmark; large button"
+      },
+      {
+        "name": "--t-md",
+        "value": "0.94rem",
+        "usedBy": "settings field name"
+      },
+      {
+        "name": "--t-sm",
+        "value": "0.875rem",
+        "usedBy": "notes, nav links, default button, demo caption, table body, skip link"
+      },
+      {
+        "name": "--t-xs",
+        "value": "0.8rem",
+        "usedBy": "small buttons, tags, segmented buttons, step counter, field help, demo code lines"
+      },
+      {
+        "name": "--t-2xs",
+        "value": "0.72rem",
+        "usedBy": "table headers, code line numbers, pipeline number badge — the floor"
+      },
+      {
+        "name": "--t-label",
+        "value": "0.7rem",
+        "usedBy": "panel-bar labels; below 2xs because uppercase tracked caps read larger than their point size"
+      },
+      {
+        "name": "--t-mono",
+        "value": "0.855em",
+        "usedBy": "inline values; em so it stays proportional to whatever step it sits inside"
+      },
+      {
+        "name": "--t-num",
+        "value": "0.86rem",
+        "usedBy": "step counters, measured results, number field"
+      }
+    ],
+    "typeScaleFluid": [
+      {
+        "name": "display",
+        "value": "clamp(2.1rem, 4vw, 3.2rem)"
+      },
+      {
+        "name": "headline",
+        "value": "clamp(1.4rem, 2.2vw, 1.85rem)"
+      },
+      {
+        "name": "lede",
+        "value": "clamp(1.02rem, 1.25vw, 1.14rem)"
+      }
+    ],
+    "typeScaleDiagram": {
+      "note": "SVG text is the one sanctioned exception to the rem ramp: a single four-step scale declared on .tl alongside the type ramp and shared by every drawing surface. A rem inside a viewBox is scaled twice — once by the root font size, then again by the transform that fits the drawing to its container — so the label drifts off the shape it names, which is the one thing a labelled diagram must never do. Px is correct inside a viewBox, and a px scale is only safe because it is inside one: these four steps have no authority outside an SVG. Unifying cost one value — the landing diagram’s annotation was 11.5px and is now 11px. Half a pixel bought a scale two components share, which is the right trade; a sub-scale with a step used once is not a scale, it is a leftover.",
+      "steps": [
+        {
+          "name": "--d-lg",
+          "value": "13px",
+          "role": "The thing being named — variable names and cell values in the landing diagram, stack-frame names and object values on the workbench stage. The only step that ever carries data."
+        },
+        {
+          "name": "--d-md",
+          "value": "12px",
+          "role": "A drawing’s own title, where several views need to announce themselves."
+        },
+        {
+          "name": "--d-sm",
+          "value": "11px",
+          "role": "Annotation and type hints — the aliasing note, the stage’s type labels."
+        },
+        {
+          "name": "--d-xs",
+          "value": "10px",
+          "role": "The smallest marks that are not data — axis labels and index numerals."
+        }
+      ]
+    },
+    "radii": [
+      {
+        "name": "--r",
+        "value": "8px",
+        "usedBy": "containers — panel, table scroller, code block, demo focus ring"
+      },
+      {
+        "name": "--r-sm",
+        "value": "6px",
+        "usedBy": "controls — buttons, nav links, inputs, inline code, skip link"
+      },
+      {
+        "name": "--r-xs",
+        "value": "4px",
+        "usedBy": "nested inside a control — global focus ring, segmented buttons, pipeline number badge"
+      },
+      {
+        "name": "--r-pill",
+        "value": "999px",
+        "usedBy": "tags, switch track"
+      },
+      {
+        "name": "50%",
+        "value": "50%",
+        "usedBy": "the two circular knobs — a circle is a shape, not a step on a radius scale"
+      }
+    ],
+    "editorTheme": {
+      "name": "tracelens",
+      "base": "vs",
+      "definedIn": "src/App.tsx",
+      "note": "A third-party surface that must not look third-party. Monaco is themed from the token values rather than left on a vendor default. Syntax colours are drawn only from the existing palette — the product already assigns meaning to these hues, and a Python keyword never shares a screen with a support verdict.",
+      "colors": {
+        "editor.background": "#ffffff",
+        "editor.foreground": "#1a1a17",
+        "editorCursor.foreground": "#1b57e0",
+        "editor.selectionBackground": "#dbe4fb",
+        "editorWidget.border": "#e4e2dc",
+        "editorLineNumber.foreground": "#a8a49a",
+        "editorLineNumber.activeForeground": "#55534c"
+      },
+      "syntax": {
+        "keyword": "#16409f (accent-ink)",
+        "string": "#0f7b3e (ok)",
+        "number": "#bd2b1c (stop)",
+        "comment": "#8a877c (muted warm grey, italic)"
+      },
+      "currentLine": "Decorated by the app, not by Monaco: an accent-wash band with a 3px accent gutter glyph, matching the landing demo exactly. The same event reads the same way on the marketing page and on the user's own code."
+    },
+    "ground": {
+      "declaration": ":root in src/index.css sets background #fbfaf8, color #1a1a17 and Pretendard; html, body and #root take background: inherit.",
+      "note": "The ground is unconditional — no route, no attribute and no media state makes the document any other colour. Overscroll, the pre-mount frame and the gap under a short page are all paper on every surface. The ground is not themed, it is the floor: a single unconditional declaration is what makes the flash impossible, and a conditional one is what made it possible before."
+    }
+  },
+  "components": [
+    {
+      "name": "Skip Link",
+      "kind": "nav",
+      "refersTo": "button-primary",
+      "description": "Invisible until it matters, then unmistakable. Offscreen at rest but still in the tab order and still announced; on focus it lands at the page gutter as a solid accent chip. Uses plain :focus, not :focus-visible — it must reveal itself however focus arrived. Target is #tl-main, a wrapper with tabIndex -1 and no outline of its own, since the destination is a region rather than a control.",
+      "html": "<div class=\"ds-skipdemo\"><a class=\"ds-skip\" href=\"#ds-main\">본문으로 건너뛰기</a><p class=\"ds-skiphint\">Tab into the box above to reveal the link.</p><div id=\"ds-main\" tabindex=\"-1\"></div></div>",
+      "css": ".ds-skipdemo { position: relative; min-height: 72px; padding: 10px 0 0 0; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; } .ds-skip { position: absolute; left: -9999px; z-index: 60; } .ds-skip:focus { left: 0; top: 10px; padding: 8px 14px; border-radius: 6px; background: #1b57e0; color: #fff; font-size: 0.875rem; font-weight: 600; text-decoration: none; } .ds-skiphint { margin: 36px 0 0; font-size: 0.875rem; line-height: 1.6; color: #6b6860; } #ds-main:focus { outline: none; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one action per view. Blue ground, white label, no lift and no glow — the ground deepens and the surface sinks.",
+      "html": "<div class=\"ds-row\"><a class=\"ds-btn-primary ds-btn-lg\" href=\"#\">코드 붙여넣고 실행</a><button class=\"ds-btn-primary\" type=\"button\">실행하기</button><button class=\"ds-btn-primary ds-btn-sm\" type=\"button\">재생</button></div>",
+      "css": ".ds-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; } .ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 40px; padding: 0 16px; border: 1px solid transparent; border-radius: 6px; background: #1b57e0; color: #fff; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; font-size: 0.9rem; font-weight: 600; letter-spacing: -0.006em; text-decoration: none; cursor: pointer; white-space: nowrap; transition: background 120ms cubic-bezier(0.2,0,0,1), box-shadow 120ms cubic-bezier(0.2,0,0,1); } .ds-btn-primary:hover { background: #16409f; } .ds-btn-primary:active { background: #16409f; box-shadow: inset 0 1px 2px color-mix(in srgb, #1a1a17 24%, transparent); } .ds-btn-primary:focus-visible { outline: 2px solid #1b57e0; outline-offset: 2px; border-radius: 3px; } .ds-btn-lg { height: 46px; padding: 0 22px; font-size: 0.96rem; } .ds-btn-sm { height: 30px; padding: 0 10px; font-size: 0.8rem; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "The secondary of every pair. White ground on a strong hairline; hover steps the ground down and darkens the rule.",
+      "html": "<div class=\"ds-row\"><button class=\"ds-btn-quiet ds-btnq-lg\" type=\"button\">어떻게 동작하나</button><button class=\"ds-btn-quiet\" type=\"button\">기본값으로 되돌리기</button><button class=\"ds-btn-quiet\" type=\"button\" disabled>비활성</button></div>",
+      "css": ".ds-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; } .ds-btn-quiet { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 40px; padding: 0 16px; border: 1px solid #cfccc3; border-radius: 6px; background: #ffffff; color: #1a1a17; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 120ms cubic-bezier(0.2,0,0,1), border-color 120ms cubic-bezier(0.2,0,0,1); } .ds-btn-quiet:hover { background: #f6f5f2; border-color: #6b6860; } .ds-btn-quiet:active { background: #f2f1ed; } .ds-btn-quiet:focus-visible { outline: 2px solid #1b57e0; outline-offset: 2px; } .ds-btn-quiet[disabled] { opacity: 0.45; cursor: not-allowed; } .ds-btnq-lg { height: 46px; padding: 0 22px; font-size: 0.96rem; }"
+    },
+    {
+      "name": "Verdict Tag",
+      "kind": "chip",
+      "refersTo": "tag-ok",
+      "description": "The four support verdicts, and the only place green, amber and red are allowed. The dot repeats the hue so the verdict survives a glance.",
+      "html": "<div class=\"ds-row\"><span class=\"ds-tag ds-tag-ok\">완전 지원</span><span class=\"ds-tag ds-tag-info\">기본 지원</span><span class=\"ds-tag ds-tag-warn\">제한 재생</span><span class=\"ds-tag ds-tag-stop\">범위 밖</span><span class=\"ds-tag\">중립 상태</span></div>",
+      "css": ".ds-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; } .ds-tag { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid #cfccc3; border-radius: 999px; background: #f6f5f2; color: #55534c; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; white-space: nowrap; } .ds-tag::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; } .ds-tag-ok { border-color: #a4c3ad; background: #eaf5ee; color: #0f7b3e; } .ds-tag-info { border-color: #acbbdd; background: #eef2fe; color: #16409f; } .ds-tag-warn { border-color: #c9b99a; background: #fbf2e0; color: #8a5a00; } .ds-tag-stop { border-color: #d9afa6; background: #fdeceb; color: #bd2b1c; }"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "The one container in the system. White on paper, 1px hairline, 8px radius, optional grey title bar. It never contains another panel.",
+      "html": "<section class=\"ds-panel\"><div class=\"ds-panel-bar\"><span class=\"ds-label\">지금 상태</span></div><div class=\"ds-panel-body\"><p class=\"ds-body\">실행과 재생은 전부 이 브라우저 안에서 끝납니다. 연출 대본을 만들 때만 외부 모델을 부릅니다.</p></div></section>",
+      "css": ".ds-panel { border: 1px solid #e4e2dc; border-radius: 8px; background: #ffffff; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; word-break: keep-all; overflow-wrap: anywhere; } .ds-panel-bar { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #e4e2dc; background: #f6f5f2; border-radius: 8px 8px 0 0; } .ds-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #6b6860; } .ds-panel-body { padding: 22px; } .ds-body { margin: 0; max-width: 68ch; font-size: 16px; line-height: 1.62; color: #55534c; }"
+    },
+    {
+      "name": "Data Table",
+      "kind": "custom",
+      "refersTo": "table-head",
+      "description": "Data-ink first: no zebra, no vertical rules, sticky grey header, hairline rows, key column in ink. Wide tables scroll inside their own bordered container.",
+      "html": "<div class=\"ds-scroll\"><table class=\"ds-table\"><thead><tr><th>지표</th><th>결과</th><th>단서</th></tr></thead><tbody><tr><td>파이프라인 완주율</td><td class=\"ds-num\">18 / 18</td><td>유형별 층화 샘플 18개 전부 재생까지 도달</td></tr><tr><td>Digest 압축률</td><td class=\"ds-num\">평균 53%</td><td>38~67% · 소형 샘플 기준</td></tr></tbody></table></div>",
+      "css": ".ds-scroll { overflow-x: auto; border: 1px solid #e4e2dc; border-radius: 8px; background: #ffffff; } .ds-table { width: 100%; border-collapse: collapse; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; font-size: 0.9rem; word-break: keep-all; } .ds-table th { position: sticky; top: 0; padding: 10px 16px; border-bottom: 1px solid #e4e2dc; background: #f6f5f2; color: #6b6860; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-align: left; text-transform: uppercase; white-space: nowrap; } .ds-table td { padding: 12px 16px; border-bottom: 1px solid #e4e2dc; color: #55534c; vertical-align: top; } .ds-table tbody tr:last-child td { border-bottom: 0; } .ds-table tbody tr:hover td { background: #f6f5f2; } .ds-table td:first-child { color: #1a1a17; font-weight: 600; } .ds-num { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.86rem; font-variant-numeric: tabular-nums; color: #1a1a17; white-space: nowrap; }"
+    },
+    {
+      "name": "Settings Field Row",
+      "kind": "input",
+      "refersTo": "switch-on",
+      "description": "Label plus help text on the left, control right-aligned, hairline between rows. The switch is a button[role=switch]; the knob slides 16px in 160ms. Disabled shows at 50% rather than hiding — a setting that cannot apply still tells the user it exists.",
+      "html": "<div class=\"ds-fields\"><div class=\"ds-field\"><div><div class=\"ds-field-name\">실행 후 자동 재생</div><p class=\"ds-field-help\">끄면 Run 이후 첫 장면에서 멈춘 채 기다립니다.</p></div><button class=\"ds-switch\" type=\"button\" role=\"switch\" aria-checked=\"true\" aria-label=\"실행 후 자동 재생\"><span class=\"ds-knob\"></span></button></div><div class=\"ds-field\"><div><div class=\"ds-field-name\">모션 줄이기</div><p class=\"ds-field-help\">장면 전환과 화면 전체의 애니메이션을 끕니다. 값과 순서는 그대로 보입니다.</p></div><button class=\"ds-switch\" type=\"button\" role=\"switch\" aria-checked=\"false\" aria-label=\"모션 줄이기\"><span class=\"ds-knob\"></span></button></div><div class=\"ds-field\"><div><div class=\"ds-field-name\">AI 연출 사용</div><p class=\"ds-field-help\">이 빌드에는 API 키가 설정되어 있지 않아 지금은 항상 규칙 대본으로 재생됩니다.</p></div><button class=\"ds-switch\" type=\"button\" role=\"switch\" aria-checked=\"false\" aria-label=\"AI 연출 사용\" disabled><span class=\"ds-knob\"></span></button></div></div>",
+      "css": ".ds-fields { font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; word-break: keep-all; overflow-wrap: anywhere; } .ds-field { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px 32px; align-items: center; padding: 16px 0; border-top: 1px solid #e4e2dc; } .ds-field:first-of-type { border-top: 0; } .ds-field-name { font-size: 0.94rem; font-weight: 600; color: #1a1a17; } .ds-field-help { margin: 3px 0 0; font-size: 0.83rem; line-height: 1.55; color: #6b6860; max-width: 52ch; } .ds-switch { position: relative; width: 40px; height: 24px; padding: 0; border: 1px solid #cfccc3; border-radius: 999px; background: #f2f1ed; cursor: pointer; transition: background 140ms cubic-bezier(0.2,0,0,1), border-color 140ms cubic-bezier(0.2,0,0,1); } .ds-knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(26,26,23,0.25); transition: transform 160ms cubic-bezier(0.2,0,0,1); } .ds-switch[aria-checked=\"true\"] { background: #1b57e0; border-color: #1b57e0; } .ds-switch[aria-checked=\"true\"] .ds-knob { transform: translateX(16px); } .ds-switch[disabled] { opacity: 0.5; cursor: not-allowed; } .ds-switch:focus-visible { outline: 2px solid #1b57e0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Definition Row",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "The workhorse of / and /help: a term and the sentence that earns it, on one line. A single full-width column of rows, each an internal two-column grid closed by a hairline that spans the whole measure — one continuous ruling, not a grid of cards.",
+      "html": "<div class=\"ds-defs\"><div class=\"ds-def\"><h3 class=\"ds-def-t\">트레이스</h3><p class=\"ds-def-d\">코드를 실행하면서 무슨 일이 일어났는지 순서대로 적은 기록. 화면의 모든 값이 여기서 나옵니다.</p></div><div class=\"ds-def\"><h3 class=\"ds-def-t\">별칭(aliasing)</h3><p class=\"ds-def-d\">b = a 처럼 두 이름이 같은 객체를 가리키는 상태. 한쪽을 바꾸면 다른 쪽도 바뀝니다.</p></div><div class=\"ds-def\"><h3 class=\"ds-def-t\">루프 접기</h3><p class=\"ds-def-d\">같은 구간이 계속 반복되면 “×N회”로 접어 빨리감기합니다. 특별한 회차는 접지 않고 살립니다.</p></div></div>",
+      "css": ".ds-defs { border-top: 1px solid #e4e2dc; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; word-break: keep-all; overflow-wrap: anywhere; } .ds-def { display: grid; grid-template-columns: minmax(0,0.42fr) minmax(0,1fr); gap: 4px clamp(24px,4vw,56px); padding: 16px 0; border-bottom: 1px solid #e4e2dc; } .ds-def-t { margin: 0; font-size: 1.05rem; font-weight: 700; line-height: 1.18; letter-spacing: -0.012em; color: #1a1a17; } .ds-def-d { margin: 0; font-size: 16px; line-height: 1.62; color: #55534c; } @media (max-width: 720px) { .ds-def { grid-template-columns: minmax(0,1fr); } }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "input",
+      "refersTo": "button-quiet",
+      "description": "A sunken trough; the pressed segment lifts to white on a 1px contact shadow. Numeric options are set in tabular mono figures.",
+      "html": "<div class=\"ds-seg\" role=\"group\" aria-label=\"기본 배속\"><button type=\"button\" aria-pressed=\"false\">0.5×</button><button type=\"button\" aria-pressed=\"true\">1×</button><button type=\"button\" aria-pressed=\"false\">1.5×</button><button type=\"button\" aria-pressed=\"false\">2×</button></div>",
+      "css": ".ds-seg { display: inline-flex; padding: 2px; border: 1px solid #cfccc3; border-radius: 6px; background: #f2f1ed; } .ds-seg button { padding: 5px 11px; border: 0; border-radius: 4px; background: transparent; color: #55534c; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; transition: background 120ms cubic-bezier(0.2,0,0,1), color 120ms cubic-bezier(0.2,0,0,1); } .ds-seg button:hover { color: #1a1a17; } .ds-seg button[aria-pressed=\"true\"] { background: #ffffff; color: #1a1a17; box-shadow: 0 1px 2px rgba(26,26,23,0.1); } .ds-seg button:focus-visible { outline: 2px solid #1b57e0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Number Field",
+      "kind": "input",
+      "refersTo": "input-number",
+      "description": "A value the user types is still a value: mono, tabular, right-sized to its range. Focus swaps the rule to the accent on top of the global ring. Behaviour is part of the spec: the field holds the in-progress text as a draft string and commits the parsed number on blur or Enter, never per keystroke — in a 1,000–500,000 range a per-keystroke clamp snaps the first digit of \"1000\" to the minimum and the number can never be finished. A non-finite draft reverts to the last committed value.",
+      "html": "<input class=\"ds-number\" type=\"number\" inputmode=\"numeric\" aria-label=\"최대 이벤트 수\" min=\"1000\" max=\"500000\" step=\"1000\" value=\"50000\" />",
+      "css": ".ds-number { width: 104px; height: 34px; padding: 0 10px; border: 1px solid #cfccc3; border-radius: 6px; background: #ffffff; color: #1a1a17; font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.86rem; font-variant-numeric: tabular-nums; } .ds-number:focus { border-color: #1b57e0; } .ds-number:focus-visible { outline: 2px solid #1b57e0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Navigation Bar",
+      "kind": "nav",
+      "refersTo": "navlink",
+      "description": "56px sticky bar on translucent paper with a blur. The current route is a filled pill, not an underline — the fill is the state. The mark is two live cells and a cursor.",
+      "html": "<header class=\"ds-nav\"><a class=\"ds-brand\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" aria-hidden=\"true\"><rect x=\"1.5\" y=\"5.5\" width=\"7\" height=\"9\" rx=\"1.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"/><rect x=\"8.5\" y=\"5.5\" width=\"7\" height=\"9\" rx=\"1.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"/><path d=\"M18 3.2 L 18 16.8\" stroke=\"#1b57e0\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>TraceLens</a><nav class=\"ds-navlinks\" aria-label=\"주요\"><a class=\"ds-navlink\" href=\"#\">소개</a><a class=\"ds-navlink\" href=\"#\" aria-current=\"page\">도움말</a><a class=\"ds-navlink\" href=\"#\">설정</a></nav><a class=\"ds-nav-cta\" href=\"#\">실행하기</a></header>",
+      "css": ".ds-nav { display: flex; align-items: center; gap: 20px; padding: 0 24px; height: 56px; border-bottom: 1px solid #e4e2dc; background: rgba(251,250,248,0.88); backdrop-filter: saturate(1.4) blur(10px); font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; } .ds-brand { display: inline-flex; align-items: center; gap: 9px; margin-right: auto; color: #1a1a17; text-decoration: none; font-weight: 700; font-size: 0.98rem; letter-spacing: -0.02em; } .ds-navlinks { display: flex; align-items: center; gap: 4px; } .ds-navlink { padding: 6px 10px; border-radius: 6px; color: #55534c; font-size: 0.875rem; font-weight: 500; text-decoration: none; transition: background 120ms cubic-bezier(0.2,0,0,1), color 120ms cubic-bezier(0.2,0,0,1); } .ds-navlink:hover { background: #f6f5f2; color: #1a1a17; } .ds-navlink[aria-current=\"page\"] { background: #f6f5f2; color: #1a1a17; font-weight: 600; } .ds-nav-cta { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border-radius: 6px; background: #1b57e0; color: #fff; font-size: 0.8rem; font-weight: 600; text-decoration: none; } .ds-nav-cta:hover { background: #16409f; }"
+    },
+    {
+      "name": "Trace Panel (signature)",
+      "kind": "custom",
+      "refersTo": "codeline-current",
+      "description": "The landing hero and the reason the system looks this way: code with the current line marked, the state diagram beside it, narration along the bottom. Name boxes carry 200ms fill/stroke transitions — the system's longest, reserved for the one change a user is meant to watch. It is also a transport control: the figure is focusable, carries role=\"group\" with an aria-label naming its own key bindings, and answers space/Enter (play), arrows (step), Home (restart) — with the bindings written visibly in the caption, because a keyboard affordance nobody can see is not an affordance. In the product this is driven by a real trace through the real pipeline — never a mock.",
+      "html": "<figure class=\"ds-trace\" tabindex=\"0\" role=\"group\" aria-label=\"실행 기록 재생 — 스페이스로 재생과 정지, 좌우 화살표로 장면 이동\"><div class=\"ds-tp\"><div class=\"ds-tp-bar\"><span class=\"ds-tp-label\">실행 기록 재생</span><span class=\"ds-tp-tag\">실제 트레이스</span><span class=\"ds-tp-count\">3 / 6</span></div><div class=\"ds-tp-split\"><div class=\"ds-tp-code\"><div class=\"ds-cl\"><span class=\"ds-cl-n\">1</span><code>team_a = [\"kim\", \"lee\"]</code></div><div class=\"ds-cl\"><span class=\"ds-cl-n\">2</span><code>team_b = team_a</code></div><div class=\"ds-cl is-current\"><span class=\"ds-cl-n\">3</span><code>team_b.append(\"park\")</code></div><div class=\"ds-cl\"><span class=\"ds-cl-n\">4</span><code>print(team_a)</code></div></div><div class=\"ds-tp-diagram\"><svg viewBox=\"0 0 520 190\" role=\"img\" aria-label=\"두 변수가 같은 리스트 객체를 가리키는 상태 다이어그램\" style=\"width:100%;height:auto;display:block\"><defs><marker id=\"ds-arrow\" viewBox=\"0 0 8 8\" refX=\"7\" refY=\"4\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto-start-reverse\"><path d=\"M0 0.6 L 7.4 4 L 0 7.4 z\" fill=\"#1b57e0\"/></marker></defs><text x=\"8\" y=\"18\" class=\"ds-svg-label\">변수</text><text x=\"252\" y=\"18\" class=\"ds-svg-label\">list 객체</text><rect class=\"ds-namebox\" x=\"8\" y=\"32\" width=\"132\" height=\"30\" rx=\"6\" fill=\"#ffffff\" stroke=\"#cfccc3\"/><text x=\"20\" y=\"52\" class=\"ds-svg-name\" fill=\"#1a1a17\">team_a</text><rect class=\"ds-namebox\" x=\"8\" y=\"72\" width=\"132\" height=\"30\" rx=\"6\" fill=\"#eef2fe\" stroke=\"#1b57e0\"/><text x=\"20\" y=\"92\" class=\"ds-svg-name\" fill=\"#16409f\">team_b</text><path d=\"M 146 47 C 196 47, 196 89, 243 89\" fill=\"none\" stroke=\"#1b57e0\" stroke-width=\"1.5\" marker-end=\"url(#ds-arrow)\"/><path d=\"M 146 87 C 196 87, 196 89, 243 89\" fill=\"none\" stroke=\"#1b57e0\" stroke-width=\"1.5\" marker-end=\"url(#ds-arrow)\"/><g><rect x=\"252\" y=\"67\" width=\"84\" height=\"44\" fill=\"#ffffff\" stroke=\"#cfccc3\"/><text x=\"294\" y=\"94\" text-anchor=\"middle\" class=\"ds-svg-val\" fill=\"#1a1a17\">\"kim\"</text><text x=\"294\" y=\"126\" text-anchor=\"middle\" class=\"ds-svg-idx\">0</text><rect x=\"336\" y=\"67\" width=\"84\" height=\"44\" fill=\"#ffffff\" stroke=\"#cfccc3\"/><text x=\"378\" y=\"94\" text-anchor=\"middle\" class=\"ds-svg-val\" fill=\"#1a1a17\">\"lee\"</text><text x=\"378\" y=\"126\" text-anchor=\"middle\" class=\"ds-svg-idx\">1</text><rect x=\"420\" y=\"67\" width=\"84\" height=\"44\" fill=\"#ffffff\" stroke=\"#cfccc3\"/><text x=\"462\" y=\"94\" text-anchor=\"middle\" class=\"ds-svg-val\" fill=\"#1a1a17\">\"park\"</text><text x=\"462\" y=\"126\" text-anchor=\"middle\" class=\"ds-svg-idx\">2</text></g><text x=\"252\" y=\"147\" class=\"ds-svg-note\">team_a 와 team_b 가 같은 객체를 가리킵니다</text></svg></div></div><div class=\"ds-tp-foot\"><button class=\"ds-tp-play\" type=\"button\">일시정지</button><p class=\"ds-tp-caption\" aria-live=\"polite\">team_b 에 append 하자 team_a 도 같이 늘어납니다.</p></div></div><figcaption class=\"ds-tp-src\">위 코드를 실제로 실행해 기록한 트레이스를 그대로 재생하고 있습니다.<span class=\"ds-tp-keys\"> 포커스한 뒤 스페이스로 정지, 좌우 화살표로 장면 이동.</span></figcaption></figure>",
+      "css": ".ds-trace { margin: 0; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; word-break: keep-all; overflow-wrap: anywhere; } .ds-trace:focus-visible { outline: 2px solid #1b57e0; outline-offset: 3px; border-radius: 8px; } .ds-tp-keys { color: #6b6860; } .ds-tp { border: 1px solid #e4e2dc; border-radius: 8px; background: #ffffff; box-shadow: 0 1px 2px rgba(26,26,23,0.05), 0 4px 12px rgba(26,26,23,0.05); overflow: hidden; } .ds-tp-bar { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #e4e2dc; background: #f6f5f2; } .ds-tp-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #6b6860; } .ds-tp-tag { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid #a4c3ad; border-radius: 999px; background: #eaf5ee; color: #0f7b3e; font-size: 0.75rem; font-weight: 600; } .ds-tp-tag::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; } .ds-tp-count { margin-left: auto; font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.78rem; font-variant-numeric: tabular-nums; color: #6b6860; } .ds-tp-split { display: grid; grid-template-columns: minmax(0,0.82fr) minmax(0,1.18fr); } .ds-tp-code { padding: 14px 0; border-right: 1px solid #e4e2dc; align-content: start; min-width: 0; } .ds-cl { display: grid; grid-template-columns: 34px minmax(0,1fr); align-items: baseline; gap: 4px; padding: 3px 14px 3px 0; border-left: 2px solid transparent; transition: background 160ms cubic-bezier(0.2,0,0,1), border-color 160ms cubic-bezier(0.2,0,0,1); } .ds-cl.is-current { border-left-color: #1b57e0; background: #eef2fe; } .ds-cl-n { text-align: right; font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.74rem; font-variant-numeric: tabular-nums; color: #6b6860; user-select: none; } .ds-cl code { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.82rem; line-height: 1.75; color: #55534c; white-space: pre; } .ds-cl.is-current code { color: #1a1a17; } .ds-tp-diagram { padding: 14px 16px 16px; min-width: 0; } .ds-svg-label { font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; fill: #6b6860; } .ds-namebox { transition: fill 200ms cubic-bezier(0.2,0,0,1), stroke 200ms cubic-bezier(0.2,0,0,1); } .ds-svg-name { transition: fill 200ms cubic-bezier(0.2,0,0,1); font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; font-weight: 600; } .ds-svg-val { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; fill: #55534c; } .ds-svg-idx { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; fill: #6b6860; } .ds-svg-note { font-size: 11.5px; font-weight: 600; fill: #16409f; } .ds-tp-foot { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid #e4e2dc; background: #f6f5f2; min-height: 52px; } .ds-tp-play { height: 30px; padding: 0 10px; border: 1px solid #cfccc3; border-radius: 6px; background: #ffffff; color: #1a1a17; font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background 120ms cubic-bezier(0.2,0,0,1), border-color 120ms cubic-bezier(0.2,0,0,1); } .ds-tp-play:hover { background: #f6f5f2; border-color: #6b6860; } .ds-tp-caption { margin: 0; font-size: 0.875rem; color: #55534c; } .ds-tp-src { margin-top: 10px; max-width: 62ch; font-size: 0.875rem; line-height: 1.6; color: #6b6860; } @media (max-width: 900px) { .ds-tp-split { grid-template-columns: minmax(0,1fr); } .ds-tp-code { border-right: 0; border-bottom: 1px solid #e4e2dc; } }"
+    },
+    {
+      "name": "Panel as Column (workbench)",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "The panel’s second documented mode: a flex column of hairline-separated regions. Five stacked regions — bar, stage, narration, transport, inspector — and still no container inside a container. This is the No-Nesting Rule under load, and the answer whenever a dense surface seems to need cards. Region grounds alternate white for content and panel-2 for chrome; every level carries min-height: 0 so a long region cannot push the shell past the viewport.",
+      "html": "<div class=\"ds-col\"><div class=\"ds-colbar\"><span class=\"ds-collabel\">재생</span><span class=\"ds-coltag\">실제 트레이스</span></div><div class=\"ds-colstage\">stage</div><div class=\"ds-colnarr\"><span class=\"ds-chaptag\">2장</span>team_b 에 append 하자 team_a 도 같이 늘어납니다.</div><div class=\"ds-coltransport\"><div class=\"ds-prog\"><span class=\"ds-seg1\"><i style=\"transform:scaleX(1)\"></i></span><span class=\"ds-seg1\"><i style=\"transform:scaleX(0.45)\"></i></span><span class=\"ds-seg1\"><i style=\"transform:scaleX(0)\"></i></span></div><div class=\"ds-ctrls\"><button class=\"ds-cbtn ds-accent\" type=\"button\" aria-label=\"일시정지\">❙❙</button><span class=\"ds-playhead\">2 / 3 · 0:04</span></div></div><div class=\"ds-colinsp\"><h3>인스펙터</h3><table><tr><td>team_a</td><td>[\"kim\", \"lee\", \"park\"]</td></tr><tr><td>team_b</td><td>→ 같은 객체</td></tr></table></div></div>",
+      "css": ".ds-col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border: 1px solid #e4e2dc; border-radius: 8px; background: #ffffff; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; word-break: keep-all; overflow-wrap: anywhere; } .ds-colbar { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #e4e2dc; background: #f6f5f2; } .ds-collabel { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #6b6860; } .ds-coltag { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid #a4c3ad; border-radius: 999px; background: #eaf5ee; color: #0f7b3e; font-size: 0.8rem; font-weight: 600; } .ds-coltag::before { content: \"\"; width: 6px; height: 6px; border-radius: 50%; background: currentColor; } .ds-colstage { min-height: 120px; display: grid; place-items: center; background: #ffffff; color: #6b6860; font-size: 0.875rem; } .ds-colnarr { display: flex; align-items: baseline; gap: 10px; min-height: 44px; padding: 10px 14px; border-top: 1px solid #e4e2dc; background: #f6f5f2; color: #55534c; font-size: 0.875rem; line-height: 1.55; } .ds-chaptag { flex-shrink: 0; padding: 2px 8px; border: 1px solid #acbbdd; border-radius: 999px; background: #eef2fe; color: #16409f; font-size: 0.72rem; font-weight: 700; } .ds-coltransport { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; border-top: 1px solid #e4e2dc; } .ds-prog { display: flex; gap: 3px; height: 14px; align-items: center; cursor: pointer; } .ds-seg1 { position: relative; flex: 1; height: 5px; border-radius: 999px; background: #f2f1ed; box-shadow: inset 0 0 0 1px #e4e2dc; overflow: hidden; transform-origin: center; transition: transform 120ms cubic-bezier(0.2,0,0,1); } .ds-prog:hover .ds-seg1 { transform: scaleY(1.6); } .ds-seg1 i { position: absolute; inset: 0; border-radius: 999px; background: #1b57e0; transform-origin: left center; transition: transform 160ms cubic-bezier(0.2,0,0,1); } .ds-ctrls { display: flex; align-items: center; gap: 8px; } .ds-cbtn { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 1px solid #cfccc3; border-radius: 6px; background: #ffffff; color: #55534c; cursor: pointer; transition: background 120ms cubic-bezier(0.2,0,0,1), border-color 120ms cubic-bezier(0.2,0,0,1); } .ds-cbtn:hover { background: #f6f5f2; color: #1a1a17; border-color: #6b6860; } .ds-cbtn.ds-accent { border-color: #1b57e0; background: #1b57e0; color: #fff; } .ds-cbtn.ds-accent:hover { background: #16409f; border-color: #16409f; } .ds-playhead { font-size: 0.72rem; color: #6b6860; font-family: \"JetBrains Mono\", ui-monospace, monospace; } .ds-colinsp { border-top: 1px solid #e4e2dc; background: #f6f5f2; padding: 10px 14px 12px; } .ds-colinsp h3 { margin: 0 0 8px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #6b6860; } .ds-colinsp table { width: 100%; border-collapse: collapse; font-size: 0.8rem; } .ds-colinsp td { padding: 4px 8px 4px 0; border-bottom: 1px solid #e4e2dc; color: #1a1a17; font-family: \"JetBrains Mono\", ui-monospace, monospace; vertical-align: top; } .ds-colinsp tr:last-child td { border-bottom: 0; } .ds-colinsp td:first-child { width: 30%; color: #6b6860; }"
+    },
+    {
+      "name": "Issue Banner",
+      "kind": "custom",
+      "refersTo": "tag-stop",
+      "description": "The verdict palette doing its job inside the app. A blocked run takes stop on stop-wash; a capped run takes warn on warn-wash. Same four verdicts the /help matrix documents, arriving at the moment they apply — which is what keeps the documentation and the product speaking one language.",
+      "html": "<div class=\"ds-banners\"><div class=\"ds-banner ds-block\">input() 은 아직 지원하지 않습니다 — 입력 대기 코드는 실행 전에 막습니다.</div><div class=\"ds-banner ds-warn\">최대 이벤트 수에 도달했습니다. 여기까지 모은 기록으로 재생합니다.</div></div>",
+      "css": ".ds-banners { display: grid; gap: 8px; font-family: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif; word-break: keep-all; overflow-wrap: anywhere; } .ds-banner { padding: 9px 12px; border-radius: 6px; font-size: 0.8rem; line-height: 1.55; } .ds-block { border: 1px solid #d9afa6; background: #fdeceb; color: #bd2b1c; } .ds-warn { border: 1px solid #c9b99a; background: #fbf2e0; color: #8a5a00; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Working Diagram",
+    "overview": "TraceLens does one thing: it runs Python for real and draws what happened. So the site does not advertise the tool — it is a working instance of it. The landing page's hero is not a screenshot or a loop of a screen recording; it is src/ui/TraceDiagram.tsx, which pushes a recorded trace through the product's actual pipeline (buildSnapshots → buildScreenplay → expandScreenplay → usePlayback) and renders whatever comes out. Every value on that page came out of a real run. That is the whole aesthetic argument, and every other decision falls out of it: if the diagram is the protagonist, the chrome must recede.\n\nThe world is the visualization-tool category canon taken at full fidelity, played straight — Observable · Excalidraw · Python Tutor is the binding craft bar (PRODUCT.md, Brand Commitments). This was chosen over an invented world on purpose. A paper-white canvas (#FBFAF8) with white panels floating on 1px warm-grey hairlines, one technical blue that means structure and action and nothing else, monospace for anything a machine produced, and no gradient, tilt, glow, texture, or illustration anywhere. The system is quiet by construction so that the one moving thing on the screen — a highlighted line, an arrow from two names into one list — is unmistakably the thing you are meant to look at.\n\nTwo rejections are load-bearing and confirmed. First, the near-black neon dev-tool hero: refused, because a learner arriving with code they do not understand should not also have to decode the interface. Second, the invented illustrated world — a cut-paper poster direction was built and rejected outright; nothing from it survives, and it must not be reintroduced. The register is deliberately unaveraged: built at a density a developer will trust, but the first screen and every term in it are written for a learner.\n\nScope: the whole product. This system covers every surface the user can reach — the marketing and support routes at /, /about, /help, /settings and the 404, and the workbench at /app. There is no longer a second visual system in this repo. The dark-neon prototype is gone: src/App.css and src/stage.css have been deleted, and with them the last #080b10 ground, the last cyan radial gradient, and the last Inter literal in running code.\n\nThe system is declared once, on .tl in src/ui/ui.css, and consumed in two layers. src/ui/ui.css carries the tokens plus the reading-surface components; src/ui/app.css carries the workbench regions and defines no tokens of its own — not a colour, not a type step, not a radius. It is a consumer, and that is the test for any future layer: if a new stylesheet needs to declare a token, either the token belongs on .tl or the design has drifted.\n\nThe two surfaces differ in register, not in vocabulary. The site is a Read surface, so it gets air, measure caps, and a 1160px shell. The workbench is an Operate surface, so the task outranks expression: a 100svh shell that does not scroll, 12px gutters between regions, and the editor and stage taking all the room the chrome can spare. Same paper, same hairlines, same one blue, same mono-for-values — arranged for a different job.\n\nDead but present: src/PixiStage.tsx (a deliberately held asset per the planning document) and src/tracing.ts (marked for disposal) remain in the tree and are imported by nothing. They are not a live boundary and no rule here accommodates them. Anything revived from either file gets migrated onto these tokens first.",
+    "keyCharacteristics": [
+      "Paper-white canvas, white panels, 1px hairlines — depth by tonal step, not by shadow",
+      "One accent (#1B57E0); green/amber/red exist only to carry the four support verdicts",
+      "Pretendard Variable for all prose and UI (Korean + Latin); JetBrains Mono for every value",
+      "Korean never breaks mid-word (word-break: keep-all)",
+      "Motion is 120–200ms on one easing curve, graded by meaning, and killed document-wide from two independent sources",
+      "The product's own diagram is the hero, driven by the real pipeline over a real trace",
+      "One system across both surfaces: a Read register for the site, an Operate register for the workbench, no second vocabulary"
+    ],
+    "rules": [
+      {
+        "name": "The One Blue Rule",
+        "body": "#1B57E0 is the only accent. It says exactly two things — this is the structure you should be looking at, and this is the thing you can press. If a screen contains a blue that means a third thing, one of them is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Verdict Colour Rule",
+        "body": "Green, amber and red are spent entirely on the four support verdicts (완전 지원 / 기본 지원 / 제한 재생 / 범위 밖). They may not be borrowed for success toasts, chart series, hover states, diffs, emphasis, or build status. The rule holds with no exception anywhere in the build: the /about slice-status chips used to run green and blue and are now the neutral tag, because \"Slice 1 완주\" is a project fact, not a judgement about the user's code. A product whose voice is \"we tell you what we can't do\" cannot afford to spend its refusal red — or its approval green — on anything else. If a new state needs a colour, it gets the neutral tag or the accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The Drawn-State Rule",
+        "body": "Inside a drawing — the landing diagram and all four workbench stage views — colour carries exactly one distinction, and it is: is this the thing happening right now. Three assignments, no fourth: an element at rest is panel fill on a line-strong stroke; the active or focused element is accent-wash fill on an accent stroke, with its text stepping to accent-ink; a container that holds other elements is sunken on line. The earlier grammar gave each primitive its own hue — cyan for defaults, pink for active, green for objects — which meant the colour told you which view you were looking at rather than what had just changed. That is backwards, and it is gone. A variable box, a stack frame, a list cell and a graph node now highlight identically, so a learner learns one visual signal instead of four.",
+        "section": "colors"
+      },
+      {
+        "name": "The Wash-and-Ink Pair Rule",
+        "body": "Every semantic colour ships as a pair: a saturated ink for the glyph and a near-white wash for its ground. Use them together or not at all — never a saturated fill on the canvas, never a wash without its ink on top.",
+        "section": "colors"
+      },
+      {
+        "name": "The Three Inks Rule",
+        "body": "Text has exactly three tiers — ink for what a heading or a value says, ink-2 for prose, ink-3 for the recessive layer — and all three clear AA on every ground in the system. A fourth, lighter grey is not available: if something needs to recede further than ink-3, it needs less prominence, not less contrast.",
+        "section": "colors"
+      },
+      {
+        "name": "The Hairline-Is-Not-A-Boundary Rule",
+        "body": "line (1.24:1 on canvas) and line-strong (1.61:1 on white) both sit below the 3:1 minimum for non-text boundaries. This is recorded debt, not a licence: a hairline may separate surfaces, but it may never be the only thing marking a control's edge or state. Every control that leans on one also carries a ground step (quiet button, switch track, segmented trough) or the accent (focus ring, switched-on state). Darken these two before adding any control that would depend on the rule alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Nine Steps Rule",
+        "body": "Every font-size in the product is a token: one of the nine --t-* steps, one of the four --d-* steps inside an SVG viewBox, or one of the three fluid clamp() roles. The only literal left in either stylesheet is font-size: 16px on .tl, which is the base the rem steps are measured from. A new literal size is not a design decision, it is drift — the site stylesheet reached 16 distinct literal sizes across 29 declarations before this ramp was imposed, and the collapse cost nothing visible.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono-Means-Data Rule",
+        "body": "JetBrains Mono is a claim, not a style: anything set in it came out of a real run or is a real identifier — a value, a variable name, a line number, a step count, a measured result, a stdout line, a module name. Prose never takes mono, and a number the run did not produce never takes it. The rule holds without exception across the build: the footer tagline, the one place prose had borrowed the face, is now set in Pretendard like every other sentence.",
+        "section": "typography"
+      },
+      {
+        "name": "The Keep-All Rule",
+        "body": "The .tl root sets word-break: keep-all with overflow-wrap: anywhere. Korean must never break mid-word — a 어절 breaks at its boundary or not at all — while a long Latin identifier may break anywhere rather than push the layout wide. Any new scroll container or narrow column inherits this; do not override it locally.",
+        "section": "typography"
+      },
+      {
+        "name": "The Measure Rule",
+        "body": "Prose is capped everywhere, by role: 68ch default, 58ch lede, 62ch section head and honesty aside, 54ch footer note, 52ch settings field help, 36ch footer tagline. A paragraph without a cap is a bug.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Sheet Rule",
+        "body": "On reading surfaces, sections are separated by a 1px hairline and vertical air — never by a background colour change, a card, or a full-bleed band. There is exactly one page ground.",
+        "section": "layout"
+      },
+      {
+        "name": "The Register Rule",
+        "body": "Read surfaces get air, measure caps and a centred shell; Operate surfaces get a viewport-filling shell, flat 12px gutters, and internal scroll. Same tokens, same components, different budget for space. Deciding which one a new surface is comes before laying it out — the failure mode is a workbench that scrolls like a page, or a page that traps its content in panes.",
+        "section": "layout"
+      },
+      {
+        "name": "The Delete-It Rule",
+        "body": "A rule that does nothing gets removed, not commented, not kept as a placeholder. This migration deleted App.css, stage.css, the unused .tl-roles block, the duplicate .tl[data-still] rule, and a html[data-surface=\"app\"] block that only restated the document default. Each was individually harmless; together they are the exact material a design system rots into, because the next reader cannot tell an inert rule from a load-bearing one and edits around both. If something is being kept for a future need, the future need can add it back in one line — and it will add it back knowing what it is for.",
+        "section": "layout"
+      },
+      {
+        "name": "The Fluid-Between-Two-Stops Rule",
+        "body": "Sizes that scale use clamp() between a phone value and a desktop value; the two media queries exist only for structural collapses (multi-column → single column) that clamp() cannot express.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Shadow Rule",
+        "body": "One element in the system casts an ambient shadow, and it is the trace panel. If a new surface needs to feel separated, give it white ground on paper and a hairline — reaching for a shadow means the tonal ladder was skipped.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Four Radii Rule",
+        "body": "8px container, 6px control, 4px nested-in-control, 999px tag — --r, --r-sm, --r-xs, --r-pill. A literal radius is a mistake unless it is a circle (50%) or a diagram primitive earning its geometry, as the square list cell does.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Hairline-Always Rule",
+        "body": "Every panel, table, scroller, input and quiet button carries a visible 1px border. Nothing floats on white without a rule.",
+        "section": "shapes"
+      },
+      {
+        "name": "The No-Nesting Rule",
+        "body": "A panel never contains another panel. Inside a panel, separation is by hairline row, not by a second card.",
+        "section": "components"
+      },
+      {
+        "name": "The Real-Pipeline Rule",
+        "body": "Any surface that demonstrates the product renders from a real trace through the real pipeline. No mocked frames, no hand-authored \"example\" state, no video. The product's first principle is that the screen does not lie about the code; a fake demo would break it on the marketing page before a user ever reaches the tool.",
+        "section": "components"
+      },
+      {
+        "name": "The Graded Duration Rule",
+        "body": "Duration is graded by how much the change means, not by taste. 120ms is chrome acknowledging a pointer; 140ms is a control settling; 160ms is the reading surface moving; 200ms — the ceiling — belongs to one thing only, the state diagram's name boxes changing fill and stroke as focus moves between variables. That is the single transition a user is meant to watch rather than merely register, and nothing else may claim it.",
+        "section": "components"
+      },
+      {
+        "name": "The Commit-On-Blur Rule",
+        "body": "A numeric field holds the in-progress text as a draft string and commits the parsed number on blur or Enter, never per keystroke. Clamping mid-type is a real bug in a range like 1,000–500,000: the first digit of 1000 is 1, which a per-keystroke clamp snaps to the minimum, and the user can never finish the number. A non-finite draft reverts to the last committed value.",
+        "section": "components"
+      },
+      {
+        "name": "The Transform-Only Rule",
+        "body": "Animate transform and opacity, never a layout property. The chapter progress strip makes the case: its segments thicken on hover via scaleY(1.6) against a transform-origin of center, and each segment’s fill advances via scaleX from transform-origin left center — not height and not width. Both used to animate the layout property directly, which puts every frame through layout and paint on a bar that updates continuously during playback. A transform is composited, so the transport stays smooth while the trace plays. The one animation in the system that is not a state transition — the loading spinner’s rotate(360deg) — is also a transform.",
+        "section": "components"
+      },
+      {
+        "name": "The JS-Tween Rule",
+        "body": "A CSS override cannot stop a JavaScript tween: GSAP writes inline styles frame by frame and transition-duration: 0.001ms never touches it. So any JS-driven animation must read document.documentElement.dataset.still itself and zero its own duration — as src/components/views/SequenceView.tsx does, starting its cells at their final scale and opacity with duration: 0 when the flag is set. The CSS rule is a floor, not a guarantee; anything that animates outside CSS is responsible for its own compliance.",
+        "section": "components"
+      },
+      {
+        "name": "The Vendor Surface Rule",
+        "body": "Any third-party UI that renders inside the product — editor, chart library, map, embedded viewer — is themed from these tokens before it ships. A vendor default is a second design system arriving through the back door, and it will not match on ground, on ink, or on accent. If the vendor cannot be themed, that is an argument against the vendor.",
+        "section": "components"
+      },
+      {
+        "name": "The No-Empty-Frame Rule",
+        "body": "A view that has nothing to draw must not be drawn. src/components/Stage.tsx asks each chosen primitive whether the current snapshot actually contains what it needs — a sequence needs a non-empty list, an object graph needs a reachable object, a call stack needs frames — and falls back to the variables view when the answer is no. The Director picks what is worth showing, but it can be wrong about a given scene, and the renderer is the last place that can catch it. This is the planning document’s §7 guarantee (실패해도 빈 화면은 없다) enforced where it is actually visible: an empty stage reads to a learner as the tool broke, never as this scene had no list. Every new stage primitive ships with its own canRender predicate, and the terminal fallback is always the view that can draw anything.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do build every new surface out of the four existing primitives — panel, hairline row, tag, table — before inventing a fifth.",
+      "Do separate surfaces with a 1px line rule and a step on the tonal ladder (sunken → canvas → panel-2 → panel). That is the whole depth model.",
+      "Do set every value, identifier, count, and measured result in JetBrains Mono with tabular-nums, and everything a human wrote in Pretendard.",
+      "Do cap prose at its measure token (68ch body, 58ch lede, 62ch head, 52ch field help) and let Korean break only at 어절 boundaries.",
+      "Do give every interactive element the global focus treatment (2px accent outline, 2px offset, --r-xs radius) and reach it through :focus-visible, not :focus. A skip link is the exception that uses plain :focus, because it must reveal itself however focus arrived.",
+      "Do take every font-size from the nine --t-* steps (or a --d-* step inside an SVG viewBox), and every radius from the four --r* tokens.",
+      "Do make anything that plays on its own keyboard-operable and self-describing: focusable, role=\"group\" with an aria-label naming its keys, space/arrows/Home wired up, and the bindings written visibly in the caption.",
+      "Do have JS-driven animation read document.documentElement.dataset.still and zero its own duration. CSS cannot reach a GSAP tween.",
+      "Do honour motion reduction from every source — prefers-reduced-motion and the product's 모션 줄이기 setting, both of which land on html[data-still=\"true\"] — and pass still down to anything that plays on its own so it holds its final frame rather than animating instantly.",
+      "Do commit a numeric field's value on blur or Enter, holding the in-progress text as a draft. Clamping per keystroke makes any multi-digit minimum untypeable.",
+      "Do pair every semantic colour with its wash, and put the semantic hue on the outline too via color-mix into the hairline.",
+      "Do render product demonstrations from a real trace through the real pipeline.",
+      "Do state a route's scope and limits on the page itself; the honesty asides in ink-3 under the scope tables are part of the visual system, not filler.",
+      "Do theme any third-party UI from these tokens before it ships — editor, chart, map, embedded viewer. A vendor default is a second design system arriving through the back door.",
+      "Do decide whether a new surface is Read or Operate before laying it out, and give it the matching space budget.",
+      "Do stack hairline regions inside one panel when a dense surface seems to need cards. Five regions in one panel is the proven pattern; a nested container is not.",
+      "Do give every stage primitive a canRender predicate and fall back to the view that can draw anything. An empty stage reads as a broken tool.",
+      "Do animate transform and opacity only."
+    ],
+    "donts": [
+      "Don’t declare a token outside .tl in src/ui/ui.css. src/ui/app.css consumes the system and defines nothing; any new layer does the same. A stylesheet that needs its own colour, type step, or radius is telling you either that the token belongs on .tl or that the design has drifted — resolve which, don’t add a second source.",
+      "Don’t revive anything from src/PixiStage.tsx or src/tracing.ts without migrating it onto these tokens first. They are dead code, not a second system with rights; the Inter literal inside PixiStage.tsx is a leftover, not a precedent.",
+      "Don't add a second accent hue, and don't spend green, amber, or red on anything but the four support verdicts.",
+      "Don't nest a panel inside a panel, or wrap a table in a card — the .tl-scroll container is already the container.",
+      "Don't reach for a shadow to express hierarchy. One ambient shadow exists in this system and it is already spent.",
+      "Don't introduce gradients, glows, tilts, textures, or decorative illustration.",
+      "Don’t write a literal font-size or border-radius anywhere in the product. A tenth type step or a fifth radius is drift, not a decision — the only sanctioned literals are the 16px base on .tl, the three fluid clamp() roles, and 50% on a circle. Inside an SVG viewBox, take a --d-* step.",
+      "Don’t use a --d-* step outside an SVG viewBox. The px scale is safe only because the viewBox transform is what sizes it; loose on the page it ignores the user’s font-size preference.",
+      "Don’t key any CSS off html[data-surface]. No stylesheet reads it today and that is the point — it is a route-kind flag for scripts, not a theme switch, and the first rule that hangs an appearance on it is the first step back toward two worlds.",
+      "Don’t keep a rule that does nothing. Delete dead CSS rather than leaving it as a placeholder; the next reader cannot tell an inert rule from a load-bearing one.",
+      "Don't duplicate the reduced-motion rule into a component or a route stylesheet. html[data-still=\"true\"] * in src/index.css is the single source; a second copy is a second place to forget.",
+      "Don't tint a shadow with literal black. Mix it from ink so it stays the page's own warm dark.",
+      "Don’t place an uppercase tracked label above a headline as an editorial eyebrow. tl-label names a region — a panel bar, a diagram axis — and has no other use.",
+      "Don't set prose in mono or a value in the proportional face. The face is the evidence claim.",
+      "Don't animate longer than 200ms, add a second easing curve, or animate anything on scroll or on page load — and don't spend the 200ms step on anything but the state diagram's focus change.",
+      "Don't add a fourth, lighter grey below ink-3. All three ink tiers clear AA on every ground; something that must recede further needs less prominence, not less contrast.",
+      "Don't let a hairline be the only thing marking a control's edge or state. line (1.24:1) and line-strong (1.61:1) are both under the 3:1 non-text minimum and are recorded debt — pair them with a ground step or the accent until they are darkened.",
+      "Don't resurrect the rejected cut-paper poster world in any form — its palette, its textures, its collage devices, or its type pairing. It was built, reviewed, and deleted.",
+      "Don’t animate a layout property — height, width, top, margin. Use transform; the progress strip scales, it does not resize.",
+      "Don’t give a drawing primitive its own hue. Inside a stage or diagram, colour means active, not which view this is.",
+      "Don’t render a view that has nothing to draw. Fall back rather than showing an empty frame.",
+      "Don’t let a flex region omit min-height: 0. One missing declaration lets a long console push the whole workbench shell past the viewport."
+    ]
+  }
+}
