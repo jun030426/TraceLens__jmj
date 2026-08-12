@@ -22,11 +22,11 @@ function ObjectBox({ obj, x, y, objects }: { obj: ObjectSnap; x: number; y: numb
     <g>
       <text x={x + 12} y={y - 10} className="svg-type">{obj.type} · #{obj.id % 100000}</text>
       <rect x={x} y={y} width={w} height={entries.length ? 24 + entries.length * 24 : 72} rx={10}
-        fill="rgba(104,255,122,0.07)" stroke="#68ff7a" strokeWidth={1.4} />
+        fill="var(--sunken)" stroke="var(--line)" strokeWidth={1.4} />
       {items.map((v, i) => (
         <g key={i}>
           <rect x={x + 12 + i * 64} y={y + 12} width={56} height={40} rx={6}
-            fill="rgba(56,215,232,0.12)" stroke="#38d7e8" strokeWidth={1} />
+            fill="var(--panel)" stroke="var(--line-strong)" strokeWidth={1} />
           <text x={x + 40 + i * 64} y={y + 37} textAnchor="middle" className="svg-value">
             {valueLabel(v, objects).slice(0, 6)}
           </text>
@@ -55,7 +55,7 @@ export default function ObjectGraphView({ snapshot, focus }: { snapshot: Snapsho
     <svg className="stage-svg" viewBox="0 0 720 420" role="img" aria-label="객체 참조 그래프">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-          <path d="M0 0L10 5L0 10z" fill="#ff4fd8" />
+          <path d="M0 0L10 5L0 10z" fill="var(--accent)" />
         </marker>
       </defs>
       <text x={24} y={36} className="svg-title">메모리 (객체 참조)</text>
@@ -67,12 +67,12 @@ export default function ObjectGraphView({ snapshot, focus }: { snapshot: Snapsho
         return (
           <g key={`${l.name}-${l.objectId}`}>
             <rect x={40} y={tagY(i)} width={110} height={34} rx={17}
-              fill={active ? 'rgba(255,79,216,0.15)' : 'rgba(56,215,232,0.10)'}
-              stroke={active ? '#ff4fd8' : '#38d7e8'} strokeWidth={active ? 2 : 1} />
+              fill={active ? 'var(--accent-wash)' : 'var(--panel)'}
+              stroke={active ? 'var(--accent)' : 'var(--line-strong)'} strokeWidth={active ? 2 : 1} />
             <text x={95} y={tagY(i) + 22} textAnchor="middle" className="svg-name">{l.name}</text>
             {oi >= 0 && (
               <path d={`M 150 ${y1} C 210 ${y1}, 220 ${y2}, 268 ${y2}`}
-                fill="none" stroke="#ff4fd8" strokeWidth={1.6} markerEnd="url(#arrow)" opacity={0.9} />
+                fill="none" stroke="var(--accent)" strokeWidth={1.6} markerEnd="url(#arrow)" opacity={0.9} />
             )}
           </g>
         )

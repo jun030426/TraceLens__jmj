@@ -32,7 +32,7 @@ export default function PlayerBar({ steps, screenplay, index, playing, speed, on
   }
 
   return (
-    <div className="playback" style={{ flexDirection: 'column', gap: 10 }}>
+    <div className="playback">
       <div className="chapter-progress" aria-label="챕터 진행바">
         {chapters.map((ch, ci) => {
           const before = steps.filter(s => s.chapterIndex < ci).length
@@ -49,48 +49,42 @@ export default function PlayerBar({ steps, screenplay, index, playing, speed, on
                 seekWithin(ci, (e.clientX - r.left) / r.width)
               }}
             >
-              <div className="seg-fill" style={{ width: `${(done / Math.max(inCh, 1)) * 100}%` }} />
+              <div className="seg-fill" style={{ transform: `scaleX(${done / Math.max(inCh, 1)})` }} />
             </div>
           )
         })}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
+      <div className="primary-control">
         <button type="button" onClick={() => onSeek(0)} title="처음으로" aria-label="처음으로">
-          <RotateCcw size={17} />
+          <RotateCcw size={15} />
         </button>
         <button type="button" onClick={() => onSeek(index - 1)} title="이전 장면" aria-label="이전 장면">
-          <ChevronLeft size={19} />
+          <ChevronLeft size={17} />
         </button>
         <button
-          className="primary-control"
+          className="accent"
           type="button"
           onClick={playing ? onPause : onPlay}
           title={playing ? '일시정지' : '재생'}
           aria-label={playing ? '일시정지' : '재생'}
         >
-          {playing ? <Pause size={19} fill="currentColor" /> : <Play size={19} fill="currentColor" />}
+          {playing ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
         </button>
         <button type="button" onClick={() => onSeek(index + 1)} title="다음 장면" aria-label="다음 장면">
-          <ChevronRight size={19} />
+          <ChevronRight size={17} />
         </button>
 
-        <span className="svg-type" style={{ fontSize: 12, color: '#9aa7b8' }}>
-          {currentChapter?.title ?? ''} · {index + 1}/{steps.length}
+        <span className="tl-playhead">
+          {currentChapter?.title ?? ''} · <span className="tl-num">{index + 1}/{steps.length}</span>
         </span>
 
-        <div className="speed-control" style={{ marginLeft: 'auto' }} aria-label="재생 속도">
+        <div className="speed-control" aria-label="재생 속도">
           <span>배속</span>
           <div className="speed-options">
             {speedOptions.map(x => (
-              <button
-                key={x}
-                className={speed === x ? 'speed-button active' : 'speed-button'}
-                type="button"
-                aria-pressed={speed === x}
-                onClick={() => onSpeed(x)}
-              >
-                {x}x
+              <button key={x} type="button" aria-pressed={speed === x} onClick={() => onSpeed(x)}>
+                {x}×
               </button>
             ))}
           </div>

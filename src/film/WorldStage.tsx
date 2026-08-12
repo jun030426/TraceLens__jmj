@@ -29,10 +29,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     const root = rootRef.current
     if (!root) return
     const still = document.documentElement.dataset.still === 'true'
-    let timeline: gsap.core.Timeline | null = null
 
-    const ctx = gsap.context(() => {
-      gsap.set('[data-obj], [data-var], [data-frame], [data-rope], [data-cell]', { opacity: 0 })
+    // gsap.context는 쓰지 않는다 — StrictMode 이중 마운트에서 revert가 타임라인을
+    // 전역 티커에서 떼어내 재생이 멈춘다. 대신 실제 엘리먼트를 직접 넘기고 kill로만 정리한다.
+    const q = (sel: string) => root.querySelector(sel)
+    const build = () => {
+      gsap.set(root.querySelectorAll('[data-obj], [data-var], [data-frame], [data-rope], [data-cell]'), { opacity: 0 })
       const tl = gsap.timeline({ paused: true })
 
       for (const shot of shots) {
@@ -42,12 +44,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         for (const m of shot.motions) {
           switch (m.v) {
             case 'enterVar':
-              tl.to(varSel(m.varKey), { opacity: 1, duration: d * 0.6, ease: 'power2.out' }, label)
+              tl.to(q(varSel(m.varKey))!, { opacity: 1, duration: d * 0.6, ease: 'power2.out' }, label)
               break
             case 'setVar': {
               const key = m.varKey
               const text = m.text
-              tl.to(varSel(key), { opacity: 1, duration: d * 0.3 }, label)
+              tl.to(q(varSel(key))!, { opacity: 1, duration: d * 0.3 }, label)
               tl.call(
                 () => {
                   const el = root.querySelector(`${varSel(key)} .film-var-value`)
@@ -57,7 +59,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 label,
               )
               tl.fromTo(
-                varSel(key),
+                q(varSel(key))!,
                 { scale: 1.14 },
                 { scale: 1, duration: d * 0.7, ease: 'back.out(2.4)', transformOrigin: 'center' },
                 label,
@@ -65,18 +67,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'exitVar':
-              tl.to(varSel(m.varKey), { opacity: 0.18, duration: d * 0.5 }, label)
+              tl.to(q(varSel(m.varKey))!, { opacity: 0.18, duration: d * 0.5 }, label)
               break
             case 'bind':
-              tl.to(objSel(m.objectId), { opacity: 1, duration: d * 0.4 }, label)
+              tl.to(q(objSel(m.objectId))!, { opacity: 1, duration: d * 0.4 }, label)
               tl.to(
-                ropeSel(m.varKey, m.objectId),
+                q(ropeSel(m.varKey, m.objectId))!,
                 { opacity: 1, duration: m.alias ? d : d * 0.7, ease: 'power2.inOut' },
                 label,
               )
               if (m.alias) {
                 tl.fromTo(
-                  objSel(m.objectId),
+                  q(objSel(m.objectId))!,
                   { scale: 1 },
                   { scale: 1.06, duration: d * 0.4, yoyo: true, repeat: 1, transformOrigin: 'center' },
                   label,
@@ -84,13 +86,13 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               }
               break
             case 'enterObj':
-              tl.to(objSel(m.objectId), { opacity: 1, duration: d * 0.6, ease: 'power2.out' }, label)
+              tl.to(q(objSel(m.objectId))!, { opacity: 1, duration: d * 0.6, ease: 'power2.out' }, label)
               break
             case 'grow': {
               const id = m.objectId
               const idx = m.index
               const text = m.text
-              tl.to(objSel(id), { opacity: 1, duration: d * 0.2 }, label)
+              tl.to(q(objSel(id))!, { opacity: 1, duration: d * 0.2 }, label)
               tl.call(
                 () => {
                   const el = root.querySelector(`${cellSel(id, idx)} .film-cell-text`)
@@ -100,7 +102,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 label,
               )
               tl.fromTo(
-                cellSel(id, idx),
+                q(cellSel(id, idx))!,
                 { opacity: 0, scaleY: 0.2 },
                 { opacity: 1, scaleY: 1, duration: d, ease: 'back.out(2)', transformOrigin: 'center bottom' },
                 label,
@@ -120,7 +122,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 label,
               )
               tl.fromTo(
-                cellSel(id, idx),
+                q(cellSel(id, idx))!,
                 { scale: 1.2 },
                 { scale: 1, opacity: 1, duration: d, ease: 'back.out(2)', transformOrigin: 'center' },
                 label,
@@ -128,18 +130,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'exitObj':
-              tl.to(objSel(m.objectId), { opacity: 0.15, duration: d }, label)
+              tl.to(q(objSel(m.objectId))!, { opacity: 0.15, duration: d }, label)
               break
             case 'pushFrame':
               tl.fromTo(
-                frameSel(m.frameId),
+                q(frameSel(m.frameId))!,
                 { opacity: 0, x: -26 },
                 { opacity: 1, x: 0, duration: d, ease: 'power3.out' },
                 label,
               )
               break
             case 'popFrame':
-              tl.to(frameSel(m.frameId), { opacity: 0, x: -26, duration: d, ease: 'power2.in' }, label)
+              tl.to(q(frameSel(m.frameId))!, { opacity: 0, x: -26, duration: d, ease: 'power2.in' }, label)
               break
             case 'stdout': {
               const text = m.text
@@ -151,26 +153,27 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 undefined,
                 label,
               )
-              tl.fromTo('.film-stdout', { opacity: 0.5 }, { opacity: 1, duration: d, ease: 'power2.out' }, label)
+              tl.fromTo(q('.film-stdout')!, { opacity: 0.5 }, { opacity: 1, duration: d, ease: 'power2.out' }, label)
               break
             }
             case 'shake':
-              tl.fromTo(frameSel(m.frameId), { x: 0 }, { x: 8, duration: d * 0.12, repeat: 5, yoyo: true }, label)
+              tl.fromTo(q(frameSel(m.frameId))!, { x: 0 }, { x: 8, duration: d * 0.12, repeat: 5, yoyo: true }, label)
               break
           }
         }
         tl.to({}, { duration: d * 0.25 })
       }
 
-      timeline = tl
-      register(tl)
-      if (still) tl.progress(1)
-    }, root)
+      return tl
+    }
+
+    const tl = build()
+    register(tl)
+    if (still) tl.progress(1)
 
     return () => {
       register(null)
-      timeline?.kill()
-      ctx.revert()
+      tl.kill()
     }
   }, [shots, register])
 

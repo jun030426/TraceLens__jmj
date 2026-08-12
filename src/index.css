@@ -1,9 +1,9 @@
+/* 문서의 바닥. 두 표면 모두 같은 세계를 쓰므로 다크 그라운드는 더 이상 없다 —
+   오버스크롤과 마운트 이전의 한 프레임까지 캔버스 색이어야 한다. */
 :root {
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  color: #eef6fb;
-  background: #080b10;
+  font-family: "Pretendard Variable", Pretendard, ui-sans-serif, system-ui, sans-serif;
+  color: #1a1a17;
+  background: #fbfaf8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -20,10 +20,22 @@ body,
   min-width: 320px;
   min-height: 100%;
   margin: 0;
+  background: inherit;
 }
 
 body {
   min-height: 100svh;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-color: #cfccc3 #f2f1ed;
+}
+
+/* 모션 감소는 워크벤치를 포함한 문서 전체에 적용된다 */
+html[data-still="true"] *,
+html[data-still="true"] *::before,
+html[data-still="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
 }

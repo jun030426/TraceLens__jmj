@@ -5,7 +5,7 @@ import { valueLabel } from '../player/expand'
 export default function Inspector({ snapshot }: { snapshot: Snapshot }) {
   return (
     <div className="inspector-panel" aria-label="상태 인스펙터">
-      <h3>일시정지 · seq {snapshot.seq} 상태</h3>
+      <h3>일시정지 · {snapshot.line}행 시점의 상태</h3>
       <table>
         <tbody>
           {snapshot.stack.flatMap(f =>

@@ -16,8 +16,8 @@ export default function CallStackView({ snapshot }: { snapshot: Snapshot; focus:
         return (
           <g key={f.frameId}>
             <rect x={160} y={y} width={400} height={cardH} rx={10}
-              fill={top ? 'rgba(255,79,216,0.10)' : 'rgba(56,215,232,0.06)'}
-              stroke={top ? '#ff4fd8' : '#38d7e8'} strokeWidth={top ? 2 : 1} />
+              fill={top ? 'var(--accent-wash)' : 'var(--panel)'}
+              stroke={top ? 'var(--accent)' : 'var(--line-strong)'} strokeWidth={top ? 2 : 1} />
             <text x={180} y={y + 26} className="svg-name">
               {f.func === '<module>' ? '<모듈>' : `${f.func}()`}
             </text>
