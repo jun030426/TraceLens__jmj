@@ -48,4 +48,15 @@ describe('choreograph', () => {
   it('모든 샷에 최소 하나의 모션이 있다 (빈 샷 금지)', () => {
     for (const s of shots) expect(s.motions.length).toBeGreaterThan(0)
   })
+
+  it('리터럴로 태어난 리스트의 칸도 채워진다 (빈 상자 금지)', () => {
+    // team_a = ["kim", "lee"] 처럼 처음부터 원소를 가진 객체
+    const aliasShots = choreograph(aliasEvents, buildStage(aliasEvents))
+    const texts = aliasShots
+      .flatMap(s => s.motions)
+      .filter(m => m.v === 'grow')
+      .map(m => (m as { text: string }).text)
+    expect(texts.some(t => t.includes('kim'))).toBe(true)
+    expect(texts.some(t => t.includes('lee'))).toBe(true)
+  })
 })
