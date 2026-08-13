@@ -72,19 +72,32 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan): Shot[] {
     for (const d of e.objectsDelta) {
       if (d.op !== 'set' || !d.obj) continue
       const size = (d.obj.items?.length ?? 0) + (d.obj.entries?.length ?? 0)
+      const cellTextAt = (idx: number): string | null => {
+        const item = d.obj?.items?.[idx]
+        if (item) return shortText(item, objects)
+        const entry = d.obj?.entries?.[idx]
+        if (entry) return `${entry[0]}: ${shortText(entry[1], objects)}`
+        return null
+      }
       if (!objsSeen.has(d.obj.id)) {
         objsSeen.add(d.obj.id)
         motions.push({ v: 'enterObj', objectId: d.obj.id })
+        // 리터럴로 이미 원소를 가진 채 태어난 객체 — 그 칸들도 채워야 한다.
+        // 안 그러면 상자만 나타나고 안이 영원히 빈 채로 남는다.
+        for (let i = 0; i < size; i++) {
+          motions.push({ v: 'grow', objectId: d.obj.id, index: i, text: cellTextAt(i) ?? '' })
+        }
       } else {
         const before = prevSize.get(d.obj.id) ?? 0
+        // dict·set도 칸이 차오르는 순서를 보여준다 — 리스트는 값만, dict는 키: 값
         if (size > before) {
-          const idx = size - 1
-          const item = d.obj.items?.[idx]
-          motions.push({ v: 'grow', objectId: d.obj.id, index: idx, text: item ? shortText(item, objects) : '' })
+          for (let i = before; i < size; i++) {
+            motions.push({ v: 'grow', objectId: d.obj.id, index: i, text: cellTextAt(i) ?? '' })
+          }
         } else if (size === before && size > 0) {
           const idx = Math.max(0, size - 1)
-          const item = d.obj.items?.[idx]
-          if (item) motions.push({ v: 'setCell', objectId: d.obj.id, index: idx, text: shortText(item, objects) })
+          const text = cellTextAt(idx)
+          if (text !== null) motions.push({ v: 'setCell', objectId: d.obj.id, index: idx, text })
         }
       }
       prevSize.set(d.obj.id, size)
