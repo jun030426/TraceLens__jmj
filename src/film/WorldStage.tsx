@@ -83,6 +83,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     // gsap.context는 쓰지 않는다 — StrictMode 이중 마운트에서 revert가 타임라인을
     // 전역 티커에서 떼어내 재생이 멈춘다. 대신 실제 엘리먼트를 직접 넘기고 kill로만 정리한다.
     const q = (sel: string) => root.querySelector(sel)
+    // 칸 폭을 넘는 글자는 자른다 — 이웃 칸을 덮는 것보다 줄임표가 낫다 (13px 모노 ≈ 7.2px/자)
+    const cellChars = Math.max(2, Math.floor((layout.cellW - 10) / 7.2))
+    const fitCell = (t: string) => (t.length > cellChars ? t.slice(0, Math.max(1, cellChars - 1)) + '…' : t)
     const build = () => {
       gsap.set(
         root.querySelectorAll(
@@ -91,11 +94,33 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         { opacity: 0 },
       )
       const tl = gsap.timeline({ paused: true })
+      const bound = new Map<string, number>() // varKey → 현재 끈이 이어진 objectId (옛 끈 정리용)
+      let liveEl: Element | null = null // 직전 샷의 강조 대상
 
       for (const shot of shots) {
         const d = (shot.durationMs / 1000) * (still ? 0.001 : 1)
         const label = `s${shot.seq}`
         tl.addLabel(label)
+
+        // 지금 실행되는 대상에게 조명을 — focus가 가리키는 상자·프레임이 accent로 켜진다
+        const focusEl =
+          shot.focus?.kind === 'object'
+            ? q(objSel(shot.focus.objectId))
+            : shot.focus?.kind === 'frame'
+              ? q(frameSel(shot.focus.frameId))
+              : null
+        if (focusEl !== liveEl) {
+          const prevEl = liveEl
+          tl.call(
+            () => {
+              prevEl?.classList.remove('is-live')
+              focusEl?.classList.add('is-live')
+            },
+            undefined,
+            label,
+          )
+          liveEl = focusEl
+        }
         for (const m of shot.motions) {
           switch (m.v) {
             case 'enterVar':
@@ -121,11 +146,26 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               )
               break
             }
-            case 'exitVar':
-              tl.to(q(varSel(m.varKey))!, { opacity: 0.18, duration: d * 0.5 }, label)
+            case 'exitVar': {
+              // 유령을 남기지 않는다 — 이름표도, 그 이름표가 쥐던 끈도 완전히 내린다
+              tl.to(q(varSel(m.varKey))!, { opacity: 0, duration: d * 0.5 }, label)
+              const held = bound.get(m.varKey)
+              if (held !== undefined) {
+                const rope = q(ropeSel(m.varKey, held))
+                if (rope) tl.to(rope, { opacity: 0, duration: d * 0.4 }, label)
+                bound.delete(m.varKey)
+              }
               break
-            case 'bind':
+            }
+            case 'bind': {
               tl.to(q(objSel(m.objectId))!, { opacity: 1, duration: d * 0.4 }, label)
+              // 다른 상자로 옮겨 묶는 경우 — 옛 끈이 남으면 잔상이 된다
+              const prevObj = bound.get(m.varKey)
+              if (prevObj !== undefined && prevObj !== m.objectId) {
+                const oldRope = q(ropeSel(m.varKey, prevObj))
+                if (oldRope) tl.to(oldRope, { opacity: 0, duration: d * 0.3 }, label)
+              }
+              bound.set(m.varKey, m.objectId)
               tl.to(
                 q(ropeSel(m.varKey, m.objectId))!,
                 { opacity: 1, duration: m.alias ? d : d * 0.7, ease: 'power2.inOut' },
@@ -140,6 +180,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 )
               }
               break
+            }
             case 'enterObj':
               tl.to(q(objSel(m.objectId))!, { opacity: 1, duration: d * 0.6, ease: 'power2.out' }, label)
               break
@@ -151,7 +192,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               tl.call(
                 () => {
                   const el = root.querySelector(`${cellSel(id, idx)} .film-cell-text`)
-                  if (el) el.textContent = text
+                  if (el) el.textContent = fitCell(text)
                 },
                 undefined,
                 label,
@@ -171,7 +212,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               tl.call(
                 () => {
                   const el = root.querySelector(`${cellSel(id, idx)} .film-cell-text`)
-                  if (el) el.textContent = text
+                  if (el) el.textContent = fitCell(text)
                 },
                 undefined,
                 label,
@@ -207,8 +248,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 () => {
                   const ta = root.querySelector(`${cellSel(id, i)} .film-cell-text`)
                   const tb = root.querySelector(`${cellSel(id, k)} .film-cell-text`)
-                  if (ta) ta.textContent = iText
-                  if (tb) tb.textContent = kText
+                  if (ta) ta.textContent = fitCell(iText)
+                  if (tb) tb.textContent = fitCell(kText)
                 },
                 undefined,
                 `${label}+=${d * 0.55}`,
@@ -218,7 +259,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'exitObj':
-              tl.to(q(objSel(m.objectId))!, { opacity: 0.15, duration: d }, label)
+              tl.to(q(objSel(m.objectId))!, { opacity: 0, duration: d }, label)
               break
             case 'pushFrame':
               tl.fromTo(
@@ -449,7 +490,10 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         return (
           <g key={`v${v.varKey}`} data-var={v.varKey}>
             <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={r.h / 2} fill="var(--accent-wash)" stroke="var(--accent)" strokeWidth={1.4} />
-            <text x={r.x + 14} y={r.y + 24} className="svg-name">{v.name}</text>
+            {/* 긴 이름은 자른다 — 값 텍스트를 덮는 것보다 줄임표가 낫다 */}
+            <text x={r.x + 14} y={r.y + 24} className="svg-name">
+              {v.name.length > 9 ? v.name.slice(0, 8) + '…' : v.name}
+            </text>
             <text className="film-var-value svg-value" x={r.x + r.w - 14} y={r.y + 24} textAnchor="end" />
           </g>
         )

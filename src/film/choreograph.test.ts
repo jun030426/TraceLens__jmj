@@ -194,6 +194,41 @@ describe('choreograph: compare', () => {
   })
 })
 
+describe('choreograph: 잔상 제거', () => {
+  it('함수가 반환되면 그 프레임의 지역 변수들이 exitVar로 내려간다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'f' }, 1),
+      ev({ frameId: 1, func: 'f', localsDelta: [{ name: 'x', op: 'set', value: P('7') }] }, 2),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f' }, 3),
+      ev({ localsDelta: [{ name: 'r', op: 'set', value: P('7') }] }, 4),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const returnShot = shots.find(s => s.motions.some(m => m.v === 'popFrame'))!
+    expect(returnShot.motions).toEqual(expect.arrayContaining([{ v: 'exitVar', varKey: '1:x' }]))
+  })
+
+  it('프로그램(모듈) 종료는 변수를 내리지 않는다 — 마지막 장면은 최종 상태를 보여줘야 한다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: P('1') }] }, 1),
+      ev({ kind: 'return' }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shots.flatMap(s => s.motions).some(m => m.v === 'exitVar')).toBe(false)
+  })
+
+  it('압축(빨리감기) 샷이 끝나면 칸들이 실제 최종 값으로 맞춰진다 — … 잔상 금지', () => {
+    const shots = choreograph(demoEvents, buildStage(demoEvents))
+    const lapse = shots.find(s => s.timelapse && s.timelapse > 1)!
+    expect(lapse).toBeDefined()
+    // range(12): 10회까지 온전히 재생(칸 0~9) → 압축 구간에서 칸 10·11이 자란다
+    const grows = lapse.motions.filter(m => m.v === 'grow') as { index: number; text: string }[]
+    expect(grows.map(g => g.index)).toEqual(expect.arrayContaining([10, 11]))
+    expect(shots.flatMap(s => s.motions).some(m => 'text' in m && m.text === '…')).toBe(false)
+  })
+})
+
 describe('choreograph: raise', () => {
   it('예외 이벤트에 raise 모션이 나오고 오류명이 담긴다', () => {
     const events: TraceEvent[] = [
