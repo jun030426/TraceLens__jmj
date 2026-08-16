@@ -1,5 +1,0 @@
-
-/* 무성영화 무대 */
-.film-stage { background: var(--sunken); border-radius: 14px; }
-.film-stage text { pointer-events: none; }
-.film-cell-text { font-size: 12px; }
