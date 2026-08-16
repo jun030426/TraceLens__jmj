@@ -32,14 +32,27 @@ export function lookup(snap: Snapshot, name: string): Value | undefined {
 }
 
 export function expandScreenplay(sp: Screenplay, snaps: Snapshot[]): PlaybackStep[] {
-  const bySeq = new Map(snaps.map(s => [s.seq, s]))
+  const indexOf = new Map(snaps.map((s, i) => [s.seq, i]))
   const steps: PlaybackStep[] = []
+
+  // "X가 {v}로 초기화됩니다"를 대입 관측 직전 스팬에 붙이는 대본이 흔하다 —
+  // 그 시점 스냅샷엔 값이 아직 없으므로, 몇 스냅 앞에서 처음 등장하는 값으로 치환한다.
+  // 값은 여전히 실제 트레이스에서만 온다. 끝까지 없으면 그때가 '?'다.
+  const resolveBinding = (seq: number, name: string): string => {
+    const start = indexOf.get(seq)
+    if (start === undefined) return '?'
+    for (let i = start; i < Math.min(start + 6, snaps.length); i++) {
+      const v = lookup(snaps[i], name)
+      if (v) return valueLabel(v, snaps[i].objects)
+    }
+    return '?'
+  }
+
   sp.chapters.forEach((ch, chapterIndex) => {
     for (const sc of ch.scenes) {
       let narration = sc.narration.template
       for (const [key, b] of Object.entries(sc.narration.bindings)) {
-        const snap = bySeq.get(b.seq)
-        narration = narration.replaceAll(`{${key}}`, snap ? valueLabel(lookup(snap, b.name), snap.objects) : '?')
+        narration = narration.replaceAll(`{${key}}`, resolveBinding(b.seq, b.name))
       }
       const durationMs = PACING_MS[sc.pacing]
       if (sc.pacing === 'fast' && sc.seqEnd > sc.seqStart) {

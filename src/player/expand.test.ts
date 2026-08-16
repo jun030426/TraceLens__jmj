@@ -30,4 +30,29 @@ describe('expandScreenplay', () => {
   it('chapterIndex가 존재한다', () => {
     expect(new Set(steps.map(s => s.chapterIndex)).size).toBeGreaterThanOrEqual(1)
   })
+
+  it('바인딩 시점에 변수가 아직 없으면 몇 스냅 앞의 첫 값으로 치환한다 (? 금지)', () => {
+    // "X가 {v}로 초기화됩니다"를 대입 관측 직전 스팬에 붙이는 AI 습관 — 값은 다음 스냅에 있다
+    const first = snaps[0]
+    const sp = {
+      chapters: [
+        {
+          title: 't',
+          scenes: [
+            {
+              seqStart: first.seq,
+              seqEnd: first.seq,
+              primitive: 'variables' as const,
+              focus: [],
+              pacing: 'normal' as const,
+              narration: { template: 'total이 {v}가 됩니다', bindings: { v: { seq: first.seq, name: 'total' } } },
+            },
+          ],
+        },
+      ],
+    }
+    const out = expandScreenplay(sp, snaps)
+    expect(out[0].narration).not.toContain('?')
+    expect(out[0].narration).toMatch(/total이 .+가 됩니다/)
+  })
 })
