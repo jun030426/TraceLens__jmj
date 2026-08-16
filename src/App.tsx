@@ -196,7 +196,7 @@ function App() {
       // 무대는 AI와 무관하게 트레이스에서 계산된다 — 콘티가 없어도 영화는 나온다
       const plan = buildStage(result.events)
       const layout = layoutStage(plan)
-      const filmShots = choreograph(result.events, plan)
+      const filmShots = choreograph(result.events, plan, code)
       setRun({
         steps: expanded, snaps, screenplay, clipped: result.clipped, error: result.error, directorMode,
         plan, layout, shots: filmShots,

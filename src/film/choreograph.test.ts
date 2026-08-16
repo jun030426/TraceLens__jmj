@@ -125,6 +125,59 @@ describe('choreograph: 정밀 칸 diff', () => {
   })
 })
 
+describe('choreograph: compare', () => {
+  it('if a > b 라인에서 값·부등호·판정이 나온다', () => {
+    const code = 'a = 5\nb = 4\nif a > b:\n    c = 1\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ causedByLine: 1, observedAtLine: 2, localsDelta: [{ name: 'a', op: 'set', value: P('5') }] }, 1),
+      ev({ causedByLine: 2, observedAtLine: 3, localsDelta: [{ name: 'b', op: 'set', value: P('4') }] }, 2),
+      ev({ causedByLine: 3, observedAtLine: 4, localsDelta: [{ name: 'c', op: 'set', value: P('1') }] }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    const cmp = shots.flatMap(s => s.motions).find(m => m.v === 'compare') as
+      | { text: string; targets: unknown[] }
+      | undefined
+    expect(cmp).toBeDefined()
+    expect(cmp!.text).toBe('5 > 4 → 참')
+    expect(cmp!.targets.length).toBe(2)
+  })
+
+  it('첨자 비교 arr[j] > arr[j+1]가 칸 타깃으로 접지된다', () => {
+    const code = 'arr = [5, 4]\nj = 0\nif arr[j] > arr[j + 1]:\n    pass\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev(
+        {
+          observedAtLine: 2,
+          localsDelta: [{ name: 'arr', op: 'set', value: { k: 'ref', id: 1 } }],
+          objectsDelta: [listSet(['5', '4'])],
+        },
+        1,
+      ),
+      ev({ observedAtLine: 3, localsDelta: [{ name: 'j', op: 'set', value: P('0') }] }, 2),
+      ev({ observedAtLine: 4 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    const cmp = shots.flatMap(s => s.motions).find(m => m.v === 'compare') as
+      | { text: string; targets: { kind: string; objectId?: number; index?: number }[] }
+      | undefined
+    expect(cmp).toBeDefined()
+    expect(cmp!.text).toBe('5 > 4 → 참')
+    expect(cmp!.targets).toEqual([
+      { kind: 'cell', objectId: 1, index: 0 },
+      { kind: 'cell', objectId: 1, index: 1 },
+    ])
+  })
+
+  it('접지가 안 되면 침묵한다', () => {
+    const code = 'if x > y:\n    pass\n'
+    const events: TraceEvent[] = [ev({ kind: 'call' }, 0), ev({ observedAtLine: 1 }, 1)]
+    const shots = choreograph(events, buildStage(events), code)
+    expect(shots.flatMap(s => s.motions).some(m => m.v === 'compare')).toBe(false)
+  })
+})
+
 describe('choreograph: raise', () => {
   it('예외 이벤트에 raise 모션이 나오고 오류명이 담긴다', () => {
     const events: TraceEvent[] = [

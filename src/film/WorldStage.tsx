@@ -85,7 +85,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     const q = (sel: string) => root.querySelector(sel)
     const build = () => {
       gsap.set(
-        root.querySelectorAll('[data-obj], [data-var], [data-frame], [data-rope], [data-cell], .film-error, .film-loop'),
+        root.querySelectorAll(
+          '[data-obj], [data-var], [data-frame], [data-rope], [data-cell], .film-error, .film-loop, .film-compare',
+        ),
         { opacity: 0 },
       )
       const tl = gsap.timeline({ paused: true })
@@ -229,6 +231,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               )
               // 같은 띠를 쓰는 배지들은 물러난다 — 오류가 이긴다
               tl.to(q('.film-loop')!, { opacity: 0, duration: d * 0.2 }, label)
+              tl.to(q('.film-compare')!, { opacity: 0, duration: d * 0.2 }, label)
               tl.fromTo(
                 q('.film-error')!,
                 { opacity: 0, y: -10 },
@@ -259,6 +262,37 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             case 'loopEnd':
               tl.to(q('.film-loop')!, { opacity: 0, duration: d * 0.4 }, label)
               break
+            case 'compare': {
+              const text = m.text
+              tl.call(
+                () => {
+                  const el = root.querySelector('.film-compare-text')
+                  if (el) el.textContent = text
+                },
+                undefined,
+                label,
+              )
+              tl.fromTo(
+                q('.film-compare')!,
+                { opacity: 0, y: -6 },
+                { opacity: 1, y: 0, duration: d * 0.3, ease: 'power2.out' },
+                label,
+              )
+              // 비교 당사자들이 손을 든다 — 어느 두 값이 겨루는지 눈이 따라간다
+              for (const t of m.targets) {
+                const el = q(t.kind === 'cell' ? cellSel(t.objectId, t.index) : varSel(t.varKey))
+                if (el) {
+                  tl.fromTo(
+                    el,
+                    { scale: 1 },
+                    { scale: 1.14, duration: d * 0.35, yoyo: true, repeat: 1, transformOrigin: 'center' },
+                    label,
+                  )
+                }
+              }
+              tl.to(q('.film-compare')!, { opacity: 0, duration: d * 0.3 }, `${label}+=${d * 0.95}`)
+              break
+            }
           }
         }
         tl.to({}, { duration: d * 0.25 })
@@ -381,6 +415,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       <g className="film-loop">
         <rect x={24} y={14} width={240} height={30} rx={15} fill="var(--accent-wash)" stroke="var(--accent)" strokeWidth={1.2} />
         <text className="film-loop-text svg-value" x={40} y={34} />
+      </g>
+
+      {/* 비교 칩 — 두 값이 겨루는 순간, 값과 부등호와 판정 */}
+      <g className="film-compare">
+        <rect x={layout.width / 2 - 130} y={14} width={260} height={30} rx={15} fill="var(--panel)" stroke="var(--accent)" strokeWidth={1.4} />
+        <text className="film-compare-text svg-name" x={layout.width / 2} y={34} textAnchor="middle" />
       </g>
 
       {/* 오류 스트립 — 첫 행(y=70) 위의 빈 띠. 터진 순간 내려와 끝까지 남는다 */}
