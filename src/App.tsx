@@ -21,7 +21,7 @@ import type { Shot, StagePlan } from './film/types'
 import WorldStage from './film/WorldStage'
 import { useFilm } from './film/useFilm'
 import { Nav } from './ui/Chrome'
-import { useSettings } from './settings/store'
+import { useSettings, prefersStill } from './settings/store'
 import './ui/app.css'
 
 type MonacoApi = Parameters<OnMount>[1]
@@ -53,6 +53,15 @@ type RunArtifacts = {
   plan: StagePlan
   layout: StageLayout
   shots: Shot[]
+}
+
+/* Pyodide 내부 프레임은 학습자에게 잡음이다 — 사용자 코드부터의 꼬리만 남긴다.
+   내용을 바꾸는 게 아니라 우리 런타임의 배관을 걷어내는 것. */
+const tidyError = (err: string) => {
+  const lines = err.trim().split('\n')
+  const userIdx = lines.findIndex(l => l.includes('File "<user>"'))
+  if (userIdx >= 0) return lines.slice(userIdx).join('\n')
+  return lines.length > 3 ? lines.slice(-3).join('\n') : err
 }
 
 const EMPTY_PLAN: StagePlan = {
@@ -200,7 +209,9 @@ function App() {
         plan, layout, shots: filmShots,
       })
       setLoading(null)
-      if (filmShots.length > 0 && settings.autoplay) setTimeout(play, 120)
+      // 모션 정지에서는 자동재생하지 않는다 — WorldStage가 이미 마지막 프레임으로 점프해 두는데,
+      // play()가 progress(0)으로 되감으면 완성된 프레임이 빈 무대로 바뀐다
+      if (filmShots.length > 0 && settings.autoplay && !prefersStill(settings)) setTimeout(play, 120)
 
       // AI 연출은 배경에서 — 도착하면 자막·챕터·완급이 좋아지고, 실패해도 영화는 이미 완성돼 있다
       if (settings.aiDirector && geminiApiKey && result.events.length > 0) {
@@ -355,7 +366,7 @@ function App() {
               /* 실행 전에 죽은 코드(구문 오류 등)도 빈 화면 대신 오류 장면을 받는다 */
               <div className="stage-error" role="alert">
                 <span className="tl-label">실행이 여기서 멈췄습니다</span>
-                <code className="tl-mono">{run.error}</code>
+                <code className="tl-mono">{tidyError(run.error)}</code>
               </div>
             ) : (
               <Stage snapshot={currentSnap} step={currentStep} />

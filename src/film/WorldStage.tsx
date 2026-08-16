@@ -345,7 +345,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
 
     const tl = build()
     register(tl)
-    if (still) tl.progress(1)
+    // 두 번째 인자 false = 이벤트 억제 해제 — 점프 경로의 tl.call(텍스트 세터)까지 전부 실행해야
+    // 모션 감소 사용자도 값이 채워진 "완성된 마지막 프레임"을 본다
+    if (still) tl.progress(1, false)
 
     return () => {
       register(null)
