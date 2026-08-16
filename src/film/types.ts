@@ -37,6 +37,10 @@ export type StagePlan = {
   leadObjectId: number | null
 }
 
+export type CompareTarget =
+  | { kind: 'cell'; objectId: number; index: number }
+  | { kind: 'var'; varKey: string }
+
 export type Motion =
   | { v: 'enterVar'; varKey: string }
   | { v: 'setVar'; varKey: string; text: string }
@@ -54,6 +58,7 @@ export type Motion =
   | { v: 'raise'; frameId: number; text: string }
   | { v: 'loop'; text: string }
   | { v: 'loopEnd' }
+  | { v: 'compare'; text: string; targets: CompareTarget[] }
 
 export type Shot = {
   seq: number

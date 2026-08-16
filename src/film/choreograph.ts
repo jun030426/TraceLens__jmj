@@ -1,6 +1,6 @@
 import type { TraceEvent, Value, ObjectSnap } from '../trace/types'
 import { buildDigest } from '../digest/buildDigest'
-import type { Motion, Shot, StagePlan } from './types'
+import type { CompareTarget, Motion, Shot, StagePlan } from './types'
 
 const BASE_MS = 520
 const SLOW_MS = 1100
@@ -13,9 +13,91 @@ const shortText = (v: Value, objects: Map<number, ObjectSnap>): string => {
   return o ? `${o.type}` : '객체'
 }
 
+/* ── 비교 감지 — 소스 라인의 비교식을 트레이스 값으로 접지한다.
+   양변이 실제 값으로 해석될 때만 발화한다: 못 하면 침묵 (지어내지 않는다) ── */
+
+const CMP_RE = /([A-Za-z_]\w*(?:\[[^\]]+\])?|-?\d+(?:\.\d+)?)\s*(<=|>=|==|!=|<|>)\s*([A-Za-z_]\w*(?:\[[^\]]+\])?|-?\d+(?:\.\d+)?)/
+
+const stripNoise = (line: string) => line.split('#')[0].replace(/'[^']*'|"[^"]*"/g, '""')
+
+type Operand = { text: string; num: number | null; target?: CompareTarget }
+
+function resolveOperand(
+  raw: string,
+  frameId: number,
+  locals: Map<string, Value>,
+  objects: Map<number, ObjectSnap>,
+): Operand | null {
+  const s = raw.trim()
+  if (/^-?\d+(\.\d+)?$/.test(s)) return { text: s, num: Number(s) }
+  const m = s.match(/^([A-Za-z_]\w*)(?:\[([^\]]+)\])?$/)
+  if (!m) return null
+  const v = locals.get(`${frameId}:${m[1]}`)
+  if (!v) return null
+  if (!m[2]) {
+    if (v.k !== 'prim') return null
+    return {
+      text: v.v,
+      num: v.t === 'int' || v.t === 'float' ? Number(v.v) : null,
+      target: { kind: 'var', varKey: `${frameId}:${m[1]}` },
+    }
+  }
+  if (v.k !== 'ref') return null
+  const obj = objects.get(v.id)
+  if (!obj?.items) return null
+  // 첨자: 리터럴, 지역 int, 또는 지역 int ± 리터럴 (arr[j+1])
+  const sub = m[2].replace(/\s+/g, '').match(/^([A-Za-z_]\w*|\d+)(?:([+-])(\d+))?$/)
+  if (!sub) return null
+  let base: number | null = null
+  if (/^\d+$/.test(sub[1])) base = Number(sub[1])
+  else {
+    const iv = locals.get(`${frameId}:${sub[1]}`)
+    if (iv?.k === 'prim' && iv.t === 'int') base = Number(iv.v)
+  }
+  if (base === null) return null
+  const idx = base + (sub[2] === '-' ? -Number(sub[3]) : Number(sub[3] ?? 0))
+  const item = obj.items[idx]
+  if (!item || item.k !== 'prim') return null
+  return {
+    text: item.v,
+    num: item.t === 'int' || item.t === 'float' ? Number(item.v) : null,
+    target: { kind: 'cell', objectId: v.id, index: idx },
+  }
+}
+
+function detectCompare(
+  rawLine: string,
+  frameId: number,
+  locals: Map<string, Value>,
+  objects: Map<number, ObjectSnap>,
+): Motion | null {
+  const m = stripNoise(rawLine).match(CMP_RE)
+  if (!m) return null
+  const a = resolveOperand(m[1], frameId, locals, objects)
+  const b = resolveOperand(m[3], frameId, locals, objects)
+  if (!a || !b) return null
+  const targets = [a.target, b.target].filter((t): t is CompareTarget => !!t)
+  if (targets.length === 0) return null
+  let verdict = ''
+  if (a.num !== null && b.num !== null && Number.isFinite(a.num) && Number.isFinite(b.num)) {
+    const op = m[2]
+    const res =
+      op === '<' ? a.num < b.num
+      : op === '>' ? a.num > b.num
+      : op === '<=' ? a.num <= b.num
+      : op === '>=' ? a.num >= b.num
+      : op === '==' ? a.num === b.num
+      : a.num !== b.num
+    verdict = res ? ' → 참' : ' → 거짓'
+  }
+  return { v: 'compare', text: `${a.text} ${m[2]} ${b.text}${verdict}`, targets }
+}
+
 // 2패스 — 실행 사건을 "무엇이 어떻게 움직이는가"로 번역한다.
-export function choreograph(events: TraceEvent[], _plan: StagePlan): Shot[] {
+export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: string): Shot[] {
   const digest = buildDigest(events)
+  const srcLines = (code ?? '').split('\n')
+  const locals = new Map<string, Value>() // `${frameId}:${name}` → 최신 값 (compare 접지용)
   const varsSeen = new Set<string>()
   const refCount = new Map<number, Set<string>>()
   const objects = new Map<number, ObjectSnap>()
@@ -46,6 +128,13 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan): Shot[] {
     for (const d of e.objectsDelta) {
       if (d.op === 'set' && d.obj) objects.set(d.obj.id, d.obj)
       else if (d.id !== undefined) objects.delete(d.id)
+    }
+    // 델타를 먼저 반영한다 — 이 이벤트의 델타는 "직전 라인이 일으켜 이 라인 경계에서 관측"된 것이므로,
+    // 반영 후 상태가 곧 지금 라인의 조건식이 보는 상태다
+    for (const d of e.localsDelta) {
+      const key = `${e.frameId}:${d.name}`
+      if (d.op === 'delete') locals.delete(key)
+      else if (d.value) locals.set(key, d.value)
     }
 
     const inLapse = lapseAt(e.seq)
@@ -81,6 +170,11 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan): Shot[] {
     } else if (!inLoop && badgeOn) {
       motions.push({ v: 'loopEnd' })
       badgeOn = false
+    }
+
+    if (code && e.kind === 'line') {
+      const cmp = detectCompare(srcLines[e.observedAtLine - 1] ?? '', e.frameId, locals, objects)
+      if (cmp) motions.push(cmp)
     }
 
     if (e.kind === 'call') motions.push({ v: 'pushFrame', frameId: e.frameId })

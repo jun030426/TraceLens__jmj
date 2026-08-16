@@ -16,7 +16,7 @@ import './demo.css'
 function Screening({ demo, onDone }: { demo: Demo; onDone: () => void }) {
   const { plan, layout, shots } = useMemo(() => {
     const p = buildStage(demo.fixture.events)
-    return { plan: p, layout: layoutStage(p), shots: choreograph(demo.fixture.events, p) }
+    return { plan: p, layout: layoutStage(p), shots: choreograph(demo.fixture.events, p, demo.fixture.code) }
   }, [demo])
 
   const film = useFilm(shots)
