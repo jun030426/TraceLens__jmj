@@ -230,7 +230,7 @@ function App() {
                 screenplay: ai.screenplay,
                 steps: expandScreenplay(ai.screenplay, snaps),
                 // 장식은 샷 수를 보존한다 — 아래 복원 effect의 인덱스가 그대로 유효한 이유
-                shots: decorateShots(prev.shots, ai.screenplay, prev.plan),
+                shots: decorateShots(prev.shots, ai.screenplay, prev.plan, prev.layout),
                 directorMode: ai.mode,
               }
             })
