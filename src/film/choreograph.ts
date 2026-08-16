@@ -13,6 +13,18 @@ const shortText = (v: Value, objects: Map<number, ObjectSnap>): string => {
   return o ? `${o.type}` : '객체'
 }
 
+// 객체의 현재 칸별 표시 문자열 — 리스트는 값, dict는 "키: 값"
+const textsOf = (obj: ObjectSnap, objects: Map<number, ObjectSnap>): string[] => {
+  const size = (obj.items?.length ?? 0) + (obj.entries?.length ?? 0)
+  return Array.from({ length: size }, (_, i) => {
+    const item = obj.items?.[i]
+    if (item) return shortText(item, objects)
+    const entry = obj.entries?.[i]
+    if (entry) return `${entry[0]}: ${shortText(entry[1], objects)}`
+    return ''
+  })
+}
+
 /* ── 비교 감지 — 소스 라인의 비교식을 트레이스 값으로 접지한다.
    양변이 실제 값으로 해석될 때만 발화한다: 못 하면 침묵 (지어내지 않는다) ── */
 
@@ -99,6 +111,7 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
   const srcLines = (code ?? '').split('\n')
   const locals = new Map<string, Value>() // `${frameId}:${name}` → 최신 값 (compare 접지용)
   const varsSeen = new Set<string>()
+  const frameVars = new Map<number, Set<string>>() // frameId → 화면에 올라간 그 프레임의 변수들
   const refCount = new Map<number, Set<string>>()
   const objects = new Map<number, ObjectSnap>()
   const prevTexts = new Map<number, string[]>() // objectId → 직전 상태의 칸별 표시 문자열
@@ -122,7 +135,47 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
   let badgeOn = false
 
   const shots: Shot[] = []
-  const consumed = new Set<number>()
+
+  // 압축 구간은 상태만 따라가며 모으고, 빠져나올 때 한 샷으로 "정산"한다 —
+  // 칸·변수를 실제 최종 값으로 맞추므로 '…' 같은 잔상이 남지 않는다
+  let pendingLapse: { from: number; startSeq: number; count: number } | null = null
+  const flushLapse = (p: { startSeq: number; count: number }): Shot => {
+    const motions: Motion[] = [{ v: 'loop', text: `남은 ${p.count}회 빨리감기` }]
+    for (const [id, obj] of objects) {
+      const texts = textsOf(obj, objects)
+      const prev = prevTexts.get(id)
+      if (!prev) {
+        motions.push({ v: 'enterObj', objectId: id })
+        for (let i = 0; i < texts.length; i++) motions.push({ v: 'grow', objectId: id, index: i, text: texts[i] })
+      } else {
+        for (let i = 0; i < Math.min(prev.length, texts.length); i++)
+          if (texts[i] !== prev[i]) motions.push({ v: 'setCell', objectId: id, index: i, text: texts[i] })
+        for (let i = prev.length; i < texts.length; i++) motions.push({ v: 'grow', objectId: id, index: i, text: texts[i] })
+        for (let i = texts.length; i < prev.length; i++) motions.push({ v: 'shrink', objectId: id, index: i })
+      }
+      prevTexts.set(id, texts)
+    }
+    for (const id of [...prevTexts.keys()]) {
+      if (!objects.has(id)) {
+        motions.push({ v: 'exitObj', objectId: id })
+        prevTexts.delete(id)
+      }
+    }
+    // 변수 값도 정산한다 — 루프 변수가 낡은 값으로 남으면 그것도 거짓말이다
+    for (const [key, v] of locals) {
+      if (v.k !== 'prim') continue
+      if (!varsSeen.has(key)) continue
+      motions.push({ v: 'setVar', varKey: key, text: shortText(v, objects) })
+    }
+    const target = [...objects.entries()].sort((a, b) => (b[1].items?.length ?? 0) - (a[1].items?.length ?? 0))[0]
+    return {
+      seq: p.startSeq,
+      motions,
+      durationMs: LAPSE_MS,
+      focus: target ? { kind: 'object', objectId: target[0] } : null,
+      timelapse: p.count,
+    }
+  }
 
   for (const e of events) {
     for (const d of e.objectsDelta) {
@@ -139,23 +192,16 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
 
     const inLapse = lapseAt(e.seq)
     if (inLapse) {
-      if (consumed.has(inLapse.from)) continue
-      consumed.add(inLapse.from)
-      const target = [...objects.entries()].sort((a, b) => (b[1].items?.length ?? 0) - (a[1].items?.length ?? 0))[0]
-      shots.push({
-        seq: e.seq,
-        motions: [
-          { v: 'loop', text: `남은 ${inLapse.count}회 빨리감기` },
-          ...(target
-            ? [{ v: 'setCell' as const, objectId: target[0], index: Math.max(0, (target[1].items?.length ?? 1) - 1), text: '…' }]
-            : [{ v: 'stdout' as const, text: '' }]),
-        ],
-        durationMs: LAPSE_MS,
-        focus: target ? { kind: 'object', objectId: target[0] } : null,
-        timelapse: inLapse.count,
-      })
-      badgeOn = true
+      if (!pendingLapse || pendingLapse.from !== inLapse.from) {
+        if (pendingLapse) shots.push(flushLapse(pendingLapse))
+        pendingLapse = { from: inLapse.from, startSeq: e.seq, count: inLapse.count }
+      }
       continue
+    }
+    if (pendingLapse) {
+      shots.push(flushLapse(pendingLapse))
+      pendingLapse = null
+      badgeOn = true
     }
 
     const motions: Motion[] = []
@@ -178,7 +224,18 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
     }
 
     if (e.kind === 'call') motions.push({ v: 'pushFrame', frameId: e.frameId })
-    if (e.kind === 'return') motions.push({ v: 'popFrame', frameId: e.frameId })
+    if (e.kind === 'return') {
+      motions.push({ v: 'popFrame', frameId: e.frameId })
+      // 반환된 프레임의 지역 변수는 무대에서 내린다 — 남겨두면 잔상이 된다.
+      // 단, 모듈 프레임은 남긴다: 마지막 장면은 프로그램의 최종 상태를 보여줘야 한다.
+      if (e.parentFrameId !== null) {
+        for (const key of frameVars.get(e.frameId) ?? []) {
+          motions.push({ v: 'exitVar', varKey: key })
+          varsSeen.delete(key)
+        }
+        frameVars.delete(e.frameId)
+      }
+    }
     if (e.kind === 'exception') {
       // 예외는 실패가 아니라 콘텐츠 — 흔들고, 무엇이 터졌는지 무대에 적는다
       motions.push({ v: 'shake', frameId: e.frameId })
@@ -188,15 +245,8 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
 
     for (const d of e.objectsDelta) {
       if (d.op !== 'set' || !d.obj) continue
-      const size = (d.obj.items?.length ?? 0) + (d.obj.entries?.length ?? 0)
-      const cellTextAt = (idx: number): string | null => {
-        const item = d.obj?.items?.[idx]
-        if (item) return shortText(item, objects)
-        const entry = d.obj?.entries?.[idx]
-        if (entry) return `${entry[0]}: ${shortText(entry[1], objects)}`
-        return null
-      }
-      const texts = Array.from({ length: size }, (_, i) => cellTextAt(i) ?? '')
+      const texts = textsOf(d.obj, objects)
+      const size = texts.length
       const prev = prevTexts.get(d.obj.id)
 
       if (!prev) {
@@ -245,6 +295,9 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
       }
       if (!varsSeen.has(varKey)) {
         varsSeen.add(varKey)
+        const set = frameVars.get(e.frameId) ?? new Set<string>()
+        set.add(varKey)
+        frameVars.set(e.frameId, set)
         motions.push({ v: 'enterVar', varKey })
       }
       if (d.value?.k === 'ref') {
@@ -272,6 +325,8 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
       focus: focusObj ? { kind: 'object', objectId: focusObj.objectId } : { kind: 'frame', frameId: e.frameId },
     })
   }
+  // 트레이스가 압축 구간에서 끝나면 정산 샷으로 마무리한다
+  if (pendingLapse) shots.push(flushLapse(pendingLapse))
 
   return shots
 }

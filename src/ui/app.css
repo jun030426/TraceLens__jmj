@@ -208,6 +208,22 @@
   font-size: var(--d-xs);
 }
 
+/* 지금 실행되는 대상의 조명 — Drawn-State Rule의 active 처리 그대로:
+   쉬는 상자는 sunken/panel, 켜진 상자는 accent-wash 면 + accent 획 */
+.film-stage [data-obj] > rect,
+.film-stage [data-frame] > rect {
+  transition:
+    stroke 160ms var(--ease),
+    fill 160ms var(--ease),
+    stroke-width 160ms var(--ease);
+}
+.film-stage [data-obj].is-live > rect,
+.film-stage [data-frame].is-live > rect {
+  fill: var(--accent-wash);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
 /* ── narration ────────────────────────────────────────────────────────── */
 
 .narration-bar {
