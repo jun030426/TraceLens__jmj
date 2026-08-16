@@ -8,6 +8,26 @@ import { choreograph } from './choreograph'
 const demoEvents = (demo as { events: TraceEvent[] }).events
 const aliasEvents = (aliasing as { events: TraceEvent[] }).events
 
+/* 합성 이벤트 헬퍼 — 특정 문법 상황을 최소 트레이스로 재현한다 */
+const P = (v: string, t = 'int') => ({ k: 'prim' as const, v, t })
+const ev = (over: Partial<TraceEvent>, seq: number): TraceEvent => ({
+  seq,
+  kind: 'line',
+  frameId: 0,
+  parentFrameId: null,
+  func: '<module>',
+  causedByLine: null,
+  observedAtLine: 1,
+  localsDelta: [],
+  objectsDelta: [],
+  stdout: '',
+  ...over,
+})
+const listSet = (items: string[]) => ({
+  op: 'set' as const,
+  obj: { id: 1, type: 'list', items: items.map(v => P(v)) },
+})
+
 describe('choreograph', () => {
   const shots = choreograph(demoEvents, buildStage(demoEvents))
 
@@ -58,5 +78,19 @@ describe('choreograph', () => {
       .map(m => (m as { text: string }).text)
     expect(texts.some(t => t.includes('kim'))).toBe(true)
     expect(texts.some(t => t.includes('lee'))).toBe(true)
+  })
+})
+
+describe('choreograph: raise', () => {
+  it('예외 이벤트에 raise 모션이 나오고 오류명이 담긴다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: P('1') }] }, 1),
+      ev({ kind: 'exception', error: 'IndexError: list index out of range', observedAtLine: 2 }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const raise = shots.flatMap(s => s.motions).find(m => m.v === 'raise')
+    expect(raise).toBeDefined()
+    expect((raise as { text: string }).text).toContain('IndexError')
   })
 })

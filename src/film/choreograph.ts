@@ -65,7 +65,9 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan): Shot[] {
     if (e.kind === 'call') motions.push({ v: 'pushFrame', frameId: e.frameId })
     if (e.kind === 'return') motions.push({ v: 'popFrame', frameId: e.frameId })
     if (e.kind === 'exception') {
+      // 예외는 실패가 아니라 콘텐츠 — 흔들고, 무엇이 터졌는지 무대에 적는다
       motions.push({ v: 'shake', frameId: e.frameId })
+      motions.push({ v: 'raise', frameId: e.frameId, text: e.error ?? '예외 발생' })
       slow = true
     }
 

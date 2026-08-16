@@ -50,6 +50,7 @@ export type Motion =
   | { v: 'popFrame'; frameId: number }
   | { v: 'stdout'; text: string }
   | { v: 'shake'; frameId: number }
+  | { v: 'raise'; frameId: number; text: string }
 
 export type Shot = {
   seq: number

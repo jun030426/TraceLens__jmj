@@ -303,6 +303,12 @@ function App() {
           <div className="tl-stage">
             {run && shots.length > 0 ? (
               <WorldStage plan={run.plan} layout={run.layout} shots={shots} film={film} />
+            ) : run?.error ? (
+              /* 실행 전에 죽은 코드(구문 오류 등)도 빈 화면 대신 오류 장면을 받는다 */
+              <div className="stage-error" role="alert">
+                <span className="tl-label">실행이 여기서 멈췄습니다</span>
+                <code className="tl-mono">{run.error}</code>
+              </div>
             ) : (
               <Stage snapshot={currentSnap} step={currentStep} />
             )}
