@@ -93,6 +93,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         ),
         { opacity: 0 },
       )
+      const autoCam = q('.film-cam-auto')
+      if (autoCam) gsap.set(autoCam, { x: 0, y: 0, scale: 1 })
       const tl = gsap.timeline({ paused: true })
       const bound = new Map<string, number>() // varKey → 현재 끈이 이어진 objectId (옛 끈 정리용)
       let liveEl: Element | null = null // 직전 샷의 강조 대상
@@ -345,6 +347,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 }
               }
               break
+            case 'camera': {
+              // AI의 "확대해서 보라" — 자동 카메라 그룹만 움직이고, 수동 카메라(바깥 그룹)와 합성된다
+              const autoEl = q('.film-cam-auto')
+              if (autoEl) {
+                tl.to(
+                  autoEl,
+                  { x: m.x, y: m.y, scale: m.k, duration: d * 0.9, ease: 'power2.inOut', transformOrigin: '0px 0px' },
+                  label,
+                )
+              }
+              break
+            }
             case 'compare': {
               const text = m.text
               tl.call(
@@ -411,6 +425,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         style={{ cursor: cam.k !== 1 ? 'grab' : 'default' }}
       >
       <g transform={camTransform}>
+      <g className="film-cam-auto">
       {plan.frames.map(f => {
         const r = layout.framePos.get(f.frameId)!
         return (
@@ -522,6 +537,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         <rect x={24} y={layout.height - 52} width={layout.width - 48} height={36} rx={8} fill="var(--sunken)" stroke="var(--line)" strokeWidth={1} />
         <text x={38} y={layout.height - 28} className="svg-type">출력</text>
         <text className="film-stdout-text svg-value" x={92} y={layout.height - 28} />
+      </g>
       </g>
       </g>
       </svg>
