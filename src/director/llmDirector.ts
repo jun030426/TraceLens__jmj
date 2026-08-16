@@ -29,7 +29,7 @@ ${JSON.stringify(promptSpans(digest))}
 ${digest.aliasNote ? `\n참고 — 별칭 관계: ${digest.aliasNote}` : ''}
 
 ## 출력 형식 (JSON만, 다른 텍스트 금지)
-{"chapters":[{"title":"챕터 제목","scenes":[{"spanRef":"스팬ID","primitive":"variables|callStack|sequence|objectGraph|generic","focus":["변수명"],"pacing":"slow|normal|fast","narration":{"template":"관찰형 한 문장, 값은 {키}로","bindings":{"키":{"name":"변수명"}}}}]}]}
+{"chapters":[{"title":"챕터 제목","scenes":[{"spanRef":"스팬ID","primitive":"variables|callStack|sequence|objectGraph|generic","focus":["변수명"],"pacing":"slow|normal|fast","direction":["zoom|hold|skip"],"narration":{"template":"관찰형 한 문장, 값은 {키}로","bindings":{"키":{"name":"변수명"}}}}]}]}
 
 ## 연출 규칙 (어기면 거부됨)
 1. spanRef는 위 Digest에 있는 spanId만. 배열 순서(=실행 순서)대로만 배열.
@@ -43,7 +43,8 @@ ${digest.aliasNote ? `\n참고 — 별칭 관계: ${digest.aliasNote}` : ''}
 6. 중요한 순간(별칭 생성, 예외, 결과 출력)은 slow, 반복(iterations 있는 스팬)은 fast.
 7. 마지막 장면은 프로그램의 최종 상태가 보이도록 variables 또는 objectGraph를 사용할 것 (callStack 금지).
 8. 챕터는 2~4개, 학습자가 이해할 이야기 단위로 나눌 것. 모든 스팬을 쓸 필요는 없지만 순서는 지킬 것.
-9. 한국어로 작성.`
+9. 한국어로 작성.
+10. direction(선택): 그 장면의 연출 지시. "zoom"=그 구간의 사건(비교·교환·별칭·예외)을 확대해서 보여줄 가치가 있을 때, "hold"=구간 끝에서 여운(예외·최종 결과), "skip"=단순 준비 구간 빨리감기. 확대할 대상은 시스템이 그 구간의 사실에서 스스로 찾으므로 동사만 적을 것. 정말 중요한 곳에만: zoom 최대 3곳, hold 최대 2곳. 지시가 없으면 빈 배열.`
 
 const stripFences = (s: string) => {
   const m = s.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
