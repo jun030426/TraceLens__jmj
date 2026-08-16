@@ -290,6 +290,20 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             case 'loopEnd':
               tl.to(q('.film-loop')!, { opacity: 0, duration: d * 0.4 }, label)
               break
+            case 'spotlight':
+              // AI가 고른 시선 — 해당 변수들이 잠깐 부푼다
+              for (const key of m.varKeys) {
+                const el = q(varSel(key))
+                if (el) {
+                  tl.fromTo(
+                    el,
+                    { scale: 1 },
+                    { scale: 1.08, duration: d * 0.4, yoyo: true, repeat: 1, transformOrigin: 'center' },
+                    label,
+                  )
+                }
+              }
+              break
             case 'compare': {
               const text = m.text
               tl.call(
