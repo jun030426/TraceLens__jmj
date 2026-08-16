@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { Digest } from '../digest/buildDigest'
-import { resolveScreenplay, ValidationError } from './resolver'
+import type { Scene, Screenplay } from '../screenplay/types'
+import { resolveScreenplay, salvageScreenplay, ValidationError } from './resolver'
 
 const digest: Digest = {
   spans: [
@@ -57,5 +58,51 @@ describe('resolveScreenplay', () => {
       { spanRef: 's0', primitive: 'variables', narration: { template: '{x}가 변합니다' } },
     ] }] }
     expect(() => resolveScreenplay(bad, digest)).toThrow(/바인딩/)
+  })
+})
+
+describe('salvageScreenplay', () => {
+  const sDigest: Digest = {
+    spans: [
+      { spanId: 's0', sourceSeqRange: [0, 0], lines: [1, 1], eventKinds: ['line'], funcs: ['<module>'], changedVars: ['a'] },
+      { spanId: 's1', sourceSeqRange: [1, 1], lines: [2, 2], eventKinds: ['line'], funcs: ['<module>'], changedVars: ['b'] },
+      { spanId: 's2', sourceSeqRange: [2, 2], lines: [3, 3], eventKinds: ['line'], funcs: ['<module>'], changedVars: ['c'] },
+    ],
+  }
+  const ruleScene = (seq: number, name: string): Scene => ({
+    seqStart: seq, seqEnd: seq, primitive: 'variables', focus: [name],
+    pacing: 'normal', narration: { template: `${name} 변경`, bindings: {} },
+  })
+  const rule: Screenplay = {
+    chapters: [{ title: '실행', scenes: [ruleScene(0, 'a'), ruleScene(1, 'b'), ruleScene(2, 'c')] }],
+  }
+  const aiScene = (ref: string) => ({
+    spanRef: ref, primitive: 'variables', focus: [], pacing: 'slow',
+    narration: { template: 'AI 장면', bindings: {} },
+  })
+
+  it('무효 장면만 버리고 빠진 구간을 규칙 장면으로 메꾼다', () => {
+    const raw = { chapters: [{ title: '1장', scenes: [aiScene('s0'), aiScene('없는거'), aiScene('s2')] }] }
+    const out = salvageScreenplay(raw, sDigest, rule)!
+    expect(out).not.toBeNull()
+    const flat = out.chapters.flatMap(c => c.scenes)
+    expect(flat.map(s => s.seqStart)).toEqual([0, 1, 2])
+    expect(flat[1].narration.template).toBe('b 변경')
+    expect(flat[0].narration.template).toBe('AI 장면')
+    expect(out.chapters[0].title).toBe('1장')
+  })
+
+  it('순서를 어긴 장면은 그 장면만 버린다', () => {
+    const raw = { chapters: [{ title: '1장', scenes: [aiScene('s2'), aiScene('s0'), aiScene('s1')] }] }
+    const out = salvageScreenplay(raw, sDigest, rule)!
+    const flat = out.chapters.flatMap(c => c.scenes)
+    expect(flat.map(s => s.seqStart)).toEqual([0, 1, 2])
+    expect(flat[2].narration.template).toBe('AI 장면')
+    expect(flat[0].narration.template).toBe('a 변경')
+  })
+
+  it('전부 무효면 null (전체 규칙 폴백)', () => {
+    const raw = { chapters: [{ title: '1장', scenes: [aiScene('x'), aiScene('y')] }] }
+    expect(salvageScreenplay(raw, sDigest, rule)).toBeNull()
   })
 })

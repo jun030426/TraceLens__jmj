@@ -1,6 +1,6 @@
 import type { Digest } from '../digest/buildDigest'
 import type { Screenplay } from '../screenplay/types'
-import { resolveScreenplay } from './resolver'
+import { resolveScreenplay, salvageScreenplay } from './resolver'
 
 export type LlmCallFn = (prompt: string) => Promise<string>
 
@@ -52,6 +52,40 @@ export async function generateScreenplay(code: string, digest: Digest, call: Llm
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err)
     }
+  }
+  throw new Error(`대본 생성 실패: ${lastError}`)
+}
+
+export type DirectedResult = { screenplay: Screenplay; mode: 'ai' | 'ai-partial' }
+
+// 엄격 2회 시도 → 실패하면 마지막 응답에서 유효한 장면만 건져 규칙 장면으로 충전.
+// 그것도 안 되면 throw — 호출부가 전체 규칙 폴백으로 내려간다.
+export async function generateScreenplayWithSalvage(
+  code: string,
+  digest: Digest,
+  call: LlmCallFn,
+  rule: Screenplay,
+): Promise<DirectedResult> {
+  const prompt = buildPrompt(code, digest)
+  let lastError = ''
+  let lastText = ''
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const ask = attempt === 0
+      ? prompt
+      : `${prompt}\n\n## 이전 시도 오류 (수정해서 다시)\n${lastError}`
+    const text = await call(ask)
+    lastText = text
+    try {
+      return { screenplay: resolveScreenplay(JSON.parse(stripFences(text)), digest), mode: 'ai' }
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err)
+    }
+  }
+  try {
+    const salvaged = salvageScreenplay(JSON.parse(stripFences(lastText)), digest, rule)
+    if (salvaged) return { screenplay: salvaged, mode: 'ai-partial' }
+  } catch {
+    /* JSON 자체가 깨짐 — 아래 throw로 규칙 폴백 */
   }
   throw new Error(`대본 생성 실패: ${lastError}`)
 }
