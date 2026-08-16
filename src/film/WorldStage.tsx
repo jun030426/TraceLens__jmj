@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import type { Shot, StagePlan } from './types'
 import type { StageLayout } from './layout'
@@ -21,9 +21,59 @@ const ropeSel = (key: string, id: number) => `[data-rope="${esc(`${key}-${id}`)}
 // 3패스 — 등장인물을 처음부터 전부 무대에 올려두고(숨긴 채),
 // 마스터 타임라인이 나타내고·움직이고·지운다. 프레임마다 다시 그리지 않으므로
 // 물체가 시각적 정체성을 유지한다.
+const FIT = { k: 1, tx: 0, ty: 0 }
+
 export default function WorldStage({ plan, layout, shots, film }: Props) {
   const rootRef = useRef<SVGSVGElement | null>(null)
   const { register } = film
+
+  /* 카메라 — 콘텐츠를 담은 <g> 하나만 변환하므로 GSAP 타깃(자식)과 간섭하지 않는다 */
+  const [cam, setCam] = useState(FIT)
+  const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
+
+  // 새 실행에서만 리셋 — AI 장식은 shots만 바꾸므로 plan을 키로 쓴다
+  useEffect(() => {
+    setCam(FIT)
+  }, [plan])
+
+  const clampK = (k: number) => Math.min(3, Math.max(0.4, k))
+  const zoomBy = (f: number) => setCam(c => ({ ...c, k: clampK(c.k * f) }))
+
+  // React 합성 wheel은 passive — preventDefault가 안 먹히므로 네이티브로 단다
+  useEffect(() => {
+    const svg = rootRef.current
+    if (!svg) return
+    const onWheel = (ev: WheelEvent) => {
+      ev.preventDefault()
+      setCam(c => ({ ...c, k: clampK(c.k * (ev.deltaY < 0 ? 1.12 : 0.9)) }))
+    }
+    svg.addEventListener('wheel', onWheel, { passive: false })
+    return () => svg.removeEventListener('wheel', onWheel)
+  }, [])
+
+  const unitsPerPx = () => {
+    const rect = rootRef.current?.getBoundingClientRect()
+    if (!rect || rect.width === 0) return 1
+    return Math.max(layout.width / rect.width, layout.height / rect.height)
+  }
+  const onPointerDown = (ev: React.PointerEvent<SVGSVGElement>) => {
+    if (cam.k === 1) return
+    ev.currentTarget.setPointerCapture(ev.pointerId)
+    dragRef.current = { x: ev.clientX, y: ev.clientY, tx: cam.tx, ty: cam.ty }
+  }
+  const onPointerMove = (ev: React.PointerEvent<SVGSVGElement>) => {
+    const drag = dragRef.current
+    if (!drag) return
+    const u = unitsPerPx()
+    setCam(c => ({ ...c, tx: drag.tx + (ev.clientX - drag.x) * u, ty: drag.ty + (ev.clientY - drag.y) * u }))
+  }
+  const onPointerUp = () => {
+    dragRef.current = null
+  }
+
+  const cx = layout.width / 2
+  const cy = layout.height / 2
+  const camTransform = `translate(${cam.tx + cx * (1 - cam.k)} ${cam.ty + cy * (1 - cam.k)}) scale(${cam.k})`
 
   useEffect(() => {
     const root = rootRef.current
@@ -199,13 +249,20 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
   }, [shots, register])
 
   return (
-    <svg
-      ref={rootRef}
-      className="stage-svg film-stage"
-      viewBox={`0 0 ${layout.width} ${layout.height}`}
-      role="img"
-      aria-label="코드 실행 무성영화"
-    >
+    <div className="film-viewport">
+      <svg
+        ref={rootRef}
+        className="stage-svg film-stage"
+        viewBox={`0 0 ${layout.width} ${layout.height}`}
+        role="img"
+        aria-label="코드 실행 무성영화"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+        style={{ cursor: cam.k !== 1 ? 'grab' : 'default' }}
+      >
+      <g transform={camTransform}>
       {plan.frames.map(f => {
         const r = layout.framePos.get(f.frameId)!
         return (
@@ -294,6 +351,19 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         <text x={38} y={layout.height - 28} className="svg-type">출력</text>
         <text className="film-stdout-text svg-value" x={92} y={layout.height - 28} />
       </g>
-    </svg>
+      </g>
+      </svg>
+      <div className="film-zoom" role="group" aria-label="확대 조절">
+        <button type="button" className="tl-btn tl-btn--quiet tl-btn--sm" onClick={() => zoomBy(0.8)} aria-label="축소">
+          −
+        </button>
+        <button type="button" className="tl-btn tl-btn--quiet tl-btn--sm" onClick={() => setCam(FIT)} aria-label="화면 맞춤">
+          맞춤
+        </button>
+        <button type="button" className="tl-btn tl-btn--quiet tl-btn--sm" onClick={() => zoomBy(1.25)} aria-label="확대">
+          +
+        </button>
+      </div>
+    </div>
   )
 }
