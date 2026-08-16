@@ -125,6 +125,22 @@ describe('choreograph: 정밀 칸 diff', () => {
   })
 })
 
+describe('choreograph: swap', () => {
+  it('전위 교환이 swap 모션이 되고 느리게 재생된다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }], objectsDelta: [listSet(['5', '4', '9'])] }, 1),
+      ev({ objectsDelta: [listSet(['4', '5', '9'])] }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const hit = shots.flatMap(s => s.motions.map(m => ({ m, s }))).find(x => x.m.v === 'swap')
+    expect(hit).toBeDefined()
+    expect(hit!.m).toMatchObject({ objectId: 1, i: 0, k: 1, iText: '4', kText: '5' })
+    expect(hit!.s.durationMs).toBeGreaterThan(520)
+    expect(hit!.s.motions.some(m => m.v === 'setCell')).toBe(false)
+  })
+})
+
 describe('choreograph: compare', () => {
   it('if a > b 라인에서 값·부등호·판정이 나온다', () => {
     const code = 'a = 5\nb = 4\nif a > b:\n    c = 1\n'
