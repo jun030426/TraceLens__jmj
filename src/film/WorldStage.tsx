@@ -182,6 +182,11 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               )
               break
             }
+            case 'shrink': {
+              const el = q(cellSel(m.objectId, m.index))
+              if (el) tl.to(el, { opacity: 0, scale: 0.6, duration: d * 0.5, ease: 'power2.in', transformOrigin: 'center' }, label)
+              break
+            }
             case 'exitObj':
               tl.to(q(objSel(m.objectId))!, { opacity: 0.15, duration: d }, label)
               break
@@ -322,6 +327,15 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                   y={r.y + r.h / 2 + 5}
                   textAnchor="middle"
                 />
+                {/* 칸 번호 — 칸과 함께 나타나도록 셀 그룹 안에 둔다 */}
+                <text
+                  className="svg-index"
+                  x={r.x + 8 + i * layout.cellW + (layout.cellW - 6) / 2}
+                  y={r.y + r.h + 14}
+                  textAnchor="middle"
+                >
+                  {i}
+                </text>
               </g>
             ))}
           </g>

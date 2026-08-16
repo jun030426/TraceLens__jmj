@@ -17,10 +17,9 @@ const shortText = (v: Value, objects: Map<number, ObjectSnap>): string => {
 export function choreograph(events: TraceEvent[], _plan: StagePlan): Shot[] {
   const digest = buildDigest(events)
   const varsSeen = new Set<string>()
-  const objsSeen = new Set<number>()
   const refCount = new Map<number, Set<string>>()
   const objects = new Map<number, ObjectSnap>()
-  const prevSize = new Map<number, number>()
+  const prevTexts = new Map<number, string[]>() // objectId → 직전 상태의 칸별 표시 문자열
 
   // 10회를 넘는 반복 구간의 "11회차부터 끝까지"를 한 샷으로 압축한다
   const lapse: { from: number; to: number; count: number }[] = []
@@ -81,28 +80,30 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan): Shot[] {
         if (entry) return `${entry[0]}: ${shortText(entry[1], objects)}`
         return null
       }
-      if (!objsSeen.has(d.obj.id)) {
-        objsSeen.add(d.obj.id)
+      const texts = Array.from({ length: size }, (_, i) => cellTextAt(i) ?? '')
+      const prev = prevTexts.get(d.obj.id)
+
+      if (!prev) {
         motions.push({ v: 'enterObj', objectId: d.obj.id })
         // 리터럴로 이미 원소를 가진 채 태어난 객체 — 그 칸들도 채워야 한다.
         // 안 그러면 상자만 나타나고 안이 영원히 빈 채로 남는다.
-        for (let i = 0; i < size; i++) {
-          motions.push({ v: 'grow', objectId: d.obj.id, index: i, text: cellTextAt(i) ?? '' })
-        }
-      } else {
-        const before = prevSize.get(d.obj.id) ?? 0
+        for (let i = 0; i < size; i++) motions.push({ v: 'grow', objectId: d.obj.id, index: i, text: texts[i] })
+      } else if (size > prev.length) {
         // dict·set도 칸이 차오르는 순서를 보여준다 — 리스트는 값만, dict는 키: 값
-        if (size > before) {
-          for (let i = before; i < size; i++) {
-            motions.push({ v: 'grow', objectId: d.obj.id, index: i, text: cellTextAt(i) ?? '' })
-          }
-        } else if (size === before && size > 0) {
-          const idx = Math.max(0, size - 1)
-          const text = cellTextAt(idx)
-          if (text !== null) motions.push({ v: 'setCell', objectId: d.obj.id, index: idx, text })
-        }
+        for (let i = 0; i < prev.length; i++)
+          if (texts[i] !== prev[i]) motions.push({ v: 'setCell', objectId: d.obj.id, index: i, text: texts[i] })
+        for (let i = prev.length; i < size; i++) motions.push({ v: 'grow', objectId: d.obj.id, index: i, text: texts[i] })
+      } else if (size === prev.length && size > 0) {
+        // 바뀐 칸"들"을 정확히 짚는다 — 마지막 칸만 갱신하면 정렬·중간 대입이 거짓말이 된다
+        const changed: number[] = []
+        for (let i = 0; i < size; i++) if (texts[i] !== prev[i]) changed.push(i)
+        for (const i of changed) motions.push({ v: 'setCell', objectId: d.obj.id, index: i, text: texts[i] })
+      } else if (size < prev.length) {
+        for (let i = 0; i < size; i++)
+          if (texts[i] !== prev[i]) motions.push({ v: 'setCell', objectId: d.obj.id, index: i, text: texts[i] })
+        for (let i = size; i < prev.length; i++) motions.push({ v: 'shrink', objectId: d.obj.id, index: i })
       }
-      prevSize.set(d.obj.id, size)
+      prevTexts.set(d.obj.id, texts)
     }
 
     for (const d of e.localsDelta) {

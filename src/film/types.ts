@@ -45,6 +45,7 @@ export type Motion =
   | { v: 'enterObj'; objectId: number }
   | { v: 'grow'; objectId: number; index: number; text: string }
   | { v: 'setCell'; objectId: number; index: number; text: string }
+  | { v: 'shrink'; objectId: number; index: number }
   | { v: 'exitObj'; objectId: number }
   | { v: 'pushFrame'; frameId: number }
   | { v: 'popFrame'; frameId: number }
