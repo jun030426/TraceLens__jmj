@@ -102,7 +102,7 @@ function App() {
   const decorationRef = useRef<ReturnType<Parameters<OnMount>[0]['createDecorationsCollection']> | null>(null)
 
   const settings = useSettings()
-  const steps = run?.steps ?? []
+  const steps = useMemo(() => run?.steps ?? [], [run])
   const shots = useMemo(() => run?.shots ?? [], [run])
   const { index, playing, speed, play, pause, seek, setSpeed, register } = useFilm(shots)
   const film = { index, playing, speed, play, pause, seek, setSpeed, register }
