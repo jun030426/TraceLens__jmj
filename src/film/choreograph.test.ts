@@ -81,6 +81,25 @@ describe('choreograph', () => {
   })
 })
 
+describe('choreograph: 반복 배지', () => {
+  const shots = choreograph(demoEvents, buildStage(demoEvents))
+  const all = shots.flatMap(s => s.motions)
+
+  it('반복 중에 회차 배지가 나온다', () => {
+    const loops = all.filter(m => m.v === 'loop') as { text: string }[]
+    expect(loops.some(l => l.text.includes('회차'))).toBe(true)
+  })
+
+  it('압축 샷은 빨리감기 문구를 단다', () => {
+    const loops = all.filter(m => m.v === 'loop') as { text: string }[]
+    expect(loops.some(l => l.text.includes('빨리감기'))).toBe(true)
+  })
+
+  it('반복이 끝나면 배지가 내려간다', () => {
+    expect(all.some(m => m.v === 'loopEnd')).toBe(true)
+  })
+})
+
 describe('choreograph: 정밀 칸 diff', () => {
   it('크기가 같아도 바뀐 칸을 전부 짚는다 (0번과 2번)', () => {
     const events: TraceEvent[] = [
