@@ -189,6 +189,34 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               if (el) tl.to(el, { opacity: 0, scale: 0.6, duration: d * 0.5, ease: 'power2.in', transformOrigin: 'center' }, label)
               break
             }
+            case 'swap': {
+              // 두 칸이 서로의 자리로 이동한 뒤, 그 순간 텍스트를 최종 배치로 바꾸고
+              // transform을 0으로 되돌린다 — 눈에는 완전한 자리 교환으로 보인다
+              const a = q(cellSel(m.objectId, m.i))
+              const b = q(cellSel(m.objectId, m.k))
+              if (!a || !b) break
+              const dx = (m.k - m.i) * layout.cellW
+              const id = m.objectId
+              const i = m.i
+              const k = m.k
+              const iText = m.iText
+              const kText = m.kText
+              tl.to(a, { x: dx, scale: 1.12, duration: d * 0.55, ease: 'power2.inOut', transformOrigin: 'center' }, label)
+              tl.to(b, { x: -dx, scale: 1.12, duration: d * 0.55, ease: 'power2.inOut', transformOrigin: 'center' }, label)
+              tl.call(
+                () => {
+                  const ta = root.querySelector(`${cellSel(id, i)} .film-cell-text`)
+                  const tb = root.querySelector(`${cellSel(id, k)} .film-cell-text`)
+                  if (ta) ta.textContent = iText
+                  if (tb) tb.textContent = kText
+                },
+                undefined,
+                `${label}+=${d * 0.55}`,
+              )
+              tl.set([a, b], { x: 0 }, `${label}+=${d * 0.55}`)
+              tl.to([a, b], { scale: 1, duration: d * 0.3, ease: 'back.out(2)' }, `${label}+=${d * 0.58}`)
+              break
+            }
             case 'exitObj':
               tl.to(q(objSel(m.objectId))!, { opacity: 0.15, duration: d }, label)
               break

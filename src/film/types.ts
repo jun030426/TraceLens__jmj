@@ -50,6 +50,7 @@ export type Motion =
   | { v: 'grow'; objectId: number; index: number; text: string }
   | { v: 'setCell'; objectId: number; index: number; text: string }
   | { v: 'shrink'; objectId: number; index: number }
+  | { v: 'swap'; objectId: number; i: number; k: number; iText: string; kText: string }
   | { v: 'exitObj'; objectId: number }
   | { v: 'pushFrame'; frameId: number }
   | { v: 'popFrame'; frameId: number }

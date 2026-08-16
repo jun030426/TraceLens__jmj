@@ -213,7 +213,21 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
         // 바뀐 칸"들"을 정확히 짚는다 — 마지막 칸만 갱신하면 정렬·중간 대입이 거짓말이 된다
         const changed: number[] = []
         for (let i = 0; i < size; i++) if (texts[i] !== prev[i]) changed.push(i)
-        for (const i of changed) motions.push({ v: 'setCell', objectId: d.obj.id, index: i, text: texts[i] })
+        if (
+          changed.length === 2 &&
+          texts[changed[0]] === prev[changed[1]] &&
+          texts[changed[1]] === prev[changed[0]]
+        ) {
+          // 정확히 두 칸이 서로 값을 교환 — 정렬의 심장. 칸이 실제로 자리를 바꾼다
+          motions.push({
+            v: 'swap', objectId: d.obj.id,
+            i: changed[0], k: changed[1],
+            iText: texts[changed[0]], kText: texts[changed[1]],
+          })
+          slow = true
+        } else {
+          for (const i of changed) motions.push({ v: 'setCell', objectId: d.obj.id, index: i, text: texts[i] })
+        }
       } else if (size < prev.length) {
         for (let i = 0; i < size; i++)
           if (texts[i] !== prev[i]) motions.push({ v: 'setCell', objectId: d.obj.id, index: i, text: texts[i] })
