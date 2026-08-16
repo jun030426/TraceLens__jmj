@@ -1,5 +1,5 @@
 import type { Digest, DigestSpan } from '../digest/buildDigest'
-import type { Screenplay, Chapter, Scene, PrimitiveKind, Pacing } from '../screenplay/types'
+import type { Screenplay, Chapter, Scene, PrimitiveKind, Pacing, DirectingVerb } from '../screenplay/types'
 
 // LLM 출력(spanRef 기반) → 검증 → 기존 Screenplay 타입으로 결정적 치환.
 // 핵심 계약: LLM은 seq 숫자를 쓸 수 없다 — seq는 여기서 DigestSpan으로부터만 부여된다.
@@ -8,6 +8,7 @@ export class ValidationError extends Error {}
 
 const PRIMITIVES: PrimitiveKind[] = ['variables', 'callStack', 'sequence', 'objectGraph', 'generic']
 const PACINGS: Pacing[] = ['slow', 'normal', 'fast']
+const VERBS: DirectingVerb[] = ['zoom', 'hold', 'skip']
 
 type RawBinding = { name?: unknown }
 type RawScene = {
@@ -15,6 +16,7 @@ type RawScene = {
   primitive?: unknown
   focus?: unknown
   pacing?: unknown
+  direction?: unknown
   narration?: { template?: unknown; bindings?: Record<string, RawBinding> }
 }
 type RawScreenplay = { chapters?: { title?: unknown; scenes?: RawScene[] }[] }
@@ -48,6 +50,10 @@ function resolveScene(
   }
 
   const focus = Array.isArray(sc.focus) ? sc.focus.filter((f): f is string => typeof f === 'string') : []
+  // 연출 동사는 장식이다 — 모르는 동사는 그 동사만 버리고 장면은 살린다
+  const direction = Array.isArray(sc.direction)
+    ? [...new Set(sc.direction.filter((v): v is DirectingVerb => VERBS.includes(v as DirectingVerb)))]
+    : []
   return {
     scene: {
       seqStart: span.sourceSeqRange[0],
@@ -55,6 +61,7 @@ function resolveScene(
       primitive: sc.primitive as PrimitiveKind,
       focus,
       pacing,
+      direction,
       ...(span.iterations && span.iterations > 1 ? { repeat: span.iterations } : {}),
       narration: { template, bindings },
     },
