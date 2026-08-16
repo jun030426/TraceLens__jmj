@@ -61,6 +61,7 @@ export type Motion =
   | { v: 'loopEnd' }
   | { v: 'compare'; text: string; targets: CompareTarget[] }
   | { v: 'spotlight'; varKeys: string[] }
+  | { v: 'camera'; k: number; x: number; y: number }
 
 export type Shot = {
   seq: number
