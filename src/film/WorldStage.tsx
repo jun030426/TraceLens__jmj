@@ -34,7 +34,10 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     // 전역 티커에서 떼어내 재생이 멈춘다. 대신 실제 엘리먼트를 직접 넘기고 kill로만 정리한다.
     const q = (sel: string) => root.querySelector(sel)
     const build = () => {
-      gsap.set(root.querySelectorAll('[data-obj], [data-var], [data-frame], [data-rope], [data-cell]'), { opacity: 0 })
+      gsap.set(
+        root.querySelectorAll('[data-obj], [data-var], [data-frame], [data-rope], [data-cell], .film-error'),
+        { opacity: 0 },
+      )
       const tl = gsap.timeline({ paused: true })
 
       for (const shot of shots) {
@@ -159,6 +162,24 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             case 'shake':
               tl.fromTo(q(frameSel(m.frameId))!, { x: 0 }, { x: 8, duration: d * 0.12, repeat: 5, yoyo: true }, label)
               break
+            case 'raise': {
+              const text = m.text
+              tl.call(
+                () => {
+                  const el = root.querySelector('.film-error-text')
+                  if (el) el.textContent = text.slice(0, 80)
+                },
+                undefined,
+                label,
+              )
+              tl.fromTo(
+                q('.film-error')!,
+                { opacity: 0, y: -10 },
+                { opacity: 1, y: 0, duration: d * 0.5, ease: 'power3.out' },
+                label,
+              )
+              break
+            }
           }
         }
         tl.to({}, { duration: d * 0.25 })
@@ -260,6 +281,13 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
           </g>
         )
       })}
+
+      {/* 오류 스트립 — 첫 행(y=70) 위의 빈 띠. 터진 순간 내려와 끝까지 남는다 */}
+      <g className="film-error">
+        <rect x={24} y={14} width={layout.width - 48} height={34} rx={8} fill="var(--panel)" stroke="var(--accent)" strokeWidth={1.4} />
+        <text className="svg-type" x={40} y={36}>오류</text>
+        <text className="film-error-text svg-name" x={92} y={36} />
+      </g>
 
       <g className="film-stdout">
         <rect x={24} y={layout.height - 52} width={layout.width - 48} height={36} rx={8} fill="var(--sunken)" stroke="var(--line)" strokeWidth={1} />

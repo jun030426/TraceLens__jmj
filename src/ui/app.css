@@ -125,6 +125,24 @@
   text-align: center;
 }
 
+/* 실행 전에 죽은 코드의 오류 장면 — 빈 화면은 고장으로 읽힌다 */
+.stage-error {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 220px;
+  padding: 24px;
+  text-align: center;
+}
+.stage-error code {
+  max-width: 60ch;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 /* the stage draws on the same in-viewBox sub-scale as the diagram */
 .svg-title {
   fill: var(--ink-3);
