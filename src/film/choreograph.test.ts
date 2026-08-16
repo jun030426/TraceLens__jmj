@@ -81,6 +81,31 @@ describe('choreograph', () => {
   })
 })
 
+describe('choreograph: 정밀 칸 diff', () => {
+  it('크기가 같아도 바뀐 칸을 전부 짚는다 (0번과 2번)', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }], objectsDelta: [listSet(['1', '2', '3'])] }, 1),
+      ev({ objectsDelta: [listSet(['9', '2', '7'])] }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const cells = shots.flatMap(s => s.motions).filter(m => m.v === 'setCell') as { index: number; text: string }[]
+    expect(cells.map(c => [c.index, c.text])).toEqual(expect.arrayContaining([[0, '9'], [2, '7']]))
+    expect(cells.some(c => c.index === 1)).toBe(false)
+  })
+
+  it('크기가 줄면 사라진 칸에 shrink가 나온다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }], objectsDelta: [listSet(['1', '2'])] }, 1),
+      ev({ objectsDelta: [listSet(['1'])] }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const shrink = shots.flatMap(s => s.motions).find(m => m.v === 'shrink')
+    expect(shrink).toMatchObject({ objectId: 1, index: 1 })
+  })
+})
+
 describe('choreograph: raise', () => {
   it('예외 이벤트에 raise 모션이 나오고 오류명이 담긴다', () => {
     const events: TraceEvent[] = [
