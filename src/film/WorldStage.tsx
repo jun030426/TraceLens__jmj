@@ -85,7 +85,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     const q = (sel: string) => root.querySelector(sel)
     const build = () => {
       gsap.set(
-        root.querySelectorAll('[data-obj], [data-var], [data-frame], [data-rope], [data-cell], .film-error'),
+        root.querySelectorAll('[data-obj], [data-var], [data-frame], [data-rope], [data-cell], .film-error, .film-loop'),
         { opacity: 0 },
       )
       const tl = gsap.timeline({ paused: true })
@@ -227,6 +227,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 undefined,
                 label,
               )
+              // 같은 띠를 쓰는 배지들은 물러난다 — 오류가 이긴다
+              tl.to(q('.film-loop')!, { opacity: 0, duration: d * 0.2 }, label)
               tl.fromTo(
                 q('.film-error')!,
                 { opacity: 0, y: -10 },
@@ -235,6 +237,28 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               )
               break
             }
+            case 'loop': {
+              const text = m.text
+              tl.call(
+                () => {
+                  const el = root.querySelector('.film-loop-text')
+                  if (el) el.textContent = text
+                },
+                undefined,
+                label,
+              )
+              tl.to(q('.film-loop')!, { opacity: 1, duration: d * 0.3 }, label)
+              tl.fromTo(
+                q('.film-loop')!,
+                { scale: 1.05 },
+                { scale: 1, duration: d * 0.4, transformOrigin: 'left center' },
+                label,
+              )
+              break
+            }
+            case 'loopEnd':
+              tl.to(q('.film-loop')!, { opacity: 0, duration: d * 0.4 }, label)
+              break
           }
         }
         tl.to({}, { duration: d * 0.25 })
@@ -352,6 +376,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
           </g>
         )
       })}
+
+      {/* 반복 배지 — 반복문이 돌고 있음을 상시 표시 */}
+      <g className="film-loop">
+        <rect x={24} y={14} width={240} height={30} rx={15} fill="var(--accent-wash)" stroke="var(--accent)" strokeWidth={1.2} />
+        <text className="film-loop-text svg-value" x={40} y={34} />
+      </g>
 
       {/* 오류 스트립 — 첫 행(y=70) 위의 빈 띠. 터진 순간 내려와 끝까지 남는다 */}
       <g className="film-error">

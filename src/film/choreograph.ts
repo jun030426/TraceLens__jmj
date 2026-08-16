@@ -32,6 +32,13 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan): Shot[] {
   }
   const lapseAt = (seq: number) => lapse.find(l => seq >= l.from && seq <= l.to)
 
+  // 반복 배지 — 접힘은 헤더 라인의 3회차 방문부터 시작되므로 seen은 2에서 출발한다.
+  // 헤더 라인 = 접힘 시작 이벤트의 관측 라인 (몸통보다 먼저 3회차에 도달하는 줄)
+  const loopSpans = digest.spans
+    .filter(s => (s.iterations ?? 0) > 1)
+    .map(s => ({ from: s.sourceSeqRange[0], to: s.sourceSeqRange[1], total: s.iterations!, headerLine: s.lines[1], seen: 2 }))
+  let badgeOn = false
+
   const shots: Shot[] = []
   const consumed = new Set<number>()
 
@@ -48,18 +55,33 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan): Shot[] {
       const target = [...objects.entries()].sort((a, b) => (b[1].items?.length ?? 0) - (a[1].items?.length ?? 0))[0]
       shots.push({
         seq: e.seq,
-        motions: target
-          ? [{ v: 'setCell', objectId: target[0], index: Math.max(0, (target[1].items?.length ?? 1) - 1), text: '…' }]
-          : [{ v: 'stdout', text: '' }],
+        motions: [
+          { v: 'loop', text: `남은 ${inLapse.count}회 빨리감기` },
+          ...(target
+            ? [{ v: 'setCell' as const, objectId: target[0], index: Math.max(0, (target[1].items?.length ?? 1) - 1), text: '…' }]
+            : [{ v: 'stdout' as const, text: '' }]),
+        ],
         durationMs: LAPSE_MS,
         focus: target ? { kind: 'object', objectId: target[0] } : null,
         timelapse: inLapse.count,
       })
+      badgeOn = true
       continue
     }
 
     const motions: Motion[] = []
     let slow = false
+
+    // "반복문이 돌고 있다"의 상시 표시 — 헤더 라인을 다시 밟을 때마다 회차가 오른다
+    const inLoop = loopSpans.find(l => e.seq >= l.from && e.seq <= l.to)
+    if (inLoop && e.kind === 'line' && e.observedAtLine === inLoop.headerLine) {
+      inLoop.seen += 1
+      motions.push({ v: 'loop', text: `반복 ${inLoop.seen}회차 / 총 ${inLoop.total}회` })
+      badgeOn = true
+    } else if (!inLoop && badgeOn) {
+      motions.push({ v: 'loopEnd' })
+      badgeOn = false
+    }
 
     if (e.kind === 'call') motions.push({ v: 'pushFrame', frameId: e.frameId })
     if (e.kind === 'return') motions.push({ v: 'popFrame', frameId: e.frameId })

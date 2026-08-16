@@ -52,6 +52,8 @@ export type Motion =
   | { v: 'stdout'; text: string }
   | { v: 'shake'; frameId: number }
   | { v: 'raise'; frameId: number; text: string }
+  | { v: 'loop'; text: string }
+  | { v: 'loopEnd' }
 
 export type Shot = {
   seq: number
