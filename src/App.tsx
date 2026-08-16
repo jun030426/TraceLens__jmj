@@ -158,9 +158,12 @@ function App() {
     defineEditorTheme(monaco)
     monaco.editor.setTheme('tracelens')
     decorationRef.current = editor.createDecorationsCollection()
+    // 마운트 시점 클로저는 낡는다 — 항상 최신 executeRun을 부르도록 ref를 거친다
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => executeRunRef.current())
   }
 
   const executeRun = async () => {
+    if (loading !== null || !code.trim()) return // 버튼 disabled를 우회하는 단축키 경로 가드
     const found = preflight(code)
     setIssues(found)
     if (found.some(i => i.level === 'block')) return
@@ -209,6 +212,11 @@ function App() {
     }
   }
 
+  const executeRunRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    executeRunRef.current = executeRun
+  })
+
   const directorLabel =
     run?.directorMode === 'ai' ? 'AI 연출' : run?.directorMode === 'ai-fallback' ? '규칙 폴백' : '규칙 연출'
 
@@ -234,7 +242,7 @@ function App() {
               실행
             </button>
             <span className="tl-runbar__hint">
-              {code.trim() ? '표준 라이브러리 중심 · 단일 파일 파이썬' : '파이썬 코드를 붙여넣으세요'}
+              {code.trim() ? '표준 라이브러리 중심 · 단일 파일 · Ctrl+Enter 실행' : '파이썬 코드를 붙여넣으세요'}
             </span>
           </div>
 
