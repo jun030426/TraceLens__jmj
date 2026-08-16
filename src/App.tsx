@@ -9,13 +9,14 @@ import { runTrace, warmUp, type TraceStage } from './trace/tracerClient'
 import { buildSnapshots, type Snapshot } from './trace/snapshots'
 import { buildScreenplay } from './screenplay/ruleDirector'
 import { buildDigest } from './digest/buildDigest'
-import { generateScreenplay } from './director/llmDirector'
+import { generateScreenplayWithSalvage } from './director/llmDirector'
 import { makeGeminiCall, geminiApiKey } from './director/gemini'
 import type { Screenplay } from './screenplay/types'
 import { expandScreenplay, type PlaybackStep } from './player/expand'
 import { buildStage } from './film/buildStage'
 import { layoutStage, type StageLayout } from './film/layout'
 import { choreograph } from './film/choreograph'
+import { decorateShots } from './film/decorate'
 import type { Shot, StagePlan } from './film/types'
 import WorldStage from './film/WorldStage'
 import { useFilm } from './film/useFilm'
@@ -25,15 +26,14 @@ import './ui/app.css'
 
 type MonacoApi = Parameters<OnMount>[1]
 
-type LoadingStage = TraceStage | 'directing'
+type LoadingStage = TraceStage
 const stageLabels: Record<LoadingStage, string> = {
   'python-loading': 'Python 환경 준비 중…',
   executing: '코드 실행·기록 중…',
   building: '설명 준비 중…',
-  directing: 'AI 연출 생성 중…',
 }
 
-type DirectorMode = 'rule' | 'ai' | 'ai-fallback'
+type DirectorMode = 'rule' | 'ai' | 'ai-partial' | 'ai-fallback'
 
 const primitiveLabels: Record<string, string> = {
   variables: '변수',
@@ -94,6 +94,9 @@ function App() {
   const [issues, setIssues] = useState<PreflightIssue[]>([])
   const [loading, setLoading] = useState<LoadingStage | null>(null)
   const [run, setRun] = useState<RunArtifacts | null>(null)
+  const [aiPending, setAiPending] = useState(false)
+  const runIdRef = useRef(0)
+  const restoreRef = useRef<{ index: number; playing: boolean } | null>(null)
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
   const monacoRef = useRef<MonacoApi | null>(null)
   const decorationRef = useRef<ReturnType<Parameters<OnMount>[0]['createDecorationsCollection']> | null>(null)
@@ -103,6 +106,11 @@ function App() {
   const shots = useMemo(() => run?.shots ?? [], [run])
   const { index, playing, speed, play, pause, seek, setSpeed, register } = useFilm(shots)
   const film = { index, playing, speed, play, pause, seek, setSpeed, register }
+  // AI 도착 시점의 재생 위치를 되살리기 위한 미러 — 비동기 콜백은 낡은 상태를 본다
+  const indexRef = useRef(0)
+  indexRef.current = index
+  const playingRef = useRef(false)
+  playingRef.current = playing
 
   // 설정의 기본 배속은 시작 값이다 — 재생 중 바꾼 값을 덮어쓰지 않도록 설정이 바뀔 때만 적용한다
   useEffect(() => { setSpeed(settings.speed) }, [settings.speed, setSpeed])
@@ -168,42 +176,62 @@ function App() {
     setIssues(found)
     if (found.some(i => i.level === 'block')) return
 
+    const runId = ++runIdRef.current
     setLoading('python-loading')
     setRun(null)
+    setAiPending(false)
     try {
       const result = await runTrace(code, s => setLoading(s), {
         maxEvents: settings.maxEvents,
         timeoutMs: settings.timeoutMs,
       })
+      if (runId !== runIdRef.current) return
       const snaps = buildSnapshots(result.events)
 
-      let screenplay: Screenplay
-      let directorMode: DirectorMode = 'rule'
-      if (settings.aiDirector && geminiApiKey && result.events.length > 0) {
-        setLoading('directing')
-        try {
-          screenplay = await generateScreenplay(code, buildDigest(result.events), makeGeminiCall(geminiApiKey))
-          directorMode = 'ai'
-        } catch {
-          screenplay = buildScreenplay(result.events)
-          directorMode = 'ai-fallback'
-        }
-      } else {
-        screenplay = buildScreenplay(result.events)
-      }
-
-      const expanded = expandScreenplay(screenplay, snaps)
+      // 규칙 대본으로 즉시 완성한다 — AI는 재생을 막지 않는다
+      const screenplay = buildScreenplay(result.events)
       // 무대는 AI와 무관하게 트레이스에서 계산된다 — 콘티가 없어도 영화는 나온다
       const plan = buildStage(result.events)
       const layout = layoutStage(plan)
       const filmShots = choreograph(result.events, plan, code)
       setRun({
-        steps: expanded, snaps, screenplay, clipped: result.clipped, error: result.error, directorMode,
+        steps: expandScreenplay(screenplay, snaps), snaps, screenplay,
+        clipped: result.clipped, error: result.error, directorMode: 'rule',
         plan, layout, shots: filmShots,
       })
       setLoading(null)
       if (filmShots.length > 0 && settings.autoplay) setTimeout(play, 120)
+
+      // AI 연출은 배경에서 — 도착하면 자막·챕터·완급이 좋아지고, 실패해도 영화는 이미 완성돼 있다
+      if (settings.aiDirector && geminiApiKey && result.events.length > 0) {
+        setAiPending(true)
+        void (async () => {
+          try {
+            const ai = await generateScreenplayWithSalvage(
+              code, buildDigest(result.events), makeGeminiCall(geminiApiKey), screenplay,
+            )
+            if (runId !== runIdRef.current) return
+            setRun(prev => {
+              if (!prev) return prev
+              restoreRef.current = { index: indexRef.current, playing: playingRef.current }
+              return {
+                ...prev,
+                screenplay: ai.screenplay,
+                steps: expandScreenplay(ai.screenplay, snaps),
+                // 장식은 샷 수를 보존한다 — 아래 복원 effect의 인덱스가 그대로 유효한 이유
+                shots: decorateShots(prev.shots, ai.screenplay, prev.plan),
+                directorMode: ai.mode,
+              }
+            })
+          } catch {
+            if (runId === runIdRef.current) setRun(prev => (prev ? { ...prev, directorMode: 'ai-fallback' } : prev))
+          } finally {
+            if (runId === runIdRef.current) setAiPending(false)
+          }
+        })()
+      }
     } catch (err) {
+      if (runId !== runIdRef.current) return
       setLoading(null)
       setRun({
         steps: [], snaps: [], screenplay: { chapters: [] }, clipped: false, error: String(err), directorMode: 'rule',
@@ -217,16 +245,36 @@ function App() {
     executeRunRef.current = executeRun
   })
 
+  // AI 장식이 샷을 갈아끼우면 타임라인이 재구축된다 — 보던 자리로 되돌린다.
+  // 자식(WorldStage) effect가 먼저 돌아 타임라인을 등록해 두므로 여기서 seek이 가능하다.
+  useEffect(() => {
+    const restore = restoreRef.current
+    if (!restore || !run) return
+    restoreRef.current = null
+    if (restore.index > 0 || restore.playing) {
+      seek(restore.index)
+      if (restore.playing) play()
+    }
+  }, [run, seek, play])
+
   const directorLabel =
-    run?.directorMode === 'ai' ? 'AI 연출' : run?.directorMode === 'ai-fallback' ? '규칙 폴백' : '규칙 연출'
+    run?.directorMode === 'ai' ? 'AI 연출'
+    : run?.directorMode === 'ai-partial' ? 'AI 연출·일부 보강'
+    : run?.directorMode === 'ai-fallback' ? '규칙 폴백'
+    : '규칙 연출'
 
   return (
     <div className="tl tl-app">
       <Nav
         trailing={
           <div className="tl-status" aria-label="실행 상태">
-            {run && (
-              <span className={`tl-tag ${run.directorMode === 'ai' ? 'tl-tag--info' : ''}`}>{directorLabel}</span>
+            {aiPending && <span className="tl-tag">AI 연출 준비 중…</span>}
+            {run && !aiPending && (
+              <span
+                className={`tl-tag ${run.directorMode === 'ai' || run.directorMode === 'ai-partial' ? 'tl-tag--info' : ''}`}
+              >
+                {directorLabel}
+              </span>
             )}
             <span className="tl-tag">{steps.length ? `${index + 1} / ${steps.length}` : '대기'}</span>
           </div>
