@@ -106,3 +106,19 @@ describe('salvageScreenplay', () => {
     expect(salvageScreenplay(raw, sDigest, rule)).toBeNull()
   })
 })
+
+describe('direction 파싱', () => {
+  const scene = (direction: unknown) => ({
+    chapters: [
+      { title: 't', scenes: [{ spanRef: 's0', primitive: 'variables', direction, narration: { template: '한 장면' } }] },
+    ],
+  })
+  it('유효 동사만 남기고 중복·미지 동사는 버린다', () => {
+    const sp = resolveScreenplay(scene(['zoom', 'explode', 'zoom', 'hold']), digest)
+    expect(sp.chapters[0].scenes[0].direction).toEqual(['zoom', 'hold'])
+  })
+  it('direction이 없거나 배열이 아니면 빈 배열', () => {
+    expect(resolveScreenplay(scene(undefined), digest).chapters[0].scenes[0].direction).toEqual([])
+    expect(resolveScreenplay(scene('zoom'), digest).chapters[0].scenes[0].direction).toEqual([])
+  })
+})

@@ -49,6 +49,7 @@ export function buildScreenplay(events: TraceEvent[]): Screenplay {
     return {
       seqStart: e.seq, seqEnd: e.seq, primitive,
       focus: focusNames(e), pacing: touchedAlias ? 'slow' : 'normal',
+      direction: [],
       narration: { template, bindings },
     }
   }
@@ -72,7 +73,7 @@ export function buildScreenplay(events: TraceEvent[]): Screenplay {
       if (folding) folding.seqEnd = e.seq
       else folding = {
         seqStart: e.seq, seqEnd: e.seq, primitive: 'variables', focus: [],
-        pacing: 'fast', repeat: 1,
+        pacing: 'fast', repeat: 1, direction: [],
         narration: { template: '같은 반복이 계속됩니다', bindings: {} },
       }
       foldingKeys.add(key)
