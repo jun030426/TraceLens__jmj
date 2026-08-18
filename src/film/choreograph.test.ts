@@ -306,3 +306,77 @@ describe('choreograph: raise', () => {
     expect((raise as { text: string }).text).toContain('IndexError')
   })
 })
+
+describe('choreograph: 격자', () => {
+  const row = (id: number, vals: string[]) => ({ op: 'set' as const, obj: { id, type: 'list', items: vals.map(v => P(v)) } })
+  const outer = (id: number, rowIds: number[]) => ({
+    op: 'set' as const, obj: { id, type: 'list', items: rowIds.map(rid => ({ k: 'ref' as const, id: rid })) },
+  })
+  const coord = (id: number, r: string, c: string) => ({ op: 'set' as const, obj: { id, type: 'tuple', items: [P(r), P(c)] } })
+  const mazeEvent = (seq: number) => ev({
+    localsDelta: [{ name: 'maze', op: 'set', value: { k: 'ref', id: 1 } }],
+    objectsDelta: [row(11, ['0', '1']), row(12, ['0', '0']), outer(1, [11, 12])],
+  }, seq)
+
+  it('격자 최초 등장에 전 칸 gridCell이 벽 플래그와 함께 나온다', () => {
+    const events: TraceEvent[] = [ev({ kind: 'call' }, 0), mazeEvent(1)]
+    const shots = choreograph(events, buildStage(events))
+    const cells = shots.flatMap(s => s.motions).filter(m => m.v === 'gridCell') as { r: number; c: number; wall: boolean }[]
+    expect(cells.length).toBe(4)
+    expect(cells.find(c => c.r === 0 && c.c === 1)!.wall).toBe(true)
+    expect(cells.find(c => c.r === 1 && c.c === 0)!.wall).toBe(false)
+    expect(shots.flatMap(s => s.motions).some(m => m.v === 'grow')).toBe(false) // 상자 diff는 스킵
+  })
+
+  it('방문 집합에 좌표가 들어오면 gridVisit이 칠해진다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      mazeEvent(1),
+      ev({ localsDelta: [{ name: 'visited', op: 'set', value: { k: 'ref', id: 5 } }], objectsDelta: [{ op: 'set', obj: { id: 5, type: 'set', items: [] } }] }, 2),
+      ev({ objectsDelta: [coord(21, '1', '0'), { op: 'set', obj: { id: 5, type: 'set', items: [{ k: 'ref', id: 21 }] } }] }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const visits = shots.flatMap(s => s.motions).filter(m => m.v === 'gridVisit') as { objectId: number; r: number; c: number }[]
+    expect(visits).toEqual([{ v: 'gridVisit', objectId: 1, r: 1, c: 0 }])
+  })
+
+  it('좌표 튜플 변수 대입은 커서를 움직인다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      mazeEvent(1),
+      ev({ localsDelta: [{ name: 'position', op: 'set', value: { k: 'ref', id: 31 } }], objectsDelta: [coord(31, '1', '1')] }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const cursor = shots.flatMap(s => s.motions).find(m => m.v === 'gridCursor')
+    expect(cursor).toEqual({ v: 'gridCursor', objectId: 1, r: 1, c: 1 })
+  })
+
+  it('좌표 리스트는 경로 선이 된다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      mazeEvent(1),
+      ev({
+        localsDelta: [{ name: 'path', op: 'set', value: { k: 'ref', id: 7 } }],
+        objectsDelta: [coord(41, '0', '0'), coord(42, '1', '0'), { op: 'set', obj: { id: 7, type: 'list', items: [{ k: 'ref', id: 41 }, { k: 'ref', id: 42 }] } }],
+      }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const trail = shots.flatMap(s => s.motions).find(m => m.v === 'gridTrail') as { points: [number, number][] } | undefined
+    expect(trail).toBeDefined()
+    expect(trail!.points).toEqual([[0, 0], [1, 0]])
+  })
+
+  it('안쪽 행이 바뀌면 그 칸만 gridCell이 나온다 (DP 테이블)', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'dp', op: 'set', value: { k: 'ref', id: 2 } }],
+        objectsDelta: [row(51, ['0', '0']), row(52, ['0', '0']), outer(2, [51, 52])],
+      }, 1),
+      ev({ objectsDelta: [row(52, ['0', '9'])] }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const last = shots[shots.length - 1].motions.filter(m => m.v === 'gridCell') as { r: number; c: number; text: string }[]
+    expect(last).toEqual([{ v: 'gridCell', objectId: 2, r: 1, c: 1, text: '9', wall: false }])
+  })
+})

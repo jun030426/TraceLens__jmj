@@ -137,6 +137,92 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   const entered = new Set<number>() // enterObj까지 마친 상자
   const exited = new Set<number>()
 
+  /* ── 격자 — 대표 시각화 2호. 판정은 buildStage, 여기서는 diff를 모션으로 번역한다 ── */
+  const gridInfo = new Map(plan.objects.filter(o => o.grid).map(o => [o.objectId, o.grid!]))
+  const rowToGrid = new Map<number, { gridId: number; r: number }>() // 안쪽 행 id → 격자 좌표 (DP 갱신 통로)
+  const prevGrid = new Map<number, string[][]>()
+  const prevCoords = new Map<number, Set<string>>() // 방문 set id → "r,c" 집합
+  const prevTrail = new Map<number, string>() // 경로 list id → 직전 points 직렬화
+
+  // 좌표 튜플 = 2칸 int 프림 튜플. 값은 전부 트레이스 스냅에서 온다.
+  const coordOf = (v: Value): [number, number] | null => {
+    if (v.k !== 'ref') return null
+    const s = objects.get(v.id)
+    if (s?.type !== 'tuple' || s.items?.length !== 2) return null
+    const [a, b] = s.items
+    if (a.k !== 'prim' || b.k !== 'prim' || a.t !== 'int' || b.t !== 'int') return null
+    return [Number(a.v), Number(b.v)]
+  }
+  // 이 좌표를 범위 안에 담는, 무대에 올라와 있는 격자
+  const gridAt = (rc: [number, number]): number | null => {
+    for (const [id, g] of gridInfo) {
+      if (!entered.has(id) || exited.has(id)) continue
+      if (rc[0] >= 0 && rc[0] < g.rows && rc[1] >= 0 && rc[1] < g.cols) return id
+    }
+    return null
+  }
+  const gridTextsOf = (gridId: number): string[][] => {
+    const g = gridInfo.get(gridId)!
+    const outer = objects.get(gridId)
+    return Array.from({ length: g.rows }, (_, r) => {
+      const rowRef = outer?.items?.[r]
+      const rowSnap = rowRef?.k === 'ref' ? objects.get(rowRef.id) : undefined
+      return Array.from({ length: g.cols }, (_, c) => {
+        const cell = rowSnap?.items?.[c]
+        return cell?.k === 'prim' ? capText(cell.v) : ''
+      })
+    })
+  }
+  // 격자 칸 diff → gridCell 모션 (초기 채움 포함)
+  const emitGridDiff = (gridId: number, motions: Motion[]) => {
+    const g = gridInfo.get(gridId)!
+    const texts = gridTextsOf(gridId)
+    const prev = prevGrid.get(gridId)
+    for (let r = 0; r < g.rows; r++) {
+      for (let c = 0; c < g.cols; c++) {
+        if (prev && prev[r]?.[c] === texts[r][c]) continue
+        motions.push({ v: 'gridCell', objectId: gridId, r, c, text: texts[r][c], wall: g.binary && texts[r][c] !== '0' })
+      }
+    }
+    prevGrid.set(gridId, texts)
+  }
+  // 방문 set diff → gridVisit / gridUnvisit
+  const emitVisitDiff = (setId: number, snap: ObjectSnap, motions: Motion[]) => {
+    const coords = (snap.items ?? []).map(coordOf)
+    if (coords.length === 0 || coords.some(c => c === null)) return
+    const gid = gridAt(coords[0] as [number, number])
+    if (gid === null) return
+    const g = gridInfo.get(gid)!
+    if (!coords.every(c => c![0] >= 0 && c![0] < g.rows && c![1] >= 0 && c![1] < g.cols)) return
+    const now = new Set(coords.map(c => `${c![0]},${c![1]}`))
+    const before = prevCoords.get(setId) ?? new Set<string>()
+    for (const key of now) {
+      if (before.has(key)) continue
+      const [r, c] = key.split(',').map(Number)
+      motions.push({ v: 'gridVisit', objectId: gid, r, c })
+    }
+    for (const key of before) {
+      if (now.has(key)) continue
+      const [r, c] = key.split(',').map(Number)
+      motions.push({ v: 'gridUnvisit', objectId: gid, r, c })
+    }
+    prevCoords.set(setId, now)
+  }
+  // 좌표 리스트 → 경로 선
+  const emitTrailDiff = (listId: number, snap: ObjectSnap, motions: Motion[]) => {
+    const coords = (snap.items ?? []).map(coordOf)
+    if (coords.length === 0 || coords.some(c => c === null)) return
+    const gid = gridAt(coords[0] as [number, number])
+    if (gid === null) return
+    const g = gridInfo.get(gid)!
+    if (!coords.every(c => c![0] >= 0 && c![0] < g.rows && c![1] >= 0 && c![1] < g.cols)) return
+    const points = coords as [number, number][]
+    const key = points.map(p => p.join(',')).join(';')
+    if (prevTrail.get(listId) === key) return
+    prevTrail.set(listId, key)
+    motions.push({ v: 'gridTrail', objectId: gid, points })
+  }
+
   // 10회를 넘는 반복 구간의 "11회차부터 끝까지"를 한 샷으로 압축한다
   const lapse: { from: number; to: number; count: number }[] = []
   for (const s of digest.spans) {
@@ -162,8 +248,17 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   let pendingLapse: { from: number; startSeq: number; count: number } | null = null
   const flushLapse = (p: { startSeq: number; count: number }): Shot => {
     const motions: Motion[] = [{ v: 'loop', text: `남은 ${p.count}회 빨리감기` }]
+    // 격자·오버레이도 정산한다 — 빨리감기 뒤에도 격자는 진실을 보여야 한다
+    for (const gridId of gridInfo.keys()) {
+      if (entered.has(gridId) && !exited.has(gridId)) emitGridDiff(gridId, motions)
+    }
     for (const [id, obj] of objects) {
-      if (!castObjects.has(id)) continue
+      if (!castObjects.has(id) || gridInfo.has(id)) continue
+      if (obj.type === 'set') emitVisitDiff(id, obj, motions)
+      else if (obj.type === 'list') emitTrailDiff(id, obj, motions)
+    }
+    for (const [id, obj] of objects) {
+      if (!castObjects.has(id) || gridInfo.has(id)) continue
       const texts = textsOf(obj, objects)
       const prev = prevTexts.get(id)
       if (!prev) {
@@ -280,6 +375,25 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
 
     for (const d of e.objectsDelta) {
       if (d.op !== 'set' || !d.obj) continue
+      // 격자 본체 — 한 줄 상자 diff 대신 격자 diff
+      if (gridInfo.has(d.obj.id)) {
+        const gid = d.obj.id
+        d.obj.items?.forEach((it, r) => {
+          if (it.k === 'ref') rowToGrid.set(it.id, { gridId: gid, r })
+        })
+        if (!prevGrid.has(gid)) {
+          motions.push({ v: 'enterObj', objectId: gid })
+          entered.add(gid)
+        }
+        emitGridDiff(gid, motions)
+        continue
+      }
+      // 격자의 안쪽 행 — 조연이지만 격자 갱신(DP 테이블)의 통로다
+      const rowRef = rowToGrid.get(d.obj.id)
+      if (rowRef) {
+        if (entered.has(rowRef.gridId) && !exited.has(rowRef.gridId)) emitGridDiff(rowRef.gridId, motions)
+        continue
+      }
       if (!castObjects.has(d.obj.id)) continue // 조연은 부모 칸의 요약 텍스트가 전부다
       const texts = textsOf(d.obj, objects)
       const size = texts.length
@@ -321,6 +435,11 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         for (let i = size; i < prev.length; i++) motions.push({ v: 'shrink', objectId: d.obj.id, index: i })
       }
       prevTexts.set(d.obj.id, texts)
+
+      // 격자 오버레이 — 좌표 set은 방문 칠, 좌표 list는 경로 선 (상자 뷰와 병행:
+      // 자료구조 뷰와 공간 뷰의 대응 자체가 가르침이다)
+      if (d.obj.type === 'set') emitVisitDiff(d.obj.id, d.obj, motions)
+      else if (d.obj.type === 'list') emitTrailDiff(d.obj.id, d.obj, motions)
     }
 
     for (const d of e.localsDelta) {
@@ -348,6 +467,12 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       } else if (d.value?.k === 'ref') {
         // 상자 없는 참조(작은 튜플 등)는 알약 값으로 인라인 — "(1, 1)"
         motions.push({ v: 'setVar', varKey, text: shortText(d.value, objects) })
+        // 좌표 튜플이면 격자 위의 커서도 움직인다 — 마지막 대입이 커서를 가진다
+        const rc = coordOf(d.value)
+        if (rc) {
+          const gid = gridAt(rc)
+          if (gid !== null) motions.push({ v: 'gridCursor', objectId: gid, r: rc[0], c: rc[1] })
+        }
       } else if (d.value) {
         motions.push({ v: 'setVar', varKey, text: shortText(d.value, objects) })
       }
