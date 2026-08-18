@@ -152,6 +152,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       let prevComp: Composition = new Map()
       let chipTurn = 0
       let scaleUp = false // 저울이 무대에 올라와 있는가 — 비교 연속 구간에서 깜빡임 방지
+      let prevRot = 0 // 빔의 직전 기울기 — 수평 스냅 없이 이어서 스윙한다
+      let prevStamp: Element | null = null // 직전 판정 도장 — 즉시 리셋 대신 부드럽게 교체
 
       const actorEl = (key: string) =>
         key.startsWith('o') ? q(objSel(Number(key.slice(1)))) : q(varSel(key.slice(1)))
@@ -390,18 +392,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'bind': {
-              // 끈은 없다 — 이름표(label 모션)가 소속을 말하고, 별칭이면 상자가 잠깐 부푼다.
-              // 알약 값칸에는 "→ 상자"를 적는다 — 빈 칸은 학습자에게 물음표다
-              const key = m.varKey
-              tl.call(
-                () => {
-                  const el = root.querySelector(`${varSel(key)} .film-var-value`)
-                  if (el) el.textContent = '→ 상자'
-                },
-                undefined,
-                label,
-              )
-              writeFlash(`${varSel(key)} .pill-flash`, label, d * 0.9)
+              // 끈도 알약도 없다 — 상자가 쥔 변수명 이름표를 직접 다니까 (알약은 compose가 접는다).
+              // 별칭이면 상자가 잠깐 부푼다
               if (m.alias) {
                 const io = inner(objSel(m.objectId))
                 if (io) {
@@ -711,10 +703,14 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             }
             case 'compare': {
               const scaleEl = q('.film-scale')
-              if (scaleEl && m.a !== undefined && m.b !== undefined) {
+              const isEcho = shot.motions.some(mm => mm.v === 'swap')
+              const skipAnim = isEcho && scaleUp // 교환 샷의 echo — 같은 판정의 재연은 껌뻑임일 뿐
+              if (scaleEl && m.a !== undefined && m.b !== undefined && !skipAnim) {
                 // 판단을 저울로 — 양팔에 값 카드, 무거운 쪽으로 기울고 도장이 찍힌다.
                 // 저울은 판단의 흐름 동안 무대에 머문다: 비교가 이어지는 구간에서 샷마다
-                // 떴다 사라지면 깜빡임이 된다. 근처에 다음 비교가 있으면 내려놓지 않는다.
+                // 떴다 사라지면 깜빡임이 된다. 교환 샷의 echo는 저울을 다시 흔들지 않고
+                // (같은 판정의 재연은 껌뻑임일 뿐), 빔은 직전 기울기에서 이어 스윙하고,
+                // 도장은 즉시 리셋 대신 부드럽게 물러난다.
                 const a = m.a
                 const b = m.b
                 const opTxt = m.op ?? ''
@@ -731,9 +727,13 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                   undefined,
                   label,
                 )
-                tl.set(root.querySelectorAll('.film-scale-stamp'), { opacity: 0 }, label)
                 if (!scaleUp) {
+                  tl.set(root.querySelectorAll('.film-scale-stamp'), { opacity: 0 }, label)
                   tl.fromTo(scaleEl, { opacity: 0 }, { opacity: 1, duration: d * 0.35, ease: 'power2.out' }, label)
+                  prevRot = 0
+                  prevStamp = null
+                } else if (prevStamp) {
+                  tl.to(prevStamp, { opacity: 0, duration: sec(0.2), ease: 'power2.in' }, label)
                 }
                 const beam = q('.film-scale-beam')
                 const av = Number(a)
@@ -742,14 +742,17 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 // GSAP rotation+transformOrigin(px)은 bbox 좌상단 기준, svgOrigin은 부모
                 // transform을 무시해서 둘 다 축이 허브를 벗어난다 (실측으로 확인한 함정)
                 if (beam && Number.isFinite(av) && Number.isFinite(bv) && av !== bv) {
+                  const rot = av > bv ? -10 : 10
                   tl.fromTo(
                     beam,
-                    { attr: { transform: 'rotate(0)' } },
-                    { attr: { transform: `rotate(${av > bv ? -10 : 10})` }, duration: d * 0.5, ease: 'power2.out' },
-                    `${label}+=${d * 0.15}`,
+                    { attr: { transform: `rotate(${prevRot})` } },
+                    { attr: { transform: `rotate(${rot})` }, duration: d * 0.5, ease: 'power2.inOut' },
+                    `${label}+=${d * 0.12}`,
                   )
+                  prevRot = rot
                 } else if (beam) {
-                  tl.set(beam, { attr: { transform: 'rotate(0)' } }, label)
+                  tl.to(beam, { attr: { transform: 'rotate(0)' }, duration: d * 0.3 }, label)
+                  prevRot = 0
                 }
                 if (m.verdict !== undefined) {
                   const stamp = q(m.verdict ? '.film-scale-stamp--true' : '.film-scale-stamp--false')
@@ -760,8 +763,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                       { opacity: 1, scale: 1, duration: d * 0.35, ease: 'back.out(2)', transformOrigin: 'center' },
                       `${label}+=${d * 0.5}`,
                     )
+                    prevStamp = stamp
                   }
                 }
+              }
+              // 내려놓기 판정은 echo 샷에서도 — 여기서 안 내리면 마지막 교환 뒤 저울이 영원히 남는다
+              if (scaleEl && m.a !== undefined && m.b !== undefined) {
                 const streak = shots
                   .slice(si + 1, si + 3)
                   .some(s => s.motions.some(mm => mm.v === 'compare'))
@@ -770,6 +777,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 } else {
                   tl.to(scaleEl, { opacity: 0, duration: d * 0.45 }, `${label}+=${d * 1.05}`)
                   scaleUp = false
+                  prevRot = 0
+                  prevStamp = null
                 }
               }
               for (const t of m.targets) {

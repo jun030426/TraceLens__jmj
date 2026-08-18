@@ -160,6 +160,18 @@ describe('compose: 학습자 시선 — 무대 안정성', () => {
     expect(comps[2].has('v0:i')).toBe(true)
   })
 
+  it('상자를 쥔 변수는 알약을 접는다 — 상자 이름표가 대신 말한다', () => {
+    const shots = [
+      shot(0, [{ v: 'bind', varKey: '0:a', objectId: 1, alias: false }, { v: 'grow', objectId: 1, index: 0, text: '1' }]),
+      shot(1, [{ v: 'setVar', varKey: '0:i', text: '0' }]),
+      shot(2, [{ v: 'setVar', varKey: '0:a', text: '5' }]), // 프림 재대입 — 알약 복귀
+      shot(3, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { comps } = compose(shots, plan, layout)
+    expect(comps[1].has('v0:a')).toBe(false)
+    expect(comps[2].has('v0:a')).toBe(true)
+  })
+
   it('커튼콜에는 살아있는 전원이 돌아온다 — 죽은 배우는 빼고', () => {
     const deadPlan: StagePlan = {
       ...plan,
