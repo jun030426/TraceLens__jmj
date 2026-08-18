@@ -39,6 +39,12 @@ export function compose(shots: Shot[], plan: StagePlan, layout: StageLayout): Co
   shots.forEach((sh, i) => {
     const touched = new Set<string>()
     for (const m of sh.motions) {
+      // 퇴장·이름표 정리는 "닿음"이 아니다 — 떠나는 배우를 무대에 붙잡으면 모순이 된다
+      if (m.v === 'exitObj' || m.v === 'exitVar' || m.v === 'label') {
+        if (m.v === 'exitObj') lastTouch.delete(`o${m.objectId}`)
+        if (m.v === 'exitVar') lastTouch.delete(`v${m.varKey}`)
+        continue
+      }
       if ('objectId' in m && typeof m.objectId === 'number') touched.add(`o${m.objectId}`)
       if ('varKey' in m && typeof m.varKey === 'string') touched.add(`v${m.varKey}`)
       if (m.v === 'spotlight') for (const k of m.varKeys) touched.add(`v${k}`)
@@ -49,6 +55,7 @@ export function compose(shots: Shot[], plan: StagePlan, layout: StageLayout): Co
       lastTouch.set(k, i)
       if (!firstTouch.has(k)) firstTouch.set(k, i)
     }
+    const curtainCall = i === shots.length - 1 // 마지막 장면 — 살아있는 전원이 중앙에 (최종 상태의 완성)
 
     const staged = [...lastTouch.entries()].filter(([, at]) => i - at <= LINGER)
     const comp: Composition = new Map()
@@ -56,7 +63,7 @@ export function compose(shots: Shot[], plan: StagePlan, layout: StageLayout): Co
     // ── 객체: 포커스는 중앙 열, 대기는 우측 열 — 이전 세로 순서를 유지해 출렁임을 막는다
     const objs = staged
       .filter(([k]) => objKeys.has(k))
-      .map(([k, at]) => ({ k, id: Number(k.slice(1)), focus: at === i }))
+      .map(([k, at]) => ({ k, id: Number(k.slice(1)), focus: curtainCall || at === i }))
     objs.sort((a, b) => {
       const pa = prevOrder.indexOf(a.k)
       const pb = prevOrder.indexOf(b.k)
@@ -87,7 +94,8 @@ export function compose(shots: Shot[], plan: StagePlan, layout: StageLayout): Co
       .slice(0, MAX_VARS)
     let yVar = TOP
     for (const [k, at] of vars) {
-      comp.set(k, { x: VAR_X, y: yVar, s: at === i ? 1 : VAR_IDLE_S, focus: at === i })
+      const hot = curtainCall || at === i
+      comp.set(k, { x: VAR_X, y: yVar, s: hot ? 1 : VAR_IDLE_S, focus: hot })
       yVar += VAR_PITCH
     }
 

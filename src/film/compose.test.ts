@@ -32,6 +32,7 @@ describe('compose', () => {
     const shots = [
       shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
       shot(1, [{ v: 'grow', objectId: 2, index: 0, text: '2' }]),
+      shot(2, [{ v: 'grow', objectId: 2, index: 1, text: '3' }]), // 마지막 샷(커튼콜)을 피해 중간 샷을 검증
     ]
     const comps = compose(shots, plan, layout)
     const c1 = comps[1]
@@ -89,5 +90,31 @@ describe('compose', () => {
     const before = comps[0].get('o1')!.y < comps[0].get('o2')!.y
     const after = comps[1].get('o1')!.y < comps[1].get('o2')!.y
     expect(after).toBe(before)
+  })
+})
+
+describe('compose: 정리 규칙', () => {
+  it('exitObj는 닿음이 아니다 — 죽은 배우는 즉시 무대에서 빠진다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
+      shot(1, [{ v: 'exitObj', objectId: 1 }, { v: 'setVar', varKey: '0:i', text: '0' }]),
+      shot(2, [{ v: 'setVar', varKey: '0:i', text: '1' }]),
+    ]
+    const comps = compose(shots, plan, layout)
+    expect(comps[1].has('o1')).toBe(false)
+    expect(comps[2].has('o1')).toBe(false)
+  })
+
+  it('마지막 샷은 커튼콜 — 무대의 전원이 포커스로 중앙에 선다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
+      shot(1, [{ v: 'grow', objectId: 2, index: 0, text: '2' }]),
+      shot(2, [{ v: 'stdout', text: 'done' }]),
+    ]
+    const comps = compose(shots, plan, layout)
+    const last = comps[2]
+    expect(last.get('o1')!.focus).toBe(true)
+    expect(last.get('o2')!.focus).toBe(true)
+    expect(last.get('o1')!.s).toBe(1)
   })
 })
