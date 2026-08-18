@@ -152,10 +152,15 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         tl.to(chip, { opacity: 0, duration: sec(0.15) }, `${label}+=${sec(0.55)}`)
       }
 
+      // 라벨은 절대 위치 — useFilm의 샷 경계(durationMs 누적)와 타임라인이 초 단위로
+      // 일치해야 스크럽·자막·인덱스가 화면과 같은 것을 가리킨다. 자동 이어붙이기는
+      // 샷마다 꼬리가 붙어 경계가 뒤로 밀리고, 끝에서는 자막이 화면보다 여러 샷을 앞서 달렸다.
+      let cum = 0
       shots.forEach((shot, si) => {
         const d = sec(shot.durationMs / 1000)
         const label = `s${shot.seq}`
-        tl.addLabel(label)
+        tl.addLabel(label, cum)
+        cum += d
         const comp = comps[si] ?? new Map()
 
         // 카메라가 이야기를 따라간다 — 구성 경계가 유의미하게 바뀔 때만 (compose가 감쇠)
@@ -291,7 +296,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'bind': {
-              // 끈은 없다 — 이름표(label 모션)가 소속을 말하고, 별칭이면 상자가 잠깐 부푼다
+              // 끈은 없다 — 이름표(label 모션)가 소속을 말하고, 별칭이면 상자가 잠깐 부푼다.
+              // 알약 값칸에는 "→ 상자"를 적는다 — 빈 칸은 학습자에게 물음표다
+              const key = m.varKey
+              tl.call(
+                () => {
+                  const el = root.querySelector(`${varSel(key)} .film-var-value`)
+                  if (el) el.textContent = '→ 상자'
+                },
+                undefined,
+                label,
+              )
+              writeFlash(`${varSel(key)} .pill-flash`, label, d * 0.9)
               if (m.alias) {
                 const io = inner(objSel(m.objectId))
                 if (io) {
@@ -602,8 +618,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         }
 
         prevComp = comp
-        tl.to({}, { duration: d * 0.25 })
       })
+      tl.to({}, { duration: 0.001 }, cum) // 경계 총합까지 길이 보장 — 마지막 샷이 짧아도 어긋나지 않게
 
       return tl
     }
