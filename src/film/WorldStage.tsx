@@ -110,6 +110,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       )
       // 값 막대는 바닥에서 자란다 — scaleY 하나로 리셋·스크럽이 전부 일관된다
       gsap.set(root.querySelectorAll('.cell-bar'), { scaleY: 0, transformOrigin: '50% 100%' })
+      // 저울 빔의 잔여 회전 청소 (attr 기반이라 GSAP 리셋 대상 밖)
+      root.querySelector('.film-scale-beam')?.setAttribute('transform', 'rotate(0)')
       // 셀 그룹의 transform 잔여 청소 — origin 보정 translate가 남으면 칸이 상자를 이탈한다
       gsap.set(root.querySelectorAll('[data-cell]'), { x: 0, y: 0, scale: 1 })
       const autoCam = q('.film-cam-auto')
@@ -648,18 +650,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 const beam = q('.film-scale-beam')
                 const av = Number(a)
                 const bv = Number(b)
-                // 회전축은 svgOrigin으로 허브(전역 좌표)에 정확히 박는다 — transformOrigin의
-                // px는 SVG에서 바운딩박스 좌상단 기준이라 축이 왼쪽 접시로 밀리는 버그가 있었다
-                const hubOrigin = `${layout.width / 2} 36`
+                // 회전은 SVG 고유 rotate() 속성으로 — 항상 로컬 (0,0)=허브가 축이다.
+                // GSAP rotation+transformOrigin(px)은 bbox 좌상단 기준, svgOrigin은 부모
+                // transform을 무시해서 둘 다 축이 허브를 벗어난다 (실측으로 확인한 함정)
                 if (beam && Number.isFinite(av) && Number.isFinite(bv) && av !== bv) {
                   tl.fromTo(
                     beam,
-                    { rotation: 0, svgOrigin: hubOrigin },
-                    { rotation: av > bv ? -10 : 10, duration: d * 0.5, ease: 'power2.out', svgOrigin: hubOrigin },
+                    { attr: { transform: 'rotate(0)' } },
+                    { attr: { transform: `rotate(${av > bv ? -10 : 10})` }, duration: d * 0.5, ease: 'power2.out' },
                     `${label}+=${d * 0.15}`,
                   )
                 } else if (beam) {
-                  tl.set(beam, { rotation: 0, svgOrigin: hubOrigin }, label)
+                  tl.set(beam, { attr: { transform: 'rotate(0)' } }, label)
                 }
                 if (m.verdict !== undefined) {
                   const stamp = q(m.verdict ? '.film-scale-stamp--true' : '.film-scale-stamp--false')
