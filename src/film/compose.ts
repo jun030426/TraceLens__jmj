@@ -45,6 +45,10 @@ export function compose(
   const pointerVars = new Set<string>()
   for (const sh of shots)
     for (const m of sh.motions) if (m.v === 'pointer') pointerVars.add(`v${m.varKey}`)
+
+  // 상자를 쥔 변수도 알약을 접는다 — 상자가 이미 그 이름표를 달고 있어 알약은 중복 소음이다.
+  // ("numbers → 상자" 알약이 그 예.) 프림을 다시 쥐면(재대입) 알약으로 복귀한다.
+  const boundVars = new Set<string>()
   const comps: Composition[] = []
   let prevOrder: string[] = [] // 직전 구성의 객체 세로 순서 (sticky)
   let prevFocus: string[] = [] // 직전 샷의 포커스 객체 (sticky focus — 주인공은 중앙을 지킨다)
@@ -66,6 +70,8 @@ export function compose(
       }
       if ('objectId' in m && typeof m.objectId === 'number') touched.add(`o${m.objectId}`)
       if ('varKey' in m && typeof m.varKey === 'string') touched.add(`v${m.varKey}`)
+      if (m.v === 'bind') boundVars.add(`v${m.varKey}`)
+      if (m.v === 'setVar') boundVars.delete(`v${m.varKey}`)
       if (m.v === 'spotlight') for (const k of m.varKeys) touched.add(`v${k}`)
       if (m.v === 'compare')
         for (const t of m.targets) touched.add(t.kind === 'cell' ? `o${t.objectId}` : `v${t.varKey}`)
@@ -132,7 +138,13 @@ export function compose(
     // 사라지면 학습자는 "i 어디 갔지?"가 된다. 상한 초과분만 최근성으로 강등하고,
     // 자리는 등장순으로 고정한다 (재배열은 알약 교차의 어지러움을 만든다)
     const vars = plan.variables
-      .filter(v => born(v.life) && !deadVars.has(`v${v.varKey}`) && !pointerVars.has(`v${v.varKey}`))
+      .filter(
+        v =>
+          born(v.life) &&
+          !deadVars.has(`v${v.varKey}`) &&
+          !pointerVars.has(`v${v.varKey}`) &&
+          !boundVars.has(`v${v.varKey}`),
+      )
       .map(v => `v${v.varKey}`)
       .sort((a, b) => (lastTouch.get(b) ?? 0) - (lastTouch.get(a) ?? 0))
       .slice(0, MAX_VARS)
