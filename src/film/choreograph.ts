@@ -137,6 +137,30 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   const entered = new Set<number>() // enterObj까지 마친 상자
   const exited = new Set<number>()
 
+  // 상자 이름표 — 끈을 따라가지 않아도 어느 상자가 maze인지 보이게, 쥔 변수명을 상자에 건다.
+  // 보유가 바뀔 때마다(재대입·별칭·반환) 라벨을 다시 쓴다. 별칭이면 "a · b".
+  const holderKeys = new Map<number, Set<string>>() // castObj → 쥔 varKey들
+  const varHeld = new Map<string, number>() // castVar varKey → objectId
+  const relabel = (id: number, motions: Motion[]) => {
+    const names = [...new Set([...(holderKeys.get(id) ?? [])].map(k => k.slice(k.indexOf(':') + 1)))]
+    motions.push({ v: 'label', objectId: id, text: capText(names.join(' · '), 24) })
+  }
+  const releaseHold = (varKey: string, motions: Motion[]) => {
+    const prev = varHeld.get(varKey)
+    if (prev === undefined) return
+    varHeld.delete(varKey)
+    if (holderKeys.get(prev)?.delete(varKey)) relabel(prev, motions)
+  }
+  const takeHold = (varKey: string, objectId: number, motions: Motion[]) => {
+    if (varHeld.get(varKey) === objectId) return
+    releaseHold(varKey, motions)
+    varHeld.set(varKey, objectId)
+    const keys = holderKeys.get(objectId) ?? new Set<string>()
+    keys.add(varKey)
+    holderKeys.set(objectId, keys)
+    relabel(objectId, motions)
+  }
+
   /* ── 격자 — 대표 시각화 2호. 판정은 buildStage, 여기서는 diff를 모션으로 번역한다 ── */
   const gridInfo = new Map(plan.objects.filter(o => o.grid).map(o => [o.objectId, o.grid!]))
   const rowToGrid = new Map<number, { gridId: number; r: number }>() // 안쪽 행 id → 격자 좌표 (DP 갱신 통로)
@@ -186,7 +210,12 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     for (let r = 0; r < g.rows; r++) {
       for (let c = 0; c < g.cols; c++) {
         if (prev && prev[r]?.[c] === texts[r][c]) continue
-        motions.push({ v: 'gridCell', objectId: gridId, r, c, text: texts[r][c], wall: g.binary && texts[r][c] !== '0' })
+        motions.push({
+          v: 'gridCell', objectId: gridId, r, c,
+          text: texts[r][c],
+          wall: g.binary && texts[r][c] !== '0',
+          ...(prev ? { flash: true } : {}), // 변경만 번쩍인다 — 초기 채움 수백 칸이 다 같이 튀면 소음
+        })
       }
     }
     prevGrid.set(gridId, texts)
@@ -367,6 +396,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         for (const key of frameVars.get(e.frameId) ?? []) {
           motions.push({ v: 'exitVar', varKey: key })
           varsSeen.delete(key)
+          releaseHold(key, motions)
         }
         frameVars.delete(e.frameId)
       }
@@ -453,6 +483,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       if (d.op === 'delete') {
         motions.push({ v: 'exitVar', varKey })
         varsSeen.delete(varKey)
+        releaseHold(varKey, motions)
         continue
       }
       if (!varsSeen.has(varKey)) {
@@ -469,9 +500,11 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         const alias = holders.size > 1
         if (alias) slow = true
         motions.push({ v: 'bind', varKey, objectId: d.value.id, alias })
+        takeHold(varKey, d.value.id, motions)
       } else if (d.value?.k === 'ref') {
         // 상자 없는 참조(작은 튜플 등)는 알약 값으로 인라인 — "(1, 1)"
         motions.push({ v: 'setVar', varKey, text: shortText(d.value, objects) })
+        releaseHold(varKey, motions)
         // 좌표 튜플이면 격자 위의 커서도 움직인다 — 마지막 대입이 커서를 가진다
         const rc = coordOf(d.value)
         if (rc) {
@@ -480,6 +513,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         }
       } else if (d.value) {
         motions.push({ v: 'setVar', varKey, text: shortText(d.value, objects) })
+        releaseHold(varKey, motions)
       }
     }
 
