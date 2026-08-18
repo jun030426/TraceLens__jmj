@@ -20,6 +20,7 @@ import { choreograph } from './film/choreograph'
 import { decorateShots } from './film/decorate'
 import type { Shot, StagePlan } from './film/types'
 import WorldStage from './film/WorldStage'
+import { PRESETS, applyPresetPacing } from './film/presets'
 import { useFilm } from './film/useFilm'
 import { Nav } from './ui/Chrome'
 import { useSettings, prefersStill } from './settings/store'
@@ -116,7 +117,26 @@ function App() {
 
   const settings = useSettings()
   const steps = useMemo(() => run?.steps ?? [], [run])
-  const shots = useMemo(() => run?.shots ?? [], [run])
+
+  // 연출 프리셋 실험 (기한 있는 실험실) — 같은 필름을 1 집중 / 2 물성 / 3 쫀득으로
+  // 갈아 끼워 보고 축별 채점으로 승자 조합을 고른다. 수렴하면 스위처는 삭제.
+  const [presetKey, setPresetKey] = useState<string>(() => {
+    try {
+      return localStorage.getItem('tracelens.lab.preset') ?? 'focus'
+    } catch {
+      return 'focus'
+    }
+  })
+  const preset = PRESETS.find(p => p.key === presetKey) ?? PRESETS[0]
+  const pickPreset = (k: string) => {
+    setPresetKey(k)
+    try {
+      localStorage.setItem('tracelens.lab.preset', k)
+    } catch {
+      /* private mode */
+    }
+  }
+  const shots = useMemo(() => applyPresetPacing(run?.shots ?? [], preset), [run, preset])
   const { index, playing, speed, play, pause, seek, setSpeed, register } = useFilm(shots)
   const film = { index, playing, speed, play, pause, seek, setSpeed, register }
   // AI 도착 시점의 재생 위치를 되살리기 위한 미러 — 비동기 콜백은 낡은 상태를 본다
@@ -381,6 +401,13 @@ function App() {
         <section className="tl-col tl-panel" aria-label="실행 시각화">
           <div className="tl-panel__bar">
             <span className="tl-label">{chapterTitle || '실행 기록'}</span>
+            <div className="tl-seg tl-seg--lab" role="group" aria-label="연출 프리셋 실험">
+              {PRESETS.map(p => (
+                <button key={p.key} type="button" aria-pressed={preset.key === p.key} onClick={() => pickPreset(p.key)}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
             {currentShot?.timelapse ? (
               <span className="tl-tag">×{currentShot.timelapse}회 압축</span>
             ) : (
@@ -390,7 +417,7 @@ function App() {
 
           <div className="tl-stage">
             {run && shots.length > 0 ? (
-              <WorldStage plan={run.plan} layout={run.layout} shots={shots} film={film} />
+              <WorldStage plan={run.plan} layout={run.layout} shots={shots} film={film} preset={preset} />
             ) : run?.error ? (
               /* 실행 전에 죽은 코드(구문 오류 등)도 빈 화면 대신 오류 장면을 받는다 */
               <div className="stage-error" role="alert">
