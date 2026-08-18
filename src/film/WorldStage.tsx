@@ -469,7 +469,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       register(null)
       tl.kill()
     }
-  }, [shots, register, layout.cellW])
+  }, [shots, register, layout])
 
   return (
     <div className="film-viewport">
