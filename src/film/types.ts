@@ -64,7 +64,8 @@ export type Motion =
   | { v: 'compare'; text: string; targets: CompareTarget[] }
   | { v: 'spotlight'; varKeys: string[] }
   | { v: 'camera'; k: number; x: number; y: number }
-  | { v: 'gridCell'; objectId: number; r: number; c: number; text: string; wall: boolean }
+  | { v: 'label'; objectId: number; text: string }
+  | { v: 'gridCell'; objectId: number; r: number; c: number; text: string; wall: boolean; flash?: boolean }
   | { v: 'gridVisit'; objectId: number; r: number; c: number }
   | { v: 'gridUnvisit'; objectId: number; r: number; c: number }
   | { v: 'gridCursor'; objectId: number; r: number; c: number }

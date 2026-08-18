@@ -398,3 +398,59 @@ describe('choreograph: 문자열 격자', () => {
     expect(cells.find(x => x.r === 1 && x.c === 1)!.text).toBe('G')
   })
 })
+
+describe('choreograph: 상자 이름표', () => {
+  it('변수가 상자를 쥐면 그 이름이 라벨로 걸린다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'nums', op: 'set', value: { k: 'ref', id: 1 } }], objectsDelta: [listSet(['1', '2', '3', '4'])] }, 1),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const labels = shots.flatMap(s => s.motions).filter(m => m.v === 'label') as { objectId: number; text: string }[]
+    expect(labels).toEqual(expect.arrayContaining([{ v: 'label', objectId: 1, text: 'nums' }]))
+  })
+
+  it('재대입하면 옛 상자 라벨에서 이름이 빠진다', () => {
+    const list = (id: number) => ({ op: 'set' as const, obj: { id, type: 'list', items: ['1', '2', '3', '4'].map(v => P(v)) } })
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }], objectsDelta: [list(1)] }, 1),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 2 } }], objectsDelta: [list(2)] }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const labels = shots.flatMap(s => s.motions).filter(m => m.v === 'label') as { objectId: number; text: string }[]
+    expect(labels).toEqual(
+      expect.arrayContaining([
+        { v: 'label', objectId: 1, text: 'a' },
+        { v: 'label', objectId: 1, text: '' },
+        { v: 'label', objectId: 2, text: 'a' },
+      ]),
+    )
+  })
+
+  it('별칭이면 두 이름이 함께 걸린다 — "a · b"', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }], objectsDelta: [listSet(['1', '2', '3', '4'])] }, 1),
+      ev({ localsDelta: [{ name: 'b', op: 'set', value: { k: 'ref', id: 1 } }] }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const labels = shots.flatMap(s => s.motions).filter(m => m.v === 'label') as { text: string }[]
+    expect(labels.some(l => l.text === 'a · b')).toBe(true)
+  })
+
+  it('격자 칸 변경만 flash — 초기 채움은 아니다', () => {
+    const row = (id: number, vals: string[]) => ({ op: 'set' as const, obj: { id, type: 'list', items: vals.map(v => P(v)) } })
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'dp', op: 'set', value: { k: 'ref', id: 2 } }],
+        objectsDelta: [row(21, ['0', '0']), row(22, ['0', '0']), { op: 'set', obj: { id: 2, type: 'list', items: [{ k: 'ref', id: 21 }, { k: 'ref', id: 22 }] } }],
+      }, 1),
+      ev({ objectsDelta: [row(22, ['0', '7'])] }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const cells = shots.flatMap(s => s.motions).filter(m => m.v === 'gridCell') as { flash?: boolean; text: string }[]
+    expect(cells.filter(c => c.flash).map(c => c.text)).toEqual(['7'])
+  })
+})
