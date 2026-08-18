@@ -31,17 +31,17 @@ export type StylePreset = {
 
 export const PRESETS: readonly StylePreset[] = [
   {
-    key: 'focus', label: '1 집중',
+    key: 'focus', label: '프리셋 1',
     dimIdle: 0.35, camLead: 0.3, anticipation: 0.1, settleEase: 'power2.out',
     paceCompare: 1.35, paceSwap: 1.15, flashStrength: 0.45, sweepPop: 1.06,
   },
   {
-    key: 'mass', label: '2 물성',
+    key: 'mass', label: '프리셋 2',
     dimIdle: 0.7, camLead: 0.15, anticipation: 0.24, settleEase: 'back.out(1.2)',
     paceCompare: 1.1, paceSwap: 1.4, flashStrength: 0.5, sweepPop: 1.08,
   },
   {
-    key: 'snap', label: '3 쫀득',
+    key: 'snap', label: '프리셋 3',
     dimIdle: 0.55, camLead: 0.08, anticipation: 0.05, settleEase: 'back.out(3.2)',
     paceCompare: 0.95, paceSwap: 0.95, flashStrength: 0.7, sweepPop: 1.14,
   },
