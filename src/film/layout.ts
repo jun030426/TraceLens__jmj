@@ -17,6 +17,9 @@ const VAR_X = 340
 const VAR_W = 190 // 이름 + 값이 한 알약 안에서 부딪히지 않을 폭 (오른쪽 끝 530 < 객체 열 560)
 const ROW_H = 64
 const NUMERAL_H = 14 // 칸 번호가 상자 아래로 내려오는 높이
+// 슬롯 사이 간격 — 위 상자의 칸 번호(+14)와 아래 상자의 이름표(위로 ~20px)가
+// 모두 들어가야 한다. 24였을 때 두 텍스트 띠가 정확히 충돌했다.
+const ROW_GAP = 48
 const STDOUT_BAND = 52 // 출력 바 띠 (height-52부터) — 아무도 침범하지 않는다
 export const GRID_CELL = 34 // 격자 한 칸 — WorldStage가 칸 좌표 계산에 같은 값을 쓴다
 const GRID_PAD = 8 // 격자 바깥 여백 (컨테이너 rect 안쪽)
@@ -37,7 +40,7 @@ export function layoutStage(plan: StagePlan): StageLayout {
       w: o.grid.cols * GRID_CELL + GRID_PAD * 2,
       h: o.grid.rows * GRID_CELL + GRID_PAD * 2,
     })
-    gridBottom += o.grid.rows * GRID_CELL + GRID_PAD * 2 + 40
+    gridBottom += o.grid.rows * GRID_CELL + GRID_PAD * 2 + NUMERAL_H + ROW_GAP
   }
   const rowBase = gridBottom
   for (const o of plan.objects) {
@@ -45,7 +48,7 @@ export function layoutStage(plan: StagePlan): StageLayout {
     const w = Math.max(120, o.maxItems * cellW + 16)
     objPos.set(o.objectId, {
       x: OBJ_X,
-      y: rowBase + o.slot * (ROW_H + 24),
+      y: rowBase + o.slot * (ROW_H + ROW_GAP),
       w: Math.min(w, W - OBJ_X - 24),
       h: ROW_H,
     })

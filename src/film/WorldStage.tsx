@@ -284,7 +284,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'exitObj':
-              tl.to(q(objSel(m.objectId))!, { opacity: 0, duration: d }, label)
+              // 빠르게 내려간다 — 같은 자리를 물려받는 후임과 크로스페이드로 겹쳐 보이지 않게
+              tl.to(q(objSel(m.objectId))!, { opacity: 0, duration: d * 0.25 }, label)
               break
             case 'pushFrame':
               tl.fromTo(

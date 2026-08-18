@@ -83,3 +83,37 @@ describe('layoutStage: 격자', () => {
     expect(box.y).toBeGreaterThanOrEqual(g.y + g.h)
   })
 })
+
+describe('layoutStage: 텍스트 띠 분리', () => {
+  it('인접 슬롯 사이에 칸 번호 띠(+14)와 이름표 띠(-20)가 둘 다 들어간다', () => {
+    const box = (id: number, slot: number) => ({
+      objectId: id, type: 'list', life: { from: 0, to: 9 }, maxItems: 3,
+      changeCount: 1, referencedBy: [`0:v${id}`], slot,
+    })
+    const L = layoutStage({
+      objects: [box(1, 0), box(2, 1)],
+      variables: [],
+      frames: [{ frameId: 0, func: '<module>', parentFrameId: null, life: { from: 0, to: 9 }, depth: 0, recursionIndex: 0 }],
+      slotCount: 2, maxStackDepth: 1, maxListLength: 3, leadObjectId: 1,
+    })
+    const a = L.objPos.get(1)!
+    const b = L.objPos.get(2)!
+    // 위 상자의 번호(y+h+14)와 아래 상자의 이름표(y-20)가 만나지 않아야 한다 (여유 12px)
+    expect(b.y - 20).toBeGreaterThanOrEqual(a.y + a.h + 14 + 12)
+  })
+
+  it('격자 아래 첫 상자의 이름표가 격자 열 번호와 만나지 않는다', () => {
+    const L = layoutStage({
+      objects: [
+        { objectId: 1, type: 'list', life: { from: 0, to: 9 }, maxItems: 4, changeCount: 1, referencedBy: ['0:g'], slot: -1, grid: { rows: 2, cols: 2, binary: true } },
+        { objectId: 2, type: 'list', life: { from: 0, to: 9 }, maxItems: 3, changeCount: 1, referencedBy: ['0:a'], slot: 0 },
+      ],
+      variables: [],
+      frames: [{ frameId: 0, func: '<module>', parentFrameId: null, life: { from: 0, to: 9 }, depth: 0, recursionIndex: 0 }],
+      slotCount: 1, maxStackDepth: 1, maxListLength: 4, leadObjectId: 1,
+    })
+    const g = L.objPos.get(1)!
+    const b = L.objPos.get(2)!
+    expect(b.y - 20).toBeGreaterThanOrEqual(g.y + g.h + 14 + 12)
+  })
+})
