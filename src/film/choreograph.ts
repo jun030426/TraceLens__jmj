@@ -165,8 +165,13 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     const g = gridInfo.get(gridId)!
     const outer = objects.get(gridId)
     return Array.from({ length: g.rows }, (_, r) => {
-      const rowRef = outer?.items?.[r]
-      const rowSnap = rowRef?.k === 'ref' ? objects.get(rowRef.id) : undefined
+      const rowVal = outer?.items?.[r]
+      // 문자열 행 격자 (["S.#", …]) — repr 따옴표를 벗기고 글자 단위로 칸을 채운다
+      if (rowVal?.k === 'prim') {
+        const chars = rowVal.v.slice(1, -1)
+        return Array.from({ length: g.cols }, (_, c) => chars[c] ?? '')
+      }
+      const rowSnap = rowVal?.k === 'ref' ? objects.get(rowVal.id) : undefined
       return Array.from({ length: g.cols }, (_, c) => {
         const cell = rowSnap?.items?.[c]
         return cell?.k === 'prim' ? capText(cell.v) : ''
