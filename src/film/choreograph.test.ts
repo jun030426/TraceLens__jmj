@@ -100,6 +100,88 @@ describe('choreograph: 반복 배지', () => {
   })
 })
 
+describe('choreograph: 학습자 자막', () => {
+  const swapCode = 'arr = [5, 2]\nn = 0\nif arr[0] > arr[1]:\n    arr[0], arr[1] = arr[1], arr[0]\n'
+  const swapEvents: TraceEvent[] = [
+    ev({ kind: 'call', observedAtLine: 1 }, 0),
+    ev({
+      observedAtLine: 2, causedByLine: 1,
+      localsDelta: [{ name: 'arr', op: 'set', value: { k: 'ref', id: 1 } }],
+      objectsDelta: [listSet(['5', '2'])],
+    }, 1),
+    ev({ observedAtLine: 3, causedByLine: 2, localsDelta: [{ name: 'n', op: 'set', value: P('0') }] }, 2),
+    ev({ observedAtLine: 4, causedByLine: 3, objectsDelta: [listSet(['2', '5'])] }, 3),
+    ev({ kind: 'return', observedAtLine: 4 }, 4),
+  ]
+
+  it('setVar 샷은 "{name} = {값}" 자막, 비교가 있으면 비교가 이긴다', () => {
+    const shots = choreograph(swapEvents, buildStage(swapEvents), swapCode)
+    const cmpShot = shots.find(s => s.seq === 2)!
+    expect(cmpShot.caption).toContain('비교')
+    expect(cmpShot.caption).toContain('5 > 2')
+    expect(cmpShot.caption).toContain('참')
+  })
+
+  it('비교 샷은 읽을 시간을 받는다 (BASE보다 길게)', () => {
+    const shots = choreograph(swapEvents, buildStage(swapEvents), swapCode)
+    expect(shots.find(s => s.seq === 2)!.durationMs).toBeGreaterThan(520)
+  })
+
+  it('swap 샷은 직전 참 비교를 이어받는다 — 자막과 비교 echo', () => {
+    const shots = choreograph(swapEvents, buildStage(swapEvents), swapCode)
+    const swapShot = shots.find(s => s.motions.some(m => m.v === 'swap'))!
+    expect(swapShot.caption).toContain('자리')
+    expect(swapShot.caption).toContain('5 > 2')
+    expect(swapShot.motions.some(m => m.v === 'compare')).toBe(true) // 판단이 행동 위에 머문다
+  })
+
+  it('리터럴 탄생 샷은 "칸이 차례로 채워집니다"', () => {
+    const shots = choreograph(swapEvents, buildStage(swapEvents), swapCode)
+    const birth = shots.find(s => s.motions.some(m => m.v === 'grow'))!
+    expect(birth.caption).toContain('차례로')
+  })
+
+  it('함수 호출·종료 자막', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'f', observedAtLine: 2 }, 1),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f', observedAtLine: 2 }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shots.find(s => s.motions.some(m => m.v === 'pushFrame' && m.frameId === 1))?.caption).toContain('호출')
+    expect(shots.find(s => s.motions.some(m => m.v === 'popFrame' && m.frameId === 1))?.caption).toContain('종료')
+  })
+
+  it('압축 샷 자막은 빨리감기', () => {
+    const shots = choreograph(demoEvents, buildStage(demoEvents))
+    const lapse = shots.find(s => s.timelapse && s.timelapse > 1)!
+    expect(lapse.caption).toContain('빨리감기')
+  })
+})
+
+describe('choreograph: 정직한 배지·최종값', () => {
+  it('반복 배지는 카운트업만 — 모순되는 총계를 달지 않는다', () => {
+    const shots = choreograph(demoEvents, buildStage(demoEvents))
+    const loops = shots.flatMap(s => s.motions).filter(m => m.v === 'loop') as { text: string }[]
+    expect(loops.some(l => l.text.includes('회차'))).toBe(true)
+    expect(loops.every(l => !l.text.includes('총'))).toBe(true)
+  })
+
+  it('실행 종료 샷에서 살아있는 변수의 최종값이 정산된다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({ observedAtLine: 2, localsDelta: [{ name: 'x', op: 'set', value: P('1') }] }, 1),
+      ev({ observedAtLine: 3, localsDelta: [{ name: 'x', op: 'set', value: P('2') }] }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const final = shots.find(s => s.motions.some(m => m.v === 'popFrame'))!
+    const settled = final.motions.find(m => m.v === 'setVar') as { text: string } | undefined
+    expect(settled?.text).toBe('2')
+  })
+})
+
 describe('choreograph: 정밀 칸 diff', () => {
   it('크기가 같아도 바뀐 칸을 전부 짚는다 (0번과 2번)', () => {
     const events: TraceEvent[] = [

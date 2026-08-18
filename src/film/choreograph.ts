@@ -4,10 +4,81 @@ import type { CompareTarget, Motion, Shot, StagePlan } from './types'
 
 const BASE_MS = 520
 const SLOW_MS = 1100
+const MED_MS = 850 // 비교(판단)는 읽을 시간을 받는다 — "5 > 2 → 참"이 읽히기 전에 사라지면 없는 것과 같다
 const LAPSE_MS = 900
 const FULL_ITERATIONS = 10 // 반복은 10회까지 온전히 보여주고, 그 이후는 압축한다
 
 const capText = (s: string, n = 12) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
+
+/* ── 학습자 자막 — 모션에서 결정적으로 생성하는 한 문장. 화면과 자막이 원리적으로
+   일치한다 (대본과 필름의 압축 규칙이 달라 생기는 "자막 딴소리"의 구조적 해결).
+   조사 활용이 필요 없는 템플릿("x = 5")로 어색한 한국어를 피한다 ── */
+
+type NameCtx = {
+  varName: (key: string) => string
+  objName: (id: number) => string
+  frameFunc: (id: number) => string
+}
+
+function captionOf(motions: Motion[], names: NameCtx): string | undefined {
+  const find = <V extends Motion['v']>(v: V) =>
+    motions.find(m => m.v === v) as Extract<Motion, { v: V }> | undefined
+  const all = <V extends Motion['v']>(v: V) =>
+    motions.filter(m => m.v === v) as Extract<Motion, { v: V }>[]
+
+  const raise = find('raise')
+  if (raise) return `오류 발생: ${capText(raise.text, 44)}`
+  const swap = find('swap')
+  if (swap) {
+    const cmp = find('compare') // 직전 판단의 echo — 인과가 자막에 남는다
+    const head = cmp ? `${cmp.text.replace(' → 참', '')} 참 — ` : `${names.objName(swap.objectId)}: `
+    return `${head}${swap.i}번 칸과 ${swap.k}번 칸이 자리를 바꿉니다`
+  }
+  const cmp = find('compare')
+  if (cmp) return `비교: ${cmp.text}`
+  const push = find('pushFrame')
+  if (push) {
+    const f = names.frameFunc(push.frameId)
+    return f === '<module>' ? '실행 시작' : `${f}() 호출 — 새 작업 공간이 열립니다`
+  }
+  const pop = find('popFrame')
+  if (pop) {
+    const f = names.frameFunc(pop.frameId)
+    return f === '<module>' ? '실행 종료 — 최종 상태입니다' : `${f}() 종료 — 작업 공간이 닫힙니다`
+  }
+  const gflash = all('gridCell').filter(g => g.flash)
+  if (gflash.length === 1) return `표 [${gflash[0].r}, ${gflash[0].c}] = ${gflash[0].text}`
+  if (gflash.length > 1) return `표 ${gflash.length}칸 갱신`
+  const visits = all('gridVisit')
+  if (visits.length === 1) return `(${visits[0].r}, ${visits[0].c}) 방문 표시`
+  if (visits.length > 1) return `${visits.length}칸 방문 표시`
+  const grows = all('grow')
+  if (grows.length > 1) return `${names.objName(grows[0].objectId)} 칸이 차례로 채워집니다 (${grows.length}칸)`
+  if (grows.length === 1) return `${names.objName(grows[0].objectId)} 새 칸에 ${grows[0].text} 추가`
+  const shrink = find('shrink')
+  if (shrink) return `${names.objName(shrink.objectId)} ${shrink.index}번 칸이 빠집니다`
+  const cells = all('setCell')
+  if (cells.length === 1) return `${names.objName(cells[0].objectId)}[${cells[0].index}] = ${cells[0].text}`
+  if (cells.length > 1)
+    return `${names.objName(cells[0].objectId)} ${cells.map(c => `${c.index}번`).join('·')} 칸 갱신`
+  const bind = find('bind')
+  if (bind) {
+    if (bind.alias) return `${names.varName(bind.varKey)}도 같은 상자를 가리킵니다 (별칭)`
+    return find('enterObj') ? `${names.varName(bind.varKey)} ← 새 상자` : `${names.varName(bind.varKey)} ← 상자`
+  }
+  const sets = all('setVar')
+  if (sets.length)
+    return sets.slice(0, 2).map(s => `${names.varName(s.varKey)} = ${s.text}`).join(', ')
+  const cursor = find('gridCursor')
+  if (cursor) return `커서가 (${cursor.r}, ${cursor.c})로 이동`
+  const out = find('stdout')
+  if (out) return `출력: ${capText(out.text.trim(), 44)}`
+  const loop = find('loop')
+  if (loop) return loop.text
+  const enter = find('enterVar')
+  if (enter) return `${names.varName(enter.varKey)} 등장`
+  return undefined
+}
 
 // 값의 압축 표기 — ref는 1단계까지 들여다본다: "(0, 0)", "[0,0,1,0]", "{a: 1}".
 // "tuple"이라는 글자는 아무것도 가르치지 않는다. 값은 전부 트레이스 스냅에서 온다.
@@ -141,6 +212,23 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   // 보유가 바뀔 때마다(재대입·별칭·반환) 라벨을 다시 쓴다. 별칭이면 "a · b".
   const holderKeys = new Map<number, Set<string>>() // castObj → 쥔 varKey들
   const varHeld = new Map<string, number>() // castVar varKey → objectId
+
+  // 자막용 이름 — 값·이름은 전부 계획(캐스팅)과 보유 관계에서 온다
+  const varNameMap = new Map(plan.variables.map(v => [v.varKey, v.name]))
+  const frameFuncMap = new Map(plan.frames.map(f => [f.frameId, f.func]))
+  const nameCtx: NameCtx = {
+    varName: key => varNameMap.get(key) ?? key.slice(key.indexOf(':') + 1),
+    objName: id => {
+      const held = [...new Set([...(holderKeys.get(id) ?? [])].map(k => k.slice(k.indexOf(':') + 1)))]
+      if (held.length) return capText(held.join(' · '), 18)
+      const ref = plan.objects.find(o => o.objectId === id)?.referencedBy[0]
+      return ref ? ref.slice(ref.indexOf(':') + 1) : '상자'
+    },
+    frameFunc: id => frameFuncMap.get(id) ?? '',
+  }
+
+  // 비교(판단) → 교환(행동)의 인과 사슬 — 직전 참 비교를 기억했다가 swap 샷에 echo한다
+  let lastCmp: { text: string; objectId: number; shotIdx: number } | null = null
   const relabel = (id: number, motions: Motion[]) => {
     const names = [...new Set([...(holderKeys.get(id) ?? [])].map(k => k.slice(k.indexOf(':') + 1)))]
     motions.push({ v: 'label', objectId: id, text: capText(names.join(' · '), 24) })
@@ -328,6 +416,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       durationMs: LAPSE_MS,
       focus: target ? { kind: 'object', objectId: target[0] } : null,
       timelapse: p.count,
+      caption: `남은 ${p.count}회 빨리감기`,
     }
   }
 
@@ -372,10 +461,12 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     }
 
     // "반복문이 돌고 있다"의 상시 표시 — 헤더 라인을 다시 밟을 때마다 회차가 오른다
+    // 배지는 카운트업만 — seen(헤더 방문 수)과 총계(구간 최소 방문 수)는 단위가 달라
+    // "5회차 / 총 4회" 같은 모순을 만들었다. 거짓말할 수 있는 숫자는 화면에 올리지 않는다.
     const inLoop = loopSpans.find(l => e.seq >= l.from && e.seq <= l.to)
     if (inLoop && e.kind === 'line' && e.observedAtLine === inLoop.headerLine) {
       inLoop.seen += 1
-      motions.push({ v: 'loop', text: `반복 ${inLoop.seen}회차 / 총 ${inLoop.total}회` })
+      motions.push({ v: 'loop', text: `반복 ${inLoop.seen}회차` })
       badgeOn = true
     } else if (!inLoop && badgeOn) {
       motions.push({ v: 'loopEnd' })
@@ -384,7 +475,12 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
 
     if (code && e.kind === 'line') {
       const cmp = detectCompare(srcLines[e.observedAtLine - 1] ?? '', e.frameId, locals, objects)
-      if (cmp) motions.push(cmp)
+      if (cmp) {
+        motions.push(cmp)
+        const cell = cmp.v === 'compare' ? cmp.targets.find(t => t.kind === 'cell') : undefined
+        if (cell && cmp.v === 'compare' && cmp.text.endsWith('참'))
+          lastCmp = { text: cmp.text, objectId: cell.objectId, shotIdx: shots.length }
+      }
     }
 
     if (e.kind === 'call') motions.push({ v: 'pushFrame', frameId: e.frameId })
@@ -399,6 +495,13 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
           releaseHold(key, motions)
         }
         frameVars.delete(e.frameId)
+      } else {
+        // 실행의 마지막 — 살아있는 변수의 최종값을 정산한다. 압축·접힘을 지나며
+        // 화면이 낡은 값을 들고 있어도, 마지막 프레임만은 반드시 진실이어야 한다.
+        for (const [key, v] of locals) {
+          if (v.k !== 'prim' || !varsSeen.has(key) || !castVars.has(key)) continue
+          motions.push({ v: 'setVar', varKey: key, text: shortText(v, objects) })
+        }
       }
     }
     if (e.kind === 'exception') {
@@ -460,6 +563,23 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
             i: changed[0], k: changed[1],
             iText: texts[changed[0]], kText: texts[changed[1]],
           })
+          // 직전 참 비교가 이 상자를 짚었다면 판단을 행동 위에 다시 올린다 —
+          // "왜 바꾸는가"가 교환이 재생되는 동안 화면에 남는다
+          if (
+            lastCmp &&
+            lastCmp.objectId === d.obj.id &&
+            shots.length - lastCmp.shotIdx <= 2 &&
+            !motions.some(m => m.v === 'compare')
+          ) {
+            motions.push({
+              v: 'compare', text: lastCmp.text,
+              targets: [
+                { kind: 'cell', objectId: d.obj.id, index: changed[0] },
+                { kind: 'cell', objectId: d.obj.id, index: changed[1] },
+              ],
+            })
+            lastCmp = null
+          }
           slow = true
         } else {
           for (const i of changed) motions.push({ v: 'setCell', objectId: d.obj.id, index: i, text: texts[i] })
@@ -523,11 +643,13 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     const focusObj = motions.find(m => m.v === 'grow' || m.v === 'bind' || m.v === 'enterObj') as
       | { objectId: number }
       | undefined
+    const hasCmp = motions.some(m => m.v === 'compare')
     shots.push({
       seq: e.seq,
       motions,
-      durationMs: slow ? SLOW_MS : BASE_MS,
+      durationMs: slow ? SLOW_MS : hasCmp ? MED_MS : BASE_MS,
       focus: focusObj ? { kind: 'object', objectId: focusObj.objectId } : { kind: 'frame', frameId: e.frameId },
+      caption: captionOf(motions, nameCtx),
     })
   }
   // 트레이스가 압축 구간에서 끝나면 정산 샷으로 마무리한다
