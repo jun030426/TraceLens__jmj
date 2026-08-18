@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import gsap from 'gsap'
-import type { Shot, StagePlan } from './types'
+import type { Motion, Shot, StagePlan } from './types'
 import { GRID_CELL, type StageLayout } from './layout'
 import { compose, type Camera, type Composition } from './compose'
 import type { useFilm } from './useFilm'
@@ -102,7 +102,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     const build = () => {
       gsap.set(
         root.querySelectorAll(
-          '[data-obj], [data-var], [data-frame], [data-cell], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .film-compare',
+          '[data-obj], [data-var], [data-frame], [data-cell], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .film-compare, .cell-flash, .pill-flash, .cell-ring, .pill-ring',
         ),
         { opacity: 0 },
       )
@@ -121,6 +121,17 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
 
       const actorEl = (key: string) =>
         key.startsWith('o') ? q(objSel(Number(key.slice(1)))) : q(varSel(key.slice(1)))
+
+      // 읽기/쓰기 색 언어 — 쓰기는 따뜻한 플래시(면), 읽기는 accent 링(획).
+      // 클래스 토글이 아니라 타임라인 트윈이라 스크럽·되감기에도 상태가 새지 않는다
+      const writeFlash = (sel: string, at: string | number, dur = 0.9) => {
+        const el = q(sel)
+        if (el) tl.fromTo(el, { opacity: 0.5 }, { opacity: 0, duration: sec(dur), ease: 'power2.out' }, at)
+      }
+      const readRing = (sel: string, at: string | number, dur = 1.0) => {
+        const el = q(sel)
+        if (el) tl.fromTo(el, { opacity: 1 }, { opacity: 0, duration: sec(dur), ease: 'power2.in' }, at)
+      }
 
       // 값이 실제로 이동하는 칩 — 미리 만든 2개를 돌려쓴다 (스크럽 안전)
       const travel = (label: string, text: string, from: { x: number; y: number }, to: { x: number; y: number }) => {
@@ -193,6 +204,14 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
           }
         }
 
+        // 등장의 리듬 — 같은 샷의 여러 grow는 칸 순서대로 계단식. 리터럴 탄생이
+        // 한꺼번에 터지지 않고 "차오르는" 서사가 된다 (샷 길이 안에 맞춰 압축)
+        const grows = shot.motions.filter(m => m.v === 'grow')
+        const growStep = grows.length > 1 ? Math.min(sec(0.09), (d * 0.9) / grows.length) : 0
+        // 값 이동이 있는 샷 — 도착지의 갱신은 칩이 내려앉는 순간으로 늦춘다 (원인 → 결과)
+        const travelM = shot.motions.find(m => m.v === 'travel') as Extract<Motion, { v: 'travel' }> | undefined
+        const arriveAt = `${label}+=${sec(0.55)}`
+
         // 조명 — 프레임(호출 카드)은 구성 밖이므로 기존 방식대로 켠다
         const focusEl = shot.focus?.kind === 'frame' ? q(frameSel(shot.focus.frameId)) : null
         if (focusEl !== liveFrame) {
@@ -236,21 +255,24 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             case 'setVar': {
               const key = m.varKey
               const text = m.text
+              // 칩이 이 알약으로 날아오는 중이면 값 갱신·펄스는 도착 순간에 — 원인이 결과보다 먼저
+              const at = travelM?.to.kind === 'var' && travelM.to.varKey === key ? arriveAt : label
               tl.call(
                 () => {
                   const el = root.querySelector(`${varSel(key)} .film-var-value`)
                   if (el) el.textContent = text
                 },
                 undefined,
-                label,
+                at,
               )
+              writeFlash(`${varSel(key)} .pill-flash`, at, d * 0.9)
               const iv = inner(varSel(key))
               if (iv) {
                 tl.fromTo(
                   iv,
                   { scale: 1.28 },
                   { scale: 1, duration: d * 0.7, ease: 'back.out(2.4)', transformOrigin: 'center' },
-                  label,
+                  at,
                 )
               }
               break
@@ -287,13 +309,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               const id = m.objectId
               const idx = m.index
               const text = m.text
+              // 계단식 등장 — 이 샷의 몇 번째 grow인가가 등장 시점을 정한다.
+              // 칩이 이 칸으로 날아오는 중이면 도착 순간에 나타난다
+              const arriving =
+                travelM?.to.kind === 'cell' && travelM.to.objectId === id && travelM.to.index === idx
+              const at = arriving ? arriveAt : growStep ? `${label}+=${grows.indexOf(m) * growStep}` : label
               tl.call(
                 () => {
                   const el = root.querySelector(`${cellSel(id, idx)} .film-cell-text`)
                   if (el) el.textContent = fitCell(text)
                 },
                 undefined,
-                label,
+                at,
               )
               // origin은 셀 트윈 전체에서 'center'로 통일한다 — origin이 트윈마다 다르면
               // GSAP의 SVG origin 보정 translate가 잔여로 남아 칸이 상자를 이탈한다
@@ -301,37 +328,33 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 q(cellSel(id, idx))!,
                 { opacity: 0, scale: 0.3 },
                 { opacity: 1, scale: 1, duration: d, ease: 'back.out(2)', transformOrigin: 'center' },
-                label,
+                at,
               )
+              writeFlash(`${cellSel(id, idx)} .cell-flash`, at, d * 0.8)
               break
             }
             case 'setCell': {
               const id = m.objectId
               const idx = m.index
               const text = m.text
+              const arriving =
+                travelM?.to.kind === 'cell' && travelM.to.objectId === id && travelM.to.index === idx
+              const at = arriving ? arriveAt : label
               tl.call(
                 () => {
                   const el = root.querySelector(`${cellSel(id, idx)} .film-cell-text`)
                   if (el) el.textContent = fitCell(text)
                 },
                 undefined,
-                label,
+                at,
               )
               tl.fromTo(
                 q(cellSel(id, idx))!,
                 { scale: 1.35 },
                 { scale: 1, opacity: 1, duration: d, ease: 'back.out(2)', transformOrigin: 'center' },
-                label,
+                at,
               )
-              const cellRect = root.querySelector(`${cellSel(id, idx)} rect`)
-              if (cellRect) {
-                tl.fromTo(
-                  cellRect,
-                  { attr: { 'stroke-width': 1 } },
-                  { attr: { 'stroke-width': 2.6 }, duration: d * 0.4, yoyo: true, repeat: 1 },
-                  label,
-                )
-              }
+              writeFlash(`${cellSel(id, idx)} .cell-flash`, at, d * 0.8)
               break
             }
             case 'shrink': {
@@ -363,6 +386,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               )
               tl.set([a, b], { x: 0 }, `${label}+=${d * 0.55}`)
               tl.to([a, b], { scale: 1, duration: d * 0.3, ease: 'back.out(2)' }, `${label}+=${d * 0.58}`)
+              // 자리를 바꾼 두 칸이 내려앉으며 함께 번쩍인다 — "여기가 바뀌었다"의 마침표
+              writeFlash(`${cellSel(id, i)} .cell-flash`, `${label}+=${d * 0.55}`, d * 0.45)
+              writeFlash(`${cellSel(id, k)} .cell-flash`, `${label}+=${d * 0.55}`, d * 0.45)
               break
             }
             case 'pushFrame':
@@ -551,12 +577,30 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                     label,
                   )
                 }
+                // 읽기는 파란 링 — 어느 값을 들여다보는지가 색으로 남는다 (쓰기 플래시와 구분)
+                readRing(
+                  t.kind === 'cell' ? `${cellSel(t.objectId, t.index)} .cell-ring` : `${varSel(t.varKey)} .pill-ring`,
+                  label,
+                  d * 0.9,
+                )
               }
               tl.to(q('.film-compare')!, { opacity: 0, duration: d * 0.3 }, `${label}+=${d * 0.95}`)
               break
             }
           }
         }
+        // 커튼콜 settle 웨이브 — 마지막 샷에서 칸들이 차례로 잔잔히 내려앉는다. 완성의 마침표
+        if (si === shots.length - 1) {
+          root.querySelectorAll('[data-cell]').forEach((el, ci) => {
+            tl.fromTo(
+              el,
+              { scale: 1 },
+              { scale: 1.07, duration: sec(0.12), yoyo: true, repeat: 1, ease: 'power1.inOut', transformOrigin: 'center' },
+              `${label}+=${sec(0.55) + ci * sec(0.05)}`,
+            )
+          })
+        }
+
         prevComp = comp
         tl.to({}, { duration: d * 0.25 })
       })
@@ -574,7 +618,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       register(null)
       tl.kill()
     }
-  }, [shots, register, layout, plan, comps])
+  }, [shots, register, layout, plan, comps, cams])
 
   const hudOffset = FRAME_H - layout.height
 
@@ -664,11 +708,27 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                     stroke="var(--line-strong)"
                     strokeWidth={1}
                   />
+                  <rect
+                    className="cell-flash"
+                    x={8 + i * layout.cellW}
+                    y={8}
+                    width={layout.cellW - 6}
+                    height={r.h - 16}
+                    rx={5}
+                  />
                   <text
                     className="film-cell-text svg-value"
                     x={8 + i * layout.cellW + (layout.cellW - 6) / 2}
                     y={r.h / 2 + 5}
                     textAnchor="middle"
+                  />
+                  <rect
+                    className="cell-ring"
+                    x={6 + i * layout.cellW}
+                    y={6}
+                    width={layout.cellW - 2}
+                    height={r.h - 12}
+                    rx={7}
                   />
                   <text
                     className="svg-index"
@@ -690,10 +750,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         <g key={`v${v.varKey}`} data-var={v.varKey}>
           <g className="actor-inner">
             <rect x={0} y={0} width={VAR_W} height={VAR_H} rx={VAR_H / 2} fill="var(--accent-wash)" stroke="var(--accent)" strokeWidth={1.4} />
+            <rect className="pill-flash" x={0} y={0} width={VAR_W} height={VAR_H} rx={VAR_H / 2} />
             <text x={14} y={24} className="svg-name">
               {v.name.length > 9 ? v.name.slice(0, 8) + '…' : v.name}
             </text>
             <text className="film-var-value svg-value" x={VAR_W - 14} y={24} textAnchor="end" />
+            <rect className="pill-ring" x={-2.5} y={-2.5} width={VAR_W + 5} height={VAR_H + 5} rx={(VAR_H + 5) / 2} />
           </g>
         </g>
       ))}

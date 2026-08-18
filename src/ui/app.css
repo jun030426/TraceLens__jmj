@@ -260,6 +260,23 @@
   pointer-events: none;
 }
 
+/* 읽기/쓰기 색 언어 — 쓰기는 따뜻한 플래시(면), 읽기는 accent 링(획).
+   토글 클래스가 아니라 타임라인 트윈이 불투명도를 몰므로 스크럽에도 안전하다 */
+.cell-flash,
+.pill-flash {
+  fill: var(--write-flash);
+  opacity: 0;
+  pointer-events: none;
+}
+.cell-ring,
+.pill-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ── narration ────────────────────────────────────────────────────────── */
 
 .narration-bar {

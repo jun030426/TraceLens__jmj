@@ -132,21 +132,28 @@ function App() {
 
   // 샷과 스텝은 개수가 다르다 — 샷마다 "그 seq를 넘지 않는 마지막 스텝"의 자막·챕터를 물려준다.
   // 그래야 진행바·자막·인스펙터가 전부 같은 축(샷)에서 움직인다.
+  // 자막 선택 — 화면과 원리적으로 일치하는 필름 자막이 기본. AI 연출이 접히지 않은
+  // 장면에 붙인 문장('왜')은 그대로 둔다: 기계적 사실은 필름이, 의도는 AI가 말한다.
+  const aiNarration = run?.directorMode === 'ai' || run?.directorMode === 'ai-partial'
   const shotSteps = useMemo<PlaybackStep[]>(() => {
     let cursor = 0
     let carried: PlaybackStep | undefined
     return shots.map(sh => {
       while (cursor < steps.length && steps[cursor].seq <= sh.seq) carried = steps[cursor++]
+      const narration =
+        aiNarration && carried && !carried.folded && !sh.timelapse
+          ? carried.narration
+          : (sh.caption ?? carried?.narration ?? '')
       return {
         seq: sh.seq,
         chapterIndex: carried?.chapterIndex ?? 0,
         primitive: carried?.primitive ?? 'variables',
         focus: carried?.focus ?? [],
-        narration: sh.timelapse ? `같은 반복이 계속됩니다 (총 ${sh.timelapse}회 더)` : carried?.narration ?? '',
+        narration,
         durationMs: sh.durationMs,
       }
     })
-  }, [shots, steps])
+  }, [shots, steps, aiNarration])
 
   const currentShot = shots[index]
   const currentStep = shotSteps[index]
