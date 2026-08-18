@@ -21,7 +21,6 @@
 | `tracelens-design.md` | **살아있는 설계서 — 현재 기준.** 결정은 부록 A에 기록한 것만 | **기준 문서** |
 | `2026-08-11-algo-scope-design.md` | 구 기획 동결본 v3.1 | 대체됨 — 동결 시점 이력으로 보존 |
 | `2026-08-11-algo-scope-glossary.md` | 용어 해설 | 유효 |
-| `2026-08-11-pilot-guide.md` | 파일럿 진행 가이드 | 유효 — 08-19부터 **녹화 영상 + 설문지 방식** (/demo 삭제). 구 소재 폐기, 재선정 기준·채점 방법론·녹화 규격 수록 |
 | `2026-08-18-learner-flow-film-design.md` | 학습자 흐름 진단·원칙 | 유효 (설계서 5절에 원칙 흡수됨) |
 | `2026-08-18-intro-metaphor-skin-design.md` | 은유 스킨 설계 + 개정 | 유효 (설계서 5절에 계약 흡수됨) |
 | `TraceLens_기획안_v3.pdf` · `TraceLens_용어해설.pdf` | 원본 기획 자료 | 보관 |
