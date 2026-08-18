@@ -136,8 +136,11 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         const h = objH.get(p.objectId) ?? 64
         gsap.set(el, { x: 8 + (layout.cellW - 6) / 2, y: h + 22 + p.row * 26, opacity: 0 })
       }
-      // 셀 그룹의 transform 잔여 청소 — origin 보정 translate가 남으면 칸이 상자를 이탈한다
-      gsap.set(root.querySelectorAll('[data-cell]'), { x: 0, y: 0, scale: 1 })
+      // 셀 그룹의 transform 잔여 청소 — origin 보정 translate가 남으면 칸이 상자를 이탈한다.
+      // clearProps로 GSAP의 origin 캐시까지 비운 뒤, 모든 칸 트윈과 같은 origin(center)으로 재설정
+      // (origin이 섞이면 보정 translate 잔여가 칸 전체를 몇 px씩 밀고, 포인터 같은 바깥 기준점과 어긋난다)
+      gsap.set(root.querySelectorAll('[data-cell]'), { clearProps: 'transform' })
+      gsap.set(root.querySelectorAll('[data-cell]'), { x: 0, y: 0, scale: 1, transformOrigin: 'center' })
       const autoCam = q('.film-cam-auto')
       if (autoCam) gsap.set(autoCam, { x: 0, y: 0, scale: 1 })
       // 오토 프레이밍 카메라 — 첫 구성의 프레임으로 시작
@@ -499,8 +502,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 undefined,
                 `${label}+=${cross + d * 0.5}`,
               )
-              tl.set([a, b], { x: 0 }, `${label}+=${cross + d * 0.5}`)
-              tl.to([a, b], { scale: 1, duration: d * 0.3, ease: GRAMMAR.settleEase }, `${label}+=${cross + d * 0.53}`)
+              tl.set([a, b], { x: 0, transformOrigin: 'center' }, `${label}+=${cross + d * 0.5}`)
+              tl.to(
+                [a, b],
+                { scale: 1, duration: d * 0.3, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
+                `${label}+=${cross + d * 0.53}`,
+              )
               // 자리를 바꾼 두 칸이 내려앉으며 함께 번쩍인다 — "여기가 바뀌었다"의 마침표
               writeFlash(`${cellSel(id, i)} .cell-flash`, `${label}+=${cross + d * 0.5}`, d * 0.45)
               writeFlash(`${cellSel(id, k)} .cell-flash`, `${label}+=${cross + d * 0.5}`, d * 0.45)
