@@ -62,3 +62,71 @@ describe('buildStage', () => {
     expect(shared!.referencedBy.some(k => k.endsWith(':team_b'))).toBe(true)
   })
 })
+
+/* 캐스팅 — 변수가 쥔 것만 상자를 받는다 (BFS 영상 피드백) */
+describe('buildStage: 캐스팅', () => {
+  const P = (v: string, t = 'int') => ({ k: 'prim' as const, v, t })
+  const ev = (over: Partial<TraceEvent>, seq: number): TraceEvent => ({
+    seq, kind: 'line', frameId: 0, parentFrameId: null, func: '<module>',
+    causedByLine: null, observedAtLine: 1, localsDelta: [], objectsDelta: [], stdout: '', ...over,
+  })
+
+  it('컨테이너 안에만 있는 객체는 상자를 받지 않는다', () => {
+    // 튜플 2개(id 2·3)가 리스트(id 1) 안에만 존재 — 리스트만 변수에 묶임
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }],
+        objectsDelta: [
+          { op: 'set', obj: { id: 2, type: 'tuple', items: [P('0'), P('0')] } },
+          { op: 'set', obj: { id: 3, type: 'tuple', items: [P('1'), P('1')] } },
+          { op: 'set', obj: { id: 1, type: 'list', items: [{ k: 'ref', id: 2 }, { k: 'ref', id: 3 }, P('9'), P('8')] } },
+        ],
+      }, 1),
+      ev({ localsDelta: [{ name: 'b', op: 'set', value: P('1') }] }, 2),
+    ]
+    const plan = buildStage(events)
+    expect(plan.objects.map(o => o.objectId)).toEqual([1])
+  })
+
+  it('재대입으로 놓인 객체의 수명은 재대입 시점을 넘지 않는다', () => {
+    const list = (id: number) => ({ op: 'set' as const, obj: { id, type: 'list', items: [P('1'), P('2'), P('3'), P('4')] } })
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }], objectsDelta: [list(1)] }, 1),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 2 } }], objectsDelta: [list(2)] }, 2),
+      ev({ localsDelta: [{ name: 'b', op: 'set', value: P('1') }] }, 3),
+      ev({ localsDelta: [{ name: 'c', op: 'set', value: P('1') }] }, 4),
+    ]
+    const plan = buildStage(events)
+    const old = plan.objects.find(o => o.objectId === 1)!
+    const cur = plan.objects.find(o => o.objectId === 2)!
+    expect(old.life.to).toBeLessThanOrEqual(2)
+    expect(cur.life.to).toBe(4) // 계속 쥐고 있으므로 끝까지
+  })
+
+  it('작은 프림 튜플 변수는 상자 대신 인라인 — plan.objects에 없다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'start', op: 'set', value: { k: 'ref', id: 5 } }],
+        objectsDelta: [{ op: 'set', obj: { id: 5, type: 'tuple', items: [P('0'), P('0')] } }],
+      }, 1),
+    ]
+    expect(buildStage(events).objects.length).toBe(0)
+  })
+
+  it('함수·클래스에만 묶인 변수는 알약을 받지 않는다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'deque', op: 'set', value: { k: 'ref', id: 7 } }],
+        objectsDelta: [{ op: 'set', obj: { id: 7, type: 'type', unsupported: true } }],
+      }, 1),
+      ev({ localsDelta: [{ name: 'n', op: 'set', value: P('1') }] }, 2),
+    ]
+    const plan = buildStage(events)
+    expect(plan.variables.map(v => v.name)).toEqual(['n'])
+    expect(plan.objects.length).toBe(0)
+  })
+})
