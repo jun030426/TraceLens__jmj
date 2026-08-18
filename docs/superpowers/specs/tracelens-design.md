@@ -1,0 +1,260 @@
+# TraceLens 설계서 — 살아있는 문서
+
+- 지위: **동결 해제.** v3.1(2026-08-11)까지의 동결 이력은 `2026-08-11-algo-scope-design.md`에 보존하고, 이 문서가 현재 기준이다. 변경은 자유롭되 **부록 A 결정 기록에 남긴 것만 결정이다.**
+- 팀: 컴퓨터공학 전공 3인 · 최근 전면 개정: 2026-08-18
+
+## 0. 한 문장
+
+> **The trace decides what happened; the director decides what is worth showing; the metaphor decides how it reads.**
+> 무슨 일이 일어났는가는 실행이, 그중 무엇을 보여줄지는 연출이, 그것이 어떻게 읽히는가는 은유가 결정한다.
+
+## 1. 제품 정의
+
+**기술적 정의**: Python 코드의 실제 실행 상태를 추적하고, 이를 자동 설명 애니메이션(무비)으로 변환하는 코드 실행 시각화 도구.
+
+**두 축 포지셔닝**:
+
+1. **대표 시나리오 — AI 코드 검증**: AI(ChatGPT·Claude 등)가 생성한 코드를 자기 프로젝트에 적용하기 전에 실행 흐름을 이해하는 용도. 기술적 제약이 아니라 대표 사용 맥락이다 — 사람이 쓴 코드도 동일하게 처리한다.
+2. **합격선 — 비전공 초보자의 흐름 이해**: 코딩을 아예 안 해본 사람도 영상만 보고 "무슨 일이 어떤 순서로 일어났는지" 정도는 따라갈 수 있어야 한다. 변수명·인덱스 같은 코드의 기호가 아니라 **물체의 언어**(막대·저울·카드)로 말하는 은유 스킨이 이 합격선에서 나왔다 (5절).
+
+**해결하는 문제**: AI 코드를 이해 없이 복붙하는 습관, 그리고 텍스트 설명만으로는 실행 흐름이 머리에 그려지지 않는 학습자.
+
+**핵심 제품 가설** (실험으로 검증할 대상이며, 전제가 아니다):
+
+> 실제 실행 상태를 시간적으로 시각화하면, 텍스트 설명만 제공하는 것보다 프로그램 상태 변화와 실행 흐름을 이해하는 데 도움이 된다.
+
+**차별화 4축**:
+
+1. **값의 신뢰성** — 화면의 모든 값·순서는 실제 실행에서만 나온다 (코드가 논리적으로 올바르다는 보증은 아니다).
+2. **재생 모델** — debugger-first(Python Tutor)가 아니라 narrative-first: 중요한 장면·속도·표현을 골라 자동 재생하는 영화. Debugger → Movie.
+3. **영상 그 이상** — 실시간 렌더이므로 언제든 일시정지하고 그 seq의 변수·객체 상태를 인스펙터로 들여다본다.
+4. **은유 물체 언어** — 값은 막대로, 판단은 저울로, 반복은 도는 화살로. 은유는 표현만 바꾸고 사실은 트레이스가 소유한다 — "정직한 은유"가 계약이다.
+
+**Core와 Quality의 분리**: Core(제품 완주 조건)는 실제 trace + trace-grounded 필름 + 자동 재생 + 인스펙터 — LLM 없이 규칙 대본만으로 성립한다. Quality layer는 LLM Director가 자막·완급·표현 선택을 보태 설명 품질을 높인다. "왜 AI가 필요한가"는 ablation으로 정량 증명한다 (8절).
+
+## 2. 범위
+
+### 증명 범위 (MVP)
+
+- **지원 코드**: self-contained · single-file · synchronous Python (표준 라이브러리 중심)
+- **명시적 범위 밖**: 외부 모듈·DB·네트워크·프레임워크, `input()` 등 interactive, generator/coroutine/async/thread. preflight에서 안내하며 벤치마크 셋에서도 제외 (지원하는 척하지 않는다)
+- **렌더러**: SVG + GSAP 단일 (PixiJS 보류 자산은 2026-08-18 의존성째 삭제 — git 이력에만 존재)
+
+### 지원 범위 매트릭스
+
+**A. 완전 지원 — 특화 시각화로 재생**
+
+| 코드 유형 | 예시 | 화면 |
+|---|---|---|
+| 변수 할당·연산 | `x = a + b` | 변수 알약, 값 변화 플래시 |
+| 조건문·반복문 | `if` / `for` / `while` | 비교 저울(참/거짓 도장), 반복 배지·스핀, 루프 압축 빨리감기 |
+| 함수 호출·재귀 | `f(x)`, 재귀 | 하단 프레임 카드 (호출 조명) |
+| 리스트·dict·set 조작 | `append`, `d["k"]=v`, `pop` | 칸 상자 + 값 막대(숫자), 값 이동 칩, swap 애니메이션 |
+| **2차원 프림 리스트 (maze·DP)** | `[[0,1],[1,0]]`, `["S.#", …]` | **격자 렌더러** — 벽·방문 칠·커서·경로 선 (v3.1의 B에서 A로 승격, 2026-08-18) |
+| aliasing·얕은 복사 | `b = a`, `b = a[:]` | 상자 이름표 "a · b" (같은 상자에 이름 두 개 — 끈·화살표는 폐기) |
+| 예외 발생 | `arr[5]` → IndexError | 터지는 지점까지 재생 + 빨간 오류 스트립 (콘텐츠로 취급) |
+| 클래스 인스턴스 기본 · 컴프리헨션 · print | `p = Point(1,2)`, `print` | 객체 상자 · 시퀀스 · 출력 바 |
+
+**B. 지원 — Generic State View** (트리·그래프 등 복잡 구조, 깊은 중첩 — 표 형태 안전망)
+**C. 실행되지만 제한** (긴 실행·무한 루프·대량 데이터 — 상한까지 수집 후 "여기까지 시각화")
+**D. 범위 밖 — preflight 안내** (input · generator/async/thread · 네트워크·파일 · 외부 라이브러리 · 조각 코드 · 정의만 있고 호출 없음)
+
+preflight는 best effort — D를 놓치고 실행에 들어가도 런타임 에러 처리로 안전하게 내려온다.
+
+## 3. 시스템 아키텍처
+
+```
+코드 붙여넣기
+ → Tracer      Pyodide(Web Worker) 실행 + 상태 스냅샷·비교 → TraceEvent 스트림
+ ├─ 필름 트랙 (Core — AI 없이 완주)
+ │   → buildStage   캐스팅 — 무대에 올릴 객체·변수·프레임, 격자 판정
+ │   → choreograph  안무 — 사건을 모션·자막·값 이동·비교 echo로 번역 (의미층)
+ │   → compose      구성 — 샷마다 누가 어디에 얼마나 크게 + 오토 프레이밍 카메라
+ │   → WorldStage   SVG+GSAP 렌더 — 은유 부품(막대·저울·칩·격자·플래시)
+ └─ 대본 트랙 (Quality — 실패해도 영화는 이미 완성)
+     → Digest       프레임 필터링·루프 접기 → DigestSpan
+     → Director     LLM이 코드+Digest로 대본 생성 (검증 + 결정적 Resolver)
+     → decorate     대본의 완급·연출 동사·staging을 필름 샷에 반영
+```
+
+**성격 규정**: Execution-grounded / Non-generative. 같은 트레이스가 주어지면 필름 트랙의 출력은 결정적이다.
+
+**실행 위치**: 실행·시각화는 전부 브라우저. Director 호출 시에만 코드+Digest가 외부 LLM으로 전송 — 사용자 고지·opt-out(local-only)·규칙 폴백을 제품에 반영 (설정 화면 구현됨).
+
+### 모듈 경계
+
+| 모듈 | 책임 | 입력 → 출력 |
+|---|---|---|
+| Tracer (`src/trace/`) | 실행·스냅샷·델타 합성·chunk flush | 코드 → TraceEvent[] |
+| buildStage (`src/film/`) | 캐스팅·격자 판정·수명 | TraceEvent[] (+staging 힌트) → StagePlan |
+| choreograph | 사건 → 모션·자막·값 이동 (의미층) | TraceEvent[] + StagePlan + 코드 → Shot[] |
+| compose | 구성·카메라 (연출층의 배치) | Shot[] + StagePlan → Composition[] + Camera[] |
+| theme | 테마 감지 (정렬/공간/중립) + 막대 대상 판정 | StagePlan + Shot[] → FilmTheme |
+| WorldStage | GSAP 타임라인 조립·SVG 렌더 | 위 전부 → 재생 가능한 무대 |
+| Digest (`src/digest/`) | 압축·요약·스팬 매핑 | TraceEvent[] → Digest |
+| Director (`src/director/`) | LLM 대본 + 검증 + Resolver 치환 | 코드 + Digest → Screenplay |
+| 규칙 대본 (`src/screenplay/`) | LLM 없는 폴백 대본 | TraceEvent[] → Screenplay |
+| decorate | 대본 → 필름 완급·카메라·스포트라이트 | Shot[] + Screenplay → Shot[] |
+| Player (`src/film/useFilm` + UI) | 재생·스크럽·배속·챕터·인스펙터 | 타임라인 → 재생 경험 |
+
+### 보안 — untrusted code 위협 모델 (유지)
+
+사용자는 정의상 이해 못 한 코드를 실행하러 온다. Worker에 애플리케이션 secret을 두지 않고, CSP/connect-src로 실행 컨텍스트의 네트워크를 제한하며, LLM 키는 서버 측 보관이 원칙(현재 미구현 — 9절). "서버에서 직접 실행하지 않으므로 서버 측 RCE 위험·인프라 비용을 크게 줄인다"라고 표현한다 ("보안 문제 제거"라고 주장하지 않는다).
+
+## 4. 데이터 계약
+
+### TraceEvent (구현 확정형)
+
+```
+{ seq, kind: line | call | return | exception,
+  frameId, parentFrameId, func,
+  causedByLine, observedAtLine,
+  localsDelta:  [ { name, op: set | delete, value } ],
+  objectsDelta: [ { op: set | delete, obj | id } ],
+  stdout, error? }
+```
+
+- **귀속 규칙**: 보여주는 것은 "모든 mutation"이 아니라 "source-line boundary에서 관측되는 상태 변화"다. diff는 직전 실행 줄(causedByLine)의 효과로 귀속한다.
+- mutation은 별도 kind가 아니라 **objectsDelta로 합성**된다 (v3.1의 `mutation` kind·`reachableObjectsDelta`·`function` 표기는 각각 삭제·`objectsDelta`·`func`로 구현 확정).
+- serializer는 observationally passive — repr/getattr 부작용 차단, 불확실 객체는 축약.
+
+### DigestSpan
+
+`{ spanId, sourceSeqRange, lines, eventKinds, funcs, changedVars, iterations?, stdoutDelta?, exception? }` — Digest 요약 단위가 원본 트레이스의 어느 구간인지 고정하는 안정 참조.
+
+### Screenplay (구현 확정형)
+
+```
+{ chapters: [ { title, scenes: [
+    { seqStart, seqEnd,            // LLM은 spanRef만 고르고 Resolver가 치환한 결과
+      primitive, focus, repeat?,
+      pacing: slow | normal | fast,
+      direction: (zoom | hold | skip)[],   // 연출 동사 — 대상이 없다. 대상은 엔진이 사실에서 찾는다
+      narration: { template, bindings } } ] } ],
+  staging?: { grid: string[], noGrid: string[] } }   // AI의 표현 '선택' — 판정·좌표는 도구가
+```
+
+- **spanRef 원칙 유지**: LLM은 seq 숫자를 생성하지 않는다. 검증(스키마→참조 실존→Resolver) 불통과 시 재시도 후 규칙 폴백.
+- **narration 신뢰 구분 유지**: 관찰형(값·상태 — 템플릿+바인딩)과 해석형(역할·의도 — 챕터 제목·요약 한정).
+- v3.1의 `camera` 필드는 **연출 동사 direction으로 대체**, `fastForward(배속)`는 `fast`로 확정. `staging`은 08-18 신설.
+
+### Shot / Motion (필름 계약 — 08-18 신설)
+
+```
+Shot   { seq, motions: Motion[], durationMs, focus, timelapse?, caption? }
+Motion — 의미층의 동사들:
+  setVar · enterVar · exitVar · bind(alias) · enterObj · exitObj
+  grow · setCell · shrink · swap · label
+  compare { text, targets, a·op·b·verdict }     // 저울의 데이터
+  travel  { from, to, text }                    // 값의 이동 (칸↔알약, 라인 접지)
+  sortedSweep · loop · loopEnd · spotlight · camera
+  pushFrame · popFrame · stdout · raise · shake
+  gridCell · gridVisit · gridUnvisit · gridCursor · gridTrail
+```
+
+- **caption**: 모든 샷은 모션에서 결정적으로 생성된 학습자 자막 한 문장을 싣는다 — 화면과 자막은 원리적으로 일치한다 ("한 샷 = 한 문장").
+- **travel·compare·sortedSweep의 정직성**: 소스 라인 접지로 해석될 때만 발화하고, 해석 실패는 침묵. sortedSweep은 실제로 오름차순으로 끝났을 때만.
+
+## 5. 시각 언어 — 은유 물체의 무대
+
+### 은유 부품 (사실은 트레이스, 은유는 스킨)
+
+| 개념 | 은유 | 정직성 가드 |
+|---|---|---|
+| 값 | **막대 높이** (칸 안, 값 비례) | 음수 없는 전부-숫자 리스트만 — \|v\| 인코딩이 순서를 속일 상황이면 포기 |
+| 변수 | 이름표 달린 알약 (ref는 "→ 상자") | "값이 든 상자" 은유는 별칭에서 깨지므로 이름표 모델 유지 |
+| 비교 | **저울** — 양팔 값 카드, 무거운 쪽으로 기울고 참/거짓 도장 | 접지된 비교만. 판단이 이어지는 동안 무대에 머문다 (깜빡임 금지) |
+| 값의 이동 | **칩 비행** (`x=arr[i]`·`append`·`pop`) | 라인 접지 성공 시만, 샷당 1회 |
+| 반복 | 배지 + 한 바퀴 도는 화살, 회차 카운트업 | 단위가 다른 총계는 표시하지 않는다 (모순 숫자 금지) |
+| 완성 | **정렬 스윕** — 칸이 차례로 초록 정착 | 실제 정렬로 끝났을 때만 |
+| 별칭 | 한 상자에 이름표 여러 개 ("a · b") | — |
+| 공간 탐색 | 격자 + 방문 칠 + 커서 + 경로 선 | 좌표는 트레이스의 튜플·set·list에서만 |
+
+### 색 4역할 계약
+
+**읽기/주목 = 파랑(accent)** · **쓰기/변화 = 호박(write-flash)** · **참/완성 = 초록(ok)** · **거짓/오류 = 빨강(stop)**. 같은 역할은 같은 색, 다른 역할은 다른 색 — 색이 곧 문법이다 (`src/ui/app.css`에 계약 주석).
+
+### 연출 원칙
+
+- **주인공은 중앙을 지킨다** — sticky focus. 구성(compose)이 배우 가시성의 단일 소유자이고, 다른 객체가 이야기를 가져갈 때만 물러난다. 살아있는 변수는 사라지지 않고, 커튼콜은 생존 전원의 최종 상태다.
+- **한 샷 = 한 문장** — v3.1의 "동시에 한 동작만"을 대체. 캐스케이드(리터럴 탄생)·구성 전환은 병렬이되, 샷의 의미는 자막 한 문장으로 수렴해야 한다.
+- **원인 → 결과 순서** — 값 이동 칩이 내려앉는 순간에 도착지가 갱신되고, swap 샷에는 직전 참 비교가 echo로 머문다.
+- **테마는 감지, 불확실하면 중립** — swap≥2·전부 숫자 → 정렬, 격자 존재 → 공간 탐색, 그 외 중립 (`theme.ts`). 감지가 틀려도 값은 틀리지 않는다.
+- easing 현행: 등장 back.out, 이동 power2.inOut, 스왑 power2.inOut + back settle. 타임라인 라벨은 절대 위치 — 샷 경계와 초 단위로 일치 (자막-화면 드리프트 금지).
+- **semantic timeline 유지** — 애니메이션 중간에 멈춰도 인스펙터는 특정 seq의 일관된 상태를 보여준다.
+
+### 보조 뷰
+
+프리미티브 5종(변수·호출 스택·시퀀스·참조 그래프·Generic)은 **실행 전 초기 화면과 일시정지 인스펙터의 보조 뷰**로 물러났다. Generic State View는 여전히 "지원 범위 내 최종 안전망"이다.
+
+## 6. 재생 경험
+
+1. 붙여넣기 → Run → 로딩 단계 표시 ("Python 환경 준비 → 실행·기록 → 설명 준비")
+2. 자동 재생 — 챕터 진행바, 자막 동기화. **자막 선택 규칙**: 규칙 연출에서는 항상 필름 자막(모션 유래), AI 연출에서는 접힌 반복 구간만 필름 자막이고 나머지는 AI 문장 — 기계적 사실은 필름이, '왜'는 AI가 말한다.
+3. 인터랙션: 일시정지 / 스크럽 / 배속 / 챕터 점프 / 휠 줌·드래그. 일시정지 시 인스펙터.
+4. 레이아웃: 좌 코드(Monaco, 현재 줄 하이라이트) / 우 무대 — 유지.
+
+## 7. 에러 처리와 실행 제한 (유지)
+
+| 상황 | 처리 |
+|---|---|
+| 사용자 코드 예외 | 콘텐츠다 — 터지는 지점까지 재생, 흔들림 + 빨간 오류 스트립 |
+| LLM 실패·검증 불통과 | 규칙 대본 폴백 (영화는 이미 완성돼 있다) |
+| 프리미티브 매핑 실패 | Generic State View |
+| 실행 상한 초과 | maxEvents + 타임아웃까지 수집, "여기까지 시각화" (maxSerializedBytes는 9절) |
+| 무한 루프 | chunk flush로 수집분 보존 후 종료 |
+| 실행 불가 코드 | preflight 안내 + 런타임 에러 2단계 |
+
+## 8. 검증 — 한 것과 남은 것
+
+**수행 완료**: Tracer 스파이크(Go — `2026-08-11-tracer-spike-report.md`) · 기술 벤치마크 1차(`2026-08-11-benchmark-report.md`, 하네스는 `src/bench/`에 상시 회귀) · Slice 1 완주(태그 `slice-1`) · 필름 파이프라인 단위·E2E 회귀 235+ · 파일럿 절차 설계(`2026-08-11-pilot-guide.md` + 08-18 갱신 절).
+
+**남은 것**:
+- **파일럿 실행** — 영상 6편 길이 재실측 후 진행 (은유 스킨 반영본으로)
+- **Ablation: 규칙 무비 vs LLM 무비** — "왜 AI가 필요한가"의 정량 답변 (미착수)
+- **이해도 비교 실험** — 표본 수 선계산 후 설계 확정, transfer question 중심
+- 은유 스킨 자체의 오개념 리스크 검증 — 파일럿 서술 답변에서 잘못된 멘탈 모델 징후를 채점 항목에 추가
+
+## 9. 미구현 약속 — 계약은 유지, 구현은 미완
+
+정직하게 명시한다. 아래는 설계 계약에는 있으나 아직 구현되지 않았다:
+
+| 항목 | 계약 | 현재 |
+|---|---|---|
+| LLM 서버리스 프록시 | 키는 서버 측에만 | 클라이언트 직접 호출(`VITE_GEMINI_API_KEY`) — 개발 임시, 배포 전 전환 |
+| maxSerializedBytes | 3중 상한의 하나 | 미구현 (maxEvents + 타임아웃 2중) |
+| Director 캐싱 | code+digestHash+schema/prompt/modelVersion 키 | 미구현 |
+| interrupt (SharedArrayBuffer + COOP/COEP) | 정상 중단 경로 | 미검증 — Worker terminate + chunk flush로 대체 중 |
+| Digest의 state 기반 루프 접기 (interesting iteration 분리) | Digest 책임 | 부분 구현 — 현재는 라인 방문 횟수 기반 접기만 |
+
+## 10. 리스크 (갱신)
+
+| 리스크 | 상태·대응 |
+|---|---|
+| ~~[구 1순위] Tracer 상태 직렬화~~ | **해소** — 스파이크 Go, 벤치마크·회귀로 상시 감시 |
+| Untrusted client code 실행 | 유지 — Worker 무비밀 원칙, 프록시 전환 전까지 키 노출이 실질 리스크 (9절) |
+| **[신규] 은유의 오개념** — 어긋난 비유는 잘못된 멘탈 모델을 심는다 | 정직성 가드(막대 음수 금지·스윕 실제만·해석 실패 침묵) + 파일럿에서 오개념 징후 채점 |
+| 범용 상태 시각화 커버리지 | 은유 부품 + 격자 + Generic 안전망 + 층화 벤치마크 |
+| 코드 외부 전송 | 고지·opt-out·local-only 구현됨 |
+| 3인 범위 과대 | 증명 범위 고수, 은유 2단계(행위자·작업대)는 파일럿 결과 후 착수 |
+
+## 부록 A: 결정 기록
+
+v3.1까지의 결정(타겟·범위·LLM 역할·spanRef·narration·Pyodide·narrative-first·SVG 단일·KPI 방침)은 `2026-08-11-algo-scope-design.md` 부록 A에 보존. 이후 결정:
+
+| 일자 | 결정 | 근거 |
+|---|---|---|
+| 08-11 | 필름 엔진 — 스텝 재생을 모션 연속체(무성영화)로 전환 | 자막 없이도 흐름이 읽혀야 한다 |
+| 08-16 | 연출 동사(zoom/hold/skip) — AI는 동사만, 대상은 엔진이 사실에서 | LLM이 좌표·사실을 만들 경로 차단 |
+| 08-18 | 연출 무대(compose) — 고정 배치도 폐기, 구성·오토 카메라·이름표 (끈 제거) | 지정석 회로도는 시선을 분산시킨다 |
+| 08-18 | staging 힌트 — AI가 격자 표현을 '선택', 판정·좌표는 도구 | 의미 판단은 AI의 자리, 사실은 도구의 자리 |
+| 08-18 | 학습자 자막 — 모든 샷이 모션 유래 자막을 싣는다, 배지 총계 삭제, 최종 프레임 정산 | 자막-화면 불일치·모순 숫자는 신뢰를 부순다 |
+| 08-18 | **은유 스킨이 유일한 베이스** — 막대·저울·스핀·스윕, 정밀 모드 삭제 | 합격선이 "비전공 초보의 흐름 이해"로 확장 |
+| 08-18 | 색 4역할 계약 · 저울 지속(비교 연속 구간) | 색이 문법이 되려면 역할이 고정돼야 한다 |
+| 08-18 | PixiJS 보류 자산·프로토타입 유산 삭제 | 죽은 코드는 자산이 아니라 오해다 |
+| 08-18 | **기획 동결 해제** — 이 문서를 살아있는 기준으로, 역할 분담은 팀 운영으로 분리 | 실측·파일럿이 기획을 계속 고치는 단계다 |
+
+## 부록 B: 버전 이력
+
+- v1 → v3.1 (2026-08-11): 외부 검토 2회 반영, 기획 동결 — 상세는 `2026-08-11-algo-scope-design.md` 부록 B
+- v3.1 → 살아있는 문서 (2026-08-18): 동결 해제. 파이프라인을 필름/대본 2트랙으로 개정, 스키마를 구현 확정형으로 교정(mutation kind 삭제·objectsDelta·direction verbs·staging), 시각 언어를 은유 물체 무대로 전면 개정, 격자 A 승격, 두 축 포지셔닝, 미구현 절·리스크 갱신, 역할 분담 절 제외
