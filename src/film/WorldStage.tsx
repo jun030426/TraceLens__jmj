@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import gsap from 'gsap'
 import type { Shot, StagePlan } from './types'
 import { GRID_CELL, type StageLayout } from './layout'
-import { compose, stageHeightOf, type Composition } from './compose'
+import { compose, type Camera, type Composition } from './compose'
 import type { useFilm } from './useFilm'
 
 type Props = {
@@ -31,10 +31,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
   const rootRef = useRef<SVGSVGElement | null>(null)
   const { register } = film
 
-  const { comps, stageH } = useMemo(() => {
-    const c = compose(shots, plan, layout)
-    return { comps: c, stageH: stageHeightOf(c, plan, layout) }
-  }, [shots, plan, layout])
+  // 프레임은 영화처럼 고정(1200×640) — 콘텐츠를 채우는 건 오토 프레이밍 카메라의 일이다
+  const FRAME_H = 640
+  const { comps, cams } = useMemo(() => compose(shots, plan, layout), [shots, plan, layout])
 
   /* 수동 카메라 — 콘텐츠를 담은 <g> 하나만 변환하므로 GSAP 타깃(자식)과 간섭하지 않는다 */
   const [cam, setCam] = useState(FIT)
@@ -61,7 +60,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
   const unitsPerPx = () => {
     const rect = rootRef.current?.getBoundingClientRect()
     if (!rect || rect.width === 0) return 1
-    return Math.max(layout.width / rect.width, stageH / rect.height)
+    return Math.max(layout.width / rect.width, FRAME_H / rect.height)
   }
   const onPointerDown = (ev: React.PointerEvent<SVGSVGElement>) => {
     if (cam.k === 1) return
@@ -78,7 +77,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     dragRef.current = null
   }
 
-  const camTransform = `translate(${cam.tx + (layout.width / 2) * (1 - cam.k)} ${cam.ty + (stageH / 2) * (1 - cam.k)}) scale(${cam.k})`
+  const camTransform = `translate(${cam.tx + (layout.width / 2) * (1 - cam.k)} ${cam.ty + (FRAME_H / 2) * (1 - cam.k)}) scale(${cam.k})`
 
   useEffect(() => {
     const root = rootRef.current
@@ -109,6 +108,10 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       )
       const autoCam = q('.film-cam-auto')
       if (autoCam) gsap.set(autoCam, { x: 0, y: 0, scale: 1 })
+      // 오토 프레이밍 카메라 — 첫 구성의 프레임으로 시작
+      const frameCam = q('.film-cam-frame')
+      let appliedCam: Camera | null = cams[0] ?? null
+      if (frameCam && appliedCam) gsap.set(frameCam, { x: appliedCam.x, y: appliedCam.y, scale: appliedCam.k, transformOrigin: '0px 0px' })
       const tl = gsap.timeline({ paused: true })
       let liveFrame: Element | null = null
       let prevComp: Composition = new Map()
@@ -141,6 +144,17 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         const label = `s${shot.seq}`
         tl.addLabel(label)
         const comp = comps[si] ?? new Map()
+
+        // 카메라가 이야기를 따라간다 — 구성 경계가 유의미하게 바뀔 때만 (compose가 감쇠)
+        const camNow = cams[si]
+        if (frameCam && camNow && camNow !== appliedCam) {
+          tl.to(
+            frameCam,
+            { x: camNow.x, y: camNow.y, scale: camNow.k, duration: sec(0.5), ease: 'power2.inOut', transformOrigin: '0px 0px' },
+            label,
+          )
+          appliedCam = camNow
+        }
 
         // ── 구성 전환 — 배우 가시성·위치·배율의 단일 소유자 ──
         for (const key of prevComp.keys()) {
@@ -562,14 +576,14 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     }
   }, [shots, register, layout, plan, comps])
 
-  const hudOffset = stageH - layout.height
+  const hudOffset = FRAME_H - layout.height
 
   return (
     <div className="film-viewport">
       <svg
         ref={rootRef}
         className="stage-svg film-stage"
-        viewBox={`0 0 ${layout.width} ${stageH}`}
+        viewBox={`0 0 ${layout.width} ${FRAME_H}`}
         role="img"
         aria-label="코드 실행 무성영화"
         onPointerDown={onPointerDown}
@@ -580,26 +594,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       >
       <g transform={camTransform}>
       <g className="film-cam-auto">
-      {/* 하단 HUD — 프레임 카드·출력 바는 무대 높이에 맞춰 바닥에 붙는다 */}
-      <g transform={`translate(0 ${hudOffset})`}>
-        {plan.frames.map(f => {
-          const r = layout.framePos.get(f.frameId)!
-          return (
-            <g key={`f${f.frameId}`} data-frame={f.frameId}>
-              <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={10} fill="var(--panel)" stroke="var(--line-strong)" strokeWidth={1.2} />
-              <text x={r.x + 14} y={r.y + 34} className="svg-name">
-                {f.func === '<module>' ? '프로그램' : `${f.func}()`}
-              </text>
-            </g>
-          )
-        })}
-        <g className="film-stdout">
-          <rect x={24} y={layout.height - 52} width={layout.width - 48} height={36} rx={8} fill="var(--sunken)" stroke="var(--line)" strokeWidth={1} />
-          <text x={38} y={layout.height - 28} className="svg-type">출력</text>
-          <text className="film-stdout-text svg-value" x={92} y={layout.height - 28} />
-        </g>
-      </g>
-
+      <g className="film-cam-frame">
       {/* 배우: 객체 상자·격자 — 로컬 좌표로 그리고 구성이 transform으로 배치한다 */}
       {plan.objects.map(o => {
         const r = layout.objPos.get(o.objectId)!
@@ -710,6 +705,28 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
           <text textAnchor="middle" y={5} className="svg-name" />
         </g>
       ))}
+      </g>{/* /film-cam-frame */}
+      </g>{/* /film-cam-auto — 배우와 칩만 카메라를 탄다 */}
+
+      {/* 하단 HUD — 프레임 카드·출력 바는 카메라 밖, 항상 화면 바닥에 */}
+      <g transform={`translate(0 ${hudOffset})`}>
+        {plan.frames.map(f => {
+          const r = layout.framePos.get(f.frameId)!
+          return (
+            <g key={`f${f.frameId}`} data-frame={f.frameId}>
+              <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={10} fill="var(--panel)" stroke="var(--line-strong)" strokeWidth={1.2} />
+              <text x={r.x + 14} y={r.y + 34} className="svg-name">
+                {f.func === '<module>' ? '프로그램' : `${f.func}()`}
+              </text>
+            </g>
+          )
+        })}
+        <g className="film-stdout">
+          <rect x={24} y={layout.height - 52} width={layout.width - 48} height={36} rx={8} fill="var(--sunken)" stroke="var(--line)" strokeWidth={1} />
+          <text x={38} y={layout.height - 28} className="svg-type">출력</text>
+          <text className="film-stdout-text svg-value" x={92} y={layout.height - 28} />
+        </g>
+      </g>
 
       {/* 반복 배지 */}
       <g className="film-loop">
@@ -728,7 +745,6 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         <rect x={24} y={14} width={layout.width - 48} height={34} rx={8} fill="var(--panel)" stroke="var(--accent)" strokeWidth={1.4} />
         <text className="svg-type" x={40} y={36}>오류</text>
         <text className="film-error-text svg-name" x={92} y={36} />
-      </g>
       </g>
       </g>
       </svg>

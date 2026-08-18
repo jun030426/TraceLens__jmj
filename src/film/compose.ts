@@ -9,6 +9,8 @@ import type { StageLayout } from './layout'
 
 export type Placement = { x: number; y: number; s: number; focus: boolean }
 export type Composition = Map<string, Placement> // 'o<objectId>' | 'v<varKey>'
+/** 오토 프레이밍 — 무대 위 배우들의 경계 상자를 프레임(1200×640)에 맞추는 카메라 */
+export type Camera = { k: number; x: number; y: number }
 
 export const LINGER = 6 // 마지막으로 닿은 뒤 무대에 머무는 샷 수
 
@@ -21,7 +23,11 @@ const SIDE_S = 0.55
 const VAR_IDLE_S = 0.8
 const MAX_VARS = 8
 
-export function compose(shots: Shot[], plan: StagePlan, layout: StageLayout): Composition[] {
+export function compose(
+  shots: Shot[],
+  plan: StagePlan,
+  layout: StageLayout,
+): { comps: Composition[]; cams: Camera[] } {
   const objSize = new Map(
     plan.objects.map(o => {
       const r = layout.objPos.get(o.objectId)
@@ -78,20 +84,22 @@ export function compose(shots: Shot[], plan: StagePlan, layout: StageLayout): Co
       if (o.focus) {
         const x = Math.max(555, Math.min(FOCUS_CX - size.w / 2, 1200 - size.w - 16))
         comp.set(o.k, { x, y: yFocus, s: 1, focus: true })
-        yFocus += size.h + 64
+        yFocus += size.h + 96 // 이름표(위)와 칸 번호(아래) 몫까지 — 덩어리짐 방지
       } else {
         const x = Math.min(SIDE_X, 1200 - size.w * SIDE_S - 12)
         comp.set(o.k, { x, y: ySide, s: SIDE_S, focus: false })
-        ySide += size.h * SIDE_S + 34
+        ySide += size.h * SIDE_S + 46
       }
     }
     prevOrder = objs.map(o => o.k)
 
-    // ── 변수: 좌측 스트립, 최근에 닿은 순 — 손대는 것들만 무대에
+    // ── 변수: 좌측 스트립 — 최근 것들만 올리되, 자리는 등장순으로 고정한다
+    // (최근순 재배열은 알약들이 매 샷 자리를 바꿔 교차하는 어지러움을 만든다)
     const vars = staged
       .filter(([k]) => varKeys.has(k))
       .sort((a, b) => b[1] - a[1])
       .slice(0, MAX_VARS)
+      .sort((a, b) => (firstTouch.get(a[0]) ?? 0) - (firstTouch.get(b[0]) ?? 0))
     let yVar = TOP
     for (const [k, at] of vars) {
       const hot = curtainCall || at === i
@@ -102,18 +110,51 @@ export function compose(shots: Shot[], plan: StagePlan, layout: StageLayout): Co
     comps.push(comp)
   })
 
-  return comps
-}
-
-/** 구성 전체가 요구하는 무대 높이 (하단 HUD가 이 아래로 붙는다) */
-export function stageHeightOf(comps: Composition[], plan: StagePlan, layout: StageLayout): number {
-  const objH = new Map(plan.objects.map(o => [`o${o.objectId}`, layout.objPos.get(o.objectId)?.h ?? 64]))
-  let need = 640
+  // ── 오토 프레이밍 — 매 샷, 배우 경계 상자를 콘텐츠 영역에 맞춘다.
+  // 이것이 "꽉 찬 프레임"이다: 빈 벽을 보여주지 않고 카메라가 이야기를 따라간다.
+  const AREA = { x0: 60, y0: 70, x1: 1140, y1: 470 } // 상단 배지·하단 HUD를 뺀 프레임
+  const sizeOf = (key: string): { w: number; h: number } =>
+    objKeys.has(key) ? (objSize.get(Number(key.slice(1))) ?? { w: 120, h: 64 }) : { w: 190, h: 36 }
+  const cams: Camera[] = []
+  let prevCam: Camera | null = null
   for (const comp of comps) {
-    for (const [k, p] of comp) {
-      const h = (objH.get(k) ?? 36) * p.s
-      need = Math.max(need, p.y + h + 150) // 하단 HUD(프레임·출력) 몫
+    if (comp.size === 0) {
+      cams.push(prevCam ?? { k: 1, x: 0, y: 0 })
+      continue
+    }
+    let bx0 = Infinity
+    let by0 = Infinity
+    let bx1 = -Infinity
+    let by1 = -Infinity
+    for (const [key, p] of comp) {
+      const s = sizeOf(key)
+      bx0 = Math.min(bx0, p.x)
+      by0 = Math.min(by0, p.y - 22 * p.s) // 이름표 띠
+      bx1 = Math.max(bx1, p.x + s.w * p.s)
+      by1 = Math.max(by1, p.y + (s.h + 16) * p.s) // 번호 띠
+    }
+    const bw = Math.max(bx1 - bx0, 120)
+    const bh = Math.max(by1 - by0, 120)
+    const k = Math.min(1.6, Math.max(0.45, Math.min((AREA.x1 - AREA.x0) / bw, (AREA.y1 - AREA.y0) / bh)))
+    const cam: Camera = {
+      k,
+      x: (AREA.x0 + AREA.x1) / 2 - k * (bx0 + bw / 2),
+      y: (AREA.y0 + AREA.y1) / 2 - k * (by0 + bh / 2),
+    }
+    // 감쇠 — 조금 변한 프레임은 유지한다 (카메라 덜덜림 방지). 같은 참조를 다시 넣어
+    // 렌더 층이 "안 바뀌었음"을 참조 비교로 알 수 있게 한다.
+    if (
+      prevCam &&
+      Math.abs(cam.k - prevCam.k) / prevCam.k < 0.08 &&
+      Math.abs(cam.x - prevCam.x) < 60 &&
+      Math.abs(cam.y - prevCam.y) < 60
+    ) {
+      cams.push(prevCam)
+    } else {
+      cams.push(cam)
+      prevCam = cam
     }
   }
-  return need
+
+  return { comps, cams }
 }

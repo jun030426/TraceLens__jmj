@@ -34,7 +34,7 @@ describe('compose', () => {
       shot(1, [{ v: 'grow', objectId: 2, index: 0, text: '2' }]),
       shot(2, [{ v: 'grow', objectId: 2, index: 1, text: '3' }]), // 마지막 샷(커튼콜)을 피해 중간 샷을 검증
     ]
-    const comps = compose(shots, plan, layout)
+    const { comps } = compose(shots, plan, layout)
     const c1 = comps[1]
     expect(c1.get('o2')!.focus).toBe(true)
     expect(c1.get('o2')!.s).toBe(1)
@@ -48,14 +48,14 @@ describe('compose', () => {
       shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
       ...Array.from({ length: LINGER + 1 }, (_, k) => shot(k + 1, [{ v: 'setVar', varKey: '0:i', text: String(k) }])),
     ]
-    const comps = compose(shots, plan, layout)
+    const { comps } = compose(shots, plan, layout)
     expect(comps[comps.length - 1].has('o1')).toBe(false)
     expect(comps[LINGER].has('o1')).toBe(true) // 마지막 유예 샷까지는 남는다
   })
 
   it('변수는 좌측 스트립 — 닿은 것이 포커스', () => {
     const shots = [shot(0, [{ v: 'setVar', varKey: '0:i', text: '3' }])]
-    const comps = compose(shots, plan, layout)
+    const { comps } = compose(shots, plan, layout)
     const v = comps[0].get('v0:i')!
     expect(v.focus).toBe(true)
     expect(v.x).toBeLessThan(560)
@@ -68,7 +68,7 @@ describe('compose', () => {
         { v: 'grow', objectId: 2, index: 0, text: '2' },
       ]),
     ]
-    const comps = compose(shots, plan, layout)
+    const { comps } = compose(shots, plan, layout)
     const a = comps[0].get('o1')!
     const b = comps[0].get('o2')!
     const h1 = 64 * a.s
@@ -86,7 +86,7 @@ describe('compose', () => {
         { v: 'setCell', objectId: 1, index: 0, text: '8' },
       ]),
     ]
-    const comps = compose(shots, plan, layout)
+    const { comps } = compose(shots, plan, layout)
     const before = comps[0].get('o1')!.y < comps[0].get('o2')!.y
     const after = comps[1].get('o1')!.y < comps[1].get('o2')!.y
     expect(after).toBe(before)
@@ -100,7 +100,7 @@ describe('compose: 정리 규칙', () => {
       shot(1, [{ v: 'exitObj', objectId: 1 }, { v: 'setVar', varKey: '0:i', text: '0' }]),
       shot(2, [{ v: 'setVar', varKey: '0:i', text: '1' }]),
     ]
-    const comps = compose(shots, plan, layout)
+    const { comps } = compose(shots, plan, layout)
     expect(comps[1].has('o1')).toBe(false)
     expect(comps[2].has('o1')).toBe(false)
   })
@@ -111,10 +111,37 @@ describe('compose: 정리 규칙', () => {
       shot(1, [{ v: 'grow', objectId: 2, index: 0, text: '2' }]),
       shot(2, [{ v: 'stdout', text: 'done' }]),
     ]
-    const comps = compose(shots, plan, layout)
+    const { comps } = compose(shots, plan, layout)
     const last = comps[2]
     expect(last.get('o1')!.focus).toBe(true)
     expect(last.get('o2')!.focus).toBe(true)
     expect(last.get('o1')!.s).toBe(1)
+  })
+})
+
+describe('compose: 오토 프레이밍', () => {
+  it('작은 구성은 확대되고(k>1), 배우가 프레임(1200×640) 안에 담긴다', () => {
+    const shots = [shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }])]
+    const { comps, cams } = compose(shots, plan, layout)
+    const cam = cams[0]
+    expect(cam.k).toBeGreaterThan(1)
+    expect(cam.k).toBeLessThanOrEqual(1.6)
+    const p = comps[0].get('o1')!
+    const cx = cam.k * (p.x + 150) + cam.x // 상자(w 300) 중심의 화면 좌표
+    const cy = cam.k * (p.y + 32) + cam.y
+    expect(cx).toBeGreaterThan(0)
+    expect(cx).toBeLessThan(1200)
+    expect(cy).toBeGreaterThan(0)
+    expect(cy).toBeLessThan(640)
+  })
+
+  it('구성이 거의 같으면 카메라를 유지한다 (같은 참조 — 덜덜림 방지)', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
+      shot(1, [{ v: 'setCell', objectId: 1, index: 0, text: '2' }]),
+      shot(2, [{ v: 'setCell', objectId: 1, index: 0, text: '3' }]),
+    ]
+    const { cams } = compose(shots, plan, layout)
+    expect(cams[1]).toBe(cams[0])
   })
 })
