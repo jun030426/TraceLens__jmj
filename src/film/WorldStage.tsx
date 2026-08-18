@@ -106,6 +106,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         ),
         { opacity: 0 },
       )
+      // 셀 그룹의 transform 잔여 청소 — origin 보정 translate가 남으면 칸이 상자를 이탈한다
+      gsap.set(root.querySelectorAll('[data-cell]'), { x: 0, y: 0, scale: 1 })
       const autoCam = q('.film-cam-auto')
       if (autoCam) gsap.set(autoCam, { x: 0, y: 0, scale: 1 })
       // 오토 프레이밍 카메라 — 첫 구성의 프레임으로 시작
@@ -297,10 +299,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 undefined,
                 label,
               )
+              // origin은 셀 트윈 전체에서 'center'로 통일한다 — origin이 트윈마다 다르면
+              // GSAP의 SVG origin 보정 translate가 잔여로 남아 칸이 상자를 이탈한다
               tl.fromTo(
                 q(cellSel(id, idx))!,
-                { opacity: 0, scaleY: 0.2 },
-                { opacity: 1, scaleY: 1, duration: d, ease: 'back.out(2)', transformOrigin: 'center bottom' },
+                { opacity: 0, scale: 0.3 },
+                { opacity: 1, scale: 1, duration: d, ease: 'back.out(2)', transformOrigin: 'center' },
                 label,
               )
               break

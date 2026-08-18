@@ -145,3 +145,31 @@ describe('compose: 오토 프레이밍', () => {
     expect(cams[1]).toBe(cams[0])
   })
 })
+
+describe('compose: 열 침범 금지', () => {
+  it('넓은 포커스 상자가 있어도 대기 열은 그 오른쪽에서 시작한다', () => {
+    const widePlan: StagePlan = {
+      ...plan,
+      objects: [
+        { objectId: 1, type: 'set', life: { from: 0, to: 99 }, maxItems: 10, changeCount: 3, referencedBy: ['0:a'], slot: 0 },
+        { objectId: 2, type: 'list', life: { from: 0, to: 99 }, maxItems: 4, changeCount: 3, referencedBy: ['0:b'], slot: 1 },
+      ],
+    }
+    const wideLayout: StageLayout = {
+      ...layout,
+      objPos: new Map([
+        [1, { x: 560, y: 70, w: 576, h: 64 }],
+        [2, { x: 560, y: 182, w: 300, h: 64 }],
+      ]),
+    }
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 2, index: 0, text: '1' }]),
+      shot(1, [{ v: 'grow', objectId: 1, index: 0, text: '2' }]), // 1이 포커스(넓음), 2는 대기
+      shot(2, [{ v: 'setCell', objectId: 1, index: 0, text: '3' }]),
+    ]
+    const { comps } = compose(shots, widePlan, wideLayout)
+    const focus = comps[1].get('o1')!
+    const side = comps[1].get('o2')!
+    expect(side.x).toBeGreaterThanOrEqual(focus.x + 576 + 40)
+  })
+})
