@@ -50,3 +50,36 @@ describe('layoutStage', () => {
     for (const r of L.varPos.values()) expect(r.x + r.w).toBeLessThanOrEqual(560)
   })
 })
+
+describe('layoutStage: 격자', () => {
+  const gridPlan = (): Parameters<typeof layoutStage>[0] => ({
+    objects: [
+      {
+        objectId: 1, type: 'list', life: { from: 0, to: 9 }, maxItems: 4,
+        changeCount: 1, referencedBy: ['0:maze'], slot: -1,
+        grid: { rows: 4, cols: 4, binary: true },
+      },
+      { objectId: 2, type: 'list', life: { from: 1, to: 9 }, maxItems: 3, changeCount: 2, referencedBy: ['0:path'], slot: 0 },
+    ],
+    variables: [
+      { varKey: '0:maze', frameId: 0, name: 'maze', life: { from: 0, to: 9 }, holdsRef: true },
+      { varKey: '0:path', frameId: 0, name: 'path', life: { from: 1, to: 9 }, holdsRef: true },
+    ],
+    frames: [{ frameId: 0, func: '<module>', parentFrameId: null, life: { from: 0, to: 9 }, depth: 0, recursionIndex: 0 }],
+    slotCount: 1, maxStackDepth: 1, maxListLength: 4, leadObjectId: 1,
+  })
+
+  it('격자는 rows·cols에 비례하는 2D 발자국을 받는다', () => {
+    const L = layoutStage(gridPlan())
+    const g = L.objPos.get(1)!
+    expect(g.w).toBe(4 * 34 + 16)
+    expect(g.h).toBe(4 * 34 + 16)
+  })
+
+  it('일반 상자는 격자 아래에서 시작한다', () => {
+    const L = layoutStage(gridPlan())
+    const g = L.objPos.get(1)!
+    const box = L.objPos.get(2)!
+    expect(box.y).toBeGreaterThanOrEqual(g.y + g.h)
+  })
+})

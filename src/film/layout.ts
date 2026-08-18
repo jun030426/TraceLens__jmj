@@ -18,6 +18,8 @@ const VAR_W = 190 // 이름 + 값이 한 알약 안에서 부딪히지 않을 �
 const ROW_H = 64
 const NUMERAL_H = 14 // 칸 번호가 상자 아래로 내려오는 높이
 const STDOUT_BAND = 52 // 출력 바 띠 (height-52부터) — 아무도 침범하지 않는다
+export const GRID_CELL = 34 // 격자 한 칸 — WorldStage가 칸 좌표 계산에 같은 값을 쓴다
+const GRID_PAD = 8 // 격자 바깥 여백 (컨테이너 rect 안쪽)
 
 // 폭을 "최대 크기" 기준으로 미리 예약한다 — 그래야 리스트가 자랄 때 이웃이 밀려나지 않는다.
 // 세로는 콘텐츠(객체·변수·프레임)를 먼저 재고, 출력 바 띠를 그 아래 확보한다 — 겹침은 좌표에서 죽인다.
@@ -25,11 +27,25 @@ export function layoutStage(plan: StagePlan): StageLayout {
   const cellW = Math.max(26, Math.min(56, Math.floor((W - OBJ_X - 60) / Math.max(plan.maxListLength, 1))))
 
   const objPos = new Map<number, Rect>()
+  // 격자가 먼저 위에서부터 쌓이고, 일반 상자 슬롯 행은 그 아래에서 시작한다
+  let gridBottom = 70
   for (const o of plan.objects) {
+    if (!o.grid) continue
+    objPos.set(o.objectId, {
+      x: OBJ_X,
+      y: gridBottom,
+      w: o.grid.cols * GRID_CELL + GRID_PAD * 2,
+      h: o.grid.rows * GRID_CELL + GRID_PAD * 2,
+    })
+    gridBottom += o.grid.rows * GRID_CELL + GRID_PAD * 2 + 40
+  }
+  const rowBase = gridBottom
+  for (const o of plan.objects) {
+    if (o.grid) continue
     const w = Math.max(120, o.maxItems * cellW + 16)
     objPos.set(o.objectId, {
       x: OBJ_X,
-      y: 70 + o.slot * (ROW_H + 24),
+      y: rowBase + o.slot * (ROW_H + 24),
       w: Math.min(w, W - OBJ_X - 24),
       h: ROW_H,
     })
