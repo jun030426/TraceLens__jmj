@@ -142,8 +142,21 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               )
               tl.fromTo(
                 q(varSel(key))!,
-                { scale: 1.14 },
+                { scale: 1.28 },
                 { scale: 1, duration: d * 0.7, ease: 'back.out(2.4)', transformOrigin: 'center' },
+                label,
+              )
+              break
+            }
+            case 'label': {
+              const id = m.objectId
+              const text = m.text
+              tl.call(
+                () => {
+                  const el = root.querySelector(`[data-obj="${id}"] .film-obj-name`)
+                  if (el) el.textContent = text
+                },
+                undefined,
                 label,
               )
               break
@@ -221,10 +234,20 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               )
               tl.fromTo(
                 q(cellSel(id, idx))!,
-                { scale: 1.2 },
+                { scale: 1.35 },
                 { scale: 1, opacity: 1, duration: d, ease: 'back.out(2)', transformOrigin: 'center' },
                 label,
               )
+              // 값이 바뀐 칸은 획도 잠깐 두꺼워진다 — 눈이 놓치지 않게
+              const cellRect = root.querySelector(`${cellSel(id, idx)} rect`)
+              if (cellRect) {
+                tl.fromTo(
+                  cellRect,
+                  { attr: { 'stroke-width': 1 } },
+                  { attr: { 'stroke-width': 2.6 }, duration: d * 0.4, yoyo: true, repeat: 1 },
+                  label,
+                )
+              }
               break
             }
             case 'shrink': {
@@ -372,6 +395,15 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 undefined,
                 label,
               )
+              // 변경된 칸(초기 채움 제외)은 튀어오른다 — DP 테이블의 심장 박동
+              if (m.flash && cell) {
+                tl.fromTo(
+                  cell,
+                  { scale: 1.3 },
+                  { scale: 1, duration: d * 0.8, ease: 'back.out(2)', transformOrigin: 'center' },
+                  label,
+                )
+              }
               break
             }
             case 'gridVisit':
@@ -530,8 +562,10 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
           const gy = (row: number) => r.y + 8 + row * GRID_CELL
           return (
             <g key={`o${o.objectId}`} data-obj={o.objectId}>
-              <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line)" strokeWidth={1.4} />
-              <text x={r.x + 4} y={r.y - 8} className="svg-type">{`${o.type} ${rows}×${cols}`}</text>
+              <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line-strong)" strokeWidth={2} />
+              {/* 이름표 — 이 격자를 쥔 변수명. 타입·크기는 오른쪽으로 물러난다 */}
+              <text className="film-obj-name svg-name" x={r.x + 4} y={r.y - 8} />
+              <text x={r.x + r.w} y={r.y - 8} textAnchor="end" className="svg-type">{`${o.type} ${rows}×${cols}`}</text>
               {Array.from({ length: rows }, (_, gr) =>
                 Array.from({ length: cols }, (_, gc) => (
                   <g key={`${gr}-${gc}`}>
@@ -572,8 +606,10 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         const cells = Math.max(o.maxItems, 1)
         return (
           <g key={`o${o.objectId}`} data-obj={o.objectId}>
-            <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line)" strokeWidth={1.4} />
-            <text x={r.x + 4} y={r.y - 8} className="svg-type">{o.type}</text>
+            <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line-strong)" strokeWidth={2} />
+            {/* 이름표 — 이 상자를 쥔 변수명. 타입은 오른쪽으로 물러난다 */}
+            <text className="film-obj-name svg-name" x={r.x + 4} y={r.y - 8} />
+            <text x={r.x + r.w} y={r.y - 8} textAnchor="end" className="svg-type">{o.type}</text>
             {Array.from({ length: cells }, (_, i) => (
               <g key={i} data-cell={`${o.objectId}-${i}`}>
                 <rect
