@@ -377,7 +377,7 @@ describe('choreograph: 격자', () => {
     ]
     const shots = choreograph(events, buildStage(events))
     const last = shots[shots.length - 1].motions.filter(m => m.v === 'gridCell') as { r: number; c: number; text: string }[]
-    expect(last).toEqual([{ v: 'gridCell', objectId: 2, r: 1, c: 1, text: '9', wall: false }])
+    expect(last).toEqual([{ v: 'gridCell', objectId: 2, r: 1, c: 1, text: '9', wall: false, flash: true }])
   })
 })
 
