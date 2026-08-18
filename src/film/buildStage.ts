@@ -165,6 +165,7 @@ export function buildStage(events: TraceEvent[]): StagePlan {
   const freed: { slot: number; until: number }[] = []
   let slotCount = 0
   for (const o of objects) {
+    if (o.grid) continue // 격자는 슬롯 행이 아니라 2D 발자국을 받는다 (layout)
     const reusable = freed.filter(f => f.until < o.life.from).sort((a, b) => a.slot - b.slot)[0]
     if (reusable) {
       o.slot = reusable.slot
