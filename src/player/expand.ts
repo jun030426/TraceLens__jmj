@@ -9,6 +9,8 @@ export type PlaybackStep = {
   focus: string[]
   narration: string
   durationMs: number
+  /** 접힌 반복 구간에서 나온 스텝 — 필름은 전체를 재생하므로 자막은 필름 것이 정확하다 */
+  folded?: boolean
 }
 
 export const PACING_MS = { slow: 1800, normal: 1000, fast: 180 } as const
@@ -57,8 +59,8 @@ export function expandScreenplay(sp: Screenplay, snaps: Snapshot[]): PlaybackSte
       const durationMs = PACING_MS[sc.pacing]
       if (sc.pacing === 'fast' && sc.seqEnd > sc.seqStart) {
         const label = sc.repeat && sc.repeat > 1 ? `${narration} (총 ${sc.repeat}회 반복)` : narration
-        steps.push({ seq: sc.seqStart, chapterIndex, primitive: sc.primitive, focus: sc.focus, narration: label, durationMs })
-        steps.push({ seq: sc.seqEnd, chapterIndex, primitive: sc.primitive, focus: sc.focus, narration: label, durationMs })
+        steps.push({ seq: sc.seqStart, chapterIndex, primitive: sc.primitive, focus: sc.focus, narration: label, durationMs, folded: true })
+        steps.push({ seq: sc.seqEnd, chapterIndex, primitive: sc.primitive, focus: sc.focus, narration: label, durationMs, folded: true })
       } else {
         steps.push({ seq: sc.seqStart, chapterIndex, primitive: sc.primitive, focus: sc.focus, narration, durationMs })
       }

@@ -27,6 +27,9 @@
   --stop: #bd2b1c;
   --stop-wash: #fdeceb;
 
+  /* 필름 색 언어 — 쓰기(변화)는 따뜻한 번쩍임, 읽기(판단)는 accent 링 */
+  --write-flash: #f6b73c;
+
   --font: "Pretendard Variable", Pretendard, ui-sans-serif, system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
 
