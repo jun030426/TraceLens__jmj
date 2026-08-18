@@ -130,3 +130,58 @@ describe('buildStage: 캐스팅', () => {
     expect(plan.objects.length).toBe(0)
   })
 })
+
+describe('buildStage: 격자 판정', () => {
+  const P = (v: string, t = 'int') => ({ k: 'prim' as const, v, t })
+  const ev = (over: Partial<TraceEvent>, seq: number): TraceEvent => ({
+    seq, kind: 'line', frameId: 0, parentFrameId: null, func: '<module>',
+    causedByLine: null, observedAtLine: 1, localsDelta: [], objectsDelta: [], stdout: '', ...over,
+  })
+  const row = (id: number, vals: string[]) => ({ op: 'set' as const, obj: { id, type: 'list', items: vals.map(v => P(v)) } })
+  const outer = (id: number, rowIds: number[]) => ({
+    op: 'set' as const, obj: { id, type: 'list', items: rowIds.map(rid => ({ k: 'ref' as const, id: rid })) },
+  })
+
+  it('균일한 2차원 프림 리스트는 격자가 된다 (0/1이면 binary)', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'maze', op: 'set', value: { k: 'ref', id: 1 } }],
+        objectsDelta: [row(11, ['0', '0', '1', '0']), row(12, ['1', '0', '1', '0']), row(13, ['0', '0', '0', '0']), row(14, ['0', '1', '1', '0']), outer(1, [11, 12, 13, 14])],
+      }, 1),
+    ]
+    const plan = buildStage(events)
+    const maze = plan.objects.find(o => o.objectId === 1)!
+    expect(maze.grid).toEqual({ rows: 4, cols: 4, binary: true })
+  })
+
+  it('숫자 DP 테이블은 binary가 아니다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'dp', op: 'set', value: { k: 'ref', id: 2 } }],
+        objectsDelta: [row(21, ['0', '5']), row(22, ['3', '9']), outer(2, [21, 22])],
+      }, 1),
+    ]
+    expect(buildStage(events).objects.find(o => o.objectId === 2)!.grid).toEqual({ rows: 2, cols: 2, binary: false })
+  })
+
+  it('행 길이가 다르면 격자가 아니다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 3 } }],
+        objectsDelta: [row(31, ['0', '1']), row(32, ['0', '1', '2']), outer(3, [31, 32])],
+      }, 1),
+    ]
+    expect(buildStage(events).objects.find(o => o.objectId === 3)!.grid).toBeUndefined()
+  })
+
+  it('1차원 프림 리스트는 격자가 아니다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 4 } }], objectsDelta: [row(4, ['1', '2', '3', '4'])] }, 1),
+    ]
+    expect(buildStage(events).objects.find(o => o.objectId === 4)!.grid).toBeUndefined()
+  })
+})
