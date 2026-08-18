@@ -11,8 +11,6 @@ type Props = {
   layout: StageLayout
   shots: Shot[]
   film: ReturnType<typeof useFilm>
-  /** 입문(비유) 스킨 — 값 막대·비교 저울·반복 스핀. 값·순서는 스킨과 무관하게 트레이스의 것 */
-  intro?: boolean
 }
 
 const esc = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, m => `\\${m}`)
@@ -30,7 +28,7 @@ const VAR_H = 36
 // 최근 것은 옆에 작게, 나머지는 무대 밖. 무대 밖 상태는 인스펙터가 들고 있다.
 const FIT = { k: 1, tx: 0, ty: 0 }
 
-export default function WorldStage({ plan, layout, shots, film, intro = false }: Props) {
+export default function WorldStage({ plan, layout, shots, film }: Props) {
   const rootRef = useRef<SVGSVGElement | null>(null)
   const { register } = film
 
@@ -106,7 +104,7 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
     const build = () => {
       gsap.set(
         root.querySelectorAll(
-          '[data-obj], [data-var], [data-frame], [data-cell], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .film-compare, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done',
+          '[data-obj], [data-var], [data-frame], [data-cell], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done',
         ),
         { opacity: 0 },
       )
@@ -124,6 +122,7 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
       let liveFrame: Element | null = null
       let prevComp: Composition = new Map()
       let chipTurn = 0
+      let scaleUp = false // 저울이 무대에 올라와 있는가 — 비교 연속 구간에서 깜빡임 방지
 
       const actorEl = (key: string) =>
         key.startsWith('o') ? q(objSel(Number(key.slice(1)))) : q(varSel(key.slice(1)))
@@ -464,7 +463,12 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
                 label,
               )
               tl.to(q('.film-loop')!, { opacity: 0, duration: d * 0.2 }, label)
-              tl.to(q('.film-compare')!, { opacity: 0, duration: d * 0.2 }, label)
+              {
+                // 오류 앞에서 저울도 내린다 — 경광등만 남는 화면
+                const sc = q('.film-scale')
+                if (sc) tl.to(sc, { opacity: 0, duration: d * 0.2 }, label)
+                scaleUp = false
+              }
               tl.fromTo(
                 q('.film-error')!,
                 { opacity: 0, y: -10 },
@@ -616,10 +620,11 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
               break
             }
             case 'compare': {
-              const text = m.text
               const scaleEl = q('.film-scale')
-              if (intro && scaleEl && m.a !== undefined && m.b !== undefined) {
-                // 입문 스킨 — 판단을 저울로: 양팔에 값 카드, 무거운 쪽으로 기울고 도장이 찍힌다
+              if (scaleEl && m.a !== undefined && m.b !== undefined) {
+                // 판단을 저울로 — 양팔에 값 카드, 무거운 쪽으로 기울고 도장이 찍힌다.
+                // 저울은 판단의 흐름 동안 무대에 머문다: 비교가 이어지는 구간에서 샷마다
+                // 떴다 사라지면 깜빡임이 된다. 근처에 다음 비교가 있으면 내려놓지 않는다.
                 const a = m.a
                 const b = m.b
                 const opTxt = m.op ?? ''
@@ -637,7 +642,9 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
                   label,
                 )
                 tl.set(root.querySelectorAll('.film-scale-stamp'), { opacity: 0 }, label)
-                tl.fromTo(scaleEl, { opacity: 0 }, { opacity: 1, duration: d * 0.25, ease: 'power2.out' }, label)
+                if (!scaleUp) {
+                  tl.fromTo(scaleEl, { opacity: 0 }, { opacity: 1, duration: d * 0.35, ease: 'power2.out' }, label)
+                }
                 const beam = q('.film-scale-beam')
                 const av = Number(a)
                 const bv = Number(b)
@@ -645,7 +652,7 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
                   tl.fromTo(
                     beam,
                     { rotation: 0 },
-                    { rotation: av > bv ? -8 : 8, duration: d * 0.45, ease: 'power2.out', transformOrigin: '0px 0px' },
+                    { rotation: av > bv ? -8 : 8, duration: d * 0.5, ease: 'power2.out', transformOrigin: '0px 0px' },
                     `${label}+=${d * 0.15}`,
                   )
                 } else if (beam) {
@@ -657,28 +664,20 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
                     tl.fromTo(
                       stamp,
                       { opacity: 0, scale: 1.4 },
-                      { opacity: 1, scale: 1, duration: d * 0.3, ease: 'back.out(2)', transformOrigin: 'center' },
-                      `${label}+=${d * 0.45}`,
+                      { opacity: 1, scale: 1, duration: d * 0.35, ease: 'back.out(2)', transformOrigin: 'center' },
+                      `${label}+=${d * 0.5}`,
                     )
                   }
                 }
-                tl.to(scaleEl, { opacity: 0, duration: d * 0.3 }, `${label}+=${d * 0.95}`)
-              } else {
-                tl.call(
-                  () => {
-                    const el = root.querySelector('.film-compare-text')
-                    if (el) el.textContent = text
-                  },
-                  undefined,
-                  label,
-                )
-                tl.fromTo(
-                  q('.film-compare')!,
-                  { opacity: 0, y: -6 },
-                  { opacity: 1, y: 0, duration: d * 0.3, ease: 'power2.out' },
-                  label,
-                )
-                tl.to(q('.film-compare')!, { opacity: 0, duration: d * 0.3 }, `${label}+=${d * 0.95}`)
+                const streak = shots
+                  .slice(si + 1, si + 3)
+                  .some(s => s.motions.some(mm => mm.v === 'compare'))
+                if (streak) {
+                  scaleUp = true
+                } else {
+                  tl.to(scaleEl, { opacity: 0, duration: d * 0.45 }, `${label}+=${d * 1.05}`)
+                  scaleUp = false
+                }
               }
               for (const t of m.targets) {
                 const el = t.kind === 'cell' ? q(cellSel(t.objectId, t.index)) : inner(varSel(t.varKey))
@@ -731,7 +730,7 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
       register(null)
       tl.kill()
     }
-  }, [shots, register, layout, plan, comps, cams, intro, theme])
+  }, [shots, register, layout, plan, comps, cams, theme])
 
   const hudOffset = FRAME_H - layout.height
 
@@ -739,7 +738,7 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
     <div className="film-viewport">
       <svg
         ref={rootRef}
-        className={`stage-svg film-stage${intro ? ' film-stage--intro' : ''}`}
+        className="stage-svg film-stage"
         viewBox={`0 0 ${layout.width} ${FRAME_H}`}
         role="img"
         aria-label="코드 실행 무성영화"
@@ -829,7 +828,7 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
                     height={r.h - 16}
                     rx={5}
                   />
-                  {intro && theme.barObjects.has(o.objectId) && (
+                  {theme.barObjects.has(o.objectId) && (
                     <rect
                       className="cell-bar"
                       x={8 + i * layout.cellW + 4}
@@ -921,21 +920,18 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
         </g>
       </g>
 
-      {/* 반복 배지 — 입문 모드에선 한 바퀴 도는 화살이 회차마다 돈다 */}
+      {/* 반복 배지 — 한 바퀴 도는 화살이 회차마다 돈다 */}
       <g className="film-loop">
         <rect x={24} y={14} width={240} height={30} rx={15} fill="var(--accent-wash)" stroke="var(--accent)" strokeWidth={1.2} />
-        {intro && (
-          <g className="film-loop-spin" transform="translate(42 29)">
-            <path d="M 0 -7 A 7 7 0 1 1 -6.4 2.9" fill="none" strokeWidth={2} />
-            <polygon points="-1,-11 5,-7 -1,-3" />
-          </g>
-        )}
-        <text className="film-loop-text svg-value" x={intro ? 58 : 40} y={34} />
+        <g className="film-loop-spin" transform="translate(42 29)">
+          <path d="M 0 -7 A 7 7 0 1 1 -6.4 2.9" fill="none" strokeWidth={2} />
+          <polygon points="-1,-11 5,-7 -1,-3" />
+        </g>
+        <text className="film-loop-text svg-value" x={58} y={34} />
       </g>
 
-      {/* 비교 저울 — 입문 모드: 양팔에 값 카드가 올라가고 무거운 쪽으로 기울며 참/거짓 도장 */}
-      {intro && (
-        <g className="film-scale" transform={`translate(${layout.width / 2} 52)`}>
+      {/* 비교 저울 — 양팔에 값 카드가 올라가고 무거운 쪽으로 기울며 참/거짓 도장 */}
+      <g className="film-scale" transform={`translate(${layout.width / 2} 52)`}>
           <g className="film-scale-beam">
             <line x1={-78} y1={0} x2={78} y2={0} />
             <g transform="translate(-62 8)">
@@ -961,18 +957,11 @@ export default function WorldStage({ plan, layout, shots, film, intro = false }:
               거짓
             </text>
           </g>
-        </g>
-      )}
-
-      {/* 비교 칩 */}
-      <g className="film-compare">
-        <rect x={layout.width / 2 - 130} y={14} width={260} height={30} rx={15} fill="var(--panel)" stroke="var(--accent)" strokeWidth={1.4} />
-        <text className="film-compare-text svg-name" x={layout.width / 2} y={34} textAnchor="middle" />
       </g>
 
-      {/* 오류 스트립 */}
+      {/* 오류 스트립 — 색 기준: 오류는 빨강 */}
       <g className="film-error">
-        <rect x={24} y={14} width={layout.width - 48} height={34} rx={8} fill="var(--panel)" stroke="var(--accent)" strokeWidth={1.4} />
+        <rect x={24} y={14} width={layout.width - 48} height={34} rx={8} fill="var(--panel)" stroke="var(--stop)" strokeWidth={1.4} />
         <text className="svg-type" x={40} y={36}>오류</text>
         <text className="film-error-text svg-name" x={92} y={36} />
       </g>

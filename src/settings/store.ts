@@ -2,8 +2,6 @@ import { useSyncExternalStore } from 'react'
 import { MAX_EVENTS, EXEC_TIMEOUT_MS } from '../trace/types'
 
 export type CaptionSize = 'sm' | 'md' | 'lg'
-/** intro = 비유 물체(막대·저울)로 흐름을 보여주는 입문 스킨, precise = 구조 그대로의 정밀 스킨 */
-export type Presentation = 'intro' | 'precise'
 
 export type Settings = {
   /** false = local-only: 코드를 외부로 보내지 않고 규칙 기반 대본만 사용 */
@@ -12,7 +10,6 @@ export type Settings = {
   speed: number
   reduceMotion: boolean
   captionSize: CaptionSize
-  presentation: Presentation
   maxEvents: number
   timeoutMs: number
 }
@@ -23,7 +20,6 @@ export const DEFAULTS: Settings = {
   speed: 1,
   reduceMotion: false,
   captionSize: 'md',
-  presentation: 'intro',
   maxEvents: MAX_EVENTS,
   timeoutMs: EXEC_TIMEOUT_MS,
 }
@@ -59,7 +55,6 @@ function sanitize(s: Settings): Settings {
     speed: (LIMITS.speeds as readonly number[]).includes(s.speed) ? s.speed : DEFAULTS.speed,
     reduceMotion: !!s.reduceMotion,
     captionSize: (['sm', 'md', 'lg'] as const).includes(s.captionSize) ? s.captionSize : DEFAULTS.captionSize,
-    presentation: (['intro', 'precise'] as const).includes(s.presentation) ? s.presentation : DEFAULTS.presentation,
     maxEvents: clamp(s.maxEvents, LIMITS.maxEvents.min, LIMITS.maxEvents.max, DEFAULTS.maxEvents),
     timeoutMs: clamp(s.timeoutMs, LIMITS.timeoutSec.min * 1000, LIMITS.timeoutSec.max * 1000, DEFAULTS.timeoutMs),
   }
