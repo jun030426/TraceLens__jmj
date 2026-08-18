@@ -50,4 +50,12 @@ assert tail4['clipped'] is True, "clipped 미설정"
 events5, _ = collect("def main():\n    print('ran')\n\nif __name__ == '__main__':\n    main()\n")
 assert any('ran' in e['stdout'] for e in events5), "__main__ 가드 블록이 실행되지 않음"
 
+# 8) deque: 시퀀스로 직렬화 (BFS 큐가 미지원 상자로 남으면 안 됨)
+events6, _ = collect("from collections import deque\nq = deque()\nq.append((1, 2))\nprint(len(q))\n")
+dq = [o for e in events6 for d in e['objectsDelta']
+      if d['op'] == 'set' and d.get('obj', {}).get('type') == 'deque'
+      for o in [d['obj']]]
+assert dq, "deque ObjectSnap 없음"
+assert any(len(o.get('items', [])) == 1 for o in dq), "deque items 미직렬화"
+
 print("tracer_test: ALL PASS")
