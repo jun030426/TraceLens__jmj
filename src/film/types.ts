@@ -8,6 +8,8 @@ export type CastObject = {
   changeCount: number
   referencedBy: string[]
   slot: number
+  /** 균일한 2차원 프림 리스트 — 한 줄 상자 대신 격자로 그린다. binary = 전 칸이 0/1 (벽 스타일) */
+  grid?: { rows: number; cols: number; binary: boolean }
 }
 
 export type CastVariable = {

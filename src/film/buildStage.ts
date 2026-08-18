@@ -130,13 +130,36 @@ export function buildStage(events: TraceEvent[]): StagePlan {
   }
   const boxed = (id: number) => everHeld.has(id) && !isCallable(id) && !isInlineTuple(id)
 
+  // 균일한 2차원 프림 리스트 → 격자 (대표 시각화 2호). 최신 스냅 기준, 판정 실패는 한 줄 상자 폴백.
+  const gridOf = (id: number): { rows: number; cols: number; binary: boolean } | undefined => {
+    const s = snapOf.get(id)
+    if (s?.type !== 'list' || !s.items || s.items.length < 2) return undefined
+    let cols = -1
+    let binary = true
+    for (const it of s.items) {
+      if (it.k !== 'ref') return undefined
+      const r = snapOf.get(it.id)
+      if (r?.type !== 'list' || !r.items || r.items.length < 2) return undefined
+      if (!r.items.every(x => x.k === 'prim')) return undefined
+      if (cols === -1) cols = r.items.length
+      else if (r.items.length !== cols) return undefined
+      if (!r.items.every(x => x.k === 'prim' && (x.v === '0' || x.v === '1'))) binary = false
+    }
+    if (s.items.length * cols > 400) return undefined
+    return { rows: s.items.length, cols, binary }
+  }
+
   // ── 슬롯 배정 (선형 스캔) — 상자 받는 객체만 ──
   const objects: CastObject[] = [...objAcc.entries()]
     .filter(([objectId]) => boxed(objectId))
-    .map(([objectId, o]) => ({
-      objectId, type: o.type, life: { from: o.from, to: o.to },
-      maxItems: o.maxItems, changeCount: o.changes, referencedBy: [...o.refs], slot: -1,
-    }))
+    .map(([objectId, o]) => {
+      const grid = gridOf(objectId)
+      return {
+        objectId, type: o.type, life: { from: o.from, to: o.to },
+        maxItems: o.maxItems, changeCount: o.changes, referencedBy: [...o.refs], slot: -1,
+        ...(grid ? { grid } : {}),
+      }
+    })
     .sort((a, b) => a.life.from - b.life.from)
 
   const freed: { slot: number; until: number }[] = []
