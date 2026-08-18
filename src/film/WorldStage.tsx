@@ -193,28 +193,6 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
           }
         }
 
-        // popleft의 그림 — 이번 샷에서 칸이 빠지고(shrink) 변수가 값을 받으면(setVar/bind)
-        // 그 칸에서 그 알약으로 칩이 날아간다
-        const shrinkM = shot.motions.find(m => m.v === 'shrink') as
-          | { objectId: number; index: number }
-          | undefined
-        const receiveM = shot.motions.find(m => m.v === 'setVar' || m.v === 'bind') as
-          | { varKey: string; text?: string }
-          | undefined
-        if (shrinkM && receiveM) {
-          const po = comp.get(`o${shrinkM.objectId}`)
-          const pv = comp.get(`v${receiveM.varKey}`)
-          if (po && pv) {
-            const local = cellCenterLocal(shrinkM.objectId, shrinkM.index)
-            travel(
-              label,
-              receiveM.text ?? '',
-              { x: po.x + local.x * po.s, y: po.y + local.y * po.s },
-              { x: pv.x + (VAR_W / 2) * pv.s, y: pv.y + (VAR_H / 2) * pv.s },
-            )
-          }
-        }
-
         // 조명 — 프레임(호출 카드)은 구성 밖이므로 기존 방식대로 켠다
         const focusEl = shot.focus?.kind === 'frame' ? q(frameSel(shot.focus.frameId)) : null
         if (focusEl !== liveFrame) {
@@ -237,6 +215,24 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             case 'exitVar':
             case 'exitObj':
               break // 배우 가시성은 구성이 소유한다
+            case 'travel': {
+              // 값의 이동 — choreograph가 의미(어디서 어디로)를 정했고, 여기는 좌표만 푼다
+              const endPoint = (t: typeof m.from) => {
+                if (t.kind === 'cell') {
+                  const po = comp.get(`o${t.objectId}`)
+                  if (!po) return null
+                  const local = cellCenterLocal(t.objectId, t.index)
+                  return { x: po.x + local.x * po.s, y: po.y + local.y * po.s }
+                }
+                const pv = comp.get(`v${t.varKey}`)
+                if (!pv) return null
+                return { x: pv.x + (VAR_W / 2) * pv.s, y: pv.y + (VAR_H / 2) * pv.s }
+              }
+              const from = endPoint(m.from)
+              const to = endPoint(m.to)
+              if (from && to) travel(label, m.text, from, to)
+              break
+            }
             case 'setVar': {
               const key = m.varKey
               const text = m.text

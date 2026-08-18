@@ -160,6 +160,104 @@ describe('choreograph: 학습자 자막', () => {
   })
 })
 
+describe('choreograph: 값의 이동 (travel)', () => {
+  const birth = (items: string[], seq: number) =>
+    ev({
+      observedAtLine: 2, causedByLine: 1,
+      localsDelta: [{ name: 'arr', op: 'set', value: { k: 'ref', id: 1 } }],
+      objectsDelta: [listSet(items)],
+    }, seq)
+  const travelsOf = (shots: ReturnType<typeof choreograph>) =>
+    shots.flatMap(s => s.motions).filter(m => m.v === 'travel') as {
+      from: { kind: string; index?: number }
+      to: { kind: string }
+      text: string
+    }[]
+
+  it('x = arr[1] — 칸에서 알약으로 값이 날아간다', () => {
+    const code = 'arr = [5, 7]\nx = arr[1]\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['5', '7'], 1),
+      ev({ observedAtLine: 2, causedByLine: 2, localsDelta: [{ name: 'x', op: 'set', value: P('7') }] }, 2),
+      ev({ kind: 'return', observedAtLine: 2 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    const t = travelsOf(shots)
+    expect(t.length).toBe(1)
+    expect(t[0].from.kind).toBe('cell')
+    expect(t[0].from.index).toBe(1)
+    expect(t[0].to.kind).toBe('var')
+    expect(t[0].text).toBe('7')
+  })
+
+  it('arr[0] = y — 알약에서 칸으로 값이 날아간다', () => {
+    const code = 'arr = [5, 7]\ny = 9\narr[0] = y\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['5', '7'], 1),
+      ev({ observedAtLine: 3, causedByLine: 2, localsDelta: [{ name: 'y', op: 'set', value: P('9') }] }, 2),
+      ev({ observedAtLine: 3, causedByLine: 3, objectsDelta: [listSet(['9', '7'])] }, 3),
+      ev({ kind: 'return', observedAtLine: 3 }, 4),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    const t = travelsOf(shots)
+    expect(t.length).toBe(1)
+    expect(t[0].from.kind).toBe('var')
+    expect(t[0].to.kind).toBe('cell')
+    expect(t[0].text).toBe('9')
+  })
+
+  it('arr.append(y) — 알약에서 새 칸으로 값이 날아간다', () => {
+    const code = 'arr = [5]\ny = 3\narr.append(y)\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['5'], 1),
+      ev({ observedAtLine: 3, causedByLine: 2, localsDelta: [{ name: 'y', op: 'set', value: P('3') }] }, 2),
+      ev({ observedAtLine: 3, causedByLine: 3, objectsDelta: [listSet(['5', '3'])] }, 3),
+      ev({ kind: 'return', observedAtLine: 3 }, 4),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    const t = travelsOf(shots)
+    expect(t.length).toBe(1)
+    expect(t[0].from.kind).toBe('var')
+    expect(t[0].to.kind).toBe('cell')
+    expect(t[0].text).toBe('3')
+  })
+
+  it('식이 끼면 침묵한다 — x = arr[0] + 1', () => {
+    const code = 'arr = [5, 7]\nx = arr[0] + 1\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['5', '7'], 1),
+      ev({ observedAtLine: 2, causedByLine: 2, localsDelta: [{ name: 'x', op: 'set', value: P('6') }] }, 2),
+      ev({ kind: 'return', observedAtLine: 2 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    expect(travelsOf(shots).length).toBe(0)
+  })
+
+  it('칸이 빠지고 변수가 그 값을 받으면 (popleft) — 칸에서 알약으로', () => {
+    const code = 'arr = [1, 2]\nx = arr.pop(0)\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['1', '2'], 1),
+      ev({
+        observedAtLine: 2, causedByLine: 2,
+        localsDelta: [{ name: 'x', op: 'set', value: P('1') }],
+        objectsDelta: [listSet(['2'])],
+      }, 2),
+      ev({ kind: 'return', observedAtLine: 2 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    const t = travelsOf(shots)
+    expect(t.length).toBe(1)
+    expect(t[0].from.kind).toBe('cell')
+    expect(t[0].to.kind).toBe('var')
+    expect(t[0].text).toBe('1')
+  })
+})
+
 describe('choreograph: 정직한 배지·최종값', () => {
   it('반복 배지는 카운트업만 — 모순되는 총계를 달지 않는다', () => {
     const shots = choreograph(demoEvents, buildStage(demoEvents))

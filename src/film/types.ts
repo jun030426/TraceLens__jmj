@@ -44,6 +44,7 @@ export type CompareTarget =
   | { kind: 'var'; varKey: string }
 
 export type Motion =
+  | { v: 'travel'; from: CompareTarget; to: CompareTarget; text: string }
   | { v: 'enterVar'; varKey: string }
   | { v: 'setVar'; varKey: string; text: string }
   | { v: 'exitVar'; varKey: string }
