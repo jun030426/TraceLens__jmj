@@ -243,6 +243,25 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
 
   // 비교(판단) → 교환(행동)의 인과 사슬 — 직전 참 비교를 기억했다가 swap 샷에 echo한다
   let lastCmp: { text: string; a?: string; op?: string; b?: string; objectId: number; shotIdx: number } | null = null
+
+  // 인덱스 포인터 — 소스에 `NAME[IDX]`로 쓰인 변수는 "그 배열의 위치"다.
+  // 알약(값 표시)이 아니라 배열 아래 화살표로 살아야 시선이 조인을 안 해도 된다.
+  // 판정은 정적·결정적: 코드에 실제로 그렇게 쓰였을 때만 (지어내지 않는다)
+  const pointerOf = new Map<string, number>() // varKey → objectId
+  if (code) {
+    const subRe = /([A-Za-z_]\w*)\s*\[\s*([A-Za-z_]\w*)/g
+    let sm: RegExpExecArray | null
+    while ((sm = subRe.exec(code))) {
+      const arrName = sm[1]
+      const idxName = sm[2]
+      for (const v of plan.variables) {
+        if (v.name !== idxName || pointerOf.has(v.varKey)) continue
+        const arrKey = `${v.frameId}:${arrName}`
+        const obj = plan.objects.find(o => !o.grid && o.referencedBy.includes(arrKey))
+        if (obj) pointerOf.set(v.varKey, obj.objectId)
+      }
+    }
+  }
   const relabel = (id: number, motions: Motion[]) => {
     const names = [...new Set([...(holderKeys.get(id) ?? [])].map(k => k.slice(k.indexOf(':') + 1)))]
     motions.push({ v: 'label', objectId: id, text: capText(names.join(' · '), 24) })
@@ -644,6 +663,8 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         set.add(varKey)
         frameVars.set(e.frameId, set)
         motions.push({ v: 'enterVar', varKey })
+        const ptrObj = pointerOf.get(varKey)
+        if (ptrObj !== undefined) motions.push({ v: 'pointer', varKey, objectId: ptrObj })
       }
       if (d.value?.k === 'ref' && castObjects.has(d.value.id)) {
         const holders = refCount.get(d.value.id) ?? new Set<string>()

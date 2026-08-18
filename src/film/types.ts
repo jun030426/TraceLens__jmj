@@ -74,6 +74,8 @@ export type Motion =
   | { v: 'gridTrail'; objectId: number; points: [number, number][] }
   /** 커튼콜 — 리스트가 실제로 오름차순으로 끝났을 때만 방출되는 "정렬 완성" 스윕 */
   | { v: 'sortedSweep'; objectId: number }
+  /** 인덱스 변수 선언 — 소스에서 NAME[IDX]로 접지된 변수는 알약이 아니라 그 배열 아래 화살표로 산다 */
+  | { v: 'pointer'; varKey: string; objectId: number }
 
 export type Shot = {
   seq: number

@@ -18,6 +18,7 @@ const esc = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, m => `\\${m}`)
 const objSel = (id: number) => `[data-obj="${id}"]`
 const cellSel = (id: number, i: number) => `[data-cell="${id}-${i}"]`
 const varSel = (key: string) => `[data-var="${esc(key)}"]`
+const ptrSel = (key: string) => `[data-ptr="${esc(key)}"]`
 const frameSel = (id: number) => `[data-frame="${id}"]`
 
 const VAR_W = 190
@@ -37,6 +38,21 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
   const FRAME_H = 640
   const { comps, cams } = useMemo(() => compose(shots, plan, layout), [shots, plan, layout])
   const theme = useMemo(() => detectTheme(plan, shots), [plan, shots])
+
+  // 인덱스 포인터 — pointer 모션으로 접지된 변수들. 알약 대신 배열 아래 화살표로 산다
+  const pointers = useMemo(() => {
+    const map = new Map<string, { objectId: number; row: number; name: string }>()
+    const perObj = new Map<number, number>()
+    for (const sh of shots)
+      for (const m of sh.motions)
+        if (m.v === 'pointer' && !map.has(m.varKey)) {
+          const row = perObj.get(m.objectId) ?? 0
+          perObj.set(m.objectId, row + 1)
+          const name = plan.variables.find(v => v.varKey === m.varKey)?.name ?? m.varKey
+          map.set(m.varKey, { objectId: m.objectId, row, name })
+        }
+    return map
+  }, [shots, plan])
 
   /* 수동 카메라 — 콘텐츠를 담은 <g> 하나만 변환하므로 GSAP 타깃(자식)과 간섭하지 않는다 */
   const [cam, setCam] = useState(FIT)
@@ -113,6 +129,13 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       gsap.set(root.querySelectorAll('.cell-bar'), { scaleY: 0, transformOrigin: '50% 100%' })
       // 저울 빔의 잔여 회전 청소 (attr 기반이라 GSAP 리셋 대상 밖)
       root.querySelector('.film-scale-beam')?.setAttribute('transform', 'rotate(0)')
+      // 인덱스 포인터 — 0번 칸 밑에서 숨은 채 시작, 첫 setVar가 자리로 데려간다
+      for (const [key, p] of pointers) {
+        const el = q(ptrSel(key))
+        if (!el) continue
+        const h = objH.get(p.objectId) ?? 64
+        gsap.set(el, { x: 8 + (layout.cellW - 6) / 2, y: h + 22 + p.row * 26, opacity: 0 })
+      }
       // 셀 그룹의 transform 잔여 청소 — origin 보정 translate가 남으면 칸이 상자를 이탈한다
       gsap.set(root.querySelectorAll('[data-cell]'), { x: 0, y: 0, scale: 1 })
       const autoCam = q('.film-cam-auto')
@@ -261,9 +284,17 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
           switch (m.v) {
             case 'enterVar':
             case 'enterObj':
-            case 'exitVar':
             case 'exitObj':
-              break // 배우 가시성은 구성이 소유한다
+            case 'pointer':
+              break // 배우 가시성은 구성이 소유한다 (포인터 등장은 첫 setVar가 담당)
+            case 'exitVar': {
+              // 포인터 화살표는 구성 밖(배열의 자식)이라 여기서 직접 내린다
+              if (pointers.has(m.varKey)) {
+                const el = q(ptrSel(m.varKey))
+                if (el) tl.to(el, { opacity: 0, duration: sec(0.25) }, label)
+              }
+              break
+            }
             case 'travel': {
               // 값의 이동 — choreograph가 의미(어디서 어디로)를 정했고, 여기는 좌표만 푼다
               const endPoint = (t: typeof m.from) => {
@@ -298,6 +329,28 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             case 'setVar': {
               const key = m.varKey
               const text = m.text
+              // 인덱스 포인터 변수 — 알약이 아니라 배열 아래 화살표가 그 칸 밑으로 걷는다
+              const ptr = pointers.get(key)
+              if (ptr) {
+                const el = q(ptrSel(key))
+                if (el) {
+                  const idx = Number(text)
+                  const cells = Math.max(plan.objects.find(o => o.objectId === ptr.objectId)?.maxItems ?? 1, 1)
+                  const inRange = Number.isFinite(idx) && idx >= 0 && idx < cells
+                  const clamped = Number.isFinite(idx) ? Math.min(Math.max(idx, -0.6), cells - 0.4) : 0
+                  tl.to(
+                    el,
+                    {
+                      x: 8 + clamped * layout.cellW + (layout.cellW - 6) / 2,
+                      opacity: inRange ? 1 : 0.35,
+                      duration: sec(0.35),
+                      ease: 'power2.inOut',
+                    },
+                    label,
+                  )
+                }
+                break
+              }
               // 칩이 이 알약으로 날아오는 중이면 값 갱신·펄스는 도착 순간에 — 원인이 결과보다 먼저
               const at = travelM?.to.kind === 'var' && travelM.to.varKey === key ? arriveAt : label
               tl.call(
@@ -763,7 +816,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       register(null)
       tl.kill()
     }
-  }, [shots, register, layout, plan, comps, cams, theme])
+  }, [shots, register, layout, plan, comps, cams, theme, pointers])
 
   const hudOffset = FRAME_H - layout.height
 
@@ -903,6 +956,17 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                   </text>
                 </g>
               ))}
+              {/* 인덱스 포인터 — 변수가 값이 아니라 "위치"로 산다. setVar마다 화살표가 칸 밑을 걷는다 */}
+              {[...pointers.entries()]
+                .filter(([, p]) => p.objectId === o.objectId)
+                .map(([key, p]) => (
+                  <g key={key} data-ptr={key} className="film-ptr">
+                    <polygon points="0,0 -6,9 6,9" />
+                    <text y={23} textAnchor="middle" className="svg-name">
+                      {p.name.length > 6 ? p.name.slice(0, 5) + '…' : p.name}
+                    </text>
+                  </g>
+                ))}
             </g>
           </g>
         )
