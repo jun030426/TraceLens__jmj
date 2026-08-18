@@ -380,3 +380,21 @@ describe('choreograph: 격자', () => {
     expect(last).toEqual([{ v: 'gridCell', objectId: 2, r: 1, c: 1, text: '9', wall: false }])
   })
 })
+
+describe('choreograph: 문자열 격자', () => {
+  it('문자열 행 격자는 글자 단위로 칸이 채워진다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'maze', op: 'set', value: { k: 'ref', id: 2 } }],
+        objectsDelta: [{ op: 'set', obj: { id: 2, type: 'list', items: [P("'S.'", 'str'), P("'#G'", 'str')] } }],
+      }, 1),
+    ]
+    const shots = choreograph(events, buildStage(events, { grid: ['maze'] }))
+    const cells = shots.flatMap(s => s.motions).filter(m => m.v === 'gridCell') as { r: number; c: number; text: string }[]
+    expect(cells.length).toBe(4)
+    expect(cells.find(x => x.r === 0 && x.c === 0)!.text).toBe('S')
+    expect(cells.find(x => x.r === 1 && x.c === 0)!.text).toBe('#')
+    expect(cells.find(x => x.r === 1 && x.c === 1)!.text).toBe('G')
+  })
+})
