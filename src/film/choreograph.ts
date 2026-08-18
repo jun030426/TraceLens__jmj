@@ -34,6 +34,12 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
     const head = cmp ? `${cmp.text.replace(' → 참', '')} 참 — ` : `${names.objName(swap.objectId)}: `
     return `${head}${swap.i}번 칸과 ${swap.k}번 칸이 자리를 바꿉니다`
   }
+  const tr = find('travel')
+  if (tr) {
+    const end = (t: CompareTarget) =>
+      t.kind === 'cell' ? `${names.objName(t.objectId)} ${t.index}번 칸` : names.varName(t.varKey)
+    return `${tr.text} 이동: ${end(tr.from)} → ${end(tr.to)}`
+  }
   const cmp = find('compare')
   if (cmp) return `비교: ${cmp.text}`
   const push = find('pushFrame')
@@ -634,6 +640,72 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       } else if (d.value) {
         motions.push({ v: 'setVar', varKey, text: shortText(d.value, objects) })
         releaseHold(varKey, motions)
+      }
+    }
+
+    // ── 값의 이동 — 출발지를 알 수 있으면 값은 순간이동하지 않고 날아간다.
+    // 비교 접지와 같은 보수성: 해석이 안 되면 침묵한다. 샷당 여행은 1회, swap과는 겹치지 않는다.
+    travel: if (!motions.some(m => m.v === 'swap')) {
+      // ① 칸이 빠지고 같은 샷에 변수가 값을 받는다 (pop 계열) — 라인 접지 없이도 확실한 짝
+      const shrinkM = motions.find(m => m.v === 'shrink') as { objectId: number; index: number } | undefined
+      const recvM = motions.find(m => m.v === 'setVar' || m.v === 'bind') as
+        | { varKey: string; text?: string }
+        | undefined
+      if (shrinkM && recvM && !gridInfo.has(shrinkM.objectId)) {
+        motions.push({
+          v: 'travel',
+          from: { kind: 'cell', objectId: shrinkM.objectId, index: shrinkM.index },
+          to: { kind: 'var', varKey: recvM.varKey },
+          text: recvM.text ?? '',
+        })
+        break travel
+      }
+      if (!code || e.kind !== 'line' || !e.causedByLine) break travel
+      const src = stripNoise(srcLines[e.causedByLine - 1] ?? '').trim()
+      // ② 읽기: x = NAME[i] — 칸의 값이 알약으로
+      const rd = src.match(/^([A-Za-z_]\w*)\s*=\s*([A-Za-z_]\w*\[[^\]]+\])$/)
+      if (rd) {
+        const setM = motions.find(m => m.v === 'setVar' && m.varKey === `${e.frameId}:${rd[1]}`) as
+          | { varKey: string; text: string }
+          | undefined
+        const op = resolveOperand(rd[2], e.frameId, locals, objects)
+        if (setM && op?.target?.kind === 'cell' && capText(op.text) === setM.text && !gridInfo.has(op.target.objectId)) {
+          motions.push({ v: 'travel', from: op.target, to: { kind: 'var', varKey: setM.varKey }, text: setM.text })
+          break travel
+        }
+      }
+      // ③ 쓰기: NAME[i] = y — 알약의 값이 칸으로
+      const wr = src.match(/^([A-Za-z_]\w*\[[^\]]+\])\s*=\s*([A-Za-z_]\w*)$/)
+      if (wr) {
+        const from = resolveOperand(wr[2], e.frameId, locals, objects)
+        const dst = resolveOperand(wr[1], e.frameId, locals, objects) // 델타 반영 후 = 새 칸 값
+        if (
+          from?.target?.kind === 'var' && dst?.target?.kind === 'cell' &&
+          from.text === dst.text && !gridInfo.has(dst.target.objectId) &&
+          motions.some(m => (m.v === 'setCell' || m.v === 'grow') &&
+            m.objectId === (dst.target as { objectId: number }).objectId &&
+            m.index === (dst.target as { index: number }).index)
+        ) {
+          motions.push({ v: 'travel', from: from.target, to: dst.target, text: capText(from.text) })
+          break travel
+        }
+      }
+      // ④ 붙이기: NAME.append(y) — 알약의 값이 새 칸으로
+      const ap = src.match(/^([A-Za-z_]\w*)\.append\(\s*([A-Za-z_]\w*)\s*\)$/)
+      if (ap) {
+        const from = resolveOperand(ap[2], e.frameId, locals, objects)
+        const growM = motions.find(m => m.v === 'grow') as { objectId: number; index: number; text: string } | undefined
+        const ref = locals.get(`${e.frameId}:${ap[1]}`)
+        if (
+          from?.target?.kind === 'var' && growM && ref?.k === 'ref' && ref.id === growM.objectId &&
+          capText(from.text) === growM.text && !gridInfo.has(growM.objectId)
+        ) {
+          motions.push({
+            v: 'travel', from: from.target,
+            to: { kind: 'cell', objectId: growM.objectId, index: growM.index },
+            text: growM.text,
+          })
+        }
       }
     }
 
