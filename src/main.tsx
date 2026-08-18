@@ -7,7 +7,6 @@ import Landing from './routes/Landing'
 import About from './routes/About'
 import Help from './routes/Help'
 import Settings from './routes/Settings'
-import DemoRoute from './routes/Demo'
 import { Page } from './ui/Chrome'
 import { Link, ROUTES, usePath, useSurfaceFlag } from './router'
 import { prefersStill, useSettings } from './settings/store'
@@ -52,11 +51,6 @@ function Root() {
 
   if (path === ROUTES.app) {
     return <App />
-  }
-
-  // 파일럿 화면은 크롬(내비게이션) 없이 영상만 — 참가자 시선을 분산시키지 않는다
-  if (path === ROUTES.demo) {
-    return <DemoRoute />
   }
 
   const page =
