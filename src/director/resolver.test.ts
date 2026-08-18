@@ -122,3 +122,34 @@ describe('direction 파싱', () => {
     expect(resolveScreenplay(scene('zoom'), digest).chapters[0].scenes[0].direction).toEqual([])
   })
 })
+
+describe('staging 파싱', () => {
+  const withStaging = (staging: unknown) => ({
+    chapters: [{ title: 't', scenes: [{ spanRef: 's0', primitive: 'variables', narration: { template: '장면' } }] }],
+    staging,
+  })
+  // digest의 changedVars: s1에 'a', loop_0에 'i'
+  it('digest에 등장한 이름만 남는다', () => {
+    const sp = resolveScreenplay(withStaging({ grid: ['a', '없는이름', 'a'], noGrid: ['i'] }), digest)
+    expect(sp.staging).toEqual({ grid: ['a'], noGrid: ['i'] })
+  })
+  it('배열이 아니거나 전부 무효면 staging이 생략된다', () => {
+    expect(resolveScreenplay(withStaging({ grid: 'a' }), digest).staging).toBeUndefined()
+    expect(resolveScreenplay(withStaging({ grid: ['유령'] }), digest).staging).toBeUndefined()
+    expect(resolveScreenplay(withStaging(undefined), digest).staging).toBeUndefined()
+  })
+  it('salvage 경로도 staging을 나른다', () => {
+    const sDigest2: Digest = {
+      spans: [{ spanId: 's0', sourceSeqRange: [0, 0], lines: [1, 1], eventKinds: ['line'], funcs: ['<module>'], changedVars: ['maze'] }],
+    }
+    const rule: Screenplay = {
+      chapters: [{ title: '실행', scenes: [{ seqStart: 0, seqEnd: 0, primitive: 'variables', focus: [], pacing: 'normal', direction: [], narration: { template: 'r', bindings: {} } }] }],
+    }
+    const raw = {
+      chapters: [{ title: '1장', scenes: [{ spanRef: 's0', primitive: 'variables', narration: { template: 'AI' } }] }],
+      staging: { grid: ['maze'] },
+    }
+    const out = salvageScreenplay(raw, sDigest2, rule)!
+    expect(out.staging).toEqual({ grid: ['maze'], noGrid: [] })
+  })
+})
