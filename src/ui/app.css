@@ -277,6 +277,83 @@
   pointer-events: none;
 }
 
+/* ── 입문(비유) 스킨 — 값은 만질 수 있는 물체가 된다 ──────────────────── */
+
+/* 값 막대 — 숫자를 안 읽어도 크기·순서가 보인다 */
+.cell-bar {
+  fill: var(--accent);
+  fill-opacity: 0.22;
+  stroke: var(--accent);
+  stroke-opacity: 0.65;
+  stroke-width: 1.2;
+  pointer-events: none;
+}
+/* 정렬 완성 정착 톤 — sortedSweep이 진실일 때만 켠다 */
+.cell-done {
+  fill: var(--ok);
+  opacity: 0;
+  pointer-events: none;
+}
+/* 입문 모드의 칸·알약은 물체 질감(짙은 획) */
+.film-stage--intro [data-cell] > rect:first-of-type {
+  stroke-width: 1.5;
+}
+
+/* 비교 저울 */
+.film-scale {
+  pointer-events: none;
+}
+.film-scale line {
+  stroke: var(--ink-2);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.film-scale-pan {
+  fill: var(--panel);
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+}
+.film-scale-pivot {
+  fill: var(--ink-3);
+}
+.film-scale-op {
+  font-size: 15px;
+}
+.film-scale-stamp rect {
+  fill: var(--panel);
+  stroke-width: 2;
+}
+.film-scale-stamp--true rect {
+  stroke: var(--ok);
+}
+.film-scale-stamp--true text {
+  fill: var(--ok);
+}
+.film-scale-stamp--false rect {
+  stroke: var(--stop);
+}
+.film-scale-stamp--false text {
+  fill: var(--stop);
+}
+
+/* 반복 스핀 화살 */
+.film-loop-spin path {
+  stroke: var(--accent);
+}
+.film-loop-spin polygon {
+  fill: var(--accent);
+}
+
+/* 재생 패널 바의 스킨 토글 — 표준 세그먼트의 압축형 */
+.tl-seg--bar {
+  margin-left: 10px;
+  margin-right: auto;
+}
+.tl-seg--bar button {
+  padding: 2px 9px;
+  font-size: var(--t-2xs);
+}
+
 /* ── narration ────────────────────────────────────────────────────────── */
 
 .narration-bar {

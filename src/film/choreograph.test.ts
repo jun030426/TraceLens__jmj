@@ -258,6 +258,57 @@ describe('choreograph: 값의 이동 (travel)', () => {
   })
 })
 
+describe('choreograph: 저울 데이터·정렬 스윕', () => {
+  it('접지된 비교는 a·op·b·verdict 구조 필드를 싣는다', () => {
+    const code = 'arr = [5, 2]\nn = 0\nif arr[0] > arr[1]:\n    pass\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({
+        observedAtLine: 2, causedByLine: 1,
+        localsDelta: [{ name: 'arr', op: 'set', value: { k: 'ref', id: 1 } }],
+        objectsDelta: [listSet(['5', '2'])],
+      }, 1),
+      ev({ observedAtLine: 3, causedByLine: 2, localsDelta: [{ name: 'n', op: 'set', value: P('0') }] }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    const cmp = shots.flatMap(s => s.motions).find(m => m.v === 'compare') as
+      | { a?: string; op?: string; b?: string; verdict?: boolean }
+      | undefined
+    expect(cmp).toBeDefined()
+    expect(cmp!.a).toBe('5')
+    expect(cmp!.op).toBe('>')
+    expect(cmp!.b).toBe('2')
+    expect(cmp!.verdict).toBe(true)
+  })
+
+  const endState = (final: string[]) => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({
+        observedAtLine: 2, causedByLine: 1,
+        localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }],
+        objectsDelta: [listSet(['3', '1', '2'])],
+      }, 1),
+      ev({ observedAtLine: 3, causedByLine: 2, objectsDelta: [listSet(final)] }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    return choreograph(events, buildStage(events))
+  }
+
+  it('오름차순으로 끝난 숫자 리스트는 커튼콜에서 sortedSweep을 받는다', () => {
+    const shots = endState(['1', '2', '3'])
+    const last = shots[shots.length - 1]
+    expect(last.motions.some(m => m.v === 'sortedSweep')).toBe(true)
+    expect(last.caption).toContain('정렬 완성')
+  })
+
+  it('정렬되지 않은 채 끝나면 스윕은 없다 — 지어내지 않는다', () => {
+    const shots = endState(['2', '3', '1'])
+    expect(shots.flatMap(s => s.motions).some(m => m.v === 'sortedSweep')).toBe(false)
+  })
+})
+
 describe('choreograph: 정직한 배지·최종값', () => {
   it('반복 배지는 카운트업만 — 모순되는 총계를 달지 않는다', () => {
     const shots = choreograph(demoEvents, buildStage(demoEvents))

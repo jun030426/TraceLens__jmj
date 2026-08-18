@@ -62,7 +62,8 @@ export type Motion =
   | { v: 'raise'; frameId: number; text: string }
   | { v: 'loop'; text: string }
   | { v: 'loopEnd' }
-  | { v: 'compare'; text: string; targets: CompareTarget[] }
+  /** a·op·b·verdict — 저울 렌더용 구조 필드. detectCompare가 접지한 실제 값이며, 숫자 판정이 안 되면 verdict는 없다 */
+  | { v: 'compare'; text: string; targets: CompareTarget[]; a?: string; op?: string; b?: string; verdict?: boolean }
   | { v: 'spotlight'; varKeys: string[] }
   | { v: 'camera'; k: number; x: number; y: number }
   | { v: 'label'; objectId: number; text: string }
@@ -71,6 +72,8 @@ export type Motion =
   | { v: 'gridUnvisit'; objectId: number; r: number; c: number }
   | { v: 'gridCursor'; objectId: number; r: number; c: number }
   | { v: 'gridTrail'; objectId: number; points: [number, number][] }
+  /** 커튼콜 — 리스트가 실제로 오름차순으로 끝났을 때만 방출되는 "정렬 완성" 스윕 */
+  | { v: 'sortedSweep'; objectId: number }
 
 export type Shot = {
   seq: number

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, ROUTES } from '../router'
 import { geminiApiKey } from '../director/gemini'
-import { DEFAULTS, LIMITS, resetSettings, setSetting, useSettings, type CaptionSize } from '../settings/store'
+import { DEFAULTS, LIMITS, resetSettings, setSetting, useSettings, type CaptionSize, type Presentation } from '../settings/store'
 
 function Switch({
   on,
@@ -150,6 +150,30 @@ export default function Settings() {
                 onChange={v => setSetting('aiDirector', v)}
                 label="AI 연출 사용"
                 disabled={!aiPossible}
+              />
+            </div>
+          </Group>
+
+          <Group
+            title="표현 방식"
+            intro="같은 실행 기록을 두 가지 스킨으로 볼 수 있습니다. 값과 순서는 어느 쪽이든 똑같이 트레이스에서 옵니다."
+          >
+            <div className="tl-field">
+              <div>
+                <div className="tl-field__name">실행 화면 스킨</div>
+                <p className="tl-field__help">
+                  입문: 값을 막대 높이로, 비교를 저울로 보여줍니다 — 코드를 몰라도 흐름이 보이게. 정밀: 구조
+                  그대로(값·칸 번호 중심). 재생 화면에서도 바로 바꿀 수 있습니다.
+                </p>
+              </div>
+              <Seg
+                label="실행 화면 스킨"
+                value={s.presentation}
+                options={[
+                  { v: 'intro' as Presentation, l: '입문(비유)' },
+                  { v: 'precise' as Presentation, l: '정밀(구조)' },
+                ]}
+                onChange={v => setSetting('presentation', v)}
               />
             </div>
           </Group>
