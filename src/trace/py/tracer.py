@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Algo-Scope Tracer — Pyodide와 로컬 CPython 겸용. sys.settrace 기반.
 # 계약: run_traced(code, emit, max_events) → emit(TraceEvent[] JSON) 반복, 마지막 emit({"done":...})
-import sys, json, io, contextlib, types
+import sys, json, io, contextlib, types, collections
 
 SAFE_TYPES = (int, float, bool, str, type(None))
 MAX_ITEMS = 20
@@ -29,7 +29,7 @@ def _serialize(v, objects, depth=0):
     if isinstance(v, (types.FunctionType, types.BuiltinFunctionType, types.ModuleType, type)):
         objects[oid] = {'id': oid, 'type': type(v).__name__, 'unsupported': True}
         return ref
-    if isinstance(v, (list, tuple, set)):
+    if isinstance(v, (list, tuple, set, collections.deque)):
         items = list(v)[:MAX_ITEMS]
         objects[oid] = {'id': oid, 'type': type(v).__name__,
                         'items': [_serialize(x, objects, depth + 1) for x in items],
