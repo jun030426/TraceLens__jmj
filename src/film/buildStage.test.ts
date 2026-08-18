@@ -185,3 +185,49 @@ describe('buildStage: 격자 판정', () => {
     expect(buildStage(events).objects.find(o => o.objectId === 4)!.grid).toBeUndefined()
   })
 })
+
+describe('buildStage: staging 힌트', () => {
+  const P = (v: string, t = 'int') => ({ k: 'prim' as const, v, t })
+  const ev = (over: Partial<TraceEvent>, seq: number): TraceEvent => ({
+    seq, kind: 'line', frameId: 0, parentFrameId: null, func: '<module>',
+    causedByLine: null, observedAtLine: 1, localsDelta: [], objectsDelta: [], stdout: '', ...over,
+  })
+  const row = (id: number, vals: string[]) => ({ op: 'set' as const, obj: { id, type: 'list', items: vals.map(v => P(v)) } })
+  const outer = (id: number, rowIds: number[]) => ({
+    op: 'set' as const, obj: { id, type: 'list', items: rowIds.map(rid => ({ k: 'ref' as const, id: rid })) },
+  })
+  const primMaze = (): TraceEvent[] => [
+    ev({ kind: 'call' }, 0),
+    ev({
+      localsDelta: [{ name: 'maze', op: 'set', value: { k: 'ref', id: 1 } }],
+      objectsDelta: [row(11, ['0', '1']), row(12, ['0', '0']), outer(1, [11, 12])],
+    }, 1),
+  ]
+  const strMaze = (rows: string[]): TraceEvent[] => [
+    ev({ kind: 'call' }, 0),
+    ev({
+      localsDelta: [{ name: 'maze', op: 'set', value: { k: 'ref', id: 2 } }],
+      objectsDelta: [{ op: 'set', obj: { id: 2, type: 'list', items: rows.map(s => P(`'${s}'`, 'str')) } }],
+    }, 1),
+  ]
+
+  it('noGrid는 규칙이 격자로 본 것을 상자로 강제한다', () => {
+    const plan = buildStage(primMaze(), { noGrid: ['maze'] })
+    expect(plan.objects.find(o => o.objectId === 1)!.grid).toBeUndefined()
+  })
+
+  it('grid 힌트는 같은 길이 문자열 행 리스트를 격자로 연다', () => {
+    const plan = buildStage(strMaze(['S.#', '..#', '#.G']), { grid: ['maze'] })
+    expect(plan.objects.find(o => o.objectId === 2)!.grid).toEqual({ rows: 3, cols: 3, binary: false })
+  })
+
+  it('힌트가 없으면 문자열 리스트는 상자다', () => {
+    const plan = buildStage(strMaze(['S.#', '..#', '#.G']))
+    expect(plan.objects.find(o => o.objectId === 2)!.grid).toBeUndefined()
+  })
+
+  it('자격 미달(들쭉 길이)은 grid 힌트가 있어도 무시된다', () => {
+    const plan = buildStage(strMaze(['S.#', '..']), { grid: ['maze'] })
+    expect(plan.objects.find(o => o.objectId === 2)!.grid).toBeUndefined()
+  })
+})

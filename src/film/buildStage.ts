@@ -9,11 +9,14 @@ const CALLABLE_TYPES = new Set(['function', 'builtin_function_or_method', 'metho
 // 이 크기 이하의 전원-프림 튜플은 상자 대신 알약 값 "(1, 1)"로 인라인 표시된다
 const INLINE_TUPLE_MAX = 3
 
+/** AI의 표현 선택 — 변수명뿐이다. 판정·좌표는 여기(도구)가 한다. */
+export type StagingHints = { grid?: string[]; noGrid?: string[] }
+
 // 1패스 — 등장인물 명단과 수명. 원칙: **변수가 쥔 것만 상자를 받는다.**
 // 컨테이너 안에만 사는 조연(큐 속 튜플, maze 행…)은 부모 칸의 요약 텍스트가 전부다.
 // 상자의 수명은 "마지막으로 만져진 때"가 아니라 "변수가 쥐고 있는 동안"이다 —
 // 놓인 상자는 무대에서 내려가므로 슬롯을 물려받은 후임과 겹치지 않는다.
-export function buildStage(events: TraceEvent[]): StagePlan {
+export function buildStage(events: TraceEvent[], staging?: StagingHints): StagePlan {
   if (events.length === 0) {
     return { objects: [], variables: [], frames: [], slotCount: 0, maxStackDepth: 0, maxListLength: 0, leadObjectId: null }
   }
@@ -149,11 +152,42 @@ export function buildStage(events: TraceEvent[]): StagePlan {
     return { rows: s.items.length, cols, binary }
   }
 
+  // 같은 길이 문자열 행 리스트 (["S.#", "..#"]) — 오탐 위험(["hello","world"]) 때문에
+  // 규칙으로는 켜지 않고, AI의 grid 힌트가 있을 때만 시도한다. 자격 검사는 여전히 여기서.
+  const stringGridOf = (id: number): { rows: number; cols: number; binary: boolean } | undefined => {
+    const s = snapOf.get(id)
+    if (s?.type !== 'list' || !s.items || s.items.length < 2) return undefined
+    let cols = -1
+    for (const it of s.items) {
+      if (it.k !== 'prim' || it.t !== 'str') return undefined
+      const len = it.v.length - 2 // repr 따옴표 제외
+      if (len < 2) return undefined
+      if (cols === -1) cols = len
+      else if (len !== cols) return undefined
+    }
+    if (s.items.length * cols > 400) return undefined
+    return { rows: s.items.length, cols, binary: false }
+  }
+
+  // 힌트 이름 → 그 이름의 변수가 쥐었던 객체
+  const hintGrid = new Set(staging?.grid ?? [])
+  const hintNoGrid = new Set(staging?.noGrid ?? [])
+  const heldByName = (id: number, names: Set<string>) => {
+    if (names.size === 0) return false
+    const o = objAcc.get(id)
+    if (!o) return false
+    for (const key of o.refs) if (names.has(key.slice(key.indexOf(':') + 1))) return true
+    return false
+  }
+
   // ── 슬롯 배정 (선형 스캔) — 상자 받는 객체만 ──
   const objects: CastObject[] = [...objAcc.entries()]
     .filter(([objectId]) => boxed(objectId))
     .map(([objectId, o]) => {
-      const grid = gridOf(objectId)
+      // noGrid = 상자로 강제, grid 힌트 = 문자열 행 판정까지 시도. 자격 미달이면 조용히 상자.
+      const grid = heldByName(objectId, hintNoGrid)
+        ? undefined
+        : (gridOf(objectId) ?? (heldByName(objectId, hintGrid) ? stringGridOf(objectId) : undefined))
       return {
         objectId, type: o.type, life: { from: o.from, to: o.to },
         maxItems: o.maxItems, changeCount: o.changes, referencedBy: [...o.refs], slot: -1,
