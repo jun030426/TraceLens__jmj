@@ -32,13 +32,15 @@ function zoomRectOf(sceneShots: Shot[], layout: StageLayout): { rect: Rect; shot
   return null
 }
 
-function cameraFor(rect: Rect, layout: StageLayout): Motion {
-  const k = Math.min(2.1, Math.max(1.15, Math.min(layout.width / (rect.w + 120), layout.height / (rect.h + 120))))
+// 연출 무대에서는 구성이 이미 액션을 중앙에 두므로, zoom은 "중앙으로 당겨 보기"다.
+// (대상 rect는 zoomRectOf가 "확대할 가치가 있는가"의 게이트로만 쓴다)
+function cameraFor(_rect: Rect, layout: StageLayout): Motion {
+  const k = 1.45
   return {
     v: 'camera',
     k,
-    x: layout.width / 2 - k * (rect.x + rect.w / 2),
-    y: layout.height / 2 - k * (rect.y + rect.h / 2),
+    x: (layout.width / 2) * (1 - k),
+    y: (layout.height / 2) * (1 - k),
   }
 }
 

@@ -233,19 +233,31 @@
 }
 
 /* 지금 실행되는 대상의 조명 — Drawn-State Rule의 active 처리 그대로:
-   쉬는 상자는 sunken/panel, 켜진 상자는 accent-wash 면 + accent 획 */
-.film-stage [data-obj] > rect,
+   쉬는 상자는 sunken/panel, 켜진(포커스) 상자는 accent-wash 면 + accent 획 */
+.film-stage [data-obj] .actor-inner > rect:first-of-type,
 .film-stage [data-frame] > rect {
   transition:
     stroke 160ms var(--ease),
     fill 160ms var(--ease),
     stroke-width 160ms var(--ease);
 }
-.film-stage [data-obj].is-live > rect,
+.film-stage [data-obj].is-focus .actor-inner > rect:first-of-type,
 .film-stage [data-frame].is-live > rect {
   fill: var(--accent-wash);
   stroke: var(--accent);
   stroke-width: 2;
+}
+
+/* 연출 무대 — 세부(칸 번호·격자 값)는 포커스 배우에만. 물러난 배우는 형태만 남긴다 */
+.film-stage [data-obj] .svg-index {
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
+}
+.film-stage [data-obj].is-focus .svg-index {
+  opacity: 1;
+}
+.film-chip {
+  pointer-events: none;
 }
 
 /* ── narration ────────────────────────────────────────────────────────── */
