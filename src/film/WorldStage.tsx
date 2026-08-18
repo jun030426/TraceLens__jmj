@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import type { Shot, StagePlan } from './types'
-import type { StageLayout } from './layout'
+import { GRID_CELL, type StageLayout } from './layout'
 import type { useFilm } from './useFilm'
 
 type Props = {
@@ -89,7 +89,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     const build = () => {
       gsap.set(
         root.querySelectorAll(
-          '[data-obj], [data-var], [data-frame], [data-rope], [data-cell], .film-error, .film-loop, .film-compare',
+          '[data-obj], [data-var], [data-frame], [data-rope], [data-cell], [data-gcursor], [data-gtrail], .film-error, .film-loop, .film-compare',
         ),
         { opacity: 0 },
       )
@@ -359,6 +359,67 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               }
               break
             }
+            case 'gridCell': {
+              const cell = q(`[data-gcell="${m.objectId}-${m.r}-${m.c}"]`)
+              const txt = q(`[data-gctext="${m.objectId}-${m.r}-${m.c}"]`)
+              const text = m.text
+              const wall = m.wall
+              tl.call(
+                () => {
+                  if (txt) txt.textContent = text
+                  cell?.classList.toggle('is-wall', wall)
+                },
+                undefined,
+                label,
+              )
+              break
+            }
+            case 'gridVisit':
+            case 'gridUnvisit': {
+              const cell = q(`[data-gcell="${m.objectId}-${m.r}-${m.c}"]`)
+              const on = m.v === 'gridVisit'
+              tl.call(
+                () => {
+                  cell?.classList.toggle('is-visited', on)
+                },
+                undefined,
+                label,
+              )
+              break
+            }
+            case 'gridCursor': {
+              const cur = q(`[data-gcursor="${m.objectId}"]`)
+              const rect = layout.objPos.get(m.objectId)
+              if (!cur || !rect) break
+              tl.to(
+                cur,
+                {
+                  attr: { cx: rect.x + 8 + m.c * GRID_CELL + GRID_CELL / 2, cy: rect.y + 8 + m.r * GRID_CELL + GRID_CELL / 2 },
+                  opacity: 1,
+                  duration: d * 0.5,
+                  ease: 'power2.inOut',
+                },
+                label,
+              )
+              break
+            }
+            case 'gridTrail': {
+              const el = q(`[data-gtrail="${m.objectId}"]`)
+              const rect = layout.objPos.get(m.objectId)
+              if (!el || !rect) break
+              const pts = m.points
+                .map(([pr, pc]) => `${rect.x + 8 + pc * GRID_CELL + GRID_CELL / 2},${rect.y + 8 + pr * GRID_CELL + GRID_CELL / 2}`)
+                .join(' ')
+              tl.call(
+                () => {
+                  el.setAttribute('points', pts)
+                },
+                undefined,
+                label,
+              )
+              tl.to(el, { opacity: 1, duration: d * 0.5 }, label)
+              break
+            }
             case 'compare': {
               const text = m.text
               tl.call(
@@ -462,6 +523,52 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
 
       {plan.objects.map(o => {
         const r = layout.objPos.get(o.objectId)!
+        if (o.grid) {
+          // 격자 — 칸은 모서리를 공유한다 (연속 메모리 관례의 2차원판)
+          const { rows, cols } = o.grid
+          const gx = (c: number) => r.x + 8 + c * GRID_CELL
+          const gy = (row: number) => r.y + 8 + row * GRID_CELL
+          return (
+            <g key={`o${o.objectId}`} data-obj={o.objectId}>
+              <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line)" strokeWidth={1.4} />
+              <text x={r.x + 4} y={r.y - 8} className="svg-type">{`${o.type} ${rows}×${cols}`}</text>
+              {Array.from({ length: rows }, (_, gr) =>
+                Array.from({ length: cols }, (_, gc) => (
+                  <g key={`${gr}-${gc}`}>
+                    <rect
+                      data-gcell={`${o.objectId}-${gr}-${gc}`}
+                      className="film-gcell"
+                      x={gx(gc)}
+                      y={gy(gr)}
+                      width={GRID_CELL}
+                      height={GRID_CELL}
+                    />
+                    <text
+                      data-gctext={`${o.objectId}-${gr}-${gc}`}
+                      className="svg-index"
+                      x={gx(gc) + GRID_CELL / 2}
+                      y={gy(gr) + GRID_CELL / 2 + 4}
+                      textAnchor="middle"
+                    />
+                  </g>
+                )),
+              )}
+              {/* 행 번호(좌) · 열 번호(하) */}
+              {Array.from({ length: rows }, (_, gr) => (
+                <text key={`r${gr}`} className="svg-index" x={r.x - 6} y={gy(gr) + GRID_CELL / 2 + 4} textAnchor="end">
+                  {gr}
+                </text>
+              ))}
+              {Array.from({ length: cols }, (_, gc) => (
+                <text key={`c${gc}`} className="svg-index" x={gx(gc) + GRID_CELL / 2} y={r.y + r.h + 14} textAnchor="middle">
+                  {gc}
+                </text>
+              ))}
+              <polyline data-gtrail={o.objectId} className="film-gtrail" points="" />
+              <circle data-gcursor={o.objectId} r={7} fill="var(--accent)" />
+            </g>
+          )
+        }
         const cells = Math.max(o.maxItems, 1)
         return (
           <g key={`o${o.objectId}`} data-obj={o.objectId}>
