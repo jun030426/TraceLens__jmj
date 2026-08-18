@@ -1,5 +1,5 @@
 import type { Digest, DigestSpan } from '../digest/buildDigest'
-import type { Screenplay, Chapter, Scene, PrimitiveKind, Pacing, DirectingVerb } from '../screenplay/types'
+import type { Screenplay, Chapter, Scene, PrimitiveKind, Pacing, DirectingVerb, Staging } from '../screenplay/types'
 
 // LLM 출력(spanRef 기반) → 검증 → 기존 Screenplay 타입으로 결정적 치환.
 // 핵심 계약: LLM은 seq 숫자를 쓸 수 없다 — seq는 여기서 DigestSpan으로부터만 부여된다.
@@ -19,7 +19,20 @@ type RawScene = {
   direction?: unknown
   narration?: { template?: unknown; bindings?: Record<string, RawBinding> }
 }
-type RawScreenplay = { chapters?: { title?: unknown; scenes?: RawScene[] }[] }
+type RawScreenplay = {
+  chapters?: { title?: unknown; scenes?: RawScene[] }[]
+  staging?: { grid?: unknown; noGrid?: unknown }
+}
+
+// staging — 변수명 선택만 받는다. digest에 등장한 이름만 통과 (지어낸 이름 차단).
+function resolveStaging(raw: RawScreenplay, digest: Digest): Staging | undefined {
+  const known = new Set(digest.spans.flatMap(s => s.changedVars))
+  const names = (v: unknown): string[] =>
+    Array.isArray(v) ? [...new Set(v.filter((n): n is string => typeof n === 'string' && known.has(n)))] : []
+  const grid = names(raw.staging?.grid)
+  const noGrid = names(raw.staging?.noGrid)
+  return grid.length || noGrid.length ? { grid, noGrid } : undefined
+}
 
 // 장면 하나의 검증·치환 — 엄격 경로와 salvage 경로가 같은 잣대를 쓴다
 function resolveScene(
@@ -87,7 +100,8 @@ export function resolveScreenplay(raw: unknown, digest: Digest): Screenplay {
     return { title: ch.title as string, scenes }
   })
 
-  return { chapters }
+  const staging = resolveStaging(doc, digest)
+  return { chapters, ...(staging ? { staging } : {}) }
 }
 
 // AI가 실수해도 유효한 장면은 살린다 — 무효 장면은 개별 폐기하고,
@@ -127,5 +141,6 @@ export function salvageScreenplay(raw: unknown, digest: Digest, rule: Screenplay
     if (m.ch >= 0) cur = m.ch
     chapters[cur].scenes.push(m.scene)
   }
-  return { chapters: chapters.filter(c => c.scenes.length > 0) }
+  const staging = resolveStaging(doc, digest)
+  return { chapters: chapters.filter(c => c.scenes.length > 0), ...(staging ? { staging } : {}) }
 }

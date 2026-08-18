@@ -16,4 +16,8 @@ export type Scene = {
 }
 
 export type Chapter = { title: string; scenes: Scene[] }
-export type Screenplay = { chapters: Chapter[] }
+
+/** AI의 표현 선택 — 변수명으로 "격자로 봐라 / 보지 마라"만 고른다. 판정·좌표는 도구가 한다. */
+export type Staging = { grid: string[]; noGrid: string[] }
+
+export type Screenplay = { chapters: Chapter[]; staging?: Staging }
