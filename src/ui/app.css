@@ -208,6 +208,30 @@
   font-size: var(--d-xs);
 }
 
+/* 격자 — 대표 시각화 2호. 벽=line-strong 면, 방문=accent 계열 누적, 경로=accent 선 */
+.film-gcell {
+  fill: var(--panel);
+  stroke: var(--line);
+  stroke-width: 1;
+  transition:
+    fill 160ms var(--ease),
+    stroke 160ms var(--ease);
+}
+.film-gcell.is-wall {
+  fill: var(--line-strong);
+}
+.film-gcell.is-visited {
+  fill: var(--accent-wash);
+  stroke: var(--accent);
+}
+.film-gtrail {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
 /* 지금 실행되는 대상의 조명 — Drawn-State Rule의 active 처리 그대로:
    쉬는 상자는 sunken/panel, 켜진 상자는 accent-wash 면 + accent 획 */
 .film-stage [data-obj] > rect,
