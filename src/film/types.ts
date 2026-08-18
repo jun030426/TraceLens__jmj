@@ -77,4 +77,6 @@ export type Shot = {
   durationMs: number
   focus: { kind: 'object'; objectId: number } | { kind: 'frame'; frameId: number } | null
   timelapse?: number
+  /** 학습자 자막 — 모션에서 결정적으로 생성된 한 문장. 화면과 원리적으로 일치한다 */
+  caption?: string
 }
