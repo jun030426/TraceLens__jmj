@@ -72,7 +72,9 @@ export function compose(
       deadObjs.delete(k)
     }
     const curtainCall = i === shots.length - 1 // 마지막 장면 — 살아있는 전원이 중앙에 (최종 상태의 완성)
-    const alive = (life: { from: number; to: number }) => life.from <= sh.seq && sh.seq <= life.to
+    // 생존 판정 — plan의 life.to는 "마지막 수정"이지 스코프 종료가 아니다 (한 번만 대입된
+    // 변수가 곧바로 죽는 오판의 근원). 탄생(from) 이후 + 명시적 퇴장(exit) 전이면 살아있다.
+    const born = (life: { from: number; to: number }) => life.from <= sh.seq
 
     const comp: Composition = new Map()
 
@@ -80,7 +82,7 @@ export function compose(
     // 중앙을 지킨다 (변수만 바뀌는 샷마다 주인공이 대기열로 밀려나는 출렁임 방지).
     // 커튼콜은 lastTouch가 아니라 생존 전원 — 최종 상태의 완성이 마지막 그림이다.
     const stagedObjKeys = curtainCall
-      ? plan.objects.filter(o => alive(o.life) && !deadObjs.has(`o${o.objectId}`)).map(o => `o${o.objectId}`)
+      ? plan.objects.filter(o => born(o.life) && !deadObjs.has(`o${o.objectId}`)).map(o => `o${o.objectId}`)
       : [...lastTouch.entries()]
           .filter(([k, at]) => objKeys.has(k) && i - at <= LINGER)
           .map(([k]) => k)
@@ -125,7 +127,7 @@ export function compose(
     // 사라지면 학습자는 "i 어디 갔지?"가 된다. 상한 초과분만 최근성으로 강등하고,
     // 자리는 등장순으로 고정한다 (재배열은 알약 교차의 어지러움을 만든다)
     const vars = plan.variables
-      .filter(v => alive(v.life) && !deadVars.has(`v${v.varKey}`))
+      .filter(v => born(v.life) && !deadVars.has(`v${v.varKey}`))
       .map(v => `v${v.varKey}`)
       .sort((a, b) => (lastTouch.get(b) ?? 0) - (lastTouch.get(a) ?? 0))
       .slice(0, MAX_VARS)

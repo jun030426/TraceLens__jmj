@@ -81,6 +81,7 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
   if (out) return `출력: ${capText(out.text.trim(), 44)}`
   const loop = find('loop')
   if (loop) return loop.text
+  if (find('loopEnd')) return '반복 구간이 끝났습니다'
   const enter = find('enterVar')
   if (enter) return `${names.varName(enter.varKey)} 등장`
   return undefined
@@ -210,9 +211,9 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   // objects·locals 맵은 전체를 계속 추적한다 (요약 텍스트·compare 접지에 필요).
   const castObjects = new Set(plan.objects.map(o => o.objectId))
   const castVars = new Set(plan.variables.map(v => v.varKey))
-  const lifeEndOf = new Map(plan.objects.map(o => [o.objectId, o.life.to]))
   const entered = new Set<number>() // enterObj까지 마친 상자
   const exited = new Set<number>()
+  const heldOnce = new Set<number>() // 한 번이라도 이름이 쥐었던 상자 — 보유 기반 퇴장의 대상
 
   // 상자 이름표 — 끈을 따라가지 않아도 어느 상자가 maze인지 보이게, 쥔 변수명을 상자에 건다.
   // 보유가 바뀔 때마다(재대입·별칭·반환) 라벨을 다시 쓴다. 별칭이면 "a · b".
@@ -252,6 +253,12 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     const keys = holderKeys.get(objectId) ?? new Set<string>()
     keys.add(varKey)
     holderKeys.set(objectId, keys)
+    heldOnce.add(objectId)
+    if (exited.has(objectId)) {
+      // 잊혔던 상자를 다시 이름이 쥐었다 (중첩 참조에서 꺼내기 등) — 부활
+      exited.delete(objectId)
+      motions.push({ v: 'enterObj', objectId })
+    }
     relabel(objectId, motions)
   }
 
@@ -362,11 +369,14 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   }
   const lapseAt = (seq: number) => lapse.find(l => seq >= l.from && seq <= l.to)
 
-  // 반복 배지 — 접힘은 헤더 라인의 3회차 방문부터 시작되므로 seen은 2에서 출발한다.
-  // 헤더 라인 = 접힘 시작 이벤트의 관측 라인 (몸통보다 먼저 3회차에 도달하는 줄)
+  // 반복 배지 — 접힘은 헤더 라인의 3회차 방문부터 시작되므로 카운트는 2에서 출발한다.
+  // 헤더 라인 = 접힘 시작 이벤트의 관측 라인 (몸통보다 먼저 3회차에 도달하는 줄).
+  // 카운터는 스팬이 아니라 헤더 라인 단위로 전 구간 누적한다 — 중첩 루프에서 스팬마다
+  // 리셋된 숫자가 5→3→9로 널뛰면 학습자는 시계를 잃는다. 줄마다 단조 증가가 정직하다.
   const loopSpans = digest.spans
     .filter(s => (s.iterations ?? 0) > 1)
-    .map(s => ({ from: s.sourceSeqRange[0], to: s.sourceSeqRange[1], total: s.iterations!, headerLine: s.lines[1], seen: 2 }))
+    .map(s => ({ from: s.sourceSeqRange[0], to: s.sourceSeqRange[1], headerLine: s.lines[1] }))
+  const headerSeen = new Map<string, number>()
   let badgeOn = false
 
   const shots: Shot[] = []
@@ -409,8 +419,16 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     }
     // 변수 값도 정산한다 — 루프 변수가 낡은 값으로 남으면 그것도 거짓말이다
     for (const [key, v] of locals) {
-      if (v.k !== 'prim') continue
-      if (!varsSeen.has(key) || !castVars.has(key)) continue
+      if (v.k !== 'prim' || !castVars.has(key)) continue
+      if (!varsSeen.has(key)) {
+        // 압축 구간 안에서 태어난 변수 — 등장을 정산하지 않으면 빈 알약이 남는다
+        varsSeen.add(key)
+        const fid = Number(key.slice(0, key.indexOf(':')))
+        const set = frameVars.get(fid) ?? new Set<string>()
+        set.add(key)
+        frameVars.set(fid, set)
+        motions.push({ v: 'enterVar', varKey: key })
+      }
       motions.push({ v: 'setVar', varKey: key, text: shortText(v, objects) })
     }
     const target = [...objects.entries()]
@@ -456,23 +474,15 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     const motions: Motion[] = []
     let slow = false
 
-    // 수명이 다한 상자는 내려간다 — 놓인 자리를 물려받을 후임과 겹치지 않게
-    for (const id of entered) {
-      if (exited.has(id)) continue
-      const end = lifeEndOf.get(id)
-      if (end !== undefined && end < e.seq) {
-        motions.push({ v: 'exitObj', objectId: id })
-        exited.add(id)
-      }
-    }
-
     // "반복문이 돌고 있다"의 상시 표시 — 헤더 라인을 다시 밟을 때마다 회차가 오른다
     // 배지는 카운트업만 — seen(헤더 방문 수)과 총계(구간 최소 방문 수)는 단위가 달라
     // "5회차 / 총 4회" 같은 모순을 만들었다. 거짓말할 수 있는 숫자는 화면에 올리지 않는다.
     const inLoop = loopSpans.find(l => e.seq >= l.from && e.seq <= l.to)
     if (inLoop && e.kind === 'line' && e.observedAtLine === inLoop.headerLine) {
-      inLoop.seen += 1
-      motions.push({ v: 'loop', text: `반복 ${inLoop.seen}회차` })
+      const hk = `${e.frameId}:${e.observedAtLine}`
+      const n = (headerSeen.get(hk) ?? 2) + 1
+      headerSeen.set(hk, n)
+      motions.push({ v: 'loop', text: `반복 ${n}회차` })
       badgeOn = true
     } else if (!inLoop && badgeOn) {
       motions.push({ v: 'loopEnd' })
@@ -640,6 +650,17 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       } else if (d.value) {
         motions.push({ v: 'setVar', varKey, text: shortText(d.value, objects) })
         releaseHold(varKey, motions)
+      }
+    }
+
+    // 잊혀진 상자는 내려간다 — 어떤 이름도 쥐지 않으면 학습자의 세계에서 죽은 것이다.
+    // (트레이서는 객체 삭제를 보내지 않고 plan의 life.to는 '마지막 수정'일 뿐이라,
+    //  보유(holder)가 유일하게 정직한 죽음 신호다)
+    for (const id of heldOnce) {
+      if (!entered.has(id) || exited.has(id)) continue
+      if ((holderKeys.get(id)?.size ?? 0) === 0) {
+        motions.push({ v: 'exitObj', objectId: id })
+        exited.add(id)
       }
     }
 
