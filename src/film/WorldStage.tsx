@@ -3,6 +3,7 @@ import gsap from 'gsap'
 import type { Motion, Shot, StagePlan } from './types'
 import { GRID_CELL, type StageLayout } from './layout'
 import { compose, type Camera, type Composition } from './compose'
+import { detectTheme } from './theme'
 import type { useFilm } from './useFilm'
 
 type Props = {
@@ -10,6 +11,8 @@ type Props = {
   layout: StageLayout
   shots: Shot[]
   film: ReturnType<typeof useFilm>
+  /** 입문(비유) 스킨 — 값 막대·비교 저울·반복 스핀. 값·순서는 스킨과 무관하게 트레이스의 것 */
+  intro?: boolean
 }
 
 const esc = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, m => `\\${m}`)
@@ -27,13 +30,14 @@ const VAR_H = 36
 // 최근 것은 옆에 작게, 나머지는 무대 밖. 무대 밖 상태는 인스펙터가 들고 있다.
 const FIT = { k: 1, tx: 0, ty: 0 }
 
-export default function WorldStage({ plan, layout, shots, film }: Props) {
+export default function WorldStage({ plan, layout, shots, film, intro = false }: Props) {
   const rootRef = useRef<SVGSVGElement | null>(null)
   const { register } = film
 
   // 프레임은 영화처럼 고정(1200×640) — 콘텐츠를 채우는 건 오토 프레이밍 카메라의 일이다
   const FRAME_H = 640
   const { comps, cams } = useMemo(() => compose(shots, plan, layout), [shots, plan, layout])
+  const theme = useMemo(() => detectTheme(plan, shots), [plan, shots])
 
   /* 수동 카메라 — 콘텐츠를 담은 <g> 하나만 변환하므로 GSAP 타깃(자식)과 간섭하지 않는다 */
   const [cam, setCam] = useState(FIT)
@@ -102,10 +106,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     const build = () => {
       gsap.set(
         root.querySelectorAll(
-          '[data-obj], [data-var], [data-frame], [data-cell], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .film-compare, .cell-flash, .pill-flash, .cell-ring, .pill-ring',
+          '[data-obj], [data-var], [data-frame], [data-cell], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .film-compare, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done',
         ),
         { opacity: 0 },
       )
+      // 값 막대는 바닥에서 자란다 — scaleY 하나로 리셋·스크럽이 전부 일관된다
+      gsap.set(root.querySelectorAll('.cell-bar'), { scaleY: 0, transformOrigin: '50% 100%' })
       // 셀 그룹의 transform 잔여 청소 — origin 보정 translate가 남으면 칸이 상자를 이탈한다
       gsap.set(root.querySelectorAll('[data-cell]'), { x: 0, y: 0, scale: 1 })
       const autoCam = q('.film-cam-auto')
@@ -131,6 +137,15 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       const readRing = (sel: string, at: string | number, dur = 1.0) => {
         const el = q(sel)
         if (el) tl.fromTo(el, { opacity: 1 }, { opacity: 0, duration: sec(dur), ease: 'power2.in' }, at)
+      }
+      // 값 막대 — 칸 값이 바뀌는 모든 지점에서 높이를 따라 그린다 (음수 없는 숫자 리스트만 DOM에 존재)
+      const setBar = (id: number, idx: number, text: string, at: string | number) => {
+        const el = q(`${cellSel(id, idx)} .cell-bar`)
+        if (!el) return
+        const v = Number(text)
+        const max = theme.maxAbs.get(id) ?? 1
+        const ratio = Number.isFinite(v) ? Math.max(0.05, v / max) : 0
+        tl.to(el, { scaleY: ratio, duration: sec(0.3), ease: 'power2.out', transformOrigin: '50% 100%' }, at)
       }
 
       // 값이 실제로 이동하는 칩 — 미리 만든 2개를 돌려쓴다 (스크럽 안전)
@@ -347,6 +362,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 at,
               )
               writeFlash(`${cellSel(id, idx)} .cell-flash`, at, d * 0.8)
+              setBar(id, idx, text, at)
               break
             }
             case 'setCell': {
@@ -371,6 +387,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 at,
               )
               writeFlash(`${cellSel(id, idx)} .cell-flash`, at, d * 0.8)
+              setBar(id, idx, text, at)
               break
             }
             case 'shrink': {
@@ -405,6 +422,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               // 자리를 바꾼 두 칸이 내려앉으며 함께 번쩍인다 — "여기가 바뀌었다"의 마침표
               writeFlash(`${cellSel(id, i)} .cell-flash`, `${label}+=${d * 0.55}`, d * 0.45)
               writeFlash(`${cellSel(id, k)} .cell-flash`, `${label}+=${d * 0.55}`, d * 0.45)
+              setBar(id, i, iText, `${label}+=${d * 0.55}`)
+              setBar(id, k, kText, `${label}+=${d * 0.55}`)
               break
             }
             case 'pushFrame':
@@ -471,6 +490,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 { scale: 1, duration: d * 0.4, transformOrigin: 'left center' },
                 label,
               )
+              {
+                // 입문 스킨 — 회차마다 화살이 한 바퀴: "돌고 있다"가 몸으로 보인다
+                const spin = q('.film-loop-spin')
+                if (spin) {
+                  tl.fromTo(
+                    spin,
+                    { rotation: 0 },
+                    { rotation: 360, duration: d * 0.7, ease: 'power1.inOut', transformOrigin: '0px 0px' },
+                    label,
+                  )
+                }
+              }
               break
             }
             case 'loopEnd':
@@ -523,6 +554,23 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               }
               break
             }
+            case 'sortedSweep': {
+              // 정렬 완성의 마침표 — 칸이 왼쪽부터 초록으로 정착한다. 트레이스가 실제로
+              // 오름차순으로 끝났을 때만 오는 모션이라, 이 초록은 항상 진실이다
+              const id = m.objectId
+              root.querySelectorAll(`[data-cell^="${id}-"]`).forEach((el, ci) => {
+                const at = `${label}+=${sec(0.6) + ci * sec(0.09)}`
+                const done = el.querySelector('.cell-done')
+                if (done) tl.fromTo(done, { opacity: 0 }, { opacity: 0.35, duration: sec(0.3), ease: 'power2.out' }, at)
+                tl.fromTo(
+                  el,
+                  { scale: 1 },
+                  { scale: 1.08, duration: sec(0.12), yoyo: true, repeat: 1, ease: 'power1.inOut', transformOrigin: 'center' },
+                  at,
+                )
+              })
+              break
+            }
             case 'gridVisit':
             case 'gridUnvisit': {
               const cell = q(`[data-gcell="${m.objectId}-${m.r}-${m.c}"]`)
@@ -569,20 +617,69 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             }
             case 'compare': {
               const text = m.text
-              tl.call(
-                () => {
-                  const el = root.querySelector('.film-compare-text')
-                  if (el) el.textContent = text
-                },
-                undefined,
-                label,
-              )
-              tl.fromTo(
-                q('.film-compare')!,
-                { opacity: 0, y: -6 },
-                { opacity: 1, y: 0, duration: d * 0.3, ease: 'power2.out' },
-                label,
-              )
+              const scaleEl = q('.film-scale')
+              if (intro && scaleEl && m.a !== undefined && m.b !== undefined) {
+                // 입문 스킨 — 판단을 저울로: 양팔에 값 카드, 무거운 쪽으로 기울고 도장이 찍힌다
+                const a = m.a
+                const b = m.b
+                const opTxt = m.op ?? ''
+                const cap = (s: string) => (s.length > 8 ? s.slice(0, 7) + '…' : s)
+                tl.call(
+                  () => {
+                    const ta = root.querySelector('.film-scale-a')
+                    const tb = root.querySelector('.film-scale-b')
+                    const to = root.querySelector('.film-scale-op')
+                    if (ta) ta.textContent = cap(a)
+                    if (tb) tb.textContent = cap(b)
+                    if (to) to.textContent = opTxt
+                  },
+                  undefined,
+                  label,
+                )
+                tl.set(root.querySelectorAll('.film-scale-stamp'), { opacity: 0 }, label)
+                tl.fromTo(scaleEl, { opacity: 0 }, { opacity: 1, duration: d * 0.25, ease: 'power2.out' }, label)
+                const beam = q('.film-scale-beam')
+                const av = Number(a)
+                const bv = Number(b)
+                if (beam && Number.isFinite(av) && Number.isFinite(bv) && av !== bv) {
+                  tl.fromTo(
+                    beam,
+                    { rotation: 0 },
+                    { rotation: av > bv ? -8 : 8, duration: d * 0.45, ease: 'power2.out', transformOrigin: '0px 0px' },
+                    `${label}+=${d * 0.15}`,
+                  )
+                } else if (beam) {
+                  tl.set(beam, { rotation: 0 }, label)
+                }
+                if (m.verdict !== undefined) {
+                  const stamp = q(m.verdict ? '.film-scale-stamp--true' : '.film-scale-stamp--false')
+                  if (stamp) {
+                    tl.fromTo(
+                      stamp,
+                      { opacity: 0, scale: 1.4 },
+                      { opacity: 1, scale: 1, duration: d * 0.3, ease: 'back.out(2)', transformOrigin: 'center' },
+                      `${label}+=${d * 0.45}`,
+                    )
+                  }
+                }
+                tl.to(scaleEl, { opacity: 0, duration: d * 0.3 }, `${label}+=${d * 0.95}`)
+              } else {
+                tl.call(
+                  () => {
+                    const el = root.querySelector('.film-compare-text')
+                    if (el) el.textContent = text
+                  },
+                  undefined,
+                  label,
+                )
+                tl.fromTo(
+                  q('.film-compare')!,
+                  { opacity: 0, y: -6 },
+                  { opacity: 1, y: 0, duration: d * 0.3, ease: 'power2.out' },
+                  label,
+                )
+                tl.to(q('.film-compare')!, { opacity: 0, duration: d * 0.3 }, `${label}+=${d * 0.95}`)
+              }
               for (const t of m.targets) {
                 const el = t.kind === 'cell' ? q(cellSel(t.objectId, t.index)) : inner(varSel(t.varKey))
                 if (el) {
@@ -600,13 +697,13 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                   d * 0.9,
                 )
               }
-              tl.to(q('.film-compare')!, { opacity: 0, duration: d * 0.3 }, `${label}+=${d * 0.95}`)
               break
             }
           }
         }
-        // 커튼콜 settle 웨이브 — 마지막 샷에서 칸들이 차례로 잔잔히 내려앉는다. 완성의 마침표
-        if (si === shots.length - 1) {
+        // 커튼콜 settle 웨이브 — 마지막 샷에서 칸들이 차례로 잔잔히 내려앉는다. 완성의 마침표.
+        // sortedSweep이 있으면 그 스윕이 곧 마침표이므로 이중 펄스를 만들지 않는다
+        if (si === shots.length - 1 && !shot.motions.some(m => m.v === 'sortedSweep')) {
           root.querySelectorAll('[data-cell]').forEach((el, ci) => {
             tl.fromTo(
               el,
@@ -634,7 +731,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       register(null)
       tl.kill()
     }
-  }, [shots, register, layout, plan, comps, cams])
+  }, [shots, register, layout, plan, comps, cams, intro, theme])
 
   const hudOffset = FRAME_H - layout.height
 
@@ -642,7 +739,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     <div className="film-viewport">
       <svg
         ref={rootRef}
-        className="stage-svg film-stage"
+        className={`stage-svg film-stage${intro ? ' film-stage--intro' : ''}`}
         viewBox={`0 0 ${layout.width} ${FRAME_H}`}
         role="img"
         aria-label="코드 실행 무성영화"
@@ -725,6 +822,24 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                     strokeWidth={1}
                   />
                   <rect
+                    className="cell-done"
+                    x={8 + i * layout.cellW}
+                    y={8}
+                    width={layout.cellW - 6}
+                    height={r.h - 16}
+                    rx={5}
+                  />
+                  {intro && theme.barObjects.has(o.objectId) && (
+                    <rect
+                      className="cell-bar"
+                      x={8 + i * layout.cellW + 4}
+                      y={12}
+                      width={layout.cellW - 14}
+                      height={r.h - 24}
+                      rx={3}
+                    />
+                  )}
+                  <rect
                     className="cell-flash"
                     x={8 + i * layout.cellW}
                     y={8}
@@ -806,11 +921,48 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         </g>
       </g>
 
-      {/* 반복 배지 */}
+      {/* 반복 배지 — 입문 모드에선 한 바퀴 도는 화살이 회차마다 돈다 */}
       <g className="film-loop">
         <rect x={24} y={14} width={240} height={30} rx={15} fill="var(--accent-wash)" stroke="var(--accent)" strokeWidth={1.2} />
-        <text className="film-loop-text svg-value" x={40} y={34} />
+        {intro && (
+          <g className="film-loop-spin" transform="translate(42 29)">
+            <path d="M 0 -7 A 7 7 0 1 1 -6.4 2.9" fill="none" strokeWidth={2} />
+            <polygon points="-1,-11 5,-7 -1,-3" />
+          </g>
+        )}
+        <text className="film-loop-text svg-value" x={intro ? 58 : 40} y={34} />
       </g>
+
+      {/* 비교 저울 — 입문 모드: 양팔에 값 카드가 올라가고 무거운 쪽으로 기울며 참/거짓 도장 */}
+      {intro && (
+        <g className="film-scale" transform={`translate(${layout.width / 2} 52)`}>
+          <g className="film-scale-beam">
+            <line x1={-78} y1={0} x2={78} y2={0} />
+            <g transform="translate(-62 8)">
+              <rect className="film-scale-pan" x={-32} y={0} width={64} height={26} rx={7} />
+              <text className="film-scale-a svg-name" y={18} textAnchor="middle" />
+            </g>
+            <g transform="translate(62 8)">
+              <rect className="film-scale-pan" x={-32} y={0} width={64} height={26} rx={7} />
+              <text className="film-scale-b svg-name" y={18} textAnchor="middle" />
+            </g>
+          </g>
+          <polygon className="film-scale-pivot" points="-8,24 8,24 0,3" />
+          <text className="film-scale-op svg-name" y={-12} textAnchor="middle" />
+          <g className="film-scale-stamp film-scale-stamp--true">
+            <rect x={100} y={-14} width={48} height={30} rx={8} />
+            <text className="svg-name" x={124} y={7} textAnchor="middle">
+              참
+            </text>
+          </g>
+          <g className="film-scale-stamp film-scale-stamp--false">
+            <rect x={100} y={-14} width={62} height={30} rx={8} />
+            <text className="svg-name" x={131} y={7} textAnchor="middle">
+              거짓
+            </text>
+          </g>
+        </g>
+      )}
 
       {/* 비교 칩 */}
       <g className="film-compare">

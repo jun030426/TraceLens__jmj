@@ -50,7 +50,8 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
   const pop = find('popFrame')
   if (pop) {
     const f = names.frameFunc(pop.frameId)
-    return f === '<module>' ? '실행 종료 — 최종 상태입니다' : `${f}() 종료 — 작업 공간이 닫힙니다`
+    if (f === '<module>') return find('sortedSweep') ? '실행 종료 — 정렬 완성!' : '실행 종료 — 최종 상태입니다'
+    return `${f}() 종료 — 작업 공간이 닫힙니다`
   }
   const gflash = all('gridCell').filter(g => g.flash)
   if (gflash.length === 1) return `표 [${gflash[0].r}, ${gflash[0].c}] = ${gflash[0].text}`
@@ -181,19 +182,25 @@ function detectCompare(
   if (!a || !b) return null
   const targets = [a.target, b.target].filter((t): t is CompareTarget => !!t)
   if (targets.length === 0) return null
-  let verdict = ''
+  let verdict: boolean | undefined
   if (a.num !== null && b.num !== null && Number.isFinite(a.num) && Number.isFinite(b.num)) {
     const op = m[2]
-    const res =
+    verdict =
       op === '<' ? a.num < b.num
       : op === '>' ? a.num > b.num
       : op === '<=' ? a.num <= b.num
       : op === '>=' ? a.num >= b.num
       : op === '==' ? a.num === b.num
       : a.num !== b.num
-    verdict = res ? ' → 참' : ' → 거짓'
   }
-  return { v: 'compare', text: `${a.text} ${m[2]} ${b.text}${verdict}`, targets }
+  const tail = verdict === undefined ? '' : verdict ? ' → 참' : ' → 거짓'
+  return {
+    v: 'compare',
+    text: `${a.text} ${m[2]} ${b.text}${tail}`,
+    targets,
+    a: a.text, op: m[2], b: b.text,
+    ...(verdict === undefined ? {} : { verdict }),
+  }
 }
 
 // 2패스 — 실행 사건을 "무엇이 어떻게 움직이는가"로 번역한다.
@@ -235,7 +242,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   }
 
   // 비교(판단) → 교환(행동)의 인과 사슬 — 직전 참 비교를 기억했다가 swap 샷에 echo한다
-  let lastCmp: { text: string; objectId: number; shotIdx: number } | null = null
+  let lastCmp: { text: string; a?: string; op?: string; b?: string; objectId: number; shotIdx: number } | null = null
   const relabel = (id: number, motions: Motion[]) => {
     const names = [...new Set([...(holderKeys.get(id) ?? [])].map(k => k.slice(k.indexOf(':') + 1)))]
     motions.push({ v: 'label', objectId: id, text: capText(names.join(' · '), 24) })
@@ -494,8 +501,8 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       if (cmp) {
         motions.push(cmp)
         const cell = cmp.v === 'compare' ? cmp.targets.find(t => t.kind === 'cell') : undefined
-        if (cell && cmp.v === 'compare' && cmp.text.endsWith('참'))
-          lastCmp = { text: cmp.text, objectId: cell.objectId, shotIdx: shots.length }
+        if (cell && cmp.v === 'compare' && cmp.verdict === true)
+          lastCmp = { text: cmp.text, a: cmp.a, op: cmp.op, b: cmp.b, objectId: cell.objectId, shotIdx: shots.length }
       }
     }
 
@@ -517,6 +524,14 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         for (const [key, v] of locals) {
           if (v.k !== 'prim' || !varsSeen.has(key) || !castVars.has(key)) continue
           motions.push({ v: 'setVar', varKey: key, text: shortText(v, objects) })
+        }
+        // 정렬 완성의 마침표 — 실제로 오름차순으로 끝난 숫자 리스트에만 스윕을 준다
+        for (const [id, texts] of prevTexts) {
+          if (!entered.has(id) || exited.has(id) || gridInfo.has(id)) continue
+          if (texts.length < 3) continue
+          const nums = texts.map(Number)
+          if (nums.some(n => !Number.isFinite(n))) continue
+          if (nums.every((n, k) => k === 0 || nums[k - 1] <= n)) motions.push({ v: 'sortedSweep', objectId: id })
         }
       }
     }
@@ -593,6 +608,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
                 { kind: 'cell', objectId: d.obj.id, index: changed[0] },
                 { kind: 'cell', objectId: d.obj.id, index: changed[1] },
               ],
+              a: lastCmp.a, op: lastCmp.op, b: lastCmp.b, verdict: true,
             })
             lastCmp = null
           }
