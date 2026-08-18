@@ -43,14 +43,15 @@ describe('compose', () => {
     expect(c1.get('o1')!.x).toBeGreaterThan(c1.get('o2')!.x) // 대기열은 오른쪽
   })
 
-  it('LINGER를 넘긴 배우는 무대에서 빠진다', () => {
+  it('LINGER를 넘긴 배우는 무대에서 빠진다 (커튼콜 전까지)', () => {
     const shots = [
       shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
-      ...Array.from({ length: LINGER + 1 }, (_, k) => shot(k + 1, [{ v: 'setVar', varKey: '0:i', text: String(k) }])),
+      ...Array.from({ length: LINGER + 2 }, (_, k) => shot(k + 1, [{ v: 'setVar', varKey: '0:i', text: String(k) }])),
     ]
     const { comps } = compose(shots, plan, layout)
-    expect(comps[comps.length - 1].has('o1')).toBe(false)
+    expect(comps[LINGER + 1].has('o1')).toBe(false) // 유예가 끝나면 중간 샷에서는 내려간다
     expect(comps[LINGER].has('o1')).toBe(true) // 마지막 유예 샷까지는 남는다
+    expect(comps[comps.length - 1].has('o1')).toBe(true) // 커튼콜 — 살아있으니 최종 상태로 복귀
   })
 
   it('변수는 좌측 스트립 — 닿은 것이 포커스', () => {
@@ -116,6 +117,70 @@ describe('compose: 정리 규칙', () => {
     expect(last.get('o1')!.focus).toBe(true)
     expect(last.get('o2')!.focus).toBe(true)
     expect(last.get('o1')!.s).toBe(1)
+  })
+})
+
+describe('compose: 학습자 시선 — 무대 안정성', () => {
+  it('변수만 바뀌는 샷에서 직전 포커스 객체는 중앙을 지킨다 (sticky focus)', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
+      shot(1, [{ v: 'setVar', varKey: '0:i', text: '0' }]),
+      shot(2, [{ v: 'setVar', varKey: '0:i', text: '1' }]),
+      shot(3, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { comps } = compose(shots, plan, layout)
+    const at0 = comps[0].get('o1')!
+    const at1 = comps[1].get('o1')!
+    const at2 = comps[2].get('o1')!
+    expect(at1.focus).toBe(true)
+    expect(at1.s).toBe(1)
+    expect(at1.x).toBe(at0.x)
+    expect(at1.y).toBe(at0.y)
+    expect(at2.x).toBe(at0.x)
+  })
+
+  it('살아있는 변수는 LINGER를 넘겨도 무대에 남는다', () => {
+    const shots = [
+      shot(0, [{ v: 'setVar', varKey: '0:i', text: '0' }]),
+      ...Array.from({ length: LINGER + 2 }, (_, k) => shot(k + 1, [{ v: 'setVar', varKey: '0:a', text: String(k) }])),
+    ]
+    const { comps } = compose(shots, plan, layout)
+    expect(comps[comps.length - 2].has('v0:i')).toBe(true)
+  })
+
+  it('exitVar된 변수는 즉시 내려가고, 재등장하면 돌아온다', () => {
+    const shots = [
+      shot(0, [{ v: 'setVar', varKey: '0:i', text: '0' }]),
+      shot(1, [{ v: 'exitVar', varKey: '0:i' }, { v: 'setVar', varKey: '0:a', text: '1' }]),
+      shot(2, [{ v: 'setVar', varKey: '0:i', text: '9' }]),
+      shot(3, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { comps } = compose(shots, plan, layout)
+    expect(comps[1].has('v0:i')).toBe(false)
+    expect(comps[2].has('v0:i')).toBe(true)
+  })
+
+  it('커튼콜에는 살아있는 전원이 돌아온다 — 죽은 배우는 빼고', () => {
+    const deadPlan: StagePlan = {
+      ...plan,
+      objects: [
+        { ...plan.objects[0], life: { from: 0, to: 1 } },
+        plan.objects[1],
+      ],
+    }
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }, { v: 'setVar', varKey: '0:i', text: '0' }]),
+      shot(1, [{ v: 'exitObj', objectId: 1 }, { v: 'grow', objectId: 2, index: 0, text: '2' }]),
+      ...Array.from({ length: LINGER + 1 }, (_, k) => shot(k + 2, [{ v: 'setVar', varKey: '0:a', text: String(k) }])),
+      shot(LINGER + 3, [{ v: 'stdout', text: 'done' }]),
+    ]
+    const { comps } = compose(shots, deadPlan, layout)
+    const last = comps[comps.length - 1]
+    expect(last.has('o1')).toBe(false)
+    expect(last.get('o2')).toBeTruthy()
+    expect(last.get('o2')!.focus).toBe(true)
+    expect(last.get('v0:i')).toBeTruthy()
+    expect(last.get('v0:i')!.focus).toBe(true)
   })
 })
 

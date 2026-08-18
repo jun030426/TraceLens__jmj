@@ -35,20 +35,28 @@ export function compose(
     }),
   )
   const objKeys = new Set(plan.objects.map(o => `o${o.objectId}`))
-  const varKeys = new Set(plan.variables.map(v => `v${v.varKey}`))
 
   const lastTouch = new Map<string, number>()
   const firstTouch = new Map<string, number>()
+  const deadVars = new Set<string>() // exitVar로 내려간 변수 — 다시 닿기 전까지 무대 금지
+  const deadObjs = new Set<string>() // exitObj로 퇴장한 상자 — 커튼콜에도 돌아오지 않는다
   const comps: Composition[] = []
   let prevOrder: string[] = [] // 직전 구성의 객체 세로 순서 (sticky)
+  let prevFocus: string[] = [] // 직전 샷의 포커스 객체 (sticky focus — 주인공은 중앙을 지킨다)
 
   shots.forEach((sh, i) => {
     const touched = new Set<string>()
     for (const m of sh.motions) {
       // 퇴장·이름표 정리는 "닿음"이 아니다 — 떠나는 배우를 무대에 붙잡으면 모순이 된다
       if (m.v === 'exitObj' || m.v === 'exitVar' || m.v === 'label') {
-        if (m.v === 'exitObj') lastTouch.delete(`o${m.objectId}`)
-        if (m.v === 'exitVar') lastTouch.delete(`v${m.varKey}`)
+        if (m.v === 'exitObj') {
+          lastTouch.delete(`o${m.objectId}`)
+          deadObjs.add(`o${m.objectId}`)
+        }
+        if (m.v === 'exitVar') {
+          lastTouch.delete(`v${m.varKey}`)
+          deadVars.add(`v${m.varKey}`)
+        }
         continue
       }
       if ('objectId' in m && typeof m.objectId === 'number') touched.add(`o${m.objectId}`)
@@ -60,16 +68,29 @@ export function compose(
     for (const k of touched) {
       lastTouch.set(k, i)
       if (!firstTouch.has(k)) firstTouch.set(k, i)
+      deadVars.delete(k) // 재등장 (del 후 재대입 등) — 무대 복귀
+      deadObjs.delete(k)
     }
     const curtainCall = i === shots.length - 1 // 마지막 장면 — 살아있는 전원이 중앙에 (최종 상태의 완성)
+    const alive = (life: { from: number; to: number }) => life.from <= sh.seq && sh.seq <= life.to
 
-    const staged = [...lastTouch.entries()].filter(([, at]) => i - at <= LINGER)
     const comp: Composition = new Map()
 
-    // ── 객체: 포커스는 중앙 열, 대기는 우측 열 — 이전 세로 순서를 유지해 출렁임을 막는다
-    const objs = staged
-      .filter(([k]) => objKeys.has(k))
-      .map(([k, at]) => ({ k, id: Number(k.slice(1)), focus: curtainCall || at === i }))
+    // ── 객체: 체류는 LINGER, 포커스는 sticky — 이번 샷에 닿은 객체가 없으면 직전 주인공이
+    // 중앙을 지킨다 (변수만 바뀌는 샷마다 주인공이 대기열로 밀려나는 출렁임 방지).
+    // 커튼콜은 lastTouch가 아니라 생존 전원 — 최종 상태의 완성이 마지막 그림이다.
+    const stagedObjKeys = curtainCall
+      ? plan.objects.filter(o => alive(o.life) && !deadObjs.has(`o${o.objectId}`)).map(o => `o${o.objectId}`)
+      : [...lastTouch.entries()]
+          .filter(([k, at]) => objKeys.has(k) && i - at <= LINGER)
+          .map(([k]) => k)
+    const touchedObjs = [...touched].filter(k => objKeys.has(k))
+    const focusSet = new Set(
+      curtainCall ? stagedObjKeys
+      : touchedObjs.length ? touchedObjs
+      : prevFocus.filter(k => stagedObjKeys.includes(k)),
+    )
+    const objs = stagedObjKeys.map(k => ({ k, id: Number(k.slice(1)), focus: focusSet.has(k) }))
     objs.sort((a, b) => {
       const pa = prevOrder.indexOf(a.k)
       const pb = prevOrder.indexOf(b.k)
@@ -98,17 +119,20 @@ export function compose(
       ySide += size.h * SIDE_S + 46
     }
     prevOrder = objs.map(o => o.k)
+    prevFocus = objs.filter(o => o.focus).map(o => o.k)
 
-    // ── 변수: 좌측 스트립 — 최근 것들만 올리되, 자리는 등장순으로 고정한다
-    // (최근순 재배열은 알약들이 매 샷 자리를 바꿔 교차하는 어지러움을 만든다)
-    const vars = staged
-      .filter(([k]) => varKeys.has(k))
-      .sort((a, b) => b[1] - a[1])
+    // ── 변수: 좌측 스트립 — 기준은 최근성이 아니라 생존이다. 살아있는 변수가 말없이
+    // 사라지면 학습자는 "i 어디 갔지?"가 된다. 상한 초과분만 최근성으로 강등하고,
+    // 자리는 등장순으로 고정한다 (재배열은 알약 교차의 어지러움을 만든다)
+    const vars = plan.variables
+      .filter(v => alive(v.life) && !deadVars.has(`v${v.varKey}`))
+      .map(v => `v${v.varKey}`)
+      .sort((a, b) => (lastTouch.get(b) ?? 0) - (lastTouch.get(a) ?? 0))
       .slice(0, MAX_VARS)
-      .sort((a, b) => (firstTouch.get(a[0]) ?? 0) - (firstTouch.get(b[0]) ?? 0))
+      .sort((a, b) => (firstTouch.get(a) ?? 0) - (firstTouch.get(b) ?? 0))
     let yVar = TOP
-    for (const [k, at] of vars) {
-      const hot = curtainCall || at === i
+    for (const k of vars) {
+      const hot = curtainCall || lastTouch.get(k) === i
       comp.set(k, { x: VAR_X, y: yVar, s: hot ? 1 : VAR_IDLE_S, focus: hot })
       yVar += VAR_PITCH
     }
