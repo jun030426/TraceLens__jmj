@@ -4,7 +4,7 @@ import type { Motion, Shot, StagePlan } from './types'
 import { GRID_CELL, type StageLayout } from './layout'
 import { compose, type Camera, type Composition } from './compose'
 import { detectTheme } from './theme'
-import { PRESETS, type StylePreset } from './presets'
+import { GRAMMAR } from './presets'
 import type { useFilm } from './useFilm'
 
 type Props = {
@@ -12,8 +12,6 @@ type Props = {
   layout: StageLayout
   shots: Shot[]
   film: ReturnType<typeof useFilm>
-  /** 연출 문법 프리셋 (실험) — 디밍·예고·완급·카메라 선행의 세팅 묶음 */
-  preset?: StylePreset
 }
 
 const esc = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, m => `\\${m}`)
@@ -31,7 +29,7 @@ const VAR_H = 36
 // 최근 것은 옆에 작게, 나머지는 무대 밖. 무대 밖 상태는 인스펙터가 들고 있다.
 const FIT = { k: 1, tx: 0, ty: 0 }
 
-export default function WorldStage({ plan, layout, shots, film, preset = PRESETS[0] }: Props) {
+export default function WorldStage({ plan, layout, shots, film }: Props) {
   const rootRef = useRef<SVGSVGElement | null>(null)
   const { register } = film
 
@@ -136,7 +134,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
       // 클래스 토글이 아니라 타임라인 트윈이라 스크럽·되감기에도 상태가 새지 않는다
       const writeFlash = (sel: string, at: string | number, dur = 0.9) => {
         const el = q(sel)
-        if (el) tl.fromTo(el, { opacity: preset.flashStrength }, { opacity: 0, duration: sec(dur), ease: 'power2.out' }, at)
+        if (el) tl.fromTo(el, { opacity: GRAMMAR.flashStrength }, { opacity: 0, duration: sec(dur), ease: 'power2.out' }, at)
       }
       const readRing = (sel: string, at: string | number, dur = 1.0) => {
         const el = q(sel)
@@ -191,7 +189,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
           tl.to(
             frameCam,
             { x: camNow.x, y: camNow.y, scale: camNow.k, duration: sec(0.5), ease: 'power2.inOut', transformOrigin: '0px 0px' },
-            Math.max(0, labelPos - sec(preset.camLead)),
+            Math.max(0, labelPos - sec(GRAMMAR.camLead)),
           )
           appliedCam = camNow
         }
@@ -207,7 +205,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
           if (!el) continue
           const was = prevComp.get(key)
           // 시선 통제 — 지금 말하는 배우만 온전한 밝기, 나머지는 프리셋만큼 물러난다
-          const op = p.focus ? 1 : preset.dimIdle
+          const op = p.focus ? 1 : GRAMMAR.dimIdle
           if (!was) {
             tl.fromTo(
               el,
@@ -241,7 +239,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
         // 값 이동이 있는 샷 — 도착지의 갱신은 칩이 내려앉는 순간으로 늦춘다 (원인 → 결과).
         // 예고(출발지 들썩)만큼 출발·도착이 함께 밀린다
         const travelM = shot.motions.find(m => m.v === 'travel') as Extract<Motion, { v: 'travel' }> | undefined
-        const travelAnt = sec(preset.anticipation)
+        const travelAnt = sec(GRAMMAR.anticipation)
         const arriveAt = `${label}+=${travelAnt + sec(0.55)}`
 
         // 조명 — 프레임(호출 카드)은 구성 밖이므로 기존 방식대로 켠다
@@ -316,7 +314,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
                 tl.fromTo(
                   iv,
                   { scale: 1.28 },
-                  { scale: 1, duration: d * 0.7, ease: preset.settleEase, transformOrigin: 'center' },
+                  { scale: 1, duration: d * 0.7, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
                   at,
                 )
               }
@@ -383,7 +381,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
               tl.fromTo(
                 q(cellSel(id, idx))!,
                 { opacity: 0, scale: 0.3 },
-                { opacity: 1, scale: 1, duration: d, ease: preset.settleEase, transformOrigin: 'center' },
+                { opacity: 1, scale: 1, duration: d, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
                 at,
               )
               writeFlash(`${cellSel(id, idx)} .cell-flash`, at, d * 0.8)
@@ -408,7 +406,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
               tl.fromTo(
                 q(cellSel(id, idx))!,
                 { scale: 1.35 },
-                { scale: 1, opacity: 1, duration: d, ease: preset.settleEase, transformOrigin: 'center' },
+                { scale: 1, opacity: 1, duration: d, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
                 at,
               )
               writeFlash(`${cellSel(id, idx)} .cell-flash`, at, d * 0.8)
@@ -431,7 +429,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
               const iText = m.iText
               const kText = m.kText
               // 예고 → 행동 → 여운: 두 칸이 살짝 들리며 뜸을 들이고, 교차하고, 내려앉는다
-              const ant = sec(preset.anticipation)
+              const ant = sec(GRAMMAR.anticipation)
               if (ant > 0.001) {
                 tl.fromTo([a, b], { y: 0 }, { y: -5, duration: ant, ease: 'power1.out', transformOrigin: 'center' }, label)
               }
@@ -449,7 +447,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
                 `${label}+=${cross + d * 0.5}`,
               )
               tl.set([a, b], { x: 0 }, `${label}+=${cross + d * 0.5}`)
-              tl.to([a, b], { scale: 1, duration: d * 0.3, ease: preset.settleEase }, `${label}+=${cross + d * 0.53}`)
+              tl.to([a, b], { scale: 1, duration: d * 0.3, ease: GRAMMAR.settleEase }, `${label}+=${cross + d * 0.53}`)
               // 자리를 바꾼 두 칸이 내려앉으며 함께 번쩍인다 — "여기가 바뀌었다"의 마침표
               writeFlash(`${cellSel(id, i)} .cell-flash`, `${label}+=${cross + d * 0.5}`, d * 0.45)
               writeFlash(`${cellSel(id, k)} .cell-flash`, `${label}+=${cross + d * 0.5}`, d * 0.45)
@@ -601,7 +599,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
                 tl.fromTo(
                   el,
                   { scale: 1 },
-                  { scale: preset.sweepPop, duration: sec(0.12), yoyo: true, repeat: 1, ease: 'power1.inOut', transformOrigin: 'center' },
+                  { scale: GRAMMAR.sweepPop, duration: sec(0.12), yoyo: true, repeat: 1, ease: 'power1.inOut', transformOrigin: 'center' },
                   at,
                 )
               })
@@ -765,7 +763,7 @@ export default function WorldStage({ plan, layout, shots, film, preset = PRESETS
       register(null)
       tl.kill()
     }
-  }, [shots, register, layout, plan, comps, cams, theme, preset])
+  }, [shots, register, layout, plan, comps, cams, theme])
 
   const hudOffset = FRAME_H - layout.height
 
