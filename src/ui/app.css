@@ -366,6 +366,16 @@
   fill: var(--accent);
 }
 
+/* 연출 프리셋 실험 스위처 — 수렴하면 삭제되는 실험실 장치 */
+.tl-seg--lab {
+  margin-left: 10px;
+  margin-right: auto;
+}
+.tl-seg--lab button {
+  padding: 2px 9px;
+  font-size: var(--t-2xs);
+}
+
 
 /* ── narration ────────────────────────────────────────────────────────── */
 
