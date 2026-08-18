@@ -79,17 +79,23 @@ export function compose(
     })
     let yFocus = TOP
     let ySide = TOP
+    // 포커스 배우들을 먼저 앉히고 최우단을 잰다 — 대기 열은 그 오른쪽부터 (침범 금지).
+    // 화면을 넘치면 카메라가 줌아웃으로 담는다.
+    let focusRight = FOCUS_CX
     for (const o of objs) {
+      if (!o.focus) continue
       const size = objSize.get(o.id) ?? { w: 120, h: 64 }
-      if (o.focus) {
-        const x = Math.max(555, Math.min(FOCUS_CX - size.w / 2, 1200 - size.w - 16))
-        comp.set(o.k, { x, y: yFocus, s: 1, focus: true })
-        yFocus += size.h + 96 // 이름표(위)와 칸 번호(아래) 몫까지 — 덩어리짐 방지
-      } else {
-        const x = Math.min(SIDE_X, 1200 - size.w * SIDE_S - 12)
-        comp.set(o.k, { x, y: ySide, s: SIDE_S, focus: false })
-        ySide += size.h * SIDE_S + 46
-      }
+      const x = Math.max(555, FOCUS_CX - size.w / 2)
+      comp.set(o.k, { x, y: yFocus, s: 1, focus: true })
+      focusRight = Math.max(focusRight, x + size.w)
+      yFocus += size.h + 96 // 이름표(위)와 칸 번호(아래) 몫까지 — 덩어리짐 방지
+    }
+    const sideX = Math.max(SIDE_X, focusRight + 40)
+    for (const o of objs) {
+      if (o.focus) continue
+      const size = objSize.get(o.id) ?? { w: 120, h: 64 }
+      comp.set(o.k, { x: sideX, y: ySide, s: SIDE_S, focus: false })
+      ySide += size.h * SIDE_S + 46
     }
     prevOrder = objs.map(o => o.k)
 
