@@ -6,6 +6,7 @@ import PlayerBar from './components/PlayerBar'
 import Inspector from './components/Inspector'
 import { preflight, type PreflightIssue } from './trace/preflight'
 import { runTrace, warmUp, type TraceStage } from './trace/tracerClient'
+import type { TraceEvent } from './trace/types'
 import { buildSnapshots, type Snapshot } from './trace/snapshots'
 import { buildScreenplay } from './screenplay/ruleDirector'
 import { buildDigest } from './digest/buildDigest'
@@ -53,6 +54,8 @@ type RunArtifacts = {
   plan: StagePlan
   layout: StageLayout
   shots: Shot[]
+  /** AI staging 힌트가 오면 필름을 재구축해야 하므로 원본 이벤트를 쥐고 있는다 */
+  events: TraceEvent[]
 }
 
 /* Pyodide 내부 프레임은 학습자에게 잡음이다 — 사용자 코드부터의 꼬리만 남긴다.
@@ -105,7 +108,8 @@ function App() {
   const [run, setRun] = useState<RunArtifacts | null>(null)
   const [aiPending, setAiPending] = useState(false)
   const runIdRef = useRef(0)
-  const restoreRef = useRef<{ index: number; playing: boolean } | null>(null)
+  // 복원은 seq 기준 — staging 재구축은 샷 수 자체가 달라질 수 있다
+  const restoreRef = useRef<{ seq: number; playing: boolean } | null>(null)
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
   const monacoRef = useRef<MonacoApi | null>(null)
   const decorationRef = useRef<ReturnType<Parameters<OnMount>[0]['createDecorationsCollection']> | null>(null)
@@ -206,7 +210,7 @@ function App() {
       setRun({
         steps: expandScreenplay(screenplay, snaps), snaps, screenplay,
         clipped: result.clipped, error: result.error, directorMode: 'rule',
-        plan, layout, shots: filmShots,
+        plan, layout, shots: filmShots, events: result.events,
       })
       setLoading(null)
       // 모션 정지에서는 자동재생하지 않는다 — WorldStage가 이미 마지막 프레임으로 점프해 두는데,
@@ -224,13 +228,28 @@ function App() {
             if (runId !== runIdRef.current) return
             setRun(prev => {
               if (!prev) return prev
-              restoreRef.current = { index: indexRef.current, playing: playingRef.current }
+              restoreRef.current = { seq: prev.shots[indexRef.current]?.seq ?? 0, playing: playingRef.current }
+              // AI의 표현 선택(staging) — 격자 구성이 실제로 달라질 때만 필름을 재구축한다.
+              // 판정·좌표는 buildStage(도구)가 하고, AI는 이름을 골랐을 뿐이다.
+              let nextPlan = prev.plan
+              let nextLayout = prev.layout
+              let baseShots = prev.shots
+              if (ai.screenplay.staging) {
+                const rebuilt = buildStage(prev.events, ai.screenplay.staging)
+                const gridIds = (p: StagePlan) => p.objects.filter(o => o.grid).map(o => o.objectId).sort().join(',')
+                if (gridIds(rebuilt) !== gridIds(prev.plan)) {
+                  nextPlan = rebuilt
+                  nextLayout = layoutStage(rebuilt)
+                  baseShots = choreograph(prev.events, rebuilt, code)
+                }
+              }
               return {
                 ...prev,
                 screenplay: ai.screenplay,
                 steps: expandScreenplay(ai.screenplay, snaps),
-                // 장식은 샷 수를 보존한다 — 아래 복원 effect의 인덱스가 그대로 유효한 이유
-                shots: decorateShots(prev.shots, ai.screenplay, prev.plan, prev.layout),
+                plan: nextPlan,
+                layout: nextLayout,
+                shots: decorateShots(baseShots, ai.screenplay, nextPlan, nextLayout),
                 directorMode: ai.mode,
               }
             })
@@ -246,7 +265,7 @@ function App() {
       setLoading(null)
       setRun({
         steps: [], snaps: [], screenplay: { chapters: [] }, clipped: false, error: String(err), directorMode: 'rule',
-        plan: EMPTY_PLAN, layout: layoutStage(EMPTY_PLAN), shots: [],
+        plan: EMPTY_PLAN, layout: layoutStage(EMPTY_PLAN), shots: [], events: [],
       })
     }
   }
@@ -256,14 +275,17 @@ function App() {
     executeRunRef.current = executeRun
   })
 
-  // AI 장식이 샷을 갈아끼우면 타임라인이 재구축된다 — 보던 자리로 되돌린다.
+  // AI 장식·재구축이 샷을 갈아끼우면 타임라인이 다시 만들어진다 — 보던 자리로 되돌린다.
+  // seq 기준이라 재구축으로 샷 수가 달라져도 유효하다.
   // 자식(WorldStage) effect가 먼저 돌아 타임라인을 등록해 두므로 여기서 seek이 가능하다.
   useEffect(() => {
     const restore = restoreRef.current
     if (!restore || !run) return
     restoreRef.current = null
-    if (restore.index > 0 || restore.playing) {
-      seek(restore.index)
+    let idx = 0
+    for (let k = 0; k < run.shots.length; k++) if (run.shots[k].seq <= restore.seq) idx = k
+    if (idx > 0 || restore.playing) {
+      seek(idx)
       if (restore.playing) play()
     }
   }, [run, seek, play])
