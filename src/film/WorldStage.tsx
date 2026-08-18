@@ -648,15 +648,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 const beam = q('.film-scale-beam')
                 const av = Number(a)
                 const bv = Number(b)
+                // 회전축은 svgOrigin으로 허브(전역 좌표)에 정확히 박는다 — transformOrigin의
+                // px는 SVG에서 바운딩박스 좌상단 기준이라 축이 왼쪽 접시로 밀리는 버그가 있었다
+                const hubOrigin = `${layout.width / 2} 36`
                 if (beam && Number.isFinite(av) && Number.isFinite(bv) && av !== bv) {
                   tl.fromTo(
                     beam,
-                    { rotation: 0 },
-                    { rotation: av > bv ? -8 : 8, duration: d * 0.5, ease: 'power2.out', transformOrigin: '0px 0px' },
+                    { rotation: 0, svgOrigin: hubOrigin },
+                    { rotation: av > bv ? -10 : 10, duration: d * 0.5, ease: 'power2.out', svgOrigin: hubOrigin },
                     `${label}+=${d * 0.15}`,
                   )
                 } else if (beam) {
-                  tl.set(beam, { rotation: 0 }, label)
+                  tl.set(beam, { rotation: 0, svgOrigin: hubOrigin }, label)
                 }
                 if (m.verdict !== undefined) {
                   const stamp = q(m.verdict ? '.film-scale-stamp--true' : '.film-scale-stamp--false')
