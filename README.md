@@ -31,8 +31,9 @@ Python 코드
 |---|---|
 | `/` | 랜딩 — 라이브 트레이스 다이어그램 데모 |
 | `/app` | 본편 — 에디터 · 실행 · 필름 재생 · 자막 · 인스펙터 |
-| `/demo` | 영상 이해도 파일럿 — 자막 없이 영상만으로 흐름이 읽히는지 실험 |
 | `/help` `/settings` `/about` | 지원 범위 · 설정(배속·모션 감소·실행 상한) · 소개 |
+
+영상 이해도 파일럿은 `/app` 무대를 녹화한 영상 + 설문지로 진행한다 (`docs/superpowers/specs/2026-08-11-pilot-guide.md`).
 
 ## 은유 스킨 (현재 방향, 2026-08-18)
 
@@ -53,7 +54,7 @@ npm run lint    # oxlint
 ```
 
 - AI 연출을 쓰려면 `.env.example`을 참고해 `VITE_GEMINI_API_KEY`를 설정 (없으면 규칙 연출로 동작)
-- 테스트·데모 fixture 재생성: `scripts/gen_fixtures.py` · `gen_film_fixture.py` · `gen_demo_fixtures.py` · `gen_bench_traces.py` (로컬 CPython으로 tracer를 돌려 JSON 생성)
+- 테스트 fixture 재생성: `scripts/gen_fixtures.py` · `gen_film_fixture.py` · `gen_bench_traces.py` (로컬 CPython으로 tracer를 돌려 JSON 생성)
 - LLM 통과율 실측: `RUN_LLM_BENCH=1 npx vitest run src/bench/llmPass.bench.test.ts`
 
 ## 문서
