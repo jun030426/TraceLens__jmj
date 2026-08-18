@@ -194,6 +194,70 @@ describe('choreograph: compare', () => {
   })
 })
 
+describe('choreograph: 캐스팅 가드', () => {
+  it('컨테이너 안에만 있는 객체는 모션이 없고, 부모 칸에 요약 텍스트가 들어간다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }],
+        objectsDelta: [
+          { op: 'set', obj: { id: 2, type: 'tuple', items: [P('0'), P('0')] } },
+          { op: 'set', obj: { id: 1, type: 'list', items: [{ k: 'ref', id: 2 }, P('9')] } },
+        ],
+      }, 1),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const all = shots.flatMap(s => s.motions)
+    expect(all.some(m => 'objectId' in m && m.objectId === 2)).toBe(false)
+    const grow0 = all.find(m => m.v === 'grow' && m.index === 0) as { text: string }
+    expect(grow0.text).toBe('(0, 0)')
+  })
+
+  it('작은 프림 튜플 대입은 끈 대신 알약 값 "(1, 1)"이 된다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'pos', op: 'set', value: { k: 'ref', id: 5 } }],
+        objectsDelta: [{ op: 'set', obj: { id: 5, type: 'tuple', items: [P('1'), P('1')] } }],
+      }, 1),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const all = shots.flatMap(s => s.motions)
+    expect(all.some(m => m.v === 'bind')).toBe(false)
+    expect(all).toEqual(expect.arrayContaining([{ v: 'setVar', varKey: '0:pos', text: '(1, 1)' }]))
+  })
+
+  it('재대입으로 놓인 상자는 exitObj로 내려간다 — 계속 쥔 상자는 남는다', () => {
+    const list = (id: number) => ({ op: 'set' as const, obj: { id, type: 'list', items: [P('1'), P('2'), P('3'), P('4')] } })
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'keep', op: 'set', value: { k: 'ref', id: 9 } }], objectsDelta: [list(9)] }, 1),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }], objectsDelta: [list(1)] }, 2),
+      ev({ localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 2 } }], objectsDelta: [list(2)] }, 3),
+      ev({ localsDelta: [{ name: 'b', op: 'set', value: P('1') }] }, 4),
+      ev({ localsDelta: [{ name: 'c', op: 'set', value: P('1') }] }, 5),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const exits = shots.flatMap(s => s.motions).filter(m => m.v === 'exitObj') as { objectId: number }[]
+    expect(exits.map(x => x.objectId)).toContain(1)
+    expect(exits.map(x => x.objectId)).not.toContain(9)
+    expect(exits.map(x => x.objectId)).not.toContain(2)
+  })
+
+  it('함수·클래스 변수는 알약 모션이 없다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        localsDelta: [{ name: 'deque', op: 'set', value: { k: 'ref', id: 7 } }],
+        objectsDelta: [{ op: 'set', obj: { id: 7, type: 'type', unsupported: true } }],
+      }, 1),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const all = shots.flatMap(s => s.motions)
+    expect(all.some(m => m.v === 'enterVar' || m.v === 'setVar' || m.v === 'bind')).toBe(false)
+  })
+})
+
 describe('choreograph: 잔상 제거', () => {
   it('함수가 반환되면 그 프레임의 지역 변수들이 exitVar로 내려간다', () => {
     const events: TraceEvent[] = [

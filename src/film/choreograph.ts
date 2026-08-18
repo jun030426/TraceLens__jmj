@@ -7,10 +7,23 @@ const SLOW_MS = 1100
 const LAPSE_MS = 900
 const FULL_ITERATIONS = 10 // 반복은 10회까지 온전히 보여주고, 그 이후는 압축한다
 
-const shortText = (v: Value, objects: Map<number, ObjectSnap>): string => {
-  if (v.k === 'prim') return v.v.length > 10 ? v.v.slice(0, 10) + '…' : v.v
+const capText = (s: string, n = 12) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
+
+// 값의 압축 표기 — ref는 1단계까지 들여다본다: "(0, 0)", "[0,0,1,0]", "{a: 1}".
+// "tuple"이라는 글자는 아무것도 가르치지 않는다. 값은 전부 트레이스 스냅에서 온다.
+const shortText = (v: Value, objects: Map<number, ObjectSnap>, depth = 0): string => {
+  if (v.k === 'prim') return capText(v.v)
   const o = objects.get(v.id)
-  return o ? `${o.type}` : '객체'
+  if (!o) return '객체'
+  if (depth >= 1) return o.type
+  if (o.items) {
+    const [open, close] = o.type === 'tuple' ? ['(', ')'] : o.type === 'set' ? ['{', '}'] : ['[', ']']
+    return capText(open + o.items.map(x => shortText(x, objects, 1)).join(', ') + close)
+  }
+  if (o.entries) {
+    return capText('{' + o.entries.map(([k, x]) => `${k}: ${shortText(x, objects, 1)}`).join(', ') + '}')
+  }
+  return o.type
 }
 
 // 객체의 현재 칸별 표시 문자열 — 리스트는 값, dict는 "키: 값"
@@ -106,7 +119,7 @@ function detectCompare(
 }
 
 // 2패스 — 실행 사건을 "무엇이 어떻게 움직이는가"로 번역한다.
-export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: string): Shot[] {
+export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string): Shot[] {
   const digest = buildDigest(events)
   const srcLines = (code ?? '').split('\n')
   const locals = new Map<string, Value>() // `${frameId}:${name}` → 최신 값 (compare 접지용)
@@ -115,6 +128,14 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
   const refCount = new Map<number, Set<string>>()
   const objects = new Map<number, ObjectSnap>()
   const prevTexts = new Map<number, string[]>() // objectId → 직전 상태의 칸별 표시 문자열
+
+  // 캐스팅은 buildStage가 판정했다 — 여기서는 명단에 있는 것만 무대에 올린다.
+  // objects·locals 맵은 전체를 계속 추적한다 (요약 텍스트·compare 접지에 필요).
+  const castObjects = new Set(plan.objects.map(o => o.objectId))
+  const castVars = new Set(plan.variables.map(v => v.varKey))
+  const lifeEndOf = new Map(plan.objects.map(o => [o.objectId, o.life.to]))
+  const entered = new Set<number>() // enterObj까지 마친 상자
+  const exited = new Set<number>()
 
   // 10회를 넘는 반복 구간의 "11회차부터 끝까지"를 한 샷으로 압축한다
   const lapse: { from: number; to: number; count: number }[] = []
@@ -142,10 +163,12 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
   const flushLapse = (p: { startSeq: number; count: number }): Shot => {
     const motions: Motion[] = [{ v: 'loop', text: `남은 ${p.count}회 빨리감기` }]
     for (const [id, obj] of objects) {
+      if (!castObjects.has(id)) continue
       const texts = textsOf(obj, objects)
       const prev = prevTexts.get(id)
       if (!prev) {
         motions.push({ v: 'enterObj', objectId: id })
+        entered.add(id)
         for (let i = 0; i < texts.length; i++) motions.push({ v: 'grow', objectId: id, index: i, text: texts[i] })
       } else {
         for (let i = 0; i < Math.min(prev.length, texts.length); i++)
@@ -164,10 +187,12 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
     // 변수 값도 정산한다 — 루프 변수가 낡은 값으로 남으면 그것도 거짓말이다
     for (const [key, v] of locals) {
       if (v.k !== 'prim') continue
-      if (!varsSeen.has(key)) continue
+      if (!varsSeen.has(key) || !castVars.has(key)) continue
       motions.push({ v: 'setVar', varKey: key, text: shortText(v, objects) })
     }
-    const target = [...objects.entries()].sort((a, b) => (b[1].items?.length ?? 0) - (a[1].items?.length ?? 0))[0]
+    const target = [...objects.entries()]
+      .filter(([id]) => castObjects.has(id))
+      .sort((a, b) => (b[1].items?.length ?? 0) - (a[1].items?.length ?? 0))[0]
     return {
       seq: p.startSeq,
       motions,
@@ -207,6 +232,16 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
     const motions: Motion[] = []
     let slow = false
 
+    // 수명이 다한 상자는 내려간다 — 놓인 자리를 물려받을 후임과 겹치지 않게
+    for (const id of entered) {
+      if (exited.has(id)) continue
+      const end = lifeEndOf.get(id)
+      if (end !== undefined && end < e.seq) {
+        motions.push({ v: 'exitObj', objectId: id })
+        exited.add(id)
+      }
+    }
+
     // "반복문이 돌고 있다"의 상시 표시 — 헤더 라인을 다시 밟을 때마다 회차가 오른다
     const inLoop = loopSpans.find(l => e.seq >= l.from && e.seq <= l.to)
     if (inLoop && e.kind === 'line' && e.observedAtLine === inLoop.headerLine) {
@@ -245,12 +280,14 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
 
     for (const d of e.objectsDelta) {
       if (d.op !== 'set' || !d.obj) continue
+      if (!castObjects.has(d.obj.id)) continue // 조연은 부모 칸의 요약 텍스트가 전부다
       const texts = textsOf(d.obj, objects)
       const size = texts.length
       const prev = prevTexts.get(d.obj.id)
 
       if (!prev) {
         motions.push({ v: 'enterObj', objectId: d.obj.id })
+        entered.add(d.obj.id)
         // 리터럴로 이미 원소를 가진 채 태어난 객체 — 그 칸들도 채워야 한다.
         // 안 그러면 상자만 나타나고 안이 영원히 빈 채로 남는다.
         for (let i = 0; i < size; i++) motions.push({ v: 'grow', objectId: d.obj.id, index: i, text: texts[i] })
@@ -288,6 +325,7 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
 
     for (const d of e.localsDelta) {
       const varKey = `${e.frameId}:${d.name}`
+      if (!castVars.has(varKey)) continue // 함수·클래스에 묶인 이름은 데이터가 아니다
       if (d.op === 'delete') {
         motions.push({ v: 'exitVar', varKey })
         varsSeen.delete(varKey)
@@ -300,13 +338,16 @@ export function choreograph(events: TraceEvent[], _plan: StagePlan, code?: strin
         frameVars.set(e.frameId, set)
         motions.push({ v: 'enterVar', varKey })
       }
-      if (d.value?.k === 'ref') {
+      if (d.value?.k === 'ref' && castObjects.has(d.value.id)) {
         const holders = refCount.get(d.value.id) ?? new Set<string>()
         holders.add(varKey)
         refCount.set(d.value.id, holders)
         const alias = holders.size > 1
         if (alias) slow = true
         motions.push({ v: 'bind', varKey, objectId: d.value.id, alias })
+      } else if (d.value?.k === 'ref') {
+        // 상자 없는 참조(작은 튜플 등)는 알약 값으로 인라인 — "(1, 1)"
+        motions.push({ v: 'setVar', varKey, text: shortText(d.value, objects) })
       } else if (d.value) {
         motions.push({ v: 'setVar', varKey, text: shortText(d.value, objects) })
       }
