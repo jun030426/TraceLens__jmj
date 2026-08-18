@@ -68,14 +68,14 @@ preflight는 best effort다. D를 놓치고 실행에 들어가도 런타임 에
 - **귀속 규칙**: 보여주는 것은 "모든 mutation"이 아니라 "source-line boundary에서 관측되는 상태 변화"다 (causedByLine / observedAtLine). 한 줄 안에서 변했다 되돌아온 중간 상태는 관측 대상이 아니며, 제품 문구도 그렇게 쓴다
 - **예외는 실패가 아니라 콘텐츠**: 터지는 지점까지 재생하고 그 순간을 하이라이트
 - **폴백 2겹**: LLM 실패·검증 불통과 → 규칙 기반 대본 / 특화 프리미티브 매핑 실패 → Generic State View. "실패해도 빈 화면은 없다"
-- **렌더러**: MVP는 SVG + GSAP 단일. PixiJS는 보류 자산 — 대량 배열 병목이 실측된 경우에만 투입
+- **렌더러**: SVG + GSAP 단일. (PixiJS 보류 자산은 2026-08-18 정리에서 의존성째 제거 — 대량 배열 병목이 실측되면 git 이력에서 검토)
 - **실행 상한**: maxEvents 20,000 · 타임아웃 10초 (스파이크 실측 근거: fib(15) = 7,896 이벤트, 20k × ~300B ≈ 6MB). 사용자가 설정 화면에서 조절할 수 있다. maxSerializedBytes는 미구현
 
 **현재 구현 상태 (2026-08-11)**
 
 - Slice 1(실제 Tracer → 규칙 대본 → Player, LLM 없이 E2E) 완주, 태그 `slice-1`
 - Slice 2 진행 중 — LLM Director(Gemini)가 기본 경로이고 실패 시 규칙 폴백으로 자동 전환
-- 프로토타입 유산 `src/tracing.ts`(정규식 시뮬레이션)·`src/PixiStage.tsx`는 신규 실행 경로에서 사용하지 않음
+- 프로토타입 유산(`src/tracing.ts`·`src/PixiStage.tsx`)은 2026-08-18 정리에서 삭제 — git 이력에만 존재
 
 **결정 (2026-08-11)**: LLM 호출은 **서버리스 프록시로 전환**한다. 키는 서버 측에만 보관한다. 현재의 `VITE_GEMINI_API_KEY` 클라이언트 직접 호출은 개발 중 임시 상태이며 배포 전 제거 대상이다. 실행 Worker에는 어떤 애플리케이션 secret도 두지 않는다.
 

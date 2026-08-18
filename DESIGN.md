@@ -238,7 +238,7 @@ The two surfaces differ in *register*, not in vocabulary. The site is a Read sur
 
 `html[data-surface]` survives as a **route-kind flag, and nothing more**. No CSS is keyed on it at all — not a colour, not a layout, not a scroll behaviour. It is resolved before first paint from `location.pathname` and kept in sync by the router, so a script can ask which kind of route is showing, and future route-kind logic has somewhere to hang. But the stylesheets do not read it, which is the strongest form the guarantee can take: the two surfaces cannot diverge on appearance through this attribute, because there is no rule for a future edit to extend.
 
-**Dead but present.** Two files remain in the tree and are imported by nothing: `src/PixiStage.tsx` (a deliberately held asset per the planning document) and `src/tracing.ts` (marked for disposal). They are not a live boundary and no rule here accommodates them; they are simply not in the running app. `PixiStage.tsx` still contains an `Inter` font literal, which is the single finding the house detector reports across `src/` and `index.html` — a dead-code finding, not a system one. Anything revived from either file gets migrated onto these tokens first.
+**Dead code, removed.** The two prototype leftovers that used to sit unimported in the tree — `src/PixiStage.tsx` (PixiJS canvas renderer, held as an asset) and `src/tracing.ts` (regex execution simulator) — were deleted in the 2026-08-18 cleanup along with the `pixi.js`/`pixi-filters` dependencies. They live on in git history only; anything revived from them gets migrated onto these tokens first.
 
 **Key Characteristics:**
 - Paper-white canvas, white panels, 1px hairlines — depth by tonal step, not by shadow
@@ -535,7 +535,7 @@ Two inputs feed the one flag, and either alone switches it on: the OS `prefers-r
 
 ### Don't:
 - **Don't** declare a token outside `.tl` in `src/ui/ui.css`. `src/ui/app.css` consumes the system and defines nothing; any new layer does the same. A stylesheet that needs its own colour, type step, or radius is telling you either that the token belongs on `.tl` or that the design has drifted — resolve which, don't add a second source.
-- **Don't** revive anything from `src/PixiStage.tsx` or `src/tracing.ts` without migrating it onto these tokens first. They are dead code, not a second system with rights; the `Inter` literal inside `PixiStage.tsx` is a leftover, not a precedent.
+- **Don't** revive anything from the deleted prototypes (`src/PixiStage.tsx`, `src/tracing.ts` — git history only) without migrating it onto these tokens first. They were dead code, not a second system with rights.
 - **Don't** add a second accent hue, and don't spend green, amber, or red on anything but the four support verdicts.
 - **Don't** nest a panel inside a panel, or wrap a table in a card — the `.tl-scroll` container is already the container.
 - **Don't** reach for a shadow to express hierarchy. One ambient shadow exists in this system and it is already spent.
