@@ -931,21 +931,30 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       </g>
 
       {/* 비교 저울 — 양팔에 값 카드가 올라가고 무거운 쪽으로 기울며 참/거짓 도장.
-          상단 저울 띠(y≈16~75)는 compose의 AREA.y0가 비워둔다 — 배우와 겹치지 않는 계약 */}
-      <g className="film-scale" transform={`translate(${layout.width / 2} 30)`}>
+          받침 삼각형은 허브 핀으로 빔과 접합되고, 접시는 걸이줄로 빔에 매달린다.
+          부등호는 빔 위 전용 배지 — 빔이 기울어도 절대 가리지 않는다.
+          상단 저울 띠(y≈2~78)는 compose의 AREA.y0(84)가 비워둔다 — 배우와 겹치지 않는 계약 */}
+      <g className="film-scale" transform={`translate(${layout.width / 2} 36)`}>
+          <polygon className="film-scale-pivot" points="-9,24 9,24 0,2" />
+          <rect className="film-scale-base" x={-16} y={24} width={32} height={3} rx={1.5} />
           <g className="film-scale-beam">
-            <line x1={-78} y1={0} x2={78} y2={0} />
-            <g transform="translate(-62 8)">
+            <line x1={-70} y1={0} x2={70} y2={0} />
+            <line className="film-scale-hanger" x1={-62} y1={0} x2={-62} y2={6} />
+            <line className="film-scale-hanger" x1={62} y1={0} x2={62} y2={6} />
+            <g transform="translate(-62 6)">
               <rect className="film-scale-pan" x={-32} y={0} width={64} height={26} rx={7} />
               <text className="film-scale-a svg-name" y={18} textAnchor="middle" />
             </g>
-            <g transform="translate(62 8)">
+            <g transform="translate(62 6)">
               <rect className="film-scale-pan" x={-32} y={0} width={64} height={26} rx={7} />
               <text className="film-scale-b svg-name" y={18} textAnchor="middle" />
             </g>
+            <circle className="film-scale-hub" r={4} />
           </g>
-          <polygon className="film-scale-pivot" points="-8,24 8,24 0,3" />
-          <text className="film-scale-op svg-name" y={-12} textAnchor="middle" />
+          <g transform="translate(0 -22)">
+            <circle className="film-scale-opbadge" r={12} />
+            <text className="film-scale-op svg-name" y={5} textAnchor="middle" />
+          </g>
           <g className="film-scale-stamp film-scale-stamp--true">
             <rect x={100} y={-14} width={48} height={30} rx={8} />
             <text className="svg-name" x={124} y={7} textAnchor="middle">

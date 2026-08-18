@@ -320,11 +320,26 @@
   stroke: var(--line-strong);
   stroke-width: 1.2;
 }
+.film-scale-hanger {
+  stroke-width: 1.5;
+}
+.film-scale-hub {
+  fill: var(--ink-2);
+}
 .film-scale-pivot {
   fill: var(--ink-3);
 }
+.film-scale-base {
+  fill: var(--ink-3);
+}
+.film-scale-opbadge {
+  fill: var(--panel);
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+}
 .film-scale-op {
-  font-size: 15px;
+  font-size: 14px;
+  font-weight: 700;
 }
 .film-scale-stamp rect {
   fill: var(--panel);
