@@ -277,14 +277,21 @@
   pointer-events: none;
 }
 
-/* ── 입문(비유) 스킨 — 값은 만질 수 있는 물체가 된다 ──────────────────── */
+/* ── 은유 물체 스킨 — 값은 만질 수 있는 물체가 된다 ──────────────────────
+   필름 색 역할 기준 (모든 은유 부품은 이 네 역할만 입는다):
+   · 읽기/주목  = accent(파랑)   — 비교 링, 커서, 방문 칠, 값 막대(바탕처럼 옅게)
+   · 쓰기/변화  = write-flash(호박) — 칸·알약의 변화 플래시
+   · 참/완성    = ok(초록)       — 참 도장, 정렬 완성 정착
+   · 거짓/오류  = stop(빨강)     — 거짓 도장, 오류 스트립
+   같은 역할은 같은 색, 다른 역할은 다른 색 — 색이 곧 문법이다. */
 
-/* 값 막대 — 숫자를 안 읽어도 크기·순서가 보인다 */
+/* 값 막대 — 숫자를 안 읽어도 크기·순서가 보인다. 판단·변화색을 가리지 않게
+   accent를 바탕 세기로 깐다 */
 .cell-bar {
   fill: var(--accent);
-  fill-opacity: 0.22;
+  fill-opacity: 0.3;
   stroke: var(--accent);
-  stroke-opacity: 0.65;
+  stroke-opacity: 0.9;
   stroke-width: 1.2;
   pointer-events: none;
 }
@@ -294,8 +301,8 @@
   opacity: 0;
   pointer-events: none;
 }
-/* 입문 모드의 칸·알약은 물체 질감(짙은 획) */
-.film-stage--intro [data-cell] > rect:first-of-type {
+/* 칸은 물체 질감(짙은 획) */
+.film-stage [data-cell] > rect:first-of-type {
   stroke-width: 1.5;
 }
 
@@ -344,15 +351,6 @@
   fill: var(--accent);
 }
 
-/* 재생 패널 바의 스킨 토글 — 표준 세그먼트의 압축형 */
-.tl-seg--bar {
-  margin-left: 10px;
-  margin-right: auto;
-}
-.tl-seg--bar button {
-  padding: 2px 9px;
-  font-size: var(--t-2xs);
-}
 
 /* ── narration ────────────────────────────────────────────────────────── */
 

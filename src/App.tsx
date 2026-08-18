@@ -22,7 +22,7 @@ import type { Shot, StagePlan } from './film/types'
 import WorldStage from './film/WorldStage'
 import { useFilm } from './film/useFilm'
 import { Nav } from './ui/Chrome'
-import { useSettings, prefersStill, setSetting } from './settings/store'
+import { useSettings, prefersStill } from './settings/store'
 import './ui/app.css'
 
 type MonacoApi = Parameters<OnMount>[1]
@@ -381,22 +381,6 @@ function App() {
         <section className="tl-col tl-panel" aria-label="실행 시각화">
           <div className="tl-panel__bar">
             <span className="tl-label">{chapterTitle || '실행 기록'}</span>
-            <div className="tl-seg tl-seg--bar" role="group" aria-label="실행 화면 스킨">
-              <button
-                type="button"
-                aria-pressed={settings.presentation === 'intro'}
-                onClick={() => setSetting('presentation', 'intro')}
-              >
-                입문
-              </button>
-              <button
-                type="button"
-                aria-pressed={settings.presentation === 'precise'}
-                onClick={() => setSetting('presentation', 'precise')}
-              >
-                정밀
-              </button>
-            </div>
             {currentShot?.timelapse ? (
               <span className="tl-tag">×{currentShot.timelapse}회 압축</span>
             ) : (
@@ -406,7 +390,7 @@ function App() {
 
           <div className="tl-stage">
             {run && shots.length > 0 ? (
-              <WorldStage plan={run.plan} layout={run.layout} shots={shots} film={film} intro={settings.presentation === 'intro'} />
+              <WorldStage plan={run.plan} layout={run.layout} shots={shots} film={film} />
             ) : run?.error ? (
               /* 실행 전에 죽은 코드(구문 오류 등)도 빈 화면 대신 오류 장면을 받는다 */
               <div className="stage-error" role="alert">
