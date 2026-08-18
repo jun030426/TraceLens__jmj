@@ -366,6 +366,15 @@
   fill: var(--accent);
 }
 
+/* 인덱스 포인터 — 변수가 값이 아니라 배열 위의 "위치"로 산다 */
+.film-ptr polygon {
+  fill: var(--accent);
+}
+.film-ptr text {
+  fill: var(--accent-ink);
+  font-size: var(--d-md);
+}
+
 
 /* ── narration ────────────────────────────────────────────────────────── */
 

@@ -309,6 +309,40 @@ describe('choreograph: 저울 데이터·정렬 스윕', () => {
   })
 })
 
+describe('choreograph: 인덱스 포인터', () => {
+  it('소스에 arr[j]로 쓰인 변수만 포인터가 된다 — n은 알약으로 남는다', () => {
+    const code = 'arr = [5, 2]\nn = 2\nj = 0\nif arr[j] > arr[j + 1]:\n    pass\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({
+        observedAtLine: 2, causedByLine: 1,
+        localsDelta: [{ name: 'arr', op: 'set', value: { k: 'ref', id: 1 } }],
+        objectsDelta: [listSet(['5', '2'])],
+      }, 1),
+      ev({ observedAtLine: 3, causedByLine: 2, localsDelta: [{ name: 'n', op: 'set', value: P('2') }] }, 2),
+      ev({ observedAtLine: 4, causedByLine: 3, localsDelta: [{ name: 'j', op: 'set', value: P('0') }] }, 3),
+      ev({ kind: 'return', observedAtLine: 4 }, 4),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    const ptrs = shots.flatMap(s => s.motions).filter(m => m.v === 'pointer') as {
+      varKey: string
+      objectId: number
+    }[]
+    expect(ptrs.map(p => p.varKey)).toEqual(['0:j'])
+    expect(ptrs[0].objectId).toBe(1)
+  })
+
+  it('코드가 없으면 포인터도 없다 — 접지 실패는 침묵', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({ observedAtLine: 2, localsDelta: [{ name: 'j', op: 'set', value: P('0') }] }, 1),
+      ev({ kind: 'return', observedAtLine: 2 }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shots.flatMap(s => s.motions).some(m => m.v === 'pointer')).toBe(false)
+  })
+})
+
 describe('choreograph: 정직한 배지·최종값', () => {
   it('반복 배지는 카운트업만 — 모순되는 총계를 달지 않는다', () => {
     const shots = choreograph(demoEvents, buildStage(demoEvents))

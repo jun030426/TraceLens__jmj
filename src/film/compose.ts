@@ -40,6 +40,11 @@ export function compose(
   const firstTouch = new Map<string, number>()
   const deadVars = new Set<string>() // exitVar로 내려간 변수 — 다시 닿기 전까지 무대 금지
   const deadObjs = new Set<string>() // exitObj로 퇴장한 상자 — 커튼콜에도 돌아오지 않는다
+
+  // 인덱스 포인터 변수는 알약 스트립에 서지 않는다 — 그 배열 아래 화살표로 산다 (WorldStage)
+  const pointerVars = new Set<string>()
+  for (const sh of shots)
+    for (const m of sh.motions) if (m.v === 'pointer') pointerVars.add(`v${m.varKey}`)
   const comps: Composition[] = []
   let prevOrder: string[] = [] // 직전 구성의 객체 세로 순서 (sticky)
   let prevFocus: string[] = [] // 직전 샷의 포커스 객체 (sticky focus — 주인공은 중앙을 지킨다)
@@ -127,7 +132,7 @@ export function compose(
     // 사라지면 학습자는 "i 어디 갔지?"가 된다. 상한 초과분만 최근성으로 강등하고,
     // 자리는 등장순으로 고정한다 (재배열은 알약 교차의 어지러움을 만든다)
     const vars = plan.variables
-      .filter(v => born(v.life) && !deadVars.has(`v${v.varKey}`))
+      .filter(v => born(v.life) && !deadVars.has(`v${v.varKey}`) && !pointerVars.has(`v${v.varKey}`))
       .map(v => `v${v.varKey}`)
       .sort((a, b) => (lastTouch.get(b) ?? 0) - (lastTouch.get(a) ?? 0))
       .slice(0, MAX_VARS)
