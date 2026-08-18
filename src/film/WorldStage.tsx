@@ -930,8 +930,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         <text className="film-loop-text svg-value" x={58} y={34} />
       </g>
 
-      {/* 비교 저울 — 양팔에 값 카드가 올라가고 무거운 쪽으로 기울며 참/거짓 도장 */}
-      <g className="film-scale" transform={`translate(${layout.width / 2} 52)`}>
+      {/* 비교 저울 — 양팔에 값 카드가 올라가고 무거운 쪽으로 기울며 참/거짓 도장.
+          상단 저울 띠(y≈16~75)는 compose의 AREA.y0가 비워둔다 — 배우와 겹치지 않는 계약 */}
+      <g className="film-scale" transform={`translate(${layout.width / 2} 30)`}>
           <g className="film-scale-beam">
             <line x1={-78} y1={0} x2={78} y2={0} />
             <g transform="translate(-62 8)">

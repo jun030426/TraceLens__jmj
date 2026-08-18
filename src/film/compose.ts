@@ -144,7 +144,9 @@ export function compose(
 
   // ── 오토 프레이밍 — 매 샷, 배우 경계 상자를 콘텐츠 영역에 맞춘다.
   // 이것이 "꽉 찬 프레임"이다: 빈 벽을 보여주지 않고 카메라가 이야기를 따라간다.
-  const AREA = { x0: 60, y0: 70, x1: 1140, y1: 470 } // 상단 배지·하단 HUD를 뺀 프레임
+  // 상단 여백은 저울 띠까지 계산에 넣는다 — 접시가 기울면 y≈75까지 내려오므로
+  // 콘텐츠는 84부터. 겹침은 위치 조정이 아니라 이 경계 계약으로 막는다.
+  const AREA = { x0: 60, y0: 84, x1: 1140, y1: 470 } // 상단 배지·저울·하단 HUD를 뺀 프레임
   const sizeOf = (key: string): { w: number; h: number } =>
     objKeys.has(key) ? (objSize.get(Number(key.slice(1))) ?? { w: 120, h: 64 }) : { w: 190, h: 36 }
   const cams: Camera[] = []
