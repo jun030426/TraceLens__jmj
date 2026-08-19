@@ -141,6 +141,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       // (origin이 섞이면 보정 translate 잔여가 칸 전체를 몇 px씩 밀고, 포인터 같은 바깥 기준점과 어긋난다)
       gsap.set(root.querySelectorAll('[data-cell]'), { clearProps: 'transform' })
       gsap.set(root.querySelectorAll('[data-cell]'), { x: 0, y: 0, scale: 1, transformOrigin: 'center' })
+      // 값 토큰도 같은 규율 — 스왑 비행의 x·y 잔여를 지우고 origin을 center로 통일한다
+      gsap.set(root.querySelectorAll('.cell-token'), { clearProps: 'transform' })
+      gsap.set(root.querySelectorAll('.cell-token'), { x: 0, y: 0, scale: 1, transformOrigin: 'center' })
       // 저울은 홈(상단 띠 중앙)에서 시작한다 — 자리는 compose(scales)가 샷마다 소유한다
       gsap.set(root.querySelectorAll('.film-scale'), { x: layout.width / 2, y: 36 })
       const autoCam = q('.film-cam-auto')
@@ -333,9 +336,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               const from = endPoint(m.from)
               const to = endPoint(m.to)
               if (from && to) {
-                // 출발지가 먼저 꿈틀한다 — 값이 "여기서" 떠난다는 예고
+                // 출발지가 먼저 꿈틀한다 — 떠나는 것은 칸이 아니라 값(토큰)이다
                 const srcEl =
-                  m.from.kind === 'cell' ? q(cellSel(m.from.objectId, m.from.index)) : inner(varSel(m.from.varKey))
+                  m.from.kind === 'cell' ? q(`${cellSel(m.from.objectId, m.from.index)} .cell-token`) : inner(varSel(m.from.varKey))
                 if (srcEl && travelAnt > 0.001) {
                   tl.fromTo(
                     srcEl,
@@ -468,10 +471,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 undefined,
                 at,
               )
+              // 새 값이 내려앉는 펄스는 토큰이 한다 — 슬롯은 제자리에서 가시성만 보전
+              tl.set(q(cellSel(id, idx))!, { opacity: 1 }, at)
               tl.fromTo(
-                q(cellSel(id, idx))!,
+                q(`${cellSel(id, idx)} .cell-token`)!,
                 { scale: 1.35 },
-                { scale: 1, opacity: 1, duration: d, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
+                { scale: 1, duration: d, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
                 at,
               )
               writeFlash(`${cellSel(id, idx)} .cell-flash`, at, d * 0.8)
@@ -484,8 +489,10 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'swap': {
-              const a = q(cellSel(m.objectId, m.i))
-              const b = q(cellSel(m.objectId, m.k))
+              // 나는 것은 상자가 아니라 값이다 — 두 토큰(막대+글자)이 반대 포물선으로
+              // 교차하고, 비행 동안 두 슬롯은 실제로 비어 보인다. 슬롯·번호는 붙박이.
+              const a = q(`${cellSel(m.objectId, m.i)} .cell-token`)
+              const b = q(`${cellSel(m.objectId, m.k)} .cell-token`)
               if (!a || !b) break
               const dx = (m.k - m.i) * layout.cellW
               const id = m.objectId
@@ -493,14 +500,21 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               const k = m.k
               const iText = m.iText
               const kText = m.kText
-              // 예고 → 행동 → 여운: 두 칸이 살짝 들리며 뜸을 들이고, 교차하고, 내려앉는다
+              // 예고 → 비행 → 여운: 들썩(질량 예고) → 포물선 교차 → 묵직한 착지
               const ant = sec(GRAMMAR.anticipation)
               if (ant > 0.001) {
-                tl.fromTo([a, b], { y: 0 }, { y: -5, duration: ant, ease: 'power1.out', transformOrigin: 'center' }, label)
+                tl.fromTo([a, b], { y: 0 }, { y: -6, duration: ant, ease: 'power1.out', transformOrigin: 'center' }, label)
               }
-              const cross = ant
-              tl.to(a, { x: dx, y: 0, scale: 1.12, duration: d * 0.5, ease: 'power2.inOut', transformOrigin: 'center' }, `${label}+=${cross}`)
-              tl.to(b, { x: -dx, y: 0, scale: 1.12, duration: d * 0.5, ease: 'power2.inOut', transformOrigin: 'center' }, `${label}+=${cross}`)
+              const fl = d * 0.5 // 비행 시간
+              tl.to(a, { x: dx, scale: 1.12, duration: fl, ease: 'power1.inOut', transformOrigin: 'center' }, `${label}+=${ant}`)
+              tl.to(b, { x: -dx, scale: 1.12, duration: fl, ease: 'power1.inOut', transformOrigin: 'center' }, `${label}+=${ant}`)
+              // 포물선 — 한 토큰은 위로 넘어가고(−30) 다른 토큰은 아래로 지나간다(+18)
+              tl.to(a, { y: -30, duration: fl / 2, ease: 'sine.out' }, `${label}+=${ant}`)
+              tl.to(a, { y: 0, duration: fl / 2, ease: 'sine.in' }, `${label}+=${ant + fl / 2}`)
+              tl.to(b, { y: 18, duration: fl / 2, ease: 'sine.out' }, `${label}+=${ant}`)
+              tl.to(b, { y: 0, duration: fl / 2, ease: 'sine.in' }, `${label}+=${ant + fl / 2}`)
+              // 착지 순간의 내용 교대(스냅백) — 날아온 토큰과 그 슬롯의 새 값이 같아
+              // 화면상 연속이다. 스크럽 계약은 기존 스왑과 동일
               tl.call(
                 () => {
                   const ta = root.querySelector(`${cellSel(id, i)} .film-cell-text`)
@@ -509,19 +523,19 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                   if (tb) tb.textContent = fitCell(kText)
                 },
                 undefined,
-                `${label}+=${cross + d * 0.5}`,
+                `${label}+=${ant + fl}`,
               )
-              tl.set([a, b], { x: 0, transformOrigin: 'center' }, `${label}+=${cross + d * 0.5}`)
+              tl.set([a, b], { x: 0, y: 0, transformOrigin: 'center' }, `${label}+=${ant + fl}`)
               tl.to(
                 [a, b],
                 { scale: 1, duration: d * 0.3, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
-                `${label}+=${cross + d * 0.53}`,
+                `${label}+=${ant + fl + d * 0.03}`,
               )
-              // 자리를 바꾼 두 칸이 내려앉으며 함께 번쩍인다 — "여기가 바뀌었다"의 마침표
-              writeFlash(`${cellSel(id, i)} .cell-flash`, `${label}+=${cross + d * 0.5}`, d * 0.45)
-              writeFlash(`${cellSel(id, k)} .cell-flash`, `${label}+=${cross + d * 0.5}`, d * 0.45)
-              setBar(id, i, iText, `${label}+=${cross + d * 0.5}`)
-              setBar(id, k, kText, `${label}+=${cross + d * 0.5}`)
+              // 자리를 바꾼 두 슬롯이 값을 받으며 함께 번쩍인다 — "여기가 바뀌었다"의 마침표
+              writeFlash(`${cellSel(id, i)} .cell-flash`, `${label}+=${ant + fl}`, d * 0.45)
+              writeFlash(`${cellSel(id, k)} .cell-flash`, `${label}+=${ant + fl}`, d * 0.45)
+              setBar(id, i, iText, `${label}+=${ant + fl}`)
+              setBar(id, k, kText, `${label}+=${ant + fl}`)
               break
             }
             case 'pushFrame':
@@ -797,8 +811,11 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 }
               }
               for (const t of m.targets) {
-                const el = t.kind === 'cell' ? q(cellSel(t.objectId, t.index)) : inner(varSel(t.varKey))
-                if (el) {
+                // 읽기 펄스는 값(토큰)이 한다 — 단 교환 샷에서는 비행이 곧 강조라 생략
+                // (같은 transform을 펄스와 비행이 다투면 지터가 된다)
+                const el =
+                  t.kind === 'cell' ? q(`${cellSel(t.objectId, t.index)} .cell-token`) : inner(varSel(t.varKey))
+                if (el && !isEcho) {
                   tl.fromTo(
                     el,
                     { scale: 1 },
@@ -928,6 +945,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               <rect x={0} y={0} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line-strong)" strokeWidth={2} />
               <text className="film-obj-name svg-name" x={4} y={-8} />
               <text x={r.w} y={-8} textAnchor="end" className="svg-type">{o.type}</text>
+              {/* 칸 = 자리(슬롯) + 물건(값 토큰). 슬롯(배경·플래시·링·완성칠·번호)은 붙박이,
+                  토큰(막대+글자)만 움직인다 — 교환·이동 때 나는 것은 상자가 아니라 값이다 */}
               {Array.from({ length: cells }, (_, i) => (
                 <g key={i} data-cell={`${o.objectId}-${i}`}>
                   <rect
@@ -948,16 +967,6 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                     height={r.h - 16}
                     rx={5}
                   />
-                  {theme.barObjects.has(o.objectId) && (
-                    <rect
-                      className="cell-bar"
-                      x={8 + i * layout.cellW + 4}
-                      y={12}
-                      width={layout.cellW - 14}
-                      height={r.h - 24}
-                      rx={3}
-                    />
-                  )}
                   <rect
                     className="cell-flash"
                     x={8 + i * layout.cellW}
@@ -966,12 +975,24 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                     height={r.h - 16}
                     rx={5}
                   />
-                  <text
-                    className="film-cell-text svg-value"
-                    x={8 + i * layout.cellW + (layout.cellW - 6) / 2}
-                    y={r.h / 2 + 5}
-                    textAnchor="middle"
-                  />
+                  <g className="cell-token">
+                    {theme.barObjects.has(o.objectId) && (
+                      <rect
+                        className="cell-bar"
+                        x={8 + i * layout.cellW + 4}
+                        y={12}
+                        width={layout.cellW - 14}
+                        height={r.h - 24}
+                        rx={3}
+                      />
+                    )}
+                    <text
+                      className="film-cell-text svg-value"
+                      x={8 + i * layout.cellW + (layout.cellW - 6) / 2}
+                      y={r.h / 2 + 5}
+                      textAnchor="middle"
+                    />
+                  </g>
                   <rect
                     className="cell-ring"
                     x={6 + i * layout.cellW}
@@ -1021,10 +1042,11 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         </g>
       ))}
 
-      {/* 이동 칩 — 값이 실제로 날아가는 순간을 위한 풀(2개) */}
+      {/* 이동 칩 — 복제된 값 토큰이 나는 순간을 위한 풀(2개). 알약이 아니라 칸 크기의
+          카드 모양이라 "값 하나가 복제되어 간다"로 읽힌다 */}
       {[0, 1].map(i => (
         <g key={`chip${i}`} data-chip={i} className="film-chip">
-          <rect x={-44} y={-15} width={88} height={30} rx={15} fill="var(--accent-wash)" stroke="var(--accent)" strokeWidth={1.4} />
+          <rect x={-32} y={-14} width={64} height={28} rx={8} fill="var(--accent-wash)" stroke="var(--accent)" strokeWidth={1.4} />
           <text textAnchor="middle" y={5} className="svg-name" />
         </g>
       ))}
