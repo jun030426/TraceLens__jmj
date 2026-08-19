@@ -27,6 +27,7 @@ export function detectTheme(plan: StagePlan, shots: Shot[]): FilmTheme {
   for (const sh of shots) {
     for (const m of sh.motions) {
       if (m.v === 'grow' || m.v === 'setCell') push(m.objectId, m.text)
+      else if (m.v === 'shiftLeft') push(m.objectId, ...m.texts)
       else if (m.v === 'swap') {
         swaps.set(m.objectId, (swaps.get(m.objectId) ?? 0) + 1)
         push(m.objectId, m.iText, m.kText)

@@ -62,6 +62,8 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
   const grows = all('grow')
   if (grows.length > 1) return `${names.objName(grows[0].objectId)} 칸이 차례로 채워집니다 (${grows.length}칸)`
   if (grows.length === 1) return `${names.objName(grows[0].objectId)} 새 칸에 ${grows[0].text} 추가`
+  const shift = find('shiftLeft')
+  if (shift) return `${names.objName(shift.objectId)} ${shift.index}번 칸이 빠지고 뒤가 한 칸 당겨집니다`
   const shrink = find('shrink')
   if (shrink) return `${names.objName(shrink.objectId)} ${shrink.index}번 칸이 빠집니다`
   const cells = all('setCell')
@@ -103,6 +105,19 @@ const shortText = (v: Value, objects: Map<number, ObjectSnap>, depth = 0): strin
     return capText('{' + o.entries.map(([k, x]) => `${k}: ${shortText(x, objects, 1)}`).join(', ') + '}')
   }
   return o.type
+}
+
+// 한 칸 삭제 + 당겨짐 판정 — next가 prev에서 정확히 원소 하나(k)를 뺀 모양일 때 그 k.
+// 꼬리 삭제(k === next.length)는 아무도 움직이지 않으므로 시프트가 아니다 (기존 shrink가 정직).
+// 값 중복으로 k가 모호하면 최소 k — 값이 같아 어느 쪽이든 화면은 거짓말하지 않는다.
+const shiftIndexOf = (prev: string[], next: string[]): number | null => {
+  if (next.length !== prev.length - 1) return null
+  let m = 0 // head가 일치하는 한계 — 이보다 큰 k는 불가능
+  while (m < next.length && next[m] === prev[m]) m++
+  if (m === next.length) return null
+  let t = next.length // +1 정렬이 끝까지 성립하기 시작하는 최소 지점
+  while (t > 0 && next[t - 1] === prev[t]) t--
+  return t <= m ? t : null
 }
 
 // 객체의 현재 칸별 표시 문자열 — 리스트는 값, dict는 "키: 값"
@@ -636,9 +651,17 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
           for (const i of changed) motions.push({ v: 'setCell', objectId: d.obj.id, index: i, text: texts[i] })
         }
       } else if (size < prev.length) {
-        for (let i = 0; i < size; i++)
-          if (texts[i] !== prev[i]) motions.push({ v: 'setCell', objectId: d.obj.id, index: i, text: texts[i] })
-        for (let i = size; i < prev.length; i++) motions.push({ v: 'shrink', objectId: d.obj.id, index: i })
+        const k = shiftIndexOf(prev, texts)
+        if (k !== null) {
+          // 한 칸이 빠지고 뒤가 당겨졌다 — 칸별 텍스트 교체가 아니라 토큰들이 미끄러진다.
+          // 값이 떠나고 줄이 닫히는 이야기 비트이므로 샷도 느리게 잡는다
+          motions.push({ v: 'shiftLeft', objectId: d.obj.id, index: k, texts: texts.slice(k) })
+          slow = true
+        } else {
+          for (let i = 0; i < size; i++)
+            if (texts[i] !== prev[i]) motions.push({ v: 'setCell', objectId: d.obj.id, index: i, text: texts[i] })
+          for (let i = size; i < prev.length; i++) motions.push({ v: 'shrink', objectId: d.obj.id, index: i })
+        }
       }
       prevTexts.set(d.obj.id, texts)
 
@@ -704,15 +727,18 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     // ── 값의 이동 — 출발지를 알 수 있으면 값은 순간이동하지 않고 날아간다.
     // 비교 접지와 같은 보수성: 해석이 안 되면 침묵한다. 샷당 여행은 1회, swap과는 겹치지 않는다.
     travel: if (!motions.some(m => m.v === 'swap')) {
-      // ① 칸이 빠지고 같은 샷에 변수가 값을 받는다 (pop 계열) — 라인 접지 없이도 확실한 짝
-      const shrinkM = motions.find(m => m.v === 'shrink') as { objectId: number; index: number } | undefined
+      // ① 칸이 빠지고 같은 샷에 변수가 값을 받는다 (pop 계열) — 라인 접지 없이도 확실한 짝.
+      // 시프트가 있으면 떠난 자리는 마지막 칸이 아니라 빠진 칸(index)이다
+      const goneM = (motions.find(m => m.v === 'shiftLeft') ?? motions.find(m => m.v === 'shrink')) as
+        | { objectId: number; index: number }
+        | undefined
       const recvM = motions.find(m => m.v === 'setVar' || m.v === 'bind') as
         | { varKey: string; text?: string }
         | undefined
-      if (shrinkM && recvM && !gridInfo.has(shrinkM.objectId)) {
+      if (goneM && recvM && !gridInfo.has(goneM.objectId)) {
         motions.push({
           v: 'travel',
-          from: { kind: 'cell', objectId: shrinkM.objectId, index: shrinkM.index },
+          from: { kind: 'cell', objectId: goneM.objectId, index: goneM.index },
           to: { kind: 'var', varKey: recvM.varKey },
           text: recvM.text ?? '',
         })
