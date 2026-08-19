@@ -29,7 +29,7 @@ export function compose(
   shots: Shot[],
   plan: StagePlan,
   layout: StageLayout,
-): { comps: Composition[]; cams: Camera[]; scales: (ScalePlace | null)[] } {
+): { comps: Composition[]; cams: Camera[]; scales: (ScalePlace | null)[]; autos: { k: number; x: number; y: number }[] } {
   const objSize = new Map(
     plan.objects.map(o => {
       const r = layout.objPos.get(o.objectId)
@@ -247,10 +247,13 @@ export function compose(
         }
   }
 
-  // AI 연출의 줌 상태 — camera 모션은 샷 안에서 트윈이 끝나므로, 샷의 "정착 상태"는
-  // 그 샷의 마지막 camera 모션 값이다 (다음 camera 모션까지 유지)
+  // 강조 카메라 — decorate는 "이 샷이 그 비트다"라는 표시(emphasis)만 남기고, 좌표는
+  // 배치를 아는 이 층이 만든다. 대상의 실제 화면 중심을 AREA 중앙에 놓되, 확대 후
+  // AREA에 담기지 않으면 배율을 낮추고 그래도 안 되면 강조를 포기한다 —
+  // 잘린 강조는 강조가 아니다 (프레임 중앙 기준 확대가 대상을 화면 밖으로 밀어냈던 결함).
   type Auto = { k: number; x: number; y: number }
-  let auto: Auto = { k: 1, x: 0, y: 0 }
+  const IDENTITY: Auto = { k: 1, x: 0, y: 0 }
+  let auto: Auto = IDENTITY
 
   type Rect4 = { x0: number; x1: number; y0: number; y1: number }
 
@@ -365,10 +368,41 @@ export function compose(
   let visible = false
   let lastCells: CellTarget[] | null = null
   let prevSpot: ScalePlace | null = null
+  // 강조 대상 — 그 샷의 사실 중 가장 구체적인 것 (비교가 짚은 칸 → 스왑 칸 → 포커스 객체)
+  const emphasisTarget = (sh: Shot): number | null => {
+    const cmp = sh.motions.find(m => m.v === 'compare') as Extract<Motion, { v: 'compare' }> | undefined
+    const cell = cmp?.targets.find(t => t.kind === 'cell') as { objectId: number } | undefined
+    if (cell) return cell.objectId
+    const sw = sh.motions.find(m => m.v === 'swap') as Extract<Motion, { v: 'swap' }> | undefined
+    if (sw) return sw.objectId
+    return sh.focus?.kind === 'object' ? sh.focus.objectId : null
+  }
+  const AC = { x: (AREA.x0 + AREA.x1) / 2, y: (AREA.y0 + AREA.y1) / 2 }
+  const autoFor = (si: number, kWanted: number): Auto => {
+    const id = emphasisTarget(shots[si])
+    if (id === null) return IDENTITY
+    const p = comps[si].get(`o${id}`)
+    if (!p) return IDENTITY
+    const size = objSize.get(id) ?? { w: 120, h: 64 }
+    const cam = cams[si]
+    const bx0 = cam.x + cam.k * p.x
+    const bx1 = cam.x + cam.k * (p.x + size.w * p.s)
+    const by0 = cam.y + cam.k * (p.y - 26 * p.s)
+    const by1 = cam.y + cam.k * (p.y + (size.h + 16) * p.s)
+    const fits = (k: number) => (bx1 - bx0) * k <= AREA.x1 - AREA.x0 && (by1 - by0) * k <= AREA.y1 - AREA.y0
+    let k = kWanted
+    while (k > 1.15 && !fits(k)) k -= 0.05
+    if (!fits(k)) return IDENTITY // 담기지 않는다 — 강조를 포기한다
+    return { k, x: AC.x - k * ((bx0 + bx1) / 2), y: AC.y - k * ((by0 + by1) / 2) }
+  }
+
+  const autos: Auto[] = []
   let prevRects = new Map<string, Rect4>()
   shots.forEach((sh, si) => {
     const prevAuto = auto
-    for (const m of sh.motions) if (m.v === 'camera') auto = { k: m.k, x: m.x, y: m.y }
+    const emph = sh.motions.find(m => m.v === 'emphasis') as Extract<Motion, { v: 'emphasis' }> | undefined
+    auto = emph ? autoFor(si, emph.k) : IDENTITY
+    autos.push(auto)
     const cur = rectsOf(comps[si], cams[si], auto)
     // 이 샷 동안 배우가 실제로 점유하는 범위 = 세 사각형의 껍질:
     // ① 직전 배치(구성 전환 트윈의 출발) ② 현재 배치를 직전 카메라로 본 것(카메라 트윈의
@@ -403,5 +437,5 @@ export function compose(
     }
   })
 
-  return { comps, cams, scales }
+  return { comps, cams, scales, autos }
 }

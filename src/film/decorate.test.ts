@@ -74,33 +74,45 @@ describe('decorateShots', () => {
 })
 
 describe('decorateShots: 연출 동사', () => {
-  it('zoom: 대상 있는 첫 샷에 camera(k>1), 장면 마지막 샷에 복귀(k=1)', () => {
+  it('zoom: 대상 있는 첫 샷에만 강조 표시 — 좌표는 없다 (배치를 아는 compose의 몫)', () => {
     const shots = [shot(1, { focus: { kind: 'object', objectId: 1 } }), shot(2)]
     const out = decorateShots(shots, playD(['zoom']), plan, layout)
-    const cam0 = out[0].motions.find(m => m.v === 'camera') as { k: number }
-    expect(cam0).toBeDefined()
-    expect(cam0.k).toBeGreaterThan(1)
-    const cam1 = out[1].motions.find(m => m.v === 'camera') as { k: number }
-    expect(cam1).toEqual({ v: 'camera', k: 1, x: 0, y: 0 })
+    const e0 = out[0].motions.find(m => m.v === 'emphasis') as { k: number }
+    expect(e0).toEqual({ v: 'emphasis', k: 1.45 })
+    // 한 비트만 — 장면 끝까지 물지 않으므로 복귀 모션도 없다
+    expect(out[1].motions.some(m => m.v === 'emphasis')).toBe(false)
   })
 
   it('zoom: compare의 cell 타깃이 focus보다 우선한다', () => {
     const shots = [
-      shot(1, {
+      shot(1, { focus: { kind: 'frame', frameId: 0 } }),
+      shot(2, {
         focus: { kind: 'frame', frameId: 0 },
         motions: [{ v: 'compare', text: '5 > 4', targets: [{ kind: 'cell', objectId: 1, index: 0 }] }],
       }),
     ]
     const out = decorateShots(shots, playD(['zoom']), plan, layout)
-    const cam = out[0].motions.find(m => m.v === 'camera') as { k: number; x: number }
-    // objPos(1) 기준 계산 — frame(24,500)이 아니라 object(560,70)를 향한다
-    expect(cam.x).toBeLessThan(0)
-    expect(cam.k).toBeGreaterThan(1)
+    // 프레임만 있는 앞 샷이 아니라, 비교가 상자를 짚은 샷이 강조를 받는다
+    expect(out[0].motions.some(m => m.v === 'emphasis')).toBe(false)
+    expect(out[1].motions.some(m => m.v === 'emphasis')).toBe(true)
   })
 
-  it('zoom: 대상 rect가 전혀 없으면 무시된다', () => {
+  it('프레임 포커스만 있는 샷은 후보가 아니다 — 호출 카드는 카메라 밖이라 당겨도 안 움직인다', () => {
+    const out = decorateShots([shot(1, { focus: { kind: 'frame', frameId: 0 } })], playD(['zoom']), plan, layout)
+    expect(out[0].motions.some(m => m.v === 'emphasis')).toBe(false)
+  })
+
+  it('swap 샷도 후보다 — 교환은 비교만큼 구체적인 사실이다', () => {
+    const shots = [
+      shot(1, { motions: [{ v: 'swap', objectId: 1, i: 0, k: 1, iText: '3', kText: '5' }] }),
+    ]
+    const out = decorateShots(shots, playD(['zoom']), plan, layout)
+    expect(out[0].motions.some(m => m.v === 'emphasis')).toBe(true)
+  })
+
+  it('zoom: 대상이 전혀 없으면 무시된다', () => {
     const out = decorateShots([shot(1)], playD(['zoom']), plan, layout)
-    expect(out[0].motions.some(m => m.v === 'camera')).toBe(false)
+    expect(out[0].motions.some(m => m.v === 'emphasis')).toBe(false)
   })
 
   it('hold: 장면 마지막 샷이 길어진다 (×1.9)', () => {
@@ -117,10 +129,10 @@ describe('decorateShots: 연출 동사', () => {
       layout,
     )
     expect(out[0].durationMs).toBe(156)
-    expect(out[0].motions.some(m => m.v === 'camera')).toBe(false)
+    expect(out[0].motions.some(m => m.v === 'emphasis')).toBe(false)
   })
 
-  it('전역 캡: zoom 4장면이면 앞의 3장면만 카메라를 받는다', () => {
+  it('붙어 있는 후보는 건너뛴다 — 강조가 앞쪽에 몰리지 않는다 (최소 6샷 간격)', () => {
     const sc = (s: number): Screenplay['chapters'][0]['scenes'][0] => ({
       seqStart: s, seqEnd: s, primitive: 'variables', focus: [], pacing: 'normal',
       direction: ['zoom'], narration: { template: '', bindings: {} },
@@ -128,7 +140,23 @@ describe('decorateShots: 연출 동사', () => {
     const sp: Screenplay = { chapters: [{ title: 'c', scenes: [sc(1), sc(2), sc(3), sc(4)] }] }
     const shots = [1, 2, 3, 4].map(s => shot(s, { focus: { kind: 'object', objectId: 1 } }))
     const out = decorateShots(shots, sp, plan, layout)
-    const camScenes = out.filter(o => o.motions.some(m => m.v === 'camera' && (m as { k: number }).k > 1))
-    expect(camScenes.length).toBe(3)
+    const marked = out.map((o, i) => (o.motions.some(m => m.v === 'emphasis') ? i : -1)).filter(i => i >= 0)
+    expect(marked).toEqual([0]) // 1·2·3·4샷은 전부 6샷 안 — 첫 하나만 살아남는다
+  })
+
+  it('간격이 벌어진 후보는 최대 3회까지 받는다', () => {
+    const sc = (s: number): Screenplay['chapters'][0]['scenes'][0] => ({
+      seqStart: s, seqEnd: s, primitive: 'variables', focus: [], pacing: 'normal',
+      direction: ['zoom'], narration: { template: '', bindings: {} },
+    })
+    const seqs = [1, 11, 21, 31]
+    const sp: Screenplay = { chapters: [{ title: 'c', scenes: seqs.map(sc) }] }
+    const shots = Array.from({ length: 40 }, (_, i) =>
+      shot(i + 1, { focus: { kind: 'object', objectId: 1 } }),
+    )
+    const out = decorateShots(shots, sp, plan, layout)
+    const marked = out.map((o, i) => (o.motions.some(m => m.v === 'emphasis') ? i : -1)).filter(i => i >= 0)
+    expect(marked.length).toBe(3)
+    for (let i = 1; i < marked.length; i++) expect(marked[i] - marked[i - 1]).toBeGreaterThanOrEqual(6)
   })
 })

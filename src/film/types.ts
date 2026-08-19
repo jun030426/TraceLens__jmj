@@ -67,7 +67,8 @@ export type Motion =
   /** a·op·b·verdict — 저울 렌더용 구조 필드. detectCompare가 접지한 실제 값이며, 숫자 판정이 안 되면 verdict는 없다 */
   | { v: 'compare'; text: string; targets: CompareTarget[]; a?: string; op?: string; b?: string; verdict?: boolean }
   | { v: 'spotlight'; varKeys: string[] }
-  | { v: 'camera'; k: number; x: number; y: number }
+  /** 강조 — AI가 "여기가 중요하다"고 표시한 샷. 좌표는 배치를 아는 compose가 산출한다 */
+  | { v: 'emphasis'; k: number }
   | { v: 'label'; objectId: number; text: string }
   | { v: 'gridCell'; objectId: number; r: number; c: number; text: string; wall: boolean; flash?: boolean }
   | { v: 'gridVisit'; objectId: number; r: number; c: number }
