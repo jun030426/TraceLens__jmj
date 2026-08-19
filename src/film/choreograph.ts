@@ -32,12 +32,12 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
   if (swap) {
     const cmp = find('compare') // 직전 판단의 echo — 인과가 자막에 남는다
     const head = cmp ? `${cmp.text.replace(' → 참', '')} 참 — ` : `${names.objName(swap.objectId)}: `
-    return `${head}${swap.i}번 칸과 ${swap.k}번 칸이 자리를 바꿉니다`
+    return `${head}두 값이 자리를 바꿉니다`
   }
   const tr = find('travel')
   if (tr) {
     const end = (t: CompareTarget) =>
-      t.kind === 'cell' ? `${names.objName(t.objectId)} ${t.index}번 칸` : names.varName(t.varKey)
+      t.kind === 'cell' ? names.objName(t.objectId) : names.varName(t.varKey)
     return `${tr.text} 이동: ${end(tr.from)} → ${end(tr.to)}`
   }
   const cmp = find('compare')
@@ -45,13 +45,13 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
   const push = find('pushFrame')
   if (push) {
     const f = names.frameFunc(push.frameId)
-    return f === '<module>' ? '실행 시작' : `${f}() 호출 — 새 작업 공간이 열립니다`
+    return f === '<module>' ? '실행 시작' : `${f} 호출 — 새 작업 공간이 열립니다`
   }
   const pop = find('popFrame')
   if (pop) {
     const f = names.frameFunc(pop.frameId)
     if (f === '<module>') return find('sortedSweep') ? '실행 종료 — 정렬 완성!' : '실행 종료 — 최종 상태입니다'
-    return `${f}() 종료 — 작업 공간이 닫힙니다`
+    return `${f} 종료 — 작업 공간이 닫힙니다`
   }
   const gflash = all('gridCell').filter(g => g.flash)
   if (gflash.length === 1) return `표 [${gflash[0].r}, ${gflash[0].c}] = ${gflash[0].text}`
@@ -62,14 +62,18 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
   const grows = all('grow')
   if (grows.length > 1) return `${names.objName(grows[0].objectId)} 칸이 차례로 채워집니다 (${grows.length}칸)`
   if (grows.length === 1) return `${names.objName(grows[0].objectId)} 새 칸에 ${grows[0].text} 추가`
+  // 위치는 번호로 부르지 않는다 — 화면이 어느 칸인지 짚어주므로 자막은 무엇이 일어났는지만
+  // 말한다. 끝(맨 앞)은 이름이 있으니 부르고, 중간은 침묵한다 (서수 번역은 0/1 혼동을 만든다)
   const shift = find('shiftLeft')
-  if (shift) return `${names.objName(shift.objectId)} ${shift.index}번 칸이 빠지고 뒤가 한 칸 당겨집니다`
+  if (shift) {
+    const who = shift.index === 0 ? '맨 앞 값' : '한 값'
+    return `${names.objName(shift.objectId)} ${who}이 빠지고 뒤가 한 칸 당겨집니다`
+  }
   const shrink = find('shrink')
-  if (shrink) return `${names.objName(shrink.objectId)} ${shrink.index}번 칸이 빠집니다`
+  if (shrink) return `${names.objName(shrink.objectId)} 칸 하나가 빠집니다`
   const cells = all('setCell')
-  if (cells.length === 1) return `${names.objName(cells[0].objectId)}[${cells[0].index}] = ${cells[0].text}`
-  if (cells.length > 1)
-    return `${names.objName(cells[0].objectId)} ${cells.map(c => `${c.index}번`).join('·')} 칸 갱신`
+  if (cells.length === 1) return `${names.objName(cells[0].objectId)} 한 칸 = ${cells[0].text}`
+  if (cells.length > 1) return `${names.objName(cells[0].objectId)} ${cells.length}칸 갱신`
   const bind = find('bind')
   if (bind) {
     if (bind.alias) return `${names.varName(bind.varKey)}도 같은 상자를 가리킵니다 (별칭)`

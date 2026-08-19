@@ -311,8 +311,9 @@ describe('choreograph: 시프트 접지 (pop의 물성)', () => {
     expect(shifts[0].index).toBe(1)
     expect(shifts[0].texts).toEqual(['3'])
     const shot = shots.find(s => s.motions.some(m => m.v === 'shiftLeft'))!
-    expect(shot.caption).toContain('1번 칸')
     expect(shot.caption).toContain('당겨')
+    expect(shot.caption).not.toMatch(/\d+번/) // 위치는 번호로 부르지 않는다
+    expect(shot.caption).not.toContain('맨 앞') // 중간 삭제는 끝이 아니므로 침묵
   })
 
   it('꼬리 pop은 시프트가 아니다 — 아무도 안 움직이므로 기존 shrink', () => {
@@ -349,6 +350,72 @@ describe('choreograph: 시프트 접지 (pop의 물성)', () => {
     const shifts = shiftsOf(shots)
     expect(shifts.length).toBe(1)
     expect(shifts[0].index).toBe(0)
+  })
+})
+
+describe('choreograph: 표기 걷어내기 — 자막이 코드 기호를 쓰지 않는다', () => {
+  const birth = (items: string[], seq: number) =>
+    ev({
+      observedAtLine: 2, causedByLine: 1,
+      localsDelta: [{ name: 'arr', op: 'set', value: { k: 'ref', id: 1 } }],
+      objectsDelta: [listSet(items)],
+    }, seq)
+
+  it('어떤 자막도 대괄호 첨자나 "N번 칸"을 쓰지 않는다 (격자 좌표는 예외)', () => {
+    const code = 'arr = [5, 2]\nn = 0\nif arr[0] > arr[1]:\n    arr[0], arr[1] = arr[1], arr[0]\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['5', '2'], 1),
+      ev({ observedAtLine: 3, causedByLine: 2, localsDelta: [{ name: 'n', op: 'set', value: P('0') }] }, 2),
+      ev({ observedAtLine: 4, causedByLine: 3, objectsDelta: [listSet(['2', '5'])] }, 3),
+      ev({ observedAtLine: 4, causedByLine: 4, objectsDelta: [listSet(['2', '9'])] }, 4),
+      ev({ kind: 'return', observedAtLine: 4 }, 5),
+    ]
+    const caps = choreograph(events, buildStage(events), code).map(s => s.caption ?? '')
+    for (const c of caps) {
+      expect(c).not.toMatch(/\w\[\d+\]/) // arr[0]
+      expect(c).not.toMatch(/\d+번 칸/) // 2번 칸
+      expect(c).not.toMatch(/\w\(\)/) // f()
+    }
+  })
+
+  it('setCell 자막은 배열 이름과 값만 말한다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['5', '2'], 1),
+      ev({ observedAtLine: 3, causedByLine: 2, objectsDelta: [listSet(['5', '9'])] }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const cap = shots.find(s => s.motions.some(m => m.v === 'setCell'))!.caption!
+    expect(cap).toContain('arr')
+    expect(cap).toContain('9')
+    expect(cap).not.toMatch(/\[|\]/)
+  })
+
+  it('맨 앞이 빠질 때는 "맨 앞"이라 부른다 — 끝은 번호 없이도 지칭할 수 있다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['1', '2', '3'], 1),
+      ev({ observedAtLine: 3, causedByLine: 2, objectsDelta: [listSet(['2', '3'])] }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const cap = shots.find(s => s.motions.some(m => m.v === 'shiftLeft'))!.caption!
+    expect(cap).toContain('맨 앞')
+  })
+
+  it('함수 호출·종료 자막에서 괄호가 빠진다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'f', observedAtLine: 2 }, 1),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f', observedAtLine: 2 }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const push = shots.find(s => s.motions.some(m => m.v === 'pushFrame' && m.frameId === 1))!.caption!
+    expect(push).toContain('f 호출')
+    expect(push).not.toContain('f()')
   })
 })
 

@@ -56,6 +56,14 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     return map
   }, [shots, plan])
 
+  // 칸 번호는 포인터가 붙은 배열에만 — 코드가 실제로 인덱스로 접근할 때만 "j가 가리키는 칸"의
+  // 대응이 가르칠 게 있다. 그 외의 0·1·2…는 초보에게 걸림돌이자 소음이다 (표기 걷어내기)
+  const numberedObjs = useMemo(() => {
+    const s = new Set<number>()
+    for (const p of pointers.values()) s.add(p.objectId)
+    return s
+  }, [pointers])
+
   /* 수동 카메라 — 콘텐츠를 담은 <g> 하나만 변환하므로 GSAP 타깃(자식)과 간섭하지 않는다 */
   const [cam, setCam] = useState(FIT)
   const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
@@ -985,7 +993,6 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               <g className="actor-inner">
                 <rect x={0} y={0} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line-strong)" strokeWidth={2} />
                 <text className="film-obj-name svg-name" x={4} y={-8} />
-                <text x={r.w} y={-8} textAnchor="end" className="svg-type">{`${o.type} ${rows}×${cols}`}</text>
                 {Array.from({ length: rows }, (_, gr) =>
                   Array.from({ length: cols }, (_, gc) => (
                     <g key={`${gr}-${gc}`}>
@@ -1029,7 +1036,6 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             <g className="actor-inner">
               <rect x={0} y={0} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line-strong)" strokeWidth={2} />
               <text className="film-obj-name svg-name" x={4} y={-8} />
-              <text x={r.w} y={-8} textAnchor="end" className="svg-type">{o.type}</text>
               {/* 칸 = 자리(슬롯) + 물건(값 토큰). 두 층을 따로 그린다 — SVG는 z-index가 없어
                   문서 순서가 곧 겹침 순서라, 토큰이 칸 안에 살면 오른쪽으로 나는 토큰이
                   이웃 칸의 불투명 배경 뒤로 숨는다. 토큰 층이 슬롯 층 전체 위에 뜬다. */}
@@ -1069,14 +1075,16 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                     height={r.h - 12}
                     rx={7}
                   />
-                  <text
-                    className="svg-index"
-                    x={8 + i * layout.cellW + (layout.cellW - 6) / 2}
-                    y={r.h + 14}
-                    textAnchor="middle"
-                  >
-                    {i}
-                  </text>
+                  {numberedObjs.has(o.objectId) && (
+                    <text
+                      className="svg-index"
+                      x={8 + i * layout.cellW + (layout.cellW - 6) / 2}
+                      y={r.h + 14}
+                      textAnchor="middle"
+                    >
+                      {i}
+                    </text>
+                  )}
                 </g>
               ))}
               {/* 토큰 층 — 좌표는 상자 로컬 절대값이라 슬롯과 정확히 같은 자리에 뜬다 */}
@@ -1150,7 +1158,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             <g key={`f${f.frameId}`} data-frame={f.frameId}>
               <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={10} fill="var(--panel)" stroke="var(--line-strong)" strokeWidth={1.2} />
               <text x={r.x + 14} y={r.y + 34} className="svg-name">
-                {f.func === '<module>' ? '프로그램' : `${f.func}()`}
+                {f.func === '<module>' ? '프로그램' : f.func}
               </text>
             </g>
           )
