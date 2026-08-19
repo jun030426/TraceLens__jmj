@@ -926,7 +926,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     const tl = build()
     register(tl)
     // 헤드리스 검증 훅 — 패널이 가려져 rAF가 멎어도 __filmTl.time(t)은 동기 렌더된다 (개발 전용)
-    if (import.meta.env.DEV) (window as unknown as { __filmTl?: unknown }).__filmTl = tl
+    if (import.meta.env.DEV) {
+      const w = window as unknown as {
+        __filmTl?: unknown; __filmScales?: unknown; __filmShots?: unknown
+        __filmComps?: unknown; __filmCams?: unknown; __filmObjSize?: unknown
+      }
+      w.__filmTl = tl
+      w.__filmScales = scales
+      w.__filmShots = shots
+      w.__filmComps = comps.map(c => Object.fromEntries(c))
+      w.__filmCams = cams
+      w.__filmObjSize = Object.fromEntries(plan.objects.map(o => [o.objectId, layout.objPos.get(o.objectId)]))
+    }
     // 두 번째 인자 false = 이벤트 억제 해제 — 점프 경로의 tl.call(텍스트 세터)까지 전부 실행해야
     // 모션 감소 사용자도 값이 채워진 "완성된 마지막 프레임"을 본다
     if (still) tl.progress(1, false)

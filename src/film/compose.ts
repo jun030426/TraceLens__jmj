@@ -167,7 +167,10 @@ export function compose(
   // 콘텐츠는 84부터. 저울은 비교 칸 위로 내려갈 수 있지만(아래 scales 패스), 내려갈
   // 자리는 배우 사각형과의 비교차가 증명될 때만이다 — 못 내려가면 이 홈 띠로 돌아온다.
   // 겹침은 위치 조정이 아니라 이 경계 계약 + 기하 판정으로 막는다.
-  const AREA = { x0: 60, y0: 84, x1: 1140, y1: 470 } // 상단 배지·저울 홈·하단 HUD를 뺀 프레임
+  // y0는 저울 홈 바닥(HOME_Y 36 + S_DOWN 48 = 84)보다 실제로 더 내려가 있어야 한다 —
+  // 딱 맞물리면 여유가 0이라 판정 여유(CLEAR_Y)를 줄 수 없고, 글리프 잉크가 모델을 몇 px
+  // 넘는 순간 그대로 스침이 된다. 16을 띄워 경계에 진짜 여백을 만든다.
+  const AREA = { x0: 60, y0: 100, x1: 1140, y1: 470 } // 상단 배지·저울 홈·하단 HUD를 뺀 프레임
   const sizeOf = (key: string): { w: number; h: number } =>
     objKeys.has(key) ? (objSize.get(Number(key.slice(1))) ?? { w: 120, h: 64 }) : { w: 190, h: 36 }
   const cams: Camera[] = []
@@ -249,9 +252,11 @@ export function compose(
   type Auto = { k: number; x: number; y: number }
   let auto: Auto = { k: 1, x: 0, y: 0 }
 
-  const actorRect = (key: string, p: Placement, cam: Camera) => {
-    const fx = (v: number) => auto.x + auto.k * (cam.x + cam.k * v)
-    const fy = (v: number) => auto.y + auto.k * (cam.y + cam.k * v)
+  type Rect4 = { x0: number; x1: number; y0: number; y1: number }
+
+  const actorRect = (key: string, p: Placement, cam: Camera, a0: Auto): Rect4 => {
+    const fx = (v: number) => a0.x + a0.k * (cam.x + cam.k * v)
+    const fy = (v: number) => a0.y + a0.k * (cam.y + cam.k * v)
     if (objKeys.has(key)) {
       const id = Number(key.slice(1))
       const size = objSize.get(id) ?? { w: 120, h: 64 }
@@ -267,32 +272,74 @@ export function compose(
   }
 
   type CellTarget = Extract<CompareTarget, { kind: 'cell' }>
-  const clashes = (x: number, y: number, comp: Composition, cam: Camera, skip: Set<string>) => {
-    const r = { x0: x - S_LEFT, x1: x + S_RIGHT, y0: y - S_UP, y1: y + S_DOWN }
-    for (const [key, p] of comp) {
-      if (skip.has(key)) continue
-      const a = actorRect(key, p, cam)
-      if (r.x0 < a.x1 && a.x0 < r.x1 && r.y0 < a.y1 && a.y0 < r.y1) return true
+  // 배우의 실제 페인트 범위는 모델 사각형보다 넓다 — 이름표·번호 글리프의 잉크 상자, 획(stroke),
+  // 폰트 여백이 컨테이너 밖으로 번진다 (실측: 좌 6 / 상 9.6 / 하 7.6 화면px ≈ 뷰박스 11~18).
+  // 모델을 글리프 단위까지 맞추는 대신 판정에 여유를 준다 — 스치느니 홈에 서는 편이 정직하다.
+  // 배우의 실제 페인트 범위는 모델 사각형보다 넓다 (글리프 잉크·획·폰트 여백).
+  // 세로 여유는 AREA.y0가 저울 바닥(84)보다 아래(100)일 때만 성립한다 — 딱 맞물린 상태에서
+  // 세로 여유를 주면 저울이 스스로 계약선을 넘어 "가짜 겹침"을 만들고 홈 띠 전체가
+  // 사용 불가가 되어, 오히려 크게 겹치는 자리로 물러나게 된다 (실측으로 잡은 자충수).
+  const CLEAR_X = 10
+  const CLEAR_Y = 10
+  const rectsOf = (comp: Composition, cam: Camera, a0: Auto) => {
+    const m = new Map<string, Rect4>()
+    for (const [key, p] of comp) m.set(key, actorRect(key, p, cam, a0))
+    return m
+  }
+  // 구성 전환은 애니메이션이다 — 배우는 직전 사각형에서 현재 사각형으로 이동하므로,
+  // 그 사이 어느 프레임에서도 두 사각형의 볼록 껍질 밖으로 나가지 않는다. 껍질을 피하면
+  // 전환 도중에도 스치지 않고, 퇴장하며 사라지는 중인 배우까지 함께 피해진다.
+  const hull = (a: Map<string, Rect4>, b: Map<string, Rect4>) => {
+    const out = new Map(b)
+    for (const [k, r] of a) {
+      const c = out.get(k)
+      out.set(
+        k,
+        c
+          ? { x0: Math.min(c.x0, r.x0), x1: Math.max(c.x1, r.x1), y0: Math.min(c.y0, r.y0), y1: Math.max(c.y1, r.y1) }
+          : r,
+      )
     }
-    return false
+    return out
+  }
+  /** 저울이 그 자리에 섰을 때 배우와 겹치는 총 면적 (0이면 빈 자리) */
+  const overlapAt = (x: number, y: number, rects: Map<string, Rect4>, skip: Set<string>) => {
+    const r = { x0: x - S_LEFT - CLEAR_X, x1: x + S_RIGHT + CLEAR_X, y0: y - S_UP - CLEAR_Y, y1: y + S_DOWN + CLEAR_Y }
+    let sum = 0
+    for (const [key, a] of rects) {
+      if (skip.has(key)) continue
+      const w = Math.min(r.x1, a.x1) - Math.max(r.x0, a.x0)
+      const h = Math.min(r.y1, a.y1) - Math.max(r.y0, a.y0)
+      if (w > 0 && h > 0) sum += w * h
+    }
+    return sum
   }
   // 홈 띠도 안전지대가 아니다 — AI 연출의 카메라 팬(camera 모션)이 콘텐츠를 위로 올리면
   // AREA.y0=84가 보장하던 여백이 줄어 배우가 홈 띠로 올라온다 (실측으로 잡은 케이스).
   // 홈에서 겹치면 저울을 좌우로 밀어 빈 자리를 찾는다 — 위로는 갈 곳이 없다.
-  const homeAt = (mx: number, comp: Composition, cam: Camera, skip: Set<string>): ScalePlace => {
+  const homeAt = (mx: number, rects: Map<string, Rect4>, skip: Set<string>): ScalePlace => {
     const x0 = homeXOf(mx)
-    if (!clashes(x0, HOME_Y, comp, cam, skip)) return { x: x0, y: HOME_Y }
+    let best = { x: x0, area: overlapAt(x0, HOME_Y, rects, skip) }
+    if (best.area === 0) return { x: x0, y: HOME_Y }
     const lo = BADGE_RIGHT + S_LEFT + S_GAP
     const hi = layout.width - S_RIGHT - 8
     for (let d = 40; d <= 720; d += 40) {
       for (const cand of [x0 - d, x0 + d]) {
         if (cand < lo || cand > hi) continue
-        if (!clashes(cand, HOME_Y, comp, cam, skip)) return { x: cand, y: HOME_Y }
+        const area = overlapAt(cand, HOME_Y, rects, skip)
+        if (area === 0) return { x: cand, y: HOME_Y }
+        if (area < best.area) best = { x: cand, area }
       }
     }
-    return { x: x0, y: HOME_Y } // 무대가 꽉 찼다 — 자리를 지어내지 않는다
+    // 무대가 꽉 찼다 — 자리를 지어내지 않고, 가장 덜 가리는 자리로 물러난다
+    return { x: best.x, y: HOME_Y }
   }
-  const scaleSpot = (cells: CellTarget[], comp: Composition, cam: Camera): ScalePlace | null => {
+  const scaleSpot = (
+    cells: CellTarget[],
+    comp: Composition,
+    cam: Camera,
+    rects: Map<string, Rect4>,
+  ): ScalePlace | null => {
     if (cells.length === 0) return null
     let sx = 0
     let labelTop = Infinity
@@ -308,8 +355,8 @@ export function compose(
     const hy = labelTop - S_GAP - S_DOWN
     // 내려갈 거리가 없으면 홈 띠가 곧 그 자리다. 홈에서는 비교 대상도 피할 배우로 센다 —
     // 대상 위가 아니라 빈 곳에 서는 것이 홈의 계약이다
-    if (hy <= HOME_Y) return homeAt(mx, comp, cam, new Set())
-    if (clashes(mx, hy, comp, cam, involved)) return homeAt(mx, comp, cam, new Set())
+    if (hy <= HOME_Y) return homeAt(mx, rects, new Set())
+    if (overlapAt(mx, hy, rects, involved) > 0) return homeAt(mx, rects, new Set())
     return { x: mx, y: hy }
   }
 
@@ -318,8 +365,17 @@ export function compose(
   let visible = false
   let lastCells: CellTarget[] | null = null
   let prevSpot: ScalePlace | null = null
+  let prevRects = new Map<string, Rect4>()
   shots.forEach((sh, si) => {
+    const prevAuto = auto
     for (const m of sh.motions) if (m.v === 'camera') auto = { k: m.k, x: m.x, y: m.y }
+    const cur = rectsOf(comps[si], cams[si], auto)
+    // 이 샷 동안 배우가 실제로 점유하는 범위 = 세 사각형의 껍질:
+    // ① 직전 배치(구성 전환 트윈의 출발) ② 현재 배치를 직전 카메라로 본 것(카메라 트윈의
+    // 출발 — 이 샷에 새로 등장한 배우는 ①이 없어 이것이 없으면 카메라 이동 경로가 빠진다)
+    // ③ 현재 배치·현재 카메라(정착). 트윈은 두 끝 사이를 지나므로 껍질을 피하면 전 구간이 안전하다
+    const rects = hull(hull(prevRects, rectsOf(comps[si], cams[si - 1] ?? cams[si], prevAuto)), cur)
+    prevRects = cur
     const cmp = sh.motions.find(m => m.v === 'compare' && m.a !== undefined && m.b !== undefined) as
       | Extract<Motion, { v: 'compare' }>
       | undefined
@@ -327,17 +383,19 @@ export function compose(
       const cells = cmp.targets.filter((t): t is CellTarget => t.kind === 'cell')
       lastCells = cells
       const spot = cells.length
-        ? (scaleSpot(cells, comps[si], cams[si]) ?? homeAt(HOME.x, comps[si], cams[si], new Set()))
-        : homeAt(HOME.x, comps[si], cams[si], new Set())
+        ? (scaleSpot(cells, comps[si], cams[si], rects) ?? homeAt(HOME.x, rects, new Set()))
+        : homeAt(HOME.x, rects, new Set())
       scales.push(spot)
       prevSpot = spot
       // WorldStage의 체류 판정과 같은 규칙 — 두 샷 안에 다음 비교가 오면 저울이 떠 있다
       visible = shots.slice(si + 1, si + 3).some(isCmp)
     } else if (visible) {
-      // 사이 샷 — 배우가 움직였으면 저울도 따라 자리를 갱신한다 (해석 실패 시 직전 자리 유지)
-      const spot = lastCells?.length
-        ? (scaleSpot(lastCells, comps[si], cams[si]) ?? prevSpot)
-        : (prevSpot && prevSpot.y === HOME_Y ? homeAt(prevSpot.x, comps[si], cams[si], new Set()) : prevSpot)
+      // 사이 샷 — 배우가 움직였으면 저울도 따라 자리를 갱신한다. 대상이 무대에서 내려가
+      // 해석이 안 되면 직전 자리를 그대로 쓰지 않고 홈에서 다시 빈 자리를 찾는다 —
+      // 가만히 선 저울 밑으로 다른 배우가 미끄러져 들어오는 경로가 여기였다 (실측)
+      const spot =
+        (lastCells?.length ? scaleSpot(lastCells, comps[si], cams[si], rects) : null) ??
+        homeAt(prevSpot?.x ?? HOME.x, rects, new Set())
       scales.push(spot)
       prevSpot = spot
     } else {
