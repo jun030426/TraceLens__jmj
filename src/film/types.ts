@@ -53,6 +53,8 @@ export type Motion =
   | { v: 'grow'; objectId: number; index: number; text: string }
   | { v: 'setCell'; objectId: number; index: number; text: string }
   | { v: 'shrink'; objectId: number; index: number }
+  /** 한 칸 삭제 + 당겨짐 — index가 빠지고 뒤 토큰들이 미끄러져 메운다. texts = 슬롯 index..끝의 착지 값 */
+  | { v: 'shiftLeft'; objectId: number; index: number; texts: string[] }
   | { v: 'swap'; objectId: number; i: number; k: number; iText: string; kText: string }
   | { v: 'exitObj'; objectId: number }
   | { v: 'pushFrame'; frameId: number }

@@ -488,6 +488,62 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               if (el) tl.to(el, { opacity: 0, scale: 0.6, duration: d * 0.5, ease: 'power2.in', transformOrigin: 'center' }, label)
               break
             }
+            case 'shiftLeft': {
+              // 값이 떠나고 → 빈 칸이 생기고 → 뒤 토큰들이 한 몸으로 미끄러져 메운다.
+              // 직선 당김(포물선 없음)이 교환의 서명과 이 동작을 구분한다. 슬롯은 붙박이.
+              const id = m.objectId
+              const k = m.index
+              const landTexts = m.texts
+              const n = k + landTexts.length // 새 크기 — 미끄러지는 토큰은 k+1..n, 접히는 슬롯은 n
+              const tokAt = (ci: number) => q(`${cellSel(id, ci)} .cell-token`)
+              const ant = sec(GRAMMAR.anticipation)
+              // ① 빠지는 값의 퇴장 — 칩이 있으면 칩이 뜨는 순간 원본 토큰이 사라진다 (복제가 아니라 이동)
+              const chipLeaves =
+                travelM?.from.kind === 'cell' && travelM.from.objectId === id && travelM.from.index === k
+              const departAt = chipLeaves ? ant + sec(0.1) : 0
+              const kTok = tokAt(k)
+              if (kTok) tl.to(kTok, { opacity: 0, duration: sec(0.12) }, `${label}+=${departAt}`)
+              // ② 당겨짐 — 빈 칸을 향해 뒤 전원이 함께 미끄러진다
+              const slideAt = departAt + sec(0.15)
+              const fl = d * 0.45
+              const sliders: Element[] = []
+              for (let j = k + 1; j <= n; j++) {
+                const el = tokAt(j)
+                if (el) sliders.push(el)
+              }
+              if (sliders.length)
+                tl.to(sliders, { x: -layout.cellW, duration: fl, ease: 'power2.inOut', transformOrigin: 'center' }, `${label}+=${slideAt}`)
+              // ③ 착지 — 내용 교대(스냅백, swap과 같은 스크럽 계약), 값·막대·플래시, 끝 슬롯 접힘
+              const land = slideAt + fl
+              tl.call(
+                () => {
+                  for (let i = k; i < n; i++) {
+                    const t = root.querySelector(`${cellSel(id, i)} .film-cell-text`)
+                    if (t) t.textContent = fitCell(landTexts[i - k])
+                  }
+                },
+                undefined,
+                `${label}+=${land}`,
+              )
+              if (kTok) tl.set(kTok, { opacity: 1 }, `${label}+=${land}`)
+              if (sliders.length) tl.set(sliders, { x: 0, transformOrigin: 'center' }, `${label}+=${land}`)
+              for (let i = k; i < n; i++) {
+                writeFlash(`${cellSel(id, i)} .cell-flash`, `${label}+=${land}`, d * 0.4)
+                setBar(id, i, landTexts[i - k], `${label}+=${land}`)
+                const tok = tokAt(i)
+                if (tok)
+                  tl.fromTo(
+                    tok,
+                    { scale: 1.05 },
+                    { scale: 1, duration: d * 0.25, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
+                    `${label}+=${land + sec(0.02)}`,
+                  )
+              }
+              const lastCell = q(cellSel(id, n))
+              if (lastCell)
+                tl.to(lastCell, { opacity: 0, scale: 0.6, duration: d * 0.3, ease: 'power2.in', transformOrigin: 'center' }, `${label}+=${land}`)
+              break
+            }
             case 'swap': {
               // 나는 것은 상자가 아니라 값이다 — 두 토큰(막대+글자)이 반대 포물선으로
               // 교차하고, 비행 동안 두 슬롯은 실제로 비어 보인다. 슬롯·번호는 붙박이.

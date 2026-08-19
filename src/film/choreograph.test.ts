@@ -258,6 +258,100 @@ describe('choreograph: 값의 이동 (travel)', () => {
   })
 })
 
+describe('choreograph: 시프트 접지 (pop의 물성)', () => {
+  const birth = (items: string[], seq: number) =>
+    ev({
+      observedAtLine: 2, causedByLine: 1,
+      localsDelta: [{ name: 'arr', op: 'set', value: { k: 'ref', id: 1 } }],
+      objectsDelta: [listSet(items)],
+    }, seq)
+  const shiftsOf = (shots: ReturnType<typeof choreograph>) =>
+    shots.flatMap(s => s.motions).filter(m => m.v === 'shiftLeft') as {
+      objectId: number; index: number; texts: string[]
+    }[]
+
+  it('pop(0) — setCell 폭풍 대신 shiftLeft 하나, 샷은 이야기 비트로 느리다', () => {
+    const code = 'arr = [7, 8, 9]\nx = arr.pop(0)\n'
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['7', '8', '9'], 1),
+      ev({
+        observedAtLine: 2, causedByLine: 2,
+        localsDelta: [{ name: 'x', op: 'set', value: P('7') }],
+        objectsDelta: [listSet(['8', '9'])],
+      }, 2),
+      ev({ kind: 'return', observedAtLine: 2 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    const shifts = shiftsOf(shots)
+    expect(shifts.length).toBe(1)
+    expect(shifts[0].index).toBe(0)
+    expect(shifts[0].texts).toEqual(['8', '9'])
+    const shot = shots.find(s => s.motions.some(m => m.v === 'shiftLeft'))!
+    expect(shot.motions.some(m => m.v === 'setCell' || m.v === 'shrink')).toBe(false)
+    expect(shot.durationMs).toBeGreaterThan(520)
+    // travel 출발지는 마지막 칸이 아니라 빠진 칸이다
+    const tr = shot.motions.find(m => m.v === 'travel') as { from: { kind: string; index?: number }; text: string }
+    expect(tr).toBeTruthy()
+    expect(tr.from.kind).toBe('cell')
+    expect(tr.from.index).toBe(0)
+    expect(tr.text).toBe('7')
+  })
+
+  it('del 중간 — index가 삭제 지점이고 자막이 당겨짐을 말한다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['1', '2', '3'], 1),
+      ev({ observedAtLine: 3, causedByLine: 2, objectsDelta: [listSet(['1', '3'])] }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const shifts = shiftsOf(shots)
+    expect(shifts.length).toBe(1)
+    expect(shifts[0].index).toBe(1)
+    expect(shifts[0].texts).toEqual(['3'])
+    const shot = shots.find(s => s.motions.some(m => m.v === 'shiftLeft'))!
+    expect(shot.caption).toContain('1번 칸')
+    expect(shot.caption).toContain('당겨')
+  })
+
+  it('꼬리 pop은 시프트가 아니다 — 아무도 안 움직이므로 기존 shrink', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['1', '2', '3'], 1),
+      ev({ observedAtLine: 3, causedByLine: 2, objectsDelta: [listSet(['1', '2'])] }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shiftsOf(shots).length).toBe(0)
+    expect(shots.flatMap(s => s.motions).some(m => m.v === 'shrink')).toBe(true)
+  })
+
+  it('두 칸 이상 삭제는 접지 실패 — 기존 경로 폴백 (지어내지 않는다)', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['1', '2', '3'], 1),
+      ev({ observedAtLine: 3, causedByLine: 2, objectsDelta: [listSet(['3'])] }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shiftsOf(shots).length).toBe(0)
+  })
+
+  it('값이 중복돼 삭제 지점이 모호하면 최소 k — 값이 같아 어느 쪽이든 정직하다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      birth(['2', '2', '3'], 1),
+      ev({ observedAtLine: 3, causedByLine: 2, objectsDelta: [listSet(['2', '3'])] }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const shifts = shiftsOf(shots)
+    expect(shifts.length).toBe(1)
+    expect(shifts[0].index).toBe(0)
+  })
+})
+
 describe('choreograph: 저울 데이터·정렬 스윕', () => {
   it('접지된 비교는 a·op·b·verdict 구조 필드를 싣는다', () => {
     const code = 'arr = [5, 2]\nn = 0\nif arr[0] > arr[1]:\n    pass\n'
