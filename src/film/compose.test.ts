@@ -223,6 +223,120 @@ describe('compose: 오토 프레이밍', () => {
   })
 })
 
+describe('compose: 저울 자리 (scales)', () => {
+  const cellCmp = (objectId: number, i: number, k: number): Shot['motions'][number] => ({
+    v: 'compare',
+    text: '5 > 3 → 참',
+    targets: [
+      { kind: 'cell', objectId, index: i },
+      { kind: 'cell', objectId, index: k },
+    ],
+    a: '5', op: '>', b: '3', verdict: true,
+  })
+
+  it('cell 타깃 비교 — 저울이 두 칸의 화면 중점 위·이름표 띠 위로 내려간다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '5' }]),
+      shot(1, [cellCmp(1, 0, 1)]),
+      shot(2, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { comps, cams, scales } = compose(shots, plan, layout)
+    const spot = scales[1]!
+    expect(spot).toBeTruthy()
+    const p = comps[1].get('o1')!
+    const cam = cams[1]
+    const cellX = (i: number) => cam.x + cam.k * (p.x + (8 + i * 40 + 17) * p.s)
+    expect(spot.x).toBeCloseTo((cellX(0) + cellX(1)) / 2, 5)
+    expect(spot.y).toBeGreaterThan(36) // 홈 띠보다 아래로 실제로 내려왔다
+    const labelTop = cam.y + cam.k * (p.y - 26 * p.s)
+    expect(spot.y).toBeCloseTo(labelTop - 8 - 48, 5) // 이름표 띠 위 8px 여백 + 저울 하반부 48
+  })
+
+  it('var 전용 비교 — 홈(상단 띠 중앙)에 머문다', () => {
+    const shots = [
+      shot(0, [{ v: 'setVar', varKey: '0:i', text: '3' }]),
+      shot(1, [
+        {
+          v: 'compare', text: 'i < 5 → 참',
+          targets: [{ kind: 'var', varKey: '0:i' }],
+          a: '3', op: '<', b: '5', verdict: true,
+        },
+      ]),
+      shot(2, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { scales } = compose(shots, plan, layout)
+    expect(scales[1]).toEqual({ x: 600, y: 36 })
+  })
+
+  it('저울 자리가 위 배우와 겹치면 내려가지 않는다 — 홈 폴백', () => {
+    const tallPlan: StagePlan = {
+      ...plan,
+      objects: [
+        ...plan.objects,
+        { objectId: 3, type: 'list', life: { from: 0, to: 99 }, maxItems: 4, changeCount: 3, referencedBy: ['0:c'], slot: 2 },
+      ],
+    }
+    const tallLayout: StageLayout = {
+      ...layout,
+      objPos: new Map([...layout.objPos, [3, { x: 560, y: 294, w: 300, h: 64 }]]),
+    }
+    const shots = [
+      shot(0, [
+        { v: 'grow', objectId: 1, index: 0, text: '1' },
+        { v: 'grow', objectId: 2, index: 0, text: '2' },
+        { v: 'grow', objectId: 3, index: 0, text: '3' },
+      ]),
+      // 셋 다 무대에 두고 맨 아래 상자의 칸을 비교 — 저울이 내려가면 위 상자와 겹친다
+      shot(1, [
+        { v: 'setCell', objectId: 1, index: 0, text: '9' },
+        { v: 'setCell', objectId: 2, index: 0, text: '8' },
+        cellCmp(3, 0, 1),
+      ]),
+      shot(2, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { scales } = compose(shots, tallPlan, tallLayout)
+    const spot = scales[1]!
+    expect(spot.y).toBe(36) // 홈 띠
+    expect(spot.x).toBeGreaterThanOrEqual(366) // 반복 배지(우측 264)를 피한 x
+    expect(spot.x).toBeLessThanOrEqual(1030)
+  })
+
+  it('AI 줌(camera 모션)이 있는 샷은 줌이 끝난 화면 기준으로 계산한다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '5' }]),
+      shot(1, [cellCmp(1, 0, 1), { v: 'camera', k: 1.45, x: -270, y: -144 }]),
+      shot(2, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { comps, cams, scales } = compose(shots, plan, layout)
+    const spot = scales[1]!
+    const p = comps[1].get('o1')!
+    const cam = cams[1]
+    const worldX = (i: number) => -270 + 1.45 * (cam.x + cam.k * (p.x + (8 + i * 40 + 17) * p.s))
+    const mx = (worldX(0) + worldX(1)) / 2
+    // 줌은 콘텐츠를 키워 위로 밀어올린다 — 이 프레이밍에서는 내려갈 자리가 없어 홈 띠
+    const labelTop = -144 + 1.45 * (cam.y + cam.k * (p.y - 22 * p.s))
+    expect(labelTop - 8 - 48).toBeLessThanOrEqual(36)
+    expect(spot.y).toBe(36)
+    expect(spot.x).toBeCloseTo(Math.min(Math.max(mx, 366), 1030), 5)
+  })
+
+  it('비교 연속 구간의 사이 샷에도 자리가 유지되고, 구간이 끝나면 사라진다', () => {
+    const shots = [
+      shot(0, [cellCmp(1, 0, 1)]),
+      shot(1, [{ v: 'setVar', varKey: '0:i', text: '1' }]), // 사이 샷 — 저울 체류
+      shot(2, [cellCmp(1, 1, 2)]),
+      shot(3, [{ v: 'setVar', varKey: '0:i', text: '2' }]), // 구간 종료 — 숨김
+      shot(4, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { scales } = compose(shots, plan, layout)
+    expect(scales[0]).toBeTruthy()
+    expect(scales[1]).toBeTruthy() // 사이 샷에도 자리를 안다 (카메라 추적)
+    expect(scales[2]).toBeTruthy()
+    expect(scales[3]).toBeNull()
+    expect(scales[4]).toBeNull()
+  })
+})
+
 describe('compose: 열 침범 금지', () => {
   it('넓은 포커스 상자가 있어도 대기 열은 그 오른쪽에서 시작한다', () => {
     const widePlan: StagePlan = {
