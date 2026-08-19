@@ -141,9 +141,14 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       // 셀 그룹의 transform 잔여 청소 — origin 보정 translate가 남으면 칸이 상자를 이탈한다.
       // clearProps로 GSAP의 origin 캐시까지 비운 뒤, 모든 칸 트윈과 같은 origin(center)으로 재설정
       // (origin이 섞이면 보정 translate 잔여가 칸 전체를 몇 px씩 밀고, 포인터 같은 바깥 기준점과 어긋난다)
-      // 슬롯·토큰 두 층 모두 같은 규율 — 비행의 x·y 잔여를 지우고 origin을 center로 통일한다
+      // 슬롯·토큰 두 층 모두 같은 규율 — 비행의 x·y 잔여를 지우고 origin을 center로 통일한다.
+      // smoothOrigin은 반드시 끈다: 토큰 bbox는 글자가 채워지며 커지고(빈 글자 → 값), 그때
+      // 'center'가 가리키는 점이 옮겨간다. smoothOrigin이 그 이동을 "튀지 않게" 보정하면서
+      // y 오프셋을 영구히 구워버려, 막대와 숫자가 칸보다 9px 아래로 내려앉았다 (실측).
       gsap.set(root.querySelectorAll('[data-cell], [data-token]'), { clearProps: 'transform' })
-      gsap.set(root.querySelectorAll('[data-cell], [data-token]'), { x: 0, y: 0, scale: 1, transformOrigin: 'center' })
+      gsap.set(root.querySelectorAll('[data-cell], [data-token]'), {
+        x: 0, y: 0, scale: 1, transformOrigin: 'center', smoothOrigin: false,
+      })
       // 저울은 홈(상단 띠 중앙)에서 시작한다 — 자리는 compose(scales)가 샷마다 소유한다
       gsap.set(root.querySelectorAll('.film-scale'), { x: layout.width / 2, y: 36 })
       const autoCam = q('.film-cam-auto')
