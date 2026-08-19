@@ -545,8 +545,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'swap': {
-              // 나는 것은 상자가 아니라 값이다 — 두 토큰(막대+글자)이 반대 포물선으로
-              // 교차하고, 비행 동안 두 슬롯은 실제로 비어 보인다. 슬롯·번호는 붙박이.
+              // 나는 것은 상자가 아니라 값이다 — 두 토큰(막대+글자)이 자리를 바꾸고,
+              // 비행 동안 두 슬롯은 실제로 비어 보인다. 슬롯·번호는 붙박이.
               const a = q(`${cellSel(m.objectId, m.i)} .cell-token`)
               const b = q(`${cellSel(m.objectId, m.k)} .cell-token`)
               if (!a || !b) break
@@ -556,18 +556,25 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               const k = m.k
               const iText = m.iText
               const kText = m.kText
-              // 예고 → 비행 → 여운: 들썩(질량 예고) → 포물선 교차 → 묵직한 착지
+              // 레인 교차 — 상하 여유가 없다(위는 이름표 띠와 착지한 저울, 아래는 칸 번호).
+              // 그래서 토큰은 상자를 벗어나는 대신 몸을 낮춰 위·아래 레인으로 비껴간다.
+              // 칸 안쪽이 8..56이므로 ±11 레인 + 0.66 축소가 상자(0..64) 안에 머무는 최대치다.
+              const LANE = 11
+              const LANE_S = 0.66
+              // 예고 → 비행 → 여운: 들썩(질량 예고) → 레인 교차 → 펴지며 묵직한 착지
               const ant = sec(GRAMMAR.anticipation)
               if (ant > 0.001) {
-                tl.fromTo([a, b], { y: 0 }, { y: -6, duration: ant, ease: 'power1.out', transformOrigin: 'center' }, label)
+                tl.fromTo([a, b], { y: 0 }, { y: -5, duration: ant, ease: 'power1.out', transformOrigin: 'center' }, label)
               }
               const fl = d * 0.5 // 비행 시간
-              tl.to(a, { x: dx, scale: 1.12, duration: fl, ease: 'power1.inOut', transformOrigin: 'center' }, `${label}+=${ant}`)
-              tl.to(b, { x: -dx, scale: 1.12, duration: fl, ease: 'power1.inOut', transformOrigin: 'center' }, `${label}+=${ant}`)
-              // 포물선 — 한 토큰은 위로 넘어가고(−30) 다른 토큰은 아래로 지나간다(+18)
-              tl.to(a, { y: -30, duration: fl / 2, ease: 'sine.out' }, `${label}+=${ant}`)
+              // 몸 낮추기는 출발 직후에 끝난다 — 먼저 자리를 만들고 나서 지나간다
+              tl.to([a, b], { scale: LANE_S, duration: fl * 0.35, ease: 'power2.out', transformOrigin: 'center' }, `${label}+=${ant}`)
+              tl.to(a, { x: dx, duration: fl, ease: 'power1.inOut', transformOrigin: 'center' }, `${label}+=${ant}`)
+              tl.to(b, { x: -dx, duration: fl, ease: 'power1.inOut', transformOrigin: 'center' }, `${label}+=${ant}`)
+              // 한 토큰은 위 레인, 다른 토큰은 아래 레인 — 최대 분리는 서로 스치는 중간 지점에서
+              tl.to(a, { y: -LANE, duration: fl / 2, ease: 'sine.out' }, `${label}+=${ant}`)
               tl.to(a, { y: 0, duration: fl / 2, ease: 'sine.in' }, `${label}+=${ant + fl / 2}`)
-              tl.to(b, { y: 18, duration: fl / 2, ease: 'sine.out' }, `${label}+=${ant}`)
+              tl.to(b, { y: LANE, duration: fl / 2, ease: 'sine.out' }, `${label}+=${ant}`)
               tl.to(b, { y: 0, duration: fl / 2, ease: 'sine.in' }, `${label}+=${ant + fl / 2}`)
               // 착지 순간의 내용 교대(스냅백) — 날아온 토큰과 그 슬롯의 새 값이 같아
               // 화면상 연속이다. 스크럽 계약은 기존 스왑과 동일
@@ -582,10 +589,11 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 `${label}+=${ant + fl}`,
               )
               tl.set([a, b], { x: 0, y: 0, transformOrigin: 'center' }, `${label}+=${ant + fl}`)
+              // 낮췄던 몸이 새 자리에서 펴진다 — 축소분(0.66→1)이 곧 착지의 무게감이다
               tl.to(
                 [a, b],
-                { scale: 1, duration: d * 0.3, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
-                `${label}+=${ant + fl + d * 0.03}`,
+                { scale: 1, duration: d * 0.34, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
+                `${label}+=${ant + fl}`,
               )
               // 자리를 바꾼 두 슬롯이 값을 받으며 함께 번쩍인다 — "여기가 바뀌었다"의 마침표
               writeFlash(`${cellSel(id, i)} .cell-flash`, `${label}+=${ant + fl}`, d * 0.45)
