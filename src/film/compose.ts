@@ -1,4 +1,4 @@
-import type { Shot, StagePlan } from './types'
+import type { CompareTarget, Motion, Shot, StagePlan } from './types'
 import type { StageLayout } from './layout'
 
 /* 구성(composition) — 애니메이션 무대의 심장.
@@ -11,6 +11,8 @@ export type Placement = { x: number; y: number; s: number; focus: boolean }
 export type Composition = Map<string, Placement> // 'o<objectId>' | 'v<varKey>'
 /** 오토 프레이밍 — 무대 위 배우들의 경계 상자를 프레임(1200×640)에 맞추는 카메라 */
 export type Camera = { k: number; x: number; y: number }
+/** 저울 자리 — 샷마다 저울 허브가 설 화면 좌표. null = 그 샷에는 저울이 없다 */
+export type ScalePlace = { x: number; y: number }
 
 export const LINGER = 6 // 마지막으로 닿은 뒤 무대에 머무는 샷 수
 
@@ -27,7 +29,7 @@ export function compose(
   shots: Shot[],
   plan: StagePlan,
   layout: StageLayout,
-): { comps: Composition[]; cams: Camera[] } {
+): { comps: Composition[]; cams: Camera[]; scales: (ScalePlace | null)[] } {
   const objSize = new Map(
     plan.objects.map(o => {
       const r = layout.objPos.get(o.objectId)
@@ -161,9 +163,11 @@ export function compose(
 
   // ── 오토 프레이밍 — 매 샷, 배우 경계 상자를 콘텐츠 영역에 맞춘다.
   // 이것이 "꽉 찬 프레임"이다: 빈 벽을 보여주지 않고 카메라가 이야기를 따라간다.
-  // 상단 여백은 저울 띠까지 계산에 넣는다 — 접시가 기울면 y≈75까지 내려오므로
-  // 콘텐츠는 84부터. 겹침은 위치 조정이 아니라 이 경계 계약으로 막는다.
-  const AREA = { x0: 60, y0: 84, x1: 1140, y1: 470 } // 상단 배지·저울·하단 HUD를 뺀 프레임
+  // 상단 여백은 저울 홈 띠까지 계산에 넣는다 — 접시가 기울면 y≈79까지 내려오므로
+  // 콘텐츠는 84부터. 저울은 비교 칸 위로 내려갈 수 있지만(아래 scales 패스), 내려갈
+  // 자리는 배우 사각형과의 비교차가 증명될 때만이다 — 못 내려가면 이 홈 띠로 돌아온다.
+  // 겹침은 위치 조정이 아니라 이 경계 계약 + 기하 판정으로 막는다.
+  const AREA = { x0: 60, y0: 84, x1: 1140, y1: 470 } // 상단 배지·저울 홈·하단 HUD를 뺀 프레임
   const sizeOf = (key: string): { w: number; h: number } =>
     objKeys.has(key) ? (objSize.get(Number(key.slice(1))) ?? { w: 120, h: 64 }) : { w: 190, h: 36 }
   const cams: Camera[] = []
@@ -207,5 +211,114 @@ export function compose(
     }
   }
 
-  return { comps, cams }
+  // ── 저울 자리 — 판단(저울)과 대상(칸)이 한 시야에 있도록, cell 타깃 비교면 저울이
+  // 비교 칸들의 화면 x 중점 위·대상 이름표 띠 바로 위로 내려간다. 겹침 0 계약:
+  // 후보 자리의 저울 사각형이 다른 배우 사각형(이름표·칸번호·포인터 띠 포함)과
+  // 교차하면 내려가지 않고 상단 홈 띠로 폴백한다 — 다른 배우 위를 떠도는 저울은 오독이다.
+  // var 전용 비교는 홈 고정(알약 스트립 위는 늘 붐빈다), 비교 연속 구간의 사이 샷에도
+  // 마지막 타깃 기준으로 자리를 갱신한다 (카메라가 움직여도 저울이 내용을 따라간다).
+  // 좌표는 오토 프레이밍(cams)에 AI 연출의 줌(camera 모션, film-cam-auto)까지 겹친
+  // 최종 화면 기준이다 — 줌을 빼먹으면 저울만 낡은 자리에 남는다 (실측으로 잡은 함정).
+  // 치수는 WorldStage 저울 부품에서 온다: 위 34(부등호 배지) / 아래 48(±10° 기운
+  // 접시의 바깥 모서리 — 수평 접시 32에 기울기 몫 16) / 왼쪽 94(접시 끝) / 오른쪽 162(판정 도장).
+  const S_UP = 34
+  const S_DOWN = 48
+  const S_LEFT = 94
+  const S_RIGHT = 162
+  const S_GAP = 8
+  const HOME_Y = 36
+  const BADGE_RIGHT = 264 // 반복 배지(x 24..264, y 14..44) — 홈 띠에서는 그 오른쪽에 선다
+  const HOME: ScalePlace = { x: layout.width / 2, y: HOME_Y }
+  const homeAt = (mx: number): ScalePlace => ({
+    x: Math.min(Math.max(mx, BADGE_RIGHT + S_LEFT + S_GAP), layout.width - S_RIGHT - 8),
+    y: HOME_Y,
+  })
+
+  // 인덱스 포인터가 상자 아래로 늘어뜨리는 화살표 줄 수 — 상자의 점유 사각형에 넣는다
+  const pointerRowCount = new Map<number, number>()
+  {
+    const seen = new Set<string>()
+    for (const sh of shots)
+      for (const m of sh.motions)
+        if (m.v === 'pointer' && !seen.has(m.varKey)) {
+          seen.add(m.varKey)
+          pointerRowCount.set(m.objectId, (pointerRowCount.get(m.objectId) ?? 0) + 1)
+        }
+  }
+
+  // AI 연출의 줌 상태 — camera 모션은 샷 안에서 트윈이 끝나므로, 샷의 "정착 상태"는
+  // 그 샷의 마지막 camera 모션 값이다 (다음 camera 모션까지 유지)
+  type Auto = { k: number; x: number; y: number }
+  let auto: Auto = { k: 1, x: 0, y: 0 }
+
+  const actorRect = (key: string, p: Placement, cam: Camera) => {
+    const fx = (v: number) => auto.x + auto.k * (cam.x + cam.k * v)
+    const fy = (v: number) => auto.y + auto.k * (cam.y + cam.k * v)
+    if (objKeys.has(key)) {
+      const id = Number(key.slice(1))
+      const size = objSize.get(id) ?? { w: 120, h: 64 }
+      const rows = pointerRowCount.get(id) ?? 0
+      return {
+        x0: fx(p.x),
+        x1: fx(p.x + size.w * p.s),
+        y0: fy(p.y - 26 * p.s), // 이름표 띠 — 글리프 상단 실측 -23.5에 여유 (카메라 bbox의 22와 다르다)
+        y1: fy(p.y + (size.h + (rows ? 26 + rows * 26 : 16)) * p.s), // 번호·포인터 띠
+      }
+    }
+    return { x0: fx(p.x), x1: fx(p.x + 190 * p.s), y0: fy(p.y), y1: fy(p.y + 36 * p.s) }
+  }
+
+  type CellTarget = Extract<CompareTarget, { kind: 'cell' }>
+  const scaleSpot = (cells: CellTarget[], comp: Composition, cam: Camera): ScalePlace | null => {
+    if (cells.length === 0) return null
+    let sx = 0
+    let labelTop = Infinity
+    const involved = new Set<string>()
+    for (const t of cells) {
+      const p = comp.get(`o${t.objectId}`)
+      if (!p) return null
+      sx += auto.x + auto.k * (cam.x + cam.k * (p.x + (8 + t.index * layout.cellW + (layout.cellW - 6) / 2) * p.s))
+      labelTop = Math.min(labelTop, auto.y + auto.k * (cam.y + cam.k * (p.y - 26 * p.s)))
+      involved.add(`o${t.objectId}`)
+    }
+    const mx = Math.min(Math.max(sx / cells.length, S_LEFT + 8), layout.width - S_RIGHT - 8)
+    const hy = labelTop - S_GAP - S_DOWN
+    if (hy <= HOME_Y) return homeAt(mx) // 내려갈 거리가 없다 — 홈 띠가 곧 그 자리다
+    const r = { x0: mx - S_LEFT, x1: mx + S_RIGHT, y0: hy - S_UP, y1: hy + S_DOWN }
+    for (const [key, p] of comp) {
+      if (involved.has(key)) continue
+      const a = actorRect(key, p, cam)
+      if (r.x0 < a.x1 && a.x0 < r.x1 && r.y0 < a.y1 && a.y0 < r.y1) return homeAt(mx)
+    }
+    return { x: mx, y: hy }
+  }
+
+  const isCmp = (sh: Shot) => sh.motions.some(m => m.v === 'compare' && m.a !== undefined && m.b !== undefined)
+  const scales: (ScalePlace | null)[] = []
+  let visible = false
+  let lastCells: CellTarget[] | null = null
+  let prevSpot: ScalePlace | null = null
+  shots.forEach((sh, si) => {
+    for (const m of sh.motions) if (m.v === 'camera') auto = { k: m.k, x: m.x, y: m.y }
+    const cmp = sh.motions.find(m => m.v === 'compare' && m.a !== undefined && m.b !== undefined) as
+      | Extract<Motion, { v: 'compare' }>
+      | undefined
+    if (cmp) {
+      const cells = cmp.targets.filter((t): t is CellTarget => t.kind === 'cell')
+      lastCells = cells
+      const spot = cells.length ? (scaleSpot(cells, comps[si], cams[si]) ?? HOME) : HOME
+      scales.push(spot)
+      prevSpot = spot
+      // WorldStage의 체류 판정과 같은 규칙 — 두 샷 안에 다음 비교가 오면 저울이 떠 있다
+      visible = shots.slice(si + 1, si + 3).some(isCmp)
+    } else if (visible) {
+      const spot = lastCells?.length ? (scaleSpot(lastCells, comps[si], cams[si]) ?? prevSpot) : prevSpot
+      scales.push(spot)
+      prevSpot = spot
+    } else {
+      scales.push(null)
+    }
+  })
+
+  return { comps, cams, scales }
 }

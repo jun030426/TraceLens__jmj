@@ -36,7 +36,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
 
   // 프레임은 영화처럼 고정(1200×640) — 콘텐츠를 채우는 건 오토 프레이밍 카메라의 일이다
   const FRAME_H = 640
-  const { comps, cams } = useMemo(() => compose(shots, plan, layout), [shots, plan, layout])
+  const { comps, cams, scales } = useMemo(() => compose(shots, plan, layout), [shots, plan, layout])
   const theme = useMemo(() => detectTheme(plan, shots), [plan, shots])
 
   // 인덱스 포인터 — pointer 모션으로 접지된 변수들. 알약 대신 배열 아래 화살표로 산다
@@ -141,6 +141,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       // (origin이 섞이면 보정 translate 잔여가 칸 전체를 몇 px씩 밀고, 포인터 같은 바깥 기준점과 어긋난다)
       gsap.set(root.querySelectorAll('[data-cell]'), { clearProps: 'transform' })
       gsap.set(root.querySelectorAll('[data-cell]'), { x: 0, y: 0, scale: 1, transformOrigin: 'center' })
+      // 저울은 홈(상단 띠 중앙)에서 시작한다 — 자리는 compose(scales)가 샷마다 소유한다
+      gsap.set(root.querySelectorAll('.film-scale'), { x: layout.width / 2, y: 36 })
       const autoCam = q('.film-cam-auto')
       if (autoCam) gsap.set(autoCam, { x: 0, y: 0, scale: 1 })
       // 오토 프레이밍 카메라 — 첫 구성의 프레임으로 시작
@@ -151,7 +153,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       let liveFrame: Element | null = null
       let prevComp: Composition = new Map()
       let chipTurn = 0
+      const scaleEl = q('.film-scale')
       let scaleUp = false // 저울이 무대에 올라와 있는가 — 비교 연속 구간에서 깜빡임 방지
+      let scalePos = { x: layout.width / 2, y: 36 } // 저울의 현재 자리 — 홈에서 출발
       let prevRot = 0 // 빔의 직전 기울기 — 수평 스냅 없이 이어서 스윙한다
       let prevStamp: Element | null = null // 직전 판정 도장 — 즉시 리셋 대신 부드럽게 교체
 
@@ -283,6 +287,19 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             label,
           )
           liveFrame = focusEl
+        }
+
+        // 저울이 비교 칸 위로 내려간다 — 자리는 compose(scales)가 소유한다. 등장 전이면
+        // 즉시 그 자리에 서고, 떠 있으면 이동한다 (비교가 이어지면 저울이 다음 칸을 따라간다).
+        // AI 줌(camera 모션)이 있는 샷은 줌 트윈과 같은 길이·ease로 움직인다 — 양끝이
+        // 맞고 보간이 같으면 중간 프레임에서도 저울이 칸 위를 벗어나지 않는다
+        const spot = scales[si]
+        if (scaleEl && spot && (spot.x !== scalePos.x || spot.y !== scalePos.y)) {
+          const zooming = shot.motions.some(m => m.v === 'camera')
+          if (scaleUp)
+            tl.to(scaleEl, { x: spot.x, y: spot.y, duration: zooming ? d * 0.9 : sec(0.4), ease: 'power2.inOut' }, label)
+          else tl.set(scaleEl, { x: spot.x, y: spot.y }, label)
+          scalePos = spot
         }
 
         for (const m of shot.motions) {
@@ -547,8 +564,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               tl.to(q('.film-loop')!, { opacity: 0, duration: d * 0.2 }, label)
               {
                 // 오류 앞에서 저울도 내린다 — 경광등만 남는 화면
-                const sc = q('.film-scale')
-                if (sc) tl.to(sc, { opacity: 0, duration: d * 0.2 }, label)
+                if (scaleEl) tl.to(scaleEl, { opacity: 0, duration: d * 0.2 }, label)
                 scaleUp = false
               }
               tl.fromTo(
@@ -702,7 +718,6 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'compare': {
-              const scaleEl = q('.film-scale')
               const isEcho = shot.motions.some(mm => mm.v === 'swap')
               const skipAnim = isEcho && scaleUp // 교환 샷의 echo — 같은 판정의 재연은 껌뻑임일 뿐
               if (scaleEl && m.a !== undefined && m.b !== undefined && !skipAnim) {
@@ -824,15 +839,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
 
     const tl = build()
     register(tl)
+    // 헤드리스 검증 훅 — 패널이 가려져 rAF가 멎어도 __filmTl.time(t)은 동기 렌더된다 (개발 전용)
+    if (import.meta.env.DEV) (window as unknown as { __filmTl?: unknown }).__filmTl = tl
     // 두 번째 인자 false = 이벤트 억제 해제 — 점프 경로의 tl.call(텍스트 세터)까지 전부 실행해야
     // 모션 감소 사용자도 값이 채워진 "완성된 마지막 프레임"을 본다
     if (still) tl.progress(1, false)
 
     return () => {
       register(null)
+      if (import.meta.env.DEV) (window as unknown as { __filmTl?: unknown }).__filmTl = undefined
       tl.kill()
     }
-  }, [shots, register, layout, plan, comps, cams, theme, pointers])
+  }, [shots, register, layout, plan, comps, cams, scales, theme, pointers])
 
   const hudOffset = FRAME_H - layout.height
 
