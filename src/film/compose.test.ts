@@ -301,27 +301,55 @@ describe('compose: 저울 자리 (scales)', () => {
     expect(spot.x).toBeLessThanOrEqual(1030)
   })
 
-  it('AI 줌(camera 모션)이 있는 샷은 줌이 끝난 화면 기준으로 계산한다', () => {
+  it('강조 샷 — 대상이 화면 중앙에 오고, 프레임 안에 온전히 담기며, 저울과 겹치지 않는다', () => {
     const shots = [
       shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '5' }]),
-      shot(1, [cellCmp(1, 0, 1), { v: 'camera', k: 1.45, x: -270, y: -144 }]),
+      shot(1, [cellCmp(1, 0, 1), { v: 'emphasis', k: 1.45 }]),
       shot(2, [{ v: 'stdout', text: 'x' }]),
     ]
-    const { comps, cams, scales } = compose(shots, plan, layout)
-    const spot = scales[1]!
+    const { comps, cams, scales, autos } = compose(shots, plan, layout)
+    const a = autos[1]
+    expect(a.k).toBeGreaterThan(1) // 강조가 실제로 걸렸다
     const p = comps[1].get('o1')!
     const cam = cams[1]
-    const fx = (v: number) => -270 + 1.45 * (cam.x + cam.k * v)
-    const fy = (v: number) => -144 + 1.45 * (cam.y + cam.k * v)
-    // 줌은 콘텐츠를 키워 위로 밀어올린다 — 이 프레이밍에서는 내려갈 자리가 없어 홈 띠
-    const labelTop = fy(p.y - 26 * p.s)
-    expect(labelTop - 8 - 48).toBeLessThanOrEqual(36)
-    expect(spot.y).toBe(36)
-    // 홈 띠에서도 배우를 피한다 — 줌 팬이 배우를 홈까지 밀어올려도 겹침은 0이어야 한다
-    const actor = { x0: fx(p.x), x1: fx(p.x + 300 * p.s), y0: labelTop, y1: fy(p.y + 80 * p.s) }
-    const box = { x0: spot.x - 94, x1: spot.x + 162, y0: 36 - 34, y1: 36 + 48 }
-    const hit = box.x0 < actor.x1 && actor.x0 < box.x1 && box.y0 < actor.y1 && actor.y0 < box.y1
+    const fx = (v: number) => a.x + a.k * (cam.x + cam.k * v)
+    const fy = (v: number) => a.y + a.k * (cam.y + cam.k * v)
+    const box = { x0: fx(p.x), x1: fx(p.x + 300 * p.s), y0: fy(p.y - 26 * p.s), y1: fy(p.y + 80 * p.s) }
+    // ① 대상 중심이 AREA 중앙 (600, 285)에 온다
+    expect((box.x0 + box.x1) / 2).toBeCloseTo(600, 5)
+    expect((box.y0 + box.y1) / 2).toBeCloseTo(285, 5)
+    // ② 프레임 밖으로 잘리지 않는다 (예전 결함: 오른쪽이 1270까지 나갔다)
+    expect(box.x0).toBeGreaterThanOrEqual(0)
+    expect(box.x1).toBeLessThanOrEqual(1200)
+    expect(box.y0).toBeGreaterThanOrEqual(0)
+    expect(box.y1).toBeLessThanOrEqual(640)
+    // ③ 저울과 겹치지 않는다
+    const spot = scales[1]!
+    const sb = { x0: spot.x - 94, x1: spot.x + 162, y0: spot.y - 34, y1: spot.y + 48 }
+    const hit = sb.x0 < box.x1 && box.x0 < sb.x1 && sb.y0 < box.y1 && box.y0 < sb.y1
     expect(hit).toBe(false)
+  })
+
+  it('대상이 무대에 없으면 강조를 조용히 포기한다 — 없는 것을 당길 수는 없다', () => {
+    const shots = [
+      shot(0, [{ v: 'setVar', varKey: '0:i', text: '1' }, { v: 'emphasis', k: 1.45 }]),
+      shot(1, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { autos } = compose(shots, plan, layout)
+    expect(autos[0]).toEqual({ k: 1, x: 0, y: 0 })
+  })
+
+  it('강조가 없는 샷의 카메라는 항등 — 강조는 한 비트만 산다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '5' }]),
+      shot(1, [cellCmp(1, 0, 1), { v: 'emphasis', k: 1.45 }]),
+      shot(2, [cellCmp(1, 1, 2)]),
+      shot(3, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { autos } = compose(shots, plan, layout)
+    expect(autos[0]).toEqual({ k: 1, x: 0, y: 0 })
+    expect(autos[1].k).toBeGreaterThan(1)
+    expect(autos[2]).toEqual({ k: 1, x: 0, y: 0 })
   })
 
   it('비교 연속 구간의 사이 샷에도 자리가 유지되고, 구간이 끝나면 사라진다', () => {

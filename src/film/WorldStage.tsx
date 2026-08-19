@@ -38,7 +38,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
 
   // 프레임은 영화처럼 고정(1200×640) — 콘텐츠를 채우는 건 오토 프레이밍 카메라의 일이다
   const FRAME_H = 640
-  const { comps, cams, scales } = useMemo(() => compose(shots, plan, layout), [shots, plan, layout])
+  const { comps, cams, scales, autos } = useMemo(() => compose(shots, plan, layout), [shots, plan, layout])
   const theme = useMemo(() => detectTheme(plan, shots), [plan, shots])
 
   // 인덱스 포인터 — pointer 모션으로 접지된 변수들. 알약 대신 배열 아래 화살표로 산다
@@ -159,8 +159,11 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       })
       // 저울은 홈(상단 띠 중앙)에서 시작한다 — 자리는 compose(scales)가 샷마다 소유한다
       gsap.set(root.querySelectorAll('.film-scale'), { x: layout.width / 2, y: 36 })
-      const autoCam = q('.film-cam-auto')
-      if (autoCam) gsap.set(autoCam, { x: 0, y: 0, scale: 1 })
+      // 강조 카메라 — origin은 리셋과 트윈이 반드시 같아야 한다. 리셋만 기본값(center)이면
+      // 트윈이 '0px 0px'로 바꾸는 순간 smoothOrigin이 보정 오프셋을 구워, 배율만 오르고
+      // 중심 이동이 어긋난다 (토큰의 9px 오프셋과 같은 함정)
+      const autoCam0 = q('.film-cam-auto')
+      if (autoCam0) gsap.set(autoCam0, { x: 0, y: 0, scale: 1, transformOrigin: '0px 0px', smoothOrigin: false })
       // 오토 프레이밍 카메라 — 첫 구성의 프레임으로 시작
       const frameCam = q('.film-cam-frame')
       let appliedCam: Camera | null = cams[0] ?? null
@@ -169,6 +172,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       let liveFrame: Element | null = null
       let prevComp: Composition = new Map()
       let chipTurn = 0
+      const autoEl = q('.film-cam-auto')
+      let appliedAuto = { k: 1, x: 0, y: 0 }
       const scaleEl = q('.film-scale')
       let scaleUp = false // 저울이 무대에 올라와 있는가 — 비교 연속 구간에서 깜빡임 방지
       let scalePos = { x: layout.width / 2, y: 36 } // 저울의 현재 자리 — 홈에서 출발
@@ -307,16 +312,36 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
           liveFrame = focusEl
         }
 
+        // 강조 — decorate가 표시한 비트에서 대상이 화면 중앙으로 당겨진다. 좌표는 compose가
+        // 배치에서 계산했다. 카메라는 camLead만큼 먼저 출발해 짧게 도착하고 그 샷 동안 머문다
+        // (예전엔 샷 시작에 출발해 d×0.9 동안 표류해서, 도착하는 순간 비트가 끝났다)
+        const autoNow = autos[si] ?? { k: 1, x: 0, y: 0 }
+        const emphAt = Math.max(0, labelPos - sec(GRAMMAR.camLead))
+        const autoMoved =
+          autoNow.k !== appliedAuto.k || autoNow.x !== appliedAuto.x || autoNow.y !== appliedAuto.y
+        if (autoEl && autoMoved) {
+          tl.to(
+            autoEl,
+            {
+              x: autoNow.x, y: autoNow.y, scale: autoNow.k,
+              duration: sec(0.4), ease: 'power2.inOut', transformOrigin: '0px 0px', smoothOrigin: false,
+            },
+            emphAt,
+          )
+          appliedAuto = autoNow
+        }
+
         // 저울이 비교 칸 위로 내려간다 — 자리는 compose(scales)가 소유한다. 등장 전이면
         // 즉시 그 자리에 서고, 떠 있으면 이동한다 (비교가 이어지면 저울이 다음 칸을 따라간다).
         // AI 줌(camera 모션)이 있는 샷은 줌 트윈과 같은 길이·ease로 움직인다 — 양끝이
         // 맞고 보간이 같으면 중간 프레임에서도 저울이 칸 위를 벗어나지 않는다
         const spot = scales[si]
         if (scaleEl && spot && (spot.x !== scalePos.x || spot.y !== scalePos.y)) {
-          const zooming = shot.motions.some(m => m.v === 'camera')
+          // 강조로 카메라가 움직이는 샷이면 저울도 같은 시각·같은 길이·같은 ease로 —
+          // 양끝이 맞고 보간이 같으면 중간 프레임에서도 어긋나지 않는다
           if (scaleUp)
-            tl.to(scaleEl, { x: spot.x, y: spot.y, duration: zooming ? d * 0.9 : sec(0.4), ease: 'power2.inOut' }, label)
-          else tl.set(scaleEl, { x: spot.x, y: spot.y }, label)
+            tl.to(scaleEl, { x: spot.x, y: spot.y, duration: sec(0.4), ease: 'power2.inOut' }, autoMoved ? emphAt : label)
+          else tl.set(scaleEl, { x: spot.x, y: spot.y }, autoMoved ? emphAt : label)
           scalePos = spot
         }
 
@@ -717,17 +742,6 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 }
               }
               break
-            case 'camera': {
-              const autoEl = q('.film-cam-auto')
-              if (autoEl) {
-                tl.to(
-                  autoEl,
-                  { x: m.x, y: m.y, scale: m.k, duration: d * 0.9, ease: 'power2.inOut', transformOrigin: '0px 0px' },
-                  label,
-                )
-              }
-              break
-            }
             case 'gridCell': {
               const cell = q(`[data-gcell="${m.objectId}-${m.r}-${m.c}"]`)
               const txt = q(`[data-gctext="${m.objectId}-${m.r}-${m.c}"]`)
@@ -942,7 +956,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     if (import.meta.env.DEV) {
       const w = window as unknown as {
         __filmTl?: unknown; __filmScales?: unknown; __filmShots?: unknown
-        __filmComps?: unknown; __filmCams?: unknown; __filmObjSize?: unknown
+        __filmComps?: unknown; __filmCams?: unknown; __filmObjSize?: unknown; __filmLayout?: unknown; __filmAutos?: unknown
       }
       w.__filmTl = tl
       w.__filmScales = scales
@@ -950,6 +964,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       w.__filmComps = comps.map(c => Object.fromEntries(c))
       w.__filmCams = cams
       w.__filmObjSize = Object.fromEntries(plan.objects.map(o => [o.objectId, layout.objPos.get(o.objectId)]))
+      w.__filmLayout = { width: layout.width, height: layout.height, cellW: layout.cellW }
+      w.__filmAutos = autos
     }
     // 두 번째 인자 false = 이벤트 억제 해제 — 점프 경로의 tl.call(텍스트 세터)까지 전부 실행해야
     // 모션 감소 사용자도 값이 채워진 "완성된 마지막 프레임"을 본다
@@ -960,7 +976,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       if (import.meta.env.DEV) (window as unknown as { __filmTl?: unknown }).__filmTl = undefined
       tl.kill()
     }
-  }, [shots, register, layout, plan, comps, cams, scales, theme, pointers])
+  }, [shots, register, layout, plan, comps, cams, scales, autos, theme, pointers])
 
   const hudOffset = FRAME_H - layout.height
 
