@@ -229,10 +229,8 @@ export function compose(
   const HOME_Y = 36
   const BADGE_RIGHT = 264 // 반복 배지(x 24..264, y 14..44) — 홈 띠에서는 그 오른쪽에 선다
   const HOME: ScalePlace = { x: layout.width / 2, y: HOME_Y }
-  const homeAt = (mx: number): ScalePlace => ({
-    x: Math.min(Math.max(mx, BADGE_RIGHT + S_LEFT + S_GAP), layout.width - S_RIGHT - 8),
-    y: HOME_Y,
-  })
+  const homeXOf = (mx: number) =>
+    Math.min(Math.max(mx, BADGE_RIGHT + S_LEFT + S_GAP), layout.width - S_RIGHT - 8)
 
   // 인덱스 포인터가 상자 아래로 늘어뜨리는 화살표 줄 수 — 상자의 점유 사각형에 넣는다
   const pointerRowCount = new Map<number, number>()
@@ -269,6 +267,31 @@ export function compose(
   }
 
   type CellTarget = Extract<CompareTarget, { kind: 'cell' }>
+  const clashes = (x: number, y: number, comp: Composition, cam: Camera, skip: Set<string>) => {
+    const r = { x0: x - S_LEFT, x1: x + S_RIGHT, y0: y - S_UP, y1: y + S_DOWN }
+    for (const [key, p] of comp) {
+      if (skip.has(key)) continue
+      const a = actorRect(key, p, cam)
+      if (r.x0 < a.x1 && a.x0 < r.x1 && r.y0 < a.y1 && a.y0 < r.y1) return true
+    }
+    return false
+  }
+  // 홈 띠도 안전지대가 아니다 — AI 연출의 카메라 팬(camera 모션)이 콘텐츠를 위로 올리면
+  // AREA.y0=84가 보장하던 여백이 줄어 배우가 홈 띠로 올라온다 (실측으로 잡은 케이스).
+  // 홈에서 겹치면 저울을 좌우로 밀어 빈 자리를 찾는다 — 위로는 갈 곳이 없다.
+  const homeAt = (mx: number, comp: Composition, cam: Camera, skip: Set<string>): ScalePlace => {
+    const x0 = homeXOf(mx)
+    if (!clashes(x0, HOME_Y, comp, cam, skip)) return { x: x0, y: HOME_Y }
+    const lo = BADGE_RIGHT + S_LEFT + S_GAP
+    const hi = layout.width - S_RIGHT - 8
+    for (let d = 40; d <= 720; d += 40) {
+      for (const cand of [x0 - d, x0 + d]) {
+        if (cand < lo || cand > hi) continue
+        if (!clashes(cand, HOME_Y, comp, cam, skip)) return { x: cand, y: HOME_Y }
+      }
+    }
+    return { x: x0, y: HOME_Y } // 무대가 꽉 찼다 — 자리를 지어내지 않는다
+  }
   const scaleSpot = (cells: CellTarget[], comp: Composition, cam: Camera): ScalePlace | null => {
     if (cells.length === 0) return null
     let sx = 0
@@ -283,13 +306,10 @@ export function compose(
     }
     const mx = Math.min(Math.max(sx / cells.length, S_LEFT + 8), layout.width - S_RIGHT - 8)
     const hy = labelTop - S_GAP - S_DOWN
-    if (hy <= HOME_Y) return homeAt(mx) // 내려갈 거리가 없다 — 홈 띠가 곧 그 자리다
-    const r = { x0: mx - S_LEFT, x1: mx + S_RIGHT, y0: hy - S_UP, y1: hy + S_DOWN }
-    for (const [key, p] of comp) {
-      if (involved.has(key)) continue
-      const a = actorRect(key, p, cam)
-      if (r.x0 < a.x1 && a.x0 < r.x1 && r.y0 < a.y1 && a.y0 < r.y1) return homeAt(mx)
-    }
+    // 내려갈 거리가 없으면 홈 띠가 곧 그 자리다. 홈에서는 비교 대상도 피할 배우로 센다 —
+    // 대상 위가 아니라 빈 곳에 서는 것이 홈의 계약이다
+    if (hy <= HOME_Y) return homeAt(mx, comp, cam, new Set())
+    if (clashes(mx, hy, comp, cam, involved)) return homeAt(mx, comp, cam, new Set())
     return { x: mx, y: hy }
   }
 
@@ -306,13 +326,18 @@ export function compose(
     if (cmp) {
       const cells = cmp.targets.filter((t): t is CellTarget => t.kind === 'cell')
       lastCells = cells
-      const spot = cells.length ? (scaleSpot(cells, comps[si], cams[si]) ?? HOME) : HOME
+      const spot = cells.length
+        ? (scaleSpot(cells, comps[si], cams[si]) ?? homeAt(HOME.x, comps[si], cams[si], new Set()))
+        : homeAt(HOME.x, comps[si], cams[si], new Set())
       scales.push(spot)
       prevSpot = spot
       // WorldStage의 체류 판정과 같은 규칙 — 두 샷 안에 다음 비교가 오면 저울이 떠 있다
       visible = shots.slice(si + 1, si + 3).some(isCmp)
     } else if (visible) {
-      const spot = lastCells?.length ? (scaleSpot(lastCells, comps[si], cams[si]) ?? prevSpot) : prevSpot
+      // 사이 샷 — 배우가 움직였으면 저울도 따라 자리를 갱신한다 (해석 실패 시 직전 자리 유지)
+      const spot = lastCells?.length
+        ? (scaleSpot(lastCells, comps[si], cams[si]) ?? prevSpot)
+        : (prevSpot && prevSpot.y === HOME_Y ? homeAt(prevSpot.x, comps[si], cams[si], new Set()) : prevSpot)
       scales.push(spot)
       prevSpot = spot
     } else {
