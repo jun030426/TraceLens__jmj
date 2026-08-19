@@ -17,6 +17,8 @@ type Props = {
 const esc = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, m => `\\${m}`)
 const objSel = (id: number) => `[data-obj="${id}"]`
 const cellSel = (id: number, i: number) => `[data-cell="${id}-${i}"]`
+/** 값 토큰 — 슬롯 층 위의 독립 층에 산다 (겹침 순서 계약) */
+const tokSel = (id: number, i: number) => `[data-token="${id}-${i}"]`
 const varSel = (key: string) => `[data-var="${esc(key)}"]`
 const ptrSel = (key: string) => `[data-ptr="${esc(key)}"]`
 const frameSel = (id: number) => `[data-frame="${id}"]`
@@ -121,7 +123,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     const build = () => {
       gsap.set(
         root.querySelectorAll(
-          '[data-obj], [data-var], [data-frame], [data-cell], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done',
+          '[data-obj], [data-var], [data-frame], [data-cell], [data-token], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done',
         ),
         { opacity: 0 },
       )
@@ -139,11 +141,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       // 셀 그룹의 transform 잔여 청소 — origin 보정 translate가 남으면 칸이 상자를 이탈한다.
       // clearProps로 GSAP의 origin 캐시까지 비운 뒤, 모든 칸 트윈과 같은 origin(center)으로 재설정
       // (origin이 섞이면 보정 translate 잔여가 칸 전체를 몇 px씩 밀고, 포인터 같은 바깥 기준점과 어긋난다)
-      gsap.set(root.querySelectorAll('[data-cell]'), { clearProps: 'transform' })
-      gsap.set(root.querySelectorAll('[data-cell]'), { x: 0, y: 0, scale: 1, transformOrigin: 'center' })
-      // 값 토큰도 같은 규율 — 스왑 비행의 x·y 잔여를 지우고 origin을 center로 통일한다
-      gsap.set(root.querySelectorAll('.cell-token'), { clearProps: 'transform' })
-      gsap.set(root.querySelectorAll('.cell-token'), { x: 0, y: 0, scale: 1, transformOrigin: 'center' })
+      // 슬롯·토큰 두 층 모두 같은 규율 — 비행의 x·y 잔여를 지우고 origin을 center로 통일한다
+      gsap.set(root.querySelectorAll('[data-cell], [data-token]'), { clearProps: 'transform' })
+      gsap.set(root.querySelectorAll('[data-cell], [data-token]'), { x: 0, y: 0, scale: 1, transformOrigin: 'center' })
       // 저울은 홈(상단 띠 중앙)에서 시작한다 — 자리는 compose(scales)가 샷마다 소유한다
       gsap.set(root.querySelectorAll('.film-scale'), { x: layout.width / 2, y: 36 })
       const autoCam = q('.film-cam-auto')
@@ -176,8 +176,10 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         if (el) tl.fromTo(el, { opacity: 1 }, { opacity: 0, duration: sec(dur), ease: 'power2.in' }, at)
       }
       // 값 막대 — 칸 값이 바뀌는 모든 지점에서 높이를 따라 그린다 (음수 없는 숫자 리스트만 DOM에 존재)
+      // 칸의 자리와 물건은 함께 등장·퇴장한다 — 한쪽만 잡으면 슬롯과 토큰이 따로 논다
+      const cellPair = (id: number, idx: number) => [q(cellSel(id, idx)), q(tokSel(id, idx))].filter(Boolean) as Element[]
       const setBar = (id: number, idx: number, text: string, at: string | number) => {
-        const el = q(`${cellSel(id, idx)} .cell-bar`)
+        const el = q(`${tokSel(id, idx)} .cell-bar`)
         if (!el) return
         const v = Number(text)
         const max = theme.maxAbs.get(id) ?? 1
@@ -338,7 +340,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               if (from && to) {
                 // 출발지가 먼저 꿈틀한다 — 떠나는 것은 칸이 아니라 값(토큰)이다
                 const srcEl =
-                  m.from.kind === 'cell' ? q(`${cellSel(m.from.objectId, m.from.index)} .cell-token`) : inner(varSel(m.from.varKey))
+                  m.from.kind === 'cell' ? q(tokSel(m.from.objectId, m.from.index)) : inner(varSel(m.from.varKey))
                 if (srcEl && travelAnt > 0.001) {
                   tl.fromTo(
                     srcEl,
@@ -438,7 +440,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               const at = arriving ? arriveAt : growStep ? `${label}+=${grows.indexOf(m) * growStep}` : label
               tl.call(
                 () => {
-                  const el = root.querySelector(`${cellSel(id, idx)} .film-cell-text`)
+                  const el = root.querySelector(`${tokSel(id, idx)} .film-cell-text`)
                   if (el) el.textContent = fitCell(text)
                 },
                 undefined,
@@ -447,7 +449,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               // origin은 셀 트윈 전체에서 'center'로 통일한다 — origin이 트윈마다 다르면
               // GSAP의 SVG origin 보정 translate가 잔여로 남아 칸이 상자를 이탈한다
               tl.fromTo(
-                q(cellSel(id, idx))!,
+                cellPair(id, idx),
                 { opacity: 0, scale: 0.3 },
                 { opacity: 1, scale: 1, duration: d, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
                 at,
@@ -465,16 +467,16 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               const at = arriving ? arriveAt : label
               tl.call(
                 () => {
-                  const el = root.querySelector(`${cellSel(id, idx)} .film-cell-text`)
+                  const el = root.querySelector(`${tokSel(id, idx)} .film-cell-text`)
                   if (el) el.textContent = fitCell(text)
                 },
                 undefined,
                 at,
               )
               // 새 값이 내려앉는 펄스는 토큰이 한다 — 슬롯은 제자리에서 가시성만 보전
-              tl.set(q(cellSel(id, idx))!, { opacity: 1 }, at)
+              tl.set(cellPair(id, idx), { opacity: 1 }, at)
               tl.fromTo(
-                q(`${cellSel(id, idx)} .cell-token`)!,
+                q(tokSel(id, idx))!,
                 { scale: 1.35 },
                 { scale: 1, duration: d, ease: GRAMMAR.settleEase, transformOrigin: 'center' },
                 at,
@@ -484,8 +486,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'shrink': {
-              const el = q(cellSel(m.objectId, m.index))
-              if (el) tl.to(el, { opacity: 0, scale: 0.6, duration: d * 0.5, ease: 'power2.in', transformOrigin: 'center' }, label)
+              const els = cellPair(m.objectId, m.index)
+              if (els.length) tl.to(els, { opacity: 0, scale: 0.6, duration: d * 0.5, ease: 'power2.in', transformOrigin: 'center' }, label)
               break
             }
             case 'shiftLeft': {
@@ -495,7 +497,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               const k = m.index
               const landTexts = m.texts
               const n = k + landTexts.length // 새 크기 — 미끄러지는 토큰은 k+1..n, 접히는 슬롯은 n
-              const tokAt = (ci: number) => q(`${cellSel(id, ci)} .cell-token`)
+              const tokAt = (ci: number) => q(tokSel(id, ci))
               const ant = sec(GRAMMAR.anticipation)
               // ① 빠지는 값의 퇴장 — 칩이 있으면 칩이 뜨는 순간 원본 토큰이 사라진다 (복제가 아니라 이동)
               const chipLeaves =
@@ -518,7 +520,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               tl.call(
                 () => {
                   for (let i = k; i < n; i++) {
-                    const t = root.querySelector(`${cellSel(id, i)} .film-cell-text`)
+                    const t = root.querySelector(`${tokSel(id, i)} .film-cell-text`)
                     if (t) t.textContent = fitCell(landTexts[i - k])
                   }
                 },
@@ -539,16 +541,16 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                     `${label}+=${land + sec(0.02)}`,
                   )
               }
-              const lastCell = q(cellSel(id, n))
-              if (lastCell)
+              const lastCell = cellPair(id, n)
+              if (lastCell.length)
                 tl.to(lastCell, { opacity: 0, scale: 0.6, duration: d * 0.3, ease: 'power2.in', transformOrigin: 'center' }, `${label}+=${land}`)
               break
             }
             case 'swap': {
               // 나는 것은 상자가 아니라 값이다 — 두 토큰(막대+글자)이 자리를 바꾸고,
               // 비행 동안 두 슬롯은 실제로 비어 보인다. 슬롯·번호는 붙박이.
-              const a = q(`${cellSel(m.objectId, m.i)} .cell-token`)
-              const b = q(`${cellSel(m.objectId, m.k)} .cell-token`)
+              const a = q(tokSel(m.objectId, m.i))
+              const b = q(tokSel(m.objectId, m.k))
               if (!a || !b) break
               const dx = (m.k - m.i) * layout.cellW
               const id = m.objectId
@@ -556,10 +558,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               const k = m.k
               const iText = m.iText
               const kText = m.kText
-              // 레인 교차 — 상하 여유가 없다(위는 이름표 띠와 착지한 저울, 아래는 칸 번호).
-              // 그래서 토큰은 상자를 벗어나는 대신 몸을 낮춰 위·아래 레인으로 비껴간다.
-              // 칸 안쪽이 8..56이므로 ±11 레인 + 0.66 축소가 상자(0..64) 안에 머무는 최대치다.
-              const LANE = 11
+              // 레인 교차 — 토큰은 상자를 벗어나는 대신 몸을 낮춰 위·아래 레인으로 비껴간다.
+              // 레인은 비대칭이다: 칸(8..56)은 상자(0..64) 안에서 위로 8, 아래로 8만 남기는데
+              // 글자 디센더까지 real bbox가 아래로 더 넓어 대칭 ±11은 하단을 3.8px 넘겼다(실측).
+              // 여유가 있는 위로 더 가고 아래로는 덜 내려간다 — 분리폭(21)은 그대로 지킨다.
+              const LANE_UP = 14
+              const LANE_DOWN = 7
               const LANE_S = 0.66
               // 예고 → 비행 → 여운: 들썩(질량 예고) → 레인 교차 → 펴지며 묵직한 착지
               const ant = sec(GRAMMAR.anticipation)
@@ -572,16 +576,16 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               tl.to(a, { x: dx, duration: fl, ease: 'power1.inOut', transformOrigin: 'center' }, `${label}+=${ant}`)
               tl.to(b, { x: -dx, duration: fl, ease: 'power1.inOut', transformOrigin: 'center' }, `${label}+=${ant}`)
               // 한 토큰은 위 레인, 다른 토큰은 아래 레인 — 최대 분리는 서로 스치는 중간 지점에서
-              tl.to(a, { y: -LANE, duration: fl / 2, ease: 'sine.out' }, `${label}+=${ant}`)
+              tl.to(a, { y: -LANE_UP, duration: fl / 2, ease: 'sine.out' }, `${label}+=${ant}`)
               tl.to(a, { y: 0, duration: fl / 2, ease: 'sine.in' }, `${label}+=${ant + fl / 2}`)
-              tl.to(b, { y: LANE, duration: fl / 2, ease: 'sine.out' }, `${label}+=${ant}`)
+              tl.to(b, { y: LANE_DOWN, duration: fl / 2, ease: 'sine.out' }, `${label}+=${ant}`)
               tl.to(b, { y: 0, duration: fl / 2, ease: 'sine.in' }, `${label}+=${ant + fl / 2}`)
               // 착지 순간의 내용 교대(스냅백) — 날아온 토큰과 그 슬롯의 새 값이 같아
               // 화면상 연속이다. 스크럽 계약은 기존 스왑과 동일
               tl.call(
                 () => {
-                  const ta = root.querySelector(`${cellSel(id, i)} .film-cell-text`)
-                  const tb = root.querySelector(`${cellSel(id, k)} .film-cell-text`)
+                  const ta = root.querySelector(`${tokSel(id, i)} .film-cell-text`)
+                  const tb = root.querySelector(`${tokSel(id, k)} .film-cell-text`)
                   if (ta) ta.textContent = fitCell(iText)
                   if (tb) tb.textContent = fitCell(kText)
                 },
@@ -743,7 +747,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 const done = el.querySelector('.cell-done')
                 if (done) tl.fromTo(done, { opacity: 0 }, { opacity: 0.35, duration: sec(0.3), ease: 'power2.out' }, at)
                 tl.fromTo(
-                  el,
+                  cellPair(id, ci),
                   { scale: 1 },
                   { scale: GRAMMAR.sweepPop, duration: sec(0.12), yoyo: true, repeat: 1, ease: 'power1.inOut', transformOrigin: 'center' },
                   at,
@@ -877,8 +881,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               for (const t of m.targets) {
                 // 읽기 펄스는 값(토큰)이 한다 — 단 교환 샷에서는 비행이 곧 강조라 생략
                 // (같은 transform을 펄스와 비행이 다투면 지터가 된다)
-                const el =
-                  t.kind === 'cell' ? q(`${cellSel(t.objectId, t.index)} .cell-token`) : inner(varSel(t.varKey))
+                const el = t.kind === 'cell' ? q(tokSel(t.objectId, t.index)) : inner(varSel(t.varKey))
                 if (el && !isEcho) {
                   tl.fromTo(
                     el,
@@ -902,8 +905,10 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         // sortedSweep이 있으면 그 스윕이 곧 마침표이므로 이중 펄스를 만들지 않는다
         if (si === shots.length - 1 && !shot.motions.some(m => m.v === 'sortedSweep')) {
           root.querySelectorAll('[data-cell]').forEach((el, ci) => {
+            const key = el.getAttribute('data-cell')
+            const pair = [el, root.querySelector(`[data-token="${key}"]`)].filter(Boolean) as Element[]
             tl.fromTo(
-              el,
+              pair,
               { scale: 1 },
               { scale: 1.07, duration: sec(0.12), yoyo: true, repeat: 1, ease: 'power1.inOut', transformOrigin: 'center' },
               `${label}+=${sec(0.55) + ci * sec(0.05)}`,
@@ -1009,8 +1014,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               <rect x={0} y={0} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line-strong)" strokeWidth={2} />
               <text className="film-obj-name svg-name" x={4} y={-8} />
               <text x={r.w} y={-8} textAnchor="end" className="svg-type">{o.type}</text>
-              {/* 칸 = 자리(슬롯) + 물건(값 토큰). 슬롯(배경·플래시·링·완성칠·번호)은 붙박이,
-                  토큰(막대+글자)만 움직인다 — 교환·이동 때 나는 것은 상자가 아니라 값이다 */}
+              {/* 칸 = 자리(슬롯) + 물건(값 토큰). 두 층을 따로 그린다 — SVG는 z-index가 없어
+                  문서 순서가 곧 겹침 순서라, 토큰이 칸 안에 살면 오른쪽으로 나는 토큰이
+                  이웃 칸의 불투명 배경 뒤로 숨는다. 토큰 층이 슬롯 층 전체 위에 뜬다. */}
               {Array.from({ length: cells }, (_, i) => (
                 <g key={i} data-cell={`${o.objectId}-${i}`}>
                   <rect
@@ -1039,24 +1045,6 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                     height={r.h - 16}
                     rx={5}
                   />
-                  <g className="cell-token">
-                    {theme.barObjects.has(o.objectId) && (
-                      <rect
-                        className="cell-bar"
-                        x={8 + i * layout.cellW + 4}
-                        y={12}
-                        width={layout.cellW - 14}
-                        height={r.h - 24}
-                        rx={3}
-                      />
-                    )}
-                    <text
-                      className="film-cell-text svg-value"
-                      x={8 + i * layout.cellW + (layout.cellW - 6) / 2}
-                      y={r.h / 2 + 5}
-                      textAnchor="middle"
-                    />
-                  </g>
                   <rect
                     className="cell-ring"
                     x={6 + i * layout.cellW}
@@ -1073,6 +1061,27 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                   >
                     {i}
                   </text>
+                </g>
+              ))}
+              {/* 토큰 층 — 좌표는 상자 로컬 절대값이라 슬롯과 정확히 같은 자리에 뜬다 */}
+              {Array.from({ length: cells }, (_, i) => (
+                <g key={`t${i}`} className="cell-token" data-token={`${o.objectId}-${i}`}>
+                  {theme.barObjects.has(o.objectId) && (
+                    <rect
+                      className="cell-bar"
+                      x={8 + i * layout.cellW + 4}
+                      y={12}
+                      width={layout.cellW - 14}
+                      height={r.h - 24}
+                      rx={3}
+                    />
+                  )}
+                  <text
+                    className="film-cell-text svg-value"
+                    x={8 + i * layout.cellW + (layout.cellW - 6) / 2}
+                    y={r.h / 2 + 5}
+                    textAnchor="middle"
+                  />
                 </g>
               ))}
               {/* 인덱스 포인터 — 변수가 값이 아니라 "위치"로 산다. setVar마다 화살표가 칸 밑을 걷는다 */}
