@@ -311,13 +311,17 @@ describe('compose: 저울 자리 (scales)', () => {
     const spot = scales[1]!
     const p = comps[1].get('o1')!
     const cam = cams[1]
-    const worldX = (i: number) => -270 + 1.45 * (cam.x + cam.k * (p.x + (8 + i * 40 + 17) * p.s))
-    const mx = (worldX(0) + worldX(1)) / 2
+    const fx = (v: number) => -270 + 1.45 * (cam.x + cam.k * v)
+    const fy = (v: number) => -144 + 1.45 * (cam.y + cam.k * v)
     // 줌은 콘텐츠를 키워 위로 밀어올린다 — 이 프레이밍에서는 내려갈 자리가 없어 홈 띠
-    const labelTop = -144 + 1.45 * (cam.y + cam.k * (p.y - 22 * p.s))
+    const labelTop = fy(p.y - 26 * p.s)
     expect(labelTop - 8 - 48).toBeLessThanOrEqual(36)
     expect(spot.y).toBe(36)
-    expect(spot.x).toBeCloseTo(Math.min(Math.max(mx, 366), 1030), 5)
+    // 홈 띠에서도 배우를 피한다 — 줌 팬이 배우를 홈까지 밀어올려도 겹침은 0이어야 한다
+    const actor = { x0: fx(p.x), x1: fx(p.x + 300 * p.s), y0: labelTop, y1: fy(p.y + 80 * p.s) }
+    const box = { x0: spot.x - 94, x1: spot.x + 162, y0: 36 - 34, y1: 36 + 48 }
+    const hit = box.x0 < actor.x1 && actor.x0 < box.x1 && box.y0 < actor.y1 && actor.y0 < box.y1
+    expect(hit).toBe(false)
   })
 
   it('비교 연속 구간의 사이 샷에도 자리가 유지되고, 구간이 끝나면 사라진다', () => {
