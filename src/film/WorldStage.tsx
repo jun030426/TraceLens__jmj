@@ -131,7 +131,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     const build = () => {
       gsap.set(
         root.querySelectorAll(
-          '[data-obj], [data-var], [data-frame], [data-cell], [data-token], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done',
+          '[data-obj], [data-var], [data-frame], [data-cell], [data-token], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done, .film-obj-partial',
         ),
         { opacity: 0 },
       )
@@ -436,6 +436,26 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                   at,
                 )
               }
+              break
+            }
+            case 'partial': {
+              // 화면이 전부를 못 보여준다는 사실을 스스로 밝힌다 — 값의 신뢰성 축의 마지막 한 칸.
+              // 중립색(4역할 색 아님)이라 읽기/쓰기/참/거짓 문법과 섞이지 않는다
+              const id = m.objectId
+              const text =
+                m.total === undefined ? '안을 볼 수 없음'
+                : m.total > m.shown ? `${m.shown} / ${m.total}`
+                : ''
+              tl.call(
+                () => {
+                  const el = root.querySelector(`${objSel(id)} .film-obj-partial`)
+                  if (el) el.textContent = text
+                },
+                undefined,
+                label,
+              )
+              const el = q(`${objSel(id)} .film-obj-partial`)
+              if (el) tl.to(el, { opacity: text ? 1 : 0, duration: sec(0.25) }, label)
               break
             }
             case 'label': {
@@ -1009,6 +1029,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               <g className="actor-inner">
                 <rect x={0} y={0} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line-strong)" strokeWidth={2} />
                 <text className="film-obj-name svg-name" x={4} y={-8} />
+                <text className="film-obj-partial" x={r.w} y={-8} textAnchor="end" />
                 {Array.from({ length: rows }, (_, gr) =>
                   Array.from({ length: cols }, (_, gc) => (
                     <g key={`${gr}-${gc}`}>
@@ -1052,6 +1073,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             <g className="actor-inner">
               <rect x={0} y={0} width={r.w} height={r.h} rx={10} fill="var(--sunken)" stroke="var(--line-strong)" strokeWidth={2} />
               <text className="film-obj-name svg-name" x={4} y={-8} />
+              <text className="film-obj-partial" x={r.w} y={-8} textAnchor="end" />
               {/* 칸 = 자리(슬롯) + 물건(값 토큰). 두 층을 따로 그린다 — SVG는 z-index가 없어
                   문서 순서가 곧 겹침 순서라, 토큰이 칸 안에 살면 오른쪽으로 나는 토큰이
                   이웃 칸의 불투명 배경 뒤로 숨는다. 토큰 층이 슬롯 층 전체 위에 뜬다. */}

@@ -30,15 +30,19 @@ def _serialize(v, objects, depth=0):
         objects[oid] = {'id': oid, 'type': type(v).__name__, 'unsupported': True}
         return ref
     if isinstance(v, (list, tuple, set, collections.deque)):
+        # n = 실제 원소 수. 화면이 "20 / 500"이라고 정직하게 말할 수 있게 싣는다.
+        # len()은 이 빌트인 분기에서만 부른다 — 사용자 객체의 __len__ 부작용 경로를 타지 않는다.
+        n = len(v)
         items = list(v)[:MAX_ITEMS]
         objects[oid] = {'id': oid, 'type': type(v).__name__,
                         'items': [_serialize(x, objects, depth + 1) for x in items],
-                        'truncated': len(v) > MAX_ITEMS}
+                        'n': n, 'truncated': n > MAX_ITEMS}
     elif isinstance(v, dict):
+        n = len(v)
         entries = list(v.items())[:MAX_ITEMS]
         objects[oid] = {'id': oid, 'type': 'dict',
                         'entries': [[str(k)[:MAX_STR], _serialize(x, objects, depth + 1)] for k, x in entries],
-                        'truncated': len(v) > MAX_ITEMS}
+                        'n': n, 'truncated': n > MAX_ITEMS}
     else:
         d = getattr(type(v), '__dict__', None) and v.__dict__ if hasattr(v, '__dict__') else None
         if isinstance(d, dict):

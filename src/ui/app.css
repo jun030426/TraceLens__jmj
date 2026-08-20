@@ -641,3 +641,12 @@
     min-height: 300px;
   }
 }
+
+/* 정직성 꼬리표 — "20 / 500" 또는 "안을 볼 수 없음". 화면이 전부를 못 보여준다는 사실을
+   스스로 밝히는 자리다. 색 4역할(읽기·쓰기·참·거짓)과 섞이지 않게 중립 잉크를 쓴다. */
+.film-obj-partial {
+  fill: var(--ink-3);
+  font-size: var(--d-md);
+  opacity: 0;
+  pointer-events: none;
+}

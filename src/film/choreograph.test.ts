@@ -419,6 +419,59 @@ describe('choreograph: 표기 걷어내기 — 자막이 코드 기호를 쓰지
   })
 })
 
+describe('choreograph: 정직성 표시 — 화면은 자기가 아는 것만 말한다', () => {
+  const bigList = (items: string[], n: number, seq: number) =>
+    ev({
+      observedAtLine: 2, causedByLine: 1,
+      localsDelta: [{ name: 'arr', op: 'set', value: { k: 'ref', id: 1 } }],
+      objectsDelta: [{ op: 'set' as const, obj: { id: 1, type: 'list', items: items.map(v => P(v)), n, truncated: n > items.length } }],
+    }, seq)
+  const partialsOf = (shots: ReturnType<typeof choreograph>) =>
+    shots.flatMap(s => s.motions).filter(m => m.v === 'partial') as { shown: number; total?: number }[]
+
+  it('잘린 리스트는 "20 / 500"을 밝힌다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      bigList(['1', '2', '3'], 500, 1),
+      ev({ kind: 'return', observedAtLine: 2 }, 2),
+    ]
+    const p = partialsOf(choreograph(events, buildStage(events)))
+    expect(p.length).toBe(1)
+    expect(p[0]).toMatchObject({ shown: 3, total: 500 })
+  })
+
+  it('잘리지 않은 리스트는 아무 말도 하지 않는다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      bigList(['1', '2', '3'], 3, 1),
+      ev({ kind: 'return', observedAtLine: 2 }, 2),
+    ]
+    const p = partialsOf(choreograph(events, buildStage(events)))
+    expect(p.every(x => x.total === x.shown)).toBe(true)
+  })
+
+  it('잘린 리스트에는 정렬 완성을 선언하지 않는다 — 일부를 보고 전체를 말할 수 없다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      bigList(['1', '2', '3'], 500, 1), // 보이는 3칸은 오름차순이지만 500개 중 일부다
+      ev({ kind: 'return', observedAtLine: 2 }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shots.flatMap(s => s.motions).some(m => m.v === 'sortedSweep')).toBe(false)
+    expect(shots.some(s => (s.caption ?? '').includes('정렬 완성'))).toBe(false)
+  })
+
+  it('잘리지 않았고 실제로 오름차순이면 정렬 완성은 그대로 나온다 (가드가 과잉이지 않다)', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      bigList(['1', '2', '3'], 3, 1),
+      ev({ kind: 'return', observedAtLine: 2 }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shots.flatMap(s => s.motions).some(m => m.v === 'sortedSweep')).toBe(true)
+  })
+})
+
 describe('choreograph: 저울 데이터·정렬 스윕', () => {
   it('접지된 비교는 a·op·b·verdict 구조 필드를 싣는다', () => {
     const code = 'arr = [5, 2]\nn = 0\nif arr[0] > arr[1]:\n    pass\n'

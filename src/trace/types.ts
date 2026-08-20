@@ -7,6 +7,8 @@ export type ObjectSnap = {
   type: string
   items?: Value[]
   entries?: [string, Value][]
+  /** 실제 원소 수 — 20개 상한으로 잘려도 화면이 "20 / 500"이라고 말할 수 있게 (빌트인 컬렉션만) */
+  n?: number
   truncated?: boolean
   unsupported?: boolean
 }

@@ -75,6 +75,9 @@ export type Motion =
   | { v: 'gridUnvisit'; objectId: number; r: number; c: number }
   | { v: 'gridCursor'; objectId: number; r: number; c: number }
   | { v: 'gridTrail'; objectId: number; points: [number, number][] }
+  /** 전부가 아니다 — 상한에 잘렸거나(shown/total) 안을 볼 수 없는(total 없음) 상자.
+      화면이 아는 것과 모르는 것의 경계를 스스로 밝힌다 */
+  | { v: 'partial'; objectId: number; shown: number; total?: number }
   /** 커튼콜 — 리스트가 실제로 오름차순으로 끝났을 때만 방출되는 "정렬 완성" 스윕 */
   | { v: 'sortedSweep'; objectId: number }
   /** 인덱스 변수 선언 — 소스에서 NAME[IDX]로 접지된 변수는 알약이 아니라 그 배열 아래 화살표로 산다 */

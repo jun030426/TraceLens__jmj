@@ -232,6 +232,20 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   const refCount = new Map<number, Set<string>>()
   const objects = new Map<number, ObjectSnap>()
   const prevTexts = new Map<number, string[]>() // objectId → 직전 상태의 칸별 표시 문자열
+  // 화면이 전부를 보여주지 못하는 상자 — 잘림(shown/total)이거나 안을 볼 수 없음(total 없음).
+  // 상태가 바뀔 때만 모션으로 알린다 (label 모션과 같은 패턴이라 스크럽에 안전)
+  const prevPartial = new Map<number, string>()
+  const emitPartial = (snap: ObjectSnap, motions: Motion[]) => {
+    const shown = (snap.items?.length ?? 0) + (snap.entries?.length ?? 0)
+    const opaque = !!snap.unsupported || (!!snap.truncated && shown === 0)
+    const cut = !!snap.truncated && shown > 0
+    const key = opaque ? 'opaque' : cut ? `${shown}/${snap.n ?? ''}` : ''
+    if (prevPartial.get(snap.id) === key) return
+    prevPartial.set(snap.id, key)
+    if (opaque) motions.push({ v: 'partial', objectId: snap.id, shown: 0 })
+    else if (cut) motions.push({ v: 'partial', objectId: snap.id, shown, total: snap.n })
+    else motions.push({ v: 'partial', objectId: snap.id, shown, total: shown }) // 다시 온전해졌다 — 꼬리표 해제
+  }
 
   // 캐스팅은 buildStage가 판정했다 — 여기서는 명단에 있는 것만 무대에 올린다.
   // objects·locals 맵은 전체를 계속 추적한다 (요약 텍스트·compare 접지에 필요).
@@ -442,6 +456,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     }
     for (const [id, obj] of objects) {
       if (!castObjects.has(id) || gridInfo.has(id)) continue
+      emitPartial(obj, motions) // 빨리감기 뒤에도 "전부가 아니다"는 사실은 정산돼야 한다
       const texts = textsOf(obj, objects)
       const prev = prevTexts.get(id)
       if (!prev) {
@@ -566,6 +581,9 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         // 정렬 완성의 마침표 — 실제로 오름차순으로 끝난 숫자 리스트에만 스윕을 준다
         for (const [id, texts] of prevTexts) {
           if (!entered.has(id) || exited.has(id) || gridInfo.has(id)) continue
+          // 잘린 리스트는 제외 — 보이는 20칸이 오름차순이라고 500개가 정렬됐다고 말할 수 없다.
+          // 판정은 지금 스냅샷에서 직접 읽는다 (잘렸다가 줄어들면 그때는 다시 전부를 보는 것이다)
+          if (objects.get(id)?.truncated) continue
           if (texts.length < 3) continue
           const nums = texts.map(Number)
           if (nums.some(n => !Number.isFinite(n))) continue
@@ -602,6 +620,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         continue
       }
       if (!castObjects.has(d.obj.id)) continue // 조연은 부모 칸의 요약 텍스트가 전부다
+      emitPartial(d.obj, motions)
       const texts = textsOf(d.obj, objects)
       const size = texts.length
       const prev = prevTexts.get(d.obj.id)
