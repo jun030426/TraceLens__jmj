@@ -461,11 +461,12 @@ describe('choreograph: 정직성 표시 — 화면은 자기가 아는 것만 �
     expect(shots.some(s => (s.caption ?? '').includes('정렬 완성'))).toBe(false)
   })
 
-  it('잘리지 않았고 실제로 오름차순이면 정렬 완성은 그대로 나온다 (가드가 과잉이지 않다)', () => {
+  it('잘리지 않았고 실제로 정렬로 끝났으면 정렬 완성은 그대로 나온다 (가드가 과잉이지 않다)', () => {
     const events: TraceEvent[] = [
       ev({ kind: 'call', observedAtLine: 1 }, 0),
-      bigList(['1', '2', '3'], 3, 1),
-      ev({ kind: 'return', observedAtLine: 2 }, 2),
+      bigList(['3', '1', '2'], 3, 1), // 흐트러진 상태를 거쳐야 정렬의 증거가 된다
+      bigList(['1', '2', '3'], 3, 2),
+      ev({ kind: 'return', observedAtLine: 2 }, 3),
     ]
     const shots = choreograph(events, buildStage(events))
     expect(shots.flatMap(s => s.motions).some(m => m.v === 'sortedSweep')).toBe(true)
@@ -520,6 +521,51 @@ describe('choreograph: 저울 데이터·정렬 스윕', () => {
   it('정렬되지 않은 채 끝나면 스윕은 없다 — 지어내지 않는다', () => {
     const shots = endState(['2', '3', '1'])
     expect(shots.flatMap(s => s.motions).some(m => m.v === 'sortedSweep')).toBe(false)
+  })
+})
+
+/* 끝이 오름차순인 것은 정렬의 결과일 뿐 증거가 아니다 — 증거는 재배열이다.
+   "같은 원소 구성으로 다른 순서였던 적이 있다"가 스윕의 조건에 더해진다 */
+describe('choreograph: 정렬 완성은 재배열을 본다', () => {
+  const listAt = (items: string[], seq: number, first = false) =>
+    ev({
+      observedAtLine: seq + 1, causedByLine: seq,
+      ...(first ? { localsDelta: [{ name: 'a', op: 'set' as const, value: { k: 'ref' as const, id: 1 } }] } : {}),
+      objectsDelta: [listSet(items)],
+    }, seq)
+  const run = (states: string[][]) => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ...states.map((st, i) => listAt(st, i + 1, i === 0)),
+      ev({ kind: 'return', observedAtLine: states.length + 1 }, states.length + 1),
+    ]
+    return choreograph(events, buildStage(events))
+  }
+  const swept = (states: string[][]) => run(states).flatMap(s => s.motions).some(m => m.v === 'sortedSweep')
+
+  it('처음부터 오름차순이고 한 번도 안 바뀐 리스트는 침묵한다', () => {
+    expect(swept([['1', '2', '3']])).toBe(false)
+  })
+
+  it('쌓기만 한 오름차순 리스트는 침묵한다 — 만든 것은 정렬이 아니다', () => {
+    expect(swept([['1'], ['1', '2'], ['1', '2', '3']])).toBe(false)
+  })
+
+  it('원소를 갈아끼워 오름차순이 된 리스트는 침묵한다 — 재배열이 아니다', () => {
+    expect(swept([['9', '1', '2'], ['0', '1', '2']])).toBe(false)
+  })
+
+  it('흐트러진 상태를 거쳐 오름차순으로 끝나면 스윕이 나온다', () => {
+    expect(swept([['3', '1', '2'], ['1', '3', '2'], ['1', '2', '3']])).toBe(true)
+  })
+
+  it('쌓은 뒤 정렬하면 스윕이 나온다 — 쌓기가 끝난 시점의 흐트러짐이 증거다', () => {
+    expect(swept([['3'], ['3', '1'], ['3', '1', '2'], ['1', '2', '3']])).toBe(true)
+  })
+
+  it('재배열 뒤 원소가 갈리면 증거가 무효가 된다', () => {
+    // [3,1,2] → [1,2,3] (정렬) → [0,2,3] (원소 교체) : 지금 구성으로는 흐트러진 적이 없다
+    expect(swept([['3', '1', '2'], ['1', '2', '3'], ['0', '2', '3']])).toBe(false)
   })
 })
 

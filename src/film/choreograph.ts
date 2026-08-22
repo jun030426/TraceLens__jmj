@@ -236,6 +236,25 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   const refCount = new Map<number, Set<string>>()
   const objects = new Map<number, ObjectSnap>()
   const prevTexts = new Map<number, string[]>() // objectId → 직전 상태의 칸별 표시 문자열
+  // 정렬의 증거는 재배열이다 — 끝이 오름차순인 것은 결과일 뿐 증거가 아니다.
+  // 상태가 올 때마다 원소 다중집합 서명을 만들어 ① 서명이 바뀌면 증거를 지우고(원소가 갈리면
+  // 이전의 순서는 지금 구성에 대한 증거가 아니다) ② 오름차순이 아닌 상태를 보면 증거를 세운다.
+  // 같은 다중집합에서 오름차순 배열은 유일하므로 "다른 순서" ⟺ "오름차순이 아님"이고,
+  // 그래서 상태 이력을 들고 있을 필요 없이 O(1) 메모리로 판정된다.
+  const bagSig = new Map<number, string>() // objectId → 직전 원소 다중집합 서명
+  const shuffled = new Map<number, boolean>() // objectId → 지금 구성으로 흐트러졌던 적이 있다
+  const ascending = (texts: string[]) => {
+    const nums = texts.map(Number)
+    return nums.every(v => Number.isFinite(v)) && nums.every((v, k) => k === 0 || nums[k - 1] <= v)
+  }
+  const noteOrder = (id: number, texts: string[]) => {
+    const sig = [...texts].sort().join(' ')
+    if (bagSig.get(id) !== sig) {
+      bagSig.set(id, sig)
+      shuffled.set(id, false)
+    }
+    if (!ascending(texts)) shuffled.set(id, true)
+  }
   // 화면이 전부를 보여주지 못하는 상자 — 잘림(shown/total)이거나 안을 볼 수 없음(total 없음).
   // 상태가 바뀔 때만 모션으로 알린다 (label 모션과 같은 패턴이라 스크럽에 안전)
   const prevPartial = new Map<number, string>()
@@ -513,6 +532,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         for (let i = texts.length; i < prev.length; i++) motions.push({ v: 'shrink', objectId: id, index: i })
       }
       prevTexts.set(id, texts)
+      noteOrder(id, texts)
     }
     for (const id of [...prevTexts.keys()]) {
       if (!objects.has(id)) {
@@ -636,9 +656,10 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
           // 판정은 지금 스냅샷에서 직접 읽는다 (잘렸다가 줄어들면 그때는 다시 전부를 보는 것이다)
           if (objects.get(id)?.truncated) continue
           if (texts.length < 3) continue
-          const nums = texts.map(Number)
-          if (nums.some(n => !Number.isFinite(n))) continue
-          if (nums.every((n, k) => k === 0 || nums[k - 1] <= n)) motions.push({ v: 'sortedSweep', objectId: id })
+          // 지금 원소 구성으로 흐트러진 적이 없으면 이 리스트는 정렬된 것이 아니라 원래
+          // 그랬거나 그렇게 만들어진 것이다 — 하지 않은 일을 선언하지 않는다
+          if (!shuffled.get(id)) continue
+          if (ascending(texts)) motions.push({ v: 'sortedSweep', objectId: id })
         }
       }
     }
@@ -738,6 +759,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         }
       }
       prevTexts.set(d.obj.id, texts)
+      noteOrder(d.obj.id, texts)
 
       // 격자 오버레이 — 좌표 set은 방문 칠, 좌표 list는 경로 선 (상자 뷰와 병행:
       // 자료구조 뷰와 공간 뷰의 대응 자체가 가르침이다)
