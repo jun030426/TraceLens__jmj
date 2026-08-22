@@ -192,6 +192,18 @@ function resolveOperand(
   }
 }
 
+/** 그 줄이 실제로 판단하는 식 — if/elif/while의 조건, 대입이면 우변. 저울은 이 전체를
+    덮을 때만 내려온다 (조건의 한 조각에 도장을 찍으면 화면이 판단과 반대로 움직인다). */
+const judgedExpr = (line: string): string => {
+  const t = stripNoise(line).trim()
+  const c = /^(?:el)?if\s+(.*):$/.exec(t) ?? /^while\s+(.*):$/.exec(t)
+  if (c) return c[1].trim()
+  const a = /^[A-Za-z_]\w*(?:\[[^\]]+\])?\s*=\s*(.*)$/.exec(t)
+  if (a) return a[1].trim()
+  return t
+}
+const squash = (t: string) => t.replace(/\s+/g, ' ').trim()
+
 function detectCompare(
   rawLine: string,
   frameId: number,
@@ -200,6 +212,10 @@ function detectCompare(
 ): Motion | null {
   const m = stripNoise(rawLine).match(CMP_RE)
   if (!m) return null
+  // 접지에 성공한 것과 그 접지가 판단 전체를 덮는 것은 다른 문제다. `and`로 이어지거나
+  // 체인된 조건(0 <= nr < 4)에서 첫 절만 보고 참/거짓을 찍으면, 참이라 해놓고 몸통이
+  // 안 도는 샷이 나온다 (실측 BFS: 32번 중 21번). 전체를 못 덮으면 침묵한다.
+  if (squash(m[0]) !== squash(judgedExpr(rawLine))) return null
   const a = resolveOperand(m[1], frameId, locals, objects)
   const b = resolveOperand(m[3], frameId, locals, objects)
   if (!a || !b) return null

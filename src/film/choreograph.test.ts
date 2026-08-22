@@ -1236,3 +1236,44 @@ describe('choreograph: 반복 배지는 사실대로 센다', () => {
     expect(shots.flatMap(s => s.motions).some(m => m.v === 'loop' || m.v === 'loopEnd')).toBe(false)
   })
 })
+
+/* 저울은 "판단"의 은유다 — 조건의 한 조각에 참/거짓 도장을 찍으면, 참이라 해놓고
+   몸통이 안 도는 샷이 나온다 (실측 BFS: 32번 중 21번). 판단식 전체를 덮을 때만 발화한다 */
+describe('choreograph: 저울은 조건 전체를 볼 때만 내려온다', () => {
+  const withCode = (code: string, line: number, deltas: [string, string][]) => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({
+        observedAtLine: line - 1 < 1 ? 1 : line - 1,
+        localsDelta: deltas.map(([name, v]) => ({ name, op: 'set' as const, value: P(v) })),
+      }, 1),
+      ev({ observedAtLine: line, causedByLine: line - 1 }, 2),
+      ev({ kind: 'return', observedAtLine: line }, 3),
+    ]
+    return choreograph(events, buildStage(events), code)
+      .flatMap(s2 => s2.motions)
+      .filter(m => m.v === 'compare')
+  }
+
+  it('and로 이어진 조건은 침묵한다 — 첫 절만 접지하고 판단을 선언할 수 없다', () => {
+    const code = ['nr = 0', 'nc = 0', 'if 0 <= nr < 4 and 0 <= nc < 4:', '    pass'].join('\n')
+    expect(withCode(code, 3, [['nr', '0'], ['nc', '0']])).toEqual([])
+  })
+
+  it('체인 비교도 침묵한다 — 0 <= nr만 보고 < 4를 빠뜨린다', () => {
+    const code = ['nr = 5', 'if 0 <= nr < 4:', '    pass'].join('\n')
+    expect(withCode(code, 2, [['nr', '5']])).toEqual([])
+  })
+
+  it('조건이 단일 비교면 그대로 저울이 내려온다 (가드가 과잉이지 않다)', () => {
+    const code = ['n = 3', 'if n <= 1:', '    pass'].join('\n')
+    const cmp = withCode(code, 2, [['n', '3']])
+    expect(cmp).toHaveLength(1)
+    expect(cmp[0]).toMatchObject({ text: '3 <= 1 → 거짓', verdict: false })
+  })
+
+  it('while의 단일 조건도 저울을 받는다', () => {
+    const code = ['n = 3', 'while n > 0:', '    pass'].join('\n')
+    expect(withCode(code, 2, [['n', '3']])).toHaveLength(1)
+  })
+})

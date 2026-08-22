@@ -47,6 +47,20 @@ export function compose(
     }),
   )
   const objKeys = new Set(plan.objects.map(o => `o${o.objectId}`))
+  // 주인공은 무대를 지킨다 — LINGER는 "이야기를 가져가지 않는 조연은 물러난다"는 규칙이지
+  // 주인공을 내리라는 규칙이 아니었다 (실측 BFS: 격자가 19샷 무대 밖, 15샷은 상자가 0개라
+  // 화면에 알약만 남았다). 리드는 buildStage가 변화 횟수·수명으로 이미 고르고 있다.
+  // 격자도 함께 상주한다: leadObjectId는 변화 횟수로 고르는데 미로의 벽은 한 번 만들어지고
+  // 안 바뀌므로 격자는 영영 리드가 될 수 없다. 그러나 공간 탐색에서 무대는 격자 그 자체다 —
+  // 변하는 값이 아니라 탐색이 일어나는 공간이고, 방문 칠·커서·경로가 전부 그것을 좌표계로 쓴다.
+  const leadKey = plan.leadObjectId === null ? null : `o${plan.leadObjectId}`
+  const lifeOf = new Map(plan.objects.map(o => [`o${o.objectId}`, o.life]))
+  const residentKeys = [
+    ...new Set([
+      ...(leadKey ? [leadKey] : []),
+      ...plan.objects.filter(o => o.grid).map(o => `o${o.objectId}`),
+    ]),
+  ]
 
   const lastTouch = new Map<string, number>()
   const firstTouch = new Map<string, number>()
@@ -118,12 +132,22 @@ export function compose(
       : [...lastTouch.entries()]
           .filter(([k, at]) => objKeys.has(k) && i - at <= LINGER)
           .map(([k]) => k)
+    // 살아있는 주인공은 포커스를 빼앗겨 대기 열로 물러날지언정 화면에서 사라지지 않는다.
+    // 명시적 퇴장(exitObj)은 존중한다 — 죽은 상자를 붙잡지는 않는다
+    for (const k of residentKeys) {
+      const life = lifeOf.get(k)
+      if (life && born(life) && !deadObjs.has(k) && !stagedObjKeys.includes(k)) stagedObjKeys.push(k)
+    }
     const touchedObjs = [...touched].filter(k => objKeys.has(k))
     const focusSet = new Set(
       curtainCall ? stagedObjKeys
       : touchedObjs.length ? touchedObjs
       : prevFocus.filter(k => stagedObjKeys.includes(k)),
     )
+    // 무대에 배우가 있는데 포커스가 비면 리드가 중앙을 맡는다 — 안 그러면 "무대를 지킨다"가
+    // "구석에서 0.55배로 쪼그라든다"가 되고, 오토 프레이밍이 그 구석을 확대해 더 이상해진다
+    if (focusSet.size === 0 && stagedObjKeys.length)
+      focusSet.add(leadKey && stagedObjKeys.includes(leadKey) ? leadKey : stagedObjKeys[0])
     const objs = stagedObjKeys.map(k => ({ k, id: Number(k.slice(1)), focus: focusSet.has(k) }))
     objs.sort((a, b) => {
       const pa = prevOrder.indexOf(a.k)
