@@ -27,7 +27,15 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
     motions.filter(m => m.v === v) as Extract<Motion, { v: V }>[]
 
   const raise = find('raise')
-  if (raise) return `오류 발생: ${capText(raise.text, 44)}`
+  if (raise) {
+    if (raise.passed) {
+      const f = names.frameFunc(raise.frameId)
+      const who = f === '<module>' ? '프로그램' : f
+      if (raise.caught) return `${who}가 오류를 잡습니다`
+      return f === '<module>' ? '프로그램도 오류를 잡지 못했습니다' : `${who}가 오류를 잡지 못했습니다 — 위로 올라갑니다`
+    }
+    return `오류 발생: ${capText(raise.text, 44)}`
+  }
   const swap = find('swap')
   if (swap) {
     const cmp = find('compare') // 직전 판단의 echo — 인과가 자막에 남는다
@@ -56,6 +64,7 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
     const f = names.frameFunc(pop.frameId)
     const crash = find('crashEnd')
     if (crash) return `여기서 실행이 멈췄습니다 — ${capText(crash.text, 32)}`
+    if (pop.unwound) return `${names.frameFunc(pop.frameId)}가 오류와 함께 닫힙니다`
     if (f === '<module>') return find('sortedSweep') ? '실행 종료 — 정렬 완성!' : '실행 종료 — 최종 상태입니다'
     return `${f} 종료 — 작업 공간이 닫힙니다`
   }
@@ -619,6 +628,20 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   }
   let prevBadge: string | null | undefined = null
 
+  // 예외가 그 프레임에서 잡히는가 — 예외 이벤트는 "프레임에 도착"일 뿐이고, 잡는지는
+  // 그 프레임의 다음 이벤트가 말해준다 (line이면 잡은 것, return이면 못 잡은 것).
+  // 역방향 한 번으로 각 이벤트의 "같은 프레임의 다음 종류"를 채운다 — 트레이스의 사실이다
+  const nextKindInFrame = new Map<number, TraceEvent['kind']>() // seq → 다음 이벤트 kind
+  {
+    const lastKind = new Map<number, TraceEvent['kind']>()
+    for (let i = events.length - 1; i >= 0; i--) {
+      const ev = events[i]
+      const nk = lastKind.get(ev.frameId)
+      if (nk !== undefined) nextKindInFrame.set(ev.seq, nk)
+      lastKind.set(ev.frameId, ev.kind)
+    }
+  }
+
   // 터진 채 끝나는가 — exception 이벤트가 세우고 이후의 line 이벤트가 지운다.
   // 잡힌 예외는 except 절의 line이 끼므로 정상 마감으로 돌아온다 (returned의 unwind 판별과 같은 근거)
   let pendingCrash: string | null = null
@@ -741,12 +764,18 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       }
     }
 
+    // 같은 오류의 재관측 = 전파 — 발생과 다른 문장을 받는다. 다른 오류 문자열이면 새 발생이다
+    const passedUp = e.kind === 'exception' && pendingCrash !== null && pendingCrash === (e.error ?? '오류')
     if (e.kind === 'exception') pendingCrash = e.error ?? '오류'
     else if (e.kind === 'line') pendingCrash = null
 
     if (e.kind === 'call') motions.push({ v: 'pushFrame', frameId: e.frameId })
     if (e.kind === 'return') {
-      motions.push({ v: 'popFrame', frameId: e.frameId })
+      // 오류에 밀려 닫히는가 — pendingCrash가 선 채의 함수 반환 (모듈은 crashEnd가 맡는다)
+      motions.push({
+        v: 'popFrame', frameId: e.frameId,
+        ...(pendingCrash && e.parentFrameId !== null ? { unwound: true as const } : {}),
+      })
       // 값이 카드에서 카드로 내려간다 — 사실은 트레이서의 returned이고 여기서는 옮기기만 한다.
       // 예외 unwind와 None은 트레이서가 이미 걸렀으므로 여기 도착한 것은 전부 진짜 반환이다
       if (e.returned && e.parentFrameId !== null)
@@ -791,7 +820,12 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     if (e.kind === 'exception') {
       // 예외는 실패가 아니라 콘텐츠 — 흔들고, 무엇이 터졌는지 무대에 적는다
       motions.push({ v: 'shake', frameId: e.frameId })
-      motions.push({ v: 'raise', frameId: e.frameId, text: e.error ?? '예외 발생' })
+      const catches = nextKindInFrame.get(e.seq) === 'line'
+      motions.push({
+        v: 'raise', frameId: e.frameId, text: e.error ?? '예외 발생',
+        ...(passedUp ? { passed: true as const } : {}),
+        ...(passedUp && catches ? { caught: true as const } : {}),
+      })
       slow = true
     }
 
