@@ -147,7 +147,22 @@ const CMP_RE = /([A-Za-z_]\w*(?:\[[^\]]+\])?|-?\d+(?:\.\d+)?)\s*(<=|>=|==|!=|<|>
 
 const stripNoise = (line: string) => line.split('#')[0].replace(/'[^']*'|"[^"]*"/g, '""')
 
-type Operand = { text: string; num: number | null; target?: CompareTarget }
+type Operand = { text: string; num: number | null; target?: CompareTarget; seq?: Value[] }
+
+/** 순서 있는 시퀀스의 값 비교 — 파이썬의 ==는 원소별 값 비교다. 결정할 수 없으면 null:
+    원소에 ref가 섞이면 깊은 비교가 스냅샷 밖일 수 있고, 같은 자리의 타입이 다르면
+    (1 vs 1.0, False vs 0) 파이썬은 참인데 repr은 다르다 — 그럴 땐 도장을 찍지 않는다. */
+const seqEq = (a: Value[], b: Value[]): boolean | null => {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i]
+    const y = b[i]
+    if (x.k !== 'prim' || y.k !== 'prim') return null
+    if (x.t !== y.t) return null
+    if (x.v !== y.v) return false
+  }
+  return true
+}
 
 function resolveOperand(
   raw: string,
@@ -162,6 +177,20 @@ function resolveOperand(
   const v = locals.get(`${frameId}:${m[1]}`)
   if (!v) return null
   if (!m[2]) {
+    if (v.k === 'ref') {
+      // 좌표 튜플도 저울의 양팔이 된다 — 알약이 이미 "(0, 0)"이라 말하고 있는데 저울만
+      // 그 값을 못 드는 것은 계약이 아니라 결함이었다. 값 카드 글자는 알약과 같은 요약을 쓴다.
+      // set·dict는 제외한다: set은 순서가 없어 원소 나열의 일치가 같음을 뜻하지 않는다.
+      // 잘린 상자도 제외한다 — 20칸을 보고 500칸이 같다고 말할 수 없다.
+      const o = objects.get(v.id)
+      if (!o || (o.type !== 'tuple' && o.type !== 'list') || !o.items || o.truncated) return null
+      return {
+        text: shortText(v, objects),
+        num: null,
+        seq: o.items,
+        target: { kind: 'var', varKey: `${frameId}:${m[1]}` },
+      }
+    }
     if (v.k !== 'prim') return null
     return {
       text: v.v,
@@ -222,7 +251,13 @@ function detectCompare(
   const targets = [a.target, b.target].filter((t): t is CompareTarget => !!t)
   if (targets.length === 0) return null
   let verdict: boolean | undefined
-  if (a.num !== null && b.num !== null && Number.isFinite(a.num) && Number.isFinite(b.num)) {
+  if (a.seq || b.seq) {
+    // 한쪽만 시퀀스면 견줄 수 없고, 부등호는 사전식 비교라 "무거운 쪽으로 기운다"로
+    // 그릴 수 없다 — 못 그리는 것에 접시를 내주지 않는다
+    if (!a.seq || !b.seq || (m[2] !== '==' && m[2] !== '!=')) return null
+    const eq = seqEq(a.seq, b.seq)
+    if (eq !== null) verdict = m[2] === '==' ? eq : !eq
+  } else if (a.num !== null && b.num !== null && Number.isFinite(a.num) && Number.isFinite(b.num)) {
     const op = m[2]
     verdict =
       op === '<' ? a.num < b.num

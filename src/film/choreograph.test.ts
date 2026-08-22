@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import demo from '../fixtures/film-demo.trace.json'
 import aliasing from '../fixtures/aliasing.trace.json'
 import type { TraceEvent } from '../trace/types'
+import type { Motion } from './types'
 import { buildStage } from './buildStage'
 import { choreograph } from './choreograph'
 
@@ -1275,5 +1276,85 @@ describe('choreograph: 저울은 조건 전체를 볼 때만 내려온다', () =
   it('while의 단일 조건도 저울을 받는다', () => {
     const code = ['n = 3', 'while n > 0:', '    pass'].join('\n')
     expect(withCode(code, 2, [['n', '3']])).toHaveLength(1)
+  })
+})
+
+/* 좌표 튜플도 저울의 양팔이 된다 — 알약이 이미 (0, 0)이라 말하고 있는데
+   저울만 그 값을 못 드는 것은 계약이 아니라 결함이었다 */
+describe('choreograph: 튜플 비교도 저울이 든다', () => {
+  const tup = (id: number, items: string[], t = 'int') => ({
+    op: 'set' as const,
+    obj: { id, type: 'tuple', items: items.map(v => P(v, t)) },
+  })
+  const run = (code: string, line: number, objs: ReturnType<typeof tup>[], binds: [string, number][]) => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({
+        observedAtLine: line - 1 < 1 ? 1 : line - 1,
+        objectsDelta: objs,
+        localsDelta: binds.map(([name, id]) => ({ name, op: 'set' as const, value: { k: 'ref' as const, id } })),
+      }, 1),
+      ev({ observedAtLine: line, causedByLine: line - 1 }, 2),
+      ev({ kind: 'return', observedAtLine: line }, 3),
+    ]
+    return choreograph(events, buildStage(events), code)
+      .flatMap(x => x.motions)
+      .filter(m => m.v === 'compare') as Extract<Motion, { v: 'compare' }>[]
+  }
+  const code = ['pos = (0, 0)', 'goal = (3, 3)', 'if pos == goal:', '    pass'].join('\n')
+
+  it('좌표가 다르면 거짓 도장을 찍는다', () => {
+    const c = run(code, 3, [tup(7, ['0', '0']), tup(8, ['3', '3'])], [['pos', 7], ['goal', 8]])
+    expect(c).toHaveLength(1)
+    expect(c[0]).toMatchObject({ a: '(0, 0)', op: '==', b: '(3, 3)', verdict: false })
+  })
+
+  it('좌표가 같으면 참 도장을 찍는다', () => {
+    const c = run(code, 3, [tup(7, ['3', '3']), tup(8, ['3', '3'])], [['pos', 7], ['goal', 8]])
+    expect(c[0]).toMatchObject({ verdict: true })
+  })
+
+  it('길이가 다르면 거짓이다', () => {
+    const c = run(code, 3, [tup(7, ['3', '3', '3']), tup(8, ['3', '3'])], [['pos', 7], ['goal', 8]])
+    expect(c[0]).toMatchObject({ verdict: false })
+  })
+
+  it('같은 자리의 타입이 다르면 도장을 찍지 않는다 — 파이썬의 ==가 참인데 repr은 다르다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({
+        observedAtLine: 2,
+        objectsDelta: [
+          { op: 'set', obj: { id: 7, type: 'tuple', items: [P('1', 'int'), P('1', 'int')] } },
+          { op: 'set', obj: { id: 8, type: 'tuple', items: [P('1.0', 'float'), P('1', 'int')] } },
+        ],
+        localsDelta: [
+          { name: 'pos', op: 'set', value: { k: 'ref', id: 7 } },
+          { name: 'goal', op: 'set', value: { k: 'ref', id: 8 } },
+        ],
+      }, 1),
+      ev({ observedAtLine: 3, causedByLine: 2 }, 2),
+      ev({ kind: 'return', observedAtLine: 3 }, 3),
+    ]
+    const c = choreograph(events, buildStage(events), code)
+      .flatMap(x => x.motions)
+      .filter(m => m.v === 'compare') as Extract<Motion, { v: 'compare' }>[]
+    expect(c).toHaveLength(1)
+    expect(c[0].verdict).toBeUndefined()
+  })
+
+  it('잘린 상자는 도장을 찍지 않는다 — 20칸을 보고 500칸이 같다고 말할 수 없다', () => {
+    const big = (id: number) => ({
+      op: 'set' as const,
+      obj: { id, type: 'list', items: [P('1'), P('2')], n: 500, truncated: true },
+    })
+    const c = run(['a = []', 'b = []', 'if a == b:', '    pass'].join('\n'), 3,
+      [big(7), big(8)], [['a', 7], ['b', 8]])
+    expect(c[0]?.verdict).toBeUndefined()
+  })
+
+  it('부등호는 저울을 내주지 않는다 — 사전식 순서는 기울기로 그릴 수 없다', () => {
+    const lt = ['pos = (0, 0)', 'goal = (3, 3)', 'if pos < goal:', '    pass'].join('\n')
+    expect(run(lt, 3, [tup(7, ['0', '0']), tup(8, ['3', '3'])], [['pos', 7], ['goal', 8]])).toEqual([])
   })
 })
