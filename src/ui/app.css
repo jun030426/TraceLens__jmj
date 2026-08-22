@@ -650,3 +650,20 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* 호출 스택의 접힌 부분 — "⋯ 앞선 호출 3개". 카드보다 물러난 톤으로, 화면이
+   안 보여주는 것을 개수로 밝히는 자리다 (정직성 표시와 같은 계열의 중립 잉크) */
+.film-stack-more {
+  opacity: 0;
+  pointer-events: none;
+}
+.film-stack-more rect {
+  fill: var(--sunken);
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.film-stack-more-text {
+  fill: var(--ink-3);
+  font-size: var(--d-md);
+}

@@ -38,7 +38,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
 
   // 프레임은 영화처럼 고정(1200×640) — 콘텐츠를 채우는 건 오토 프레이밍 카메라의 일이다
   const FRAME_H = 640
-  const { comps, cams, scales, autos } = useMemo(() => compose(shots, plan, layout), [shots, plan, layout])
+  const { comps, cams, scales, autos, stacks } = useMemo(() => compose(shots, plan, layout), [shots, plan, layout])
   const theme = useMemo(() => detectTheme(plan, shots), [plan, shots])
 
   // 인덱스 포인터 — pointer 모션으로 접지된 변수들. 알약 대신 배열 아래 화살표로 산다
@@ -152,7 +152,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       }
       gsap.set(
         root.querySelectorAll(
-          '[data-obj], [data-var], [data-frame], [data-cell], [data-token], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done, .film-obj-partial',
+          '[data-obj], [data-var], [data-frame], [data-cell], [data-token], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done, .film-obj-partial, .film-stack-more',
         ),
         { opacity: 0 },
       )
@@ -193,6 +193,8 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       let liveFrame: Element | null = null
       let prevComp: Composition = new Map()
       let chipTurn = 0
+      const frameSlot = new Map<number, number>() // 프레임이 지금 앉아 있는 슬롯
+      let prevHidden = 0
       const autoEl = q('.film-cam-auto')
       let appliedAuto = { k: 1, x: 0, y: 0 }
       const scaleEl = q('.film-scale')
@@ -332,6 +334,62 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             label,
           )
           liveFrame = focusEl
+        }
+
+        // 호출 스택 창 — 프레임이 앉을 슬롯은 compose가 정했다. 슬롯 0 자리에 그려둔
+        // 카드를 그 슬롯으로 옮기고, 창 밖 프레임은 내린다. 폭은 슬롯마다 다르므로
+        // rect의 width도 함께 트윈한다 (창 안 슬롯은 0..4라 폭이 음수가 될 수 없다)
+        {
+          const stack = stacks[si]
+          const slot0 = layout.framePos.get(0)!
+          for (const f of plan.frames) {
+            const el = q(frameSel(f.frameId))
+            if (!el) continue
+            const slot = stack?.slots.get(f.frameId)
+            const was = frameSlot.get(f.frameId)
+            if (slot === undefined) {
+              if (was !== undefined) {
+                tl.to(el, { opacity: 0, duration: sec(0.3), ease: 'power2.in' }, label)
+                frameSlot.delete(f.frameId)
+              }
+              continue
+            }
+            if (was === slot) continue
+            const r = layout.framePos.get(slot)!
+            const rect = el.querySelector('rect')
+            if (was === undefined) {
+              tl.fromTo(
+                el,
+                { opacity: 0, x: r.x - slot0.x - 26, y: r.y - slot0.y },
+                { opacity: 1, x: r.x - slot0.x, y: r.y - slot0.y, duration: d, ease: 'power3.out' },
+                label,
+              )
+              if (rect) tl.set(rect, { attr: { width: r.w } }, label)
+            } else {
+              tl.to(el, { x: r.x - slot0.x, y: r.y - slot0.y, duration: sec(0.35), ease: 'power2.inOut' }, label)
+              if (rect) tl.to(rect, { attr: { width: r.w }, duration: sec(0.35), ease: 'power2.inOut' }, label)
+            }
+            frameSlot.set(f.frameId, slot)
+          }
+          // 접힌 얕은 호출 — 개수로 정직하게
+          const more = q('.film-stack-more')
+          const hidden = stack?.hidden ?? 0
+          if (more && hidden !== prevHidden) {
+            if (hidden > 0) {
+              tl.call(
+                () => {
+                  const t = root.querySelector('.film-stack-more-text')
+                  if (t) t.textContent = `⋯ 앞선 호출 ${hidden}개`
+                },
+                undefined,
+                label,
+              )
+              tl.to(more, { opacity: 1, duration: sec(0.3) }, label)
+            } else {
+              tl.to(more, { opacity: 0, duration: sec(0.3) }, label)
+            }
+            prevHidden = hidden
+          }
         }
 
         // 강조 — decorate가 표시한 비트에서 대상이 화면 중앙으로 당겨진다. 좌표는 compose가
@@ -680,15 +738,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               break
             }
             case 'pushFrame':
-              tl.fromTo(
-                q(frameSel(m.frameId))!,
-                { opacity: 0, x: -26 },
-                { opacity: 1, x: 0, duration: d, ease: 'power3.out' },
-                label,
-              )
-              break
             case 'popFrame':
-              tl.to(q(frameSel(m.frameId))!, { opacity: 0, x: -26, duration: d, ease: 'power2.in' }, label)
+              // 카드의 등장·퇴장·자리는 스택 창(compose의 stacks)이 소유한다 —
+              // 여기서 또 opacity/x를 건드리면 슬롯 이동과 싸운다
               break
             case 'stdout': {
               const text = m.text
@@ -1011,7 +1063,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       if (import.meta.env.DEV) (window as unknown as { __filmTl?: unknown }).__filmTl = undefined
       tl.kill()
     }
-  }, [shots, register, layout, plan, comps, cams, scales, autos, theme, pointers])
+  }, [shots, register, layout, plan, comps, cams, scales, autos, stacks, theme, pointers])
 
   const hudOffset = FRAME_H - layout.height
 
@@ -1205,8 +1257,11 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
 
       {/* 하단 HUD — 프레임 카드·출력 바는 카메라 밖, 항상 화면 바닥에 */}
       <g transform={`translate(0 ${hudOffset})`}>
+        {/* 호출 스택 — 카드는 슬롯 0 자리에 그려두고, 어느 슬롯에 앉을지는 compose가
+            샷마다 정한 창(stacks)에 따라 GSAP이 옮긴다. 창은 늘 가장 깊은 쪽을 잡으므로
+            실행 중인 프레임은 항상 화면 안이다 */}
         {plan.frames.map(f => {
-          const r = layout.framePos.get(f.frameId)!
+          const r = layout.framePos.get(0)!
           return (
             <g key={`f${f.frameId}`} data-frame={f.frameId}>
               <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={10} fill="var(--panel)" stroke="var(--line-strong)" strokeWidth={1.2} />
@@ -1216,6 +1271,18 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             </g>
           )
         })}
+        {/* 창 밖으로 접힌 얕은 호출 — 화면이 안 보여주는 것을 개수로 밝힌다 */}
+        <g className="film-stack-more">
+          {(() => {
+            const r = layout.framePos.get(0)!
+            return (
+              <>
+                <rect x={r.x} y={r.y + 18} width={r.w} height={r.h - 18} rx={10} />
+                <text className="film-stack-more-text" x={r.x + 14} y={r.y + 44} />
+              </>
+            )
+          })()}
+        </g>
         <g className="film-stdout">
           <rect x={24} y={layout.height - 52} width={layout.width - 48} height={36} rx={8} fill="var(--sunken)" stroke="var(--line)" strokeWidth={1} />
           <text x={38} y={layout.height - 28} className="svg-type">출력</text>

@@ -1,6 +1,9 @@
 import type { StagePlan } from './types'
 
 export type Rect = { x: number; y: number; w: number; h: number }
+/** 호출 스택 슬롯 수 — 렌더 y 522·454·386·318·250으로 전부 화면(640) 안이다.
+    어느 프레임이 어느 슬롯에 앉을지는 compose가 샷마다 정한다 */
+export const STACK_SLOTS = 5
 export type StageLayout = {
   width: number
   height: number
@@ -60,9 +63,9 @@ export function layoutStage(plan: StagePlan): StageLayout {
     varPos.set(v.varKey, { x: VAR_X, y: 70 + i * 46, w: VAR_W, h: 36 })
   })
 
-  // 프레임 무리의 키(깊이 계단)까지 콘텐츠로 세고 나서 최종 높이를 정한다
-  const maxDepth = Math.max(...plan.frames.map(f => f.depth), 0)
-  const frameStackH = 58 + maxDepth * 68
+  // 스택 높이는 깊이와 무관하게 고정이다 — 카드는 창(슬롯 5칸)에만 앉고, 넘치는 깊이는
+  // compose가 "앞선 호출 k개"로 접는다. 깊이에 따라 height가 부풀면 HUD 오프셋이 흔들린다.
+  const frameStackH = 58 + (STACK_SLOTS - 1) * 68
 
   const maxObjBottom = Math.max(...[...objPos.values()].map(r => r.y + r.h + NUMERAL_H), 0)
   const maxVarBottom = Math.max(...[...varPos.values()].map(r => r.y + r.h), 0)
@@ -73,13 +76,15 @@ export function layoutStage(plan: StagePlan): StageLayout {
     70 + frameStackH + STDOUT_BAND + 8,
   )
 
-  // 프레임 카드는 출력 바 8px 위에서 끝나도록 아래에서 위로 쌓는다
+  // 프레임 카드의 슬롯 자리 — 아래에서 위로 5칸. 어느 프레임이 어느 슬롯에 앉을지는
+  // compose가 샷마다 정한다 (창이 시간에 따라 움직여야 현재 프레임이 늘 보인다).
+  // 키는 프레임 id가 아니라 슬롯 번호 0..STACK_SLOTS-1 이다.
   const framePos = new Map<number, Rect>()
-  for (const f of plan.frames) {
-    framePos.set(f.frameId, {
-      x: 24 + f.depth * 18,
-      y: height - STDOUT_BAND - 8 - 58 - f.depth * 68,
-      w: 260 - f.depth * 18,
+  for (let slot = 0; slot < STACK_SLOTS; slot++) {
+    framePos.set(slot, {
+      x: 24 + slot * 18,
+      y: height - STDOUT_BAND - 8 - 58 - slot * 68,
+      w: 260 - slot * 18,
       h: 58,
     })
   }

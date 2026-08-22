@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import demo from '../fixtures/film-demo.trace.json'
 import type { TraceEvent } from '../trace/types'
 import { buildStage } from './buildStage'
-import { layoutStage } from './layout'
+import { STACK_SLOTS, layoutStage } from './layout'
 
 const events = (demo as { events: TraceEvent[] }).events
 const plan = buildStage(events)
@@ -12,7 +12,22 @@ describe('layoutStage', () => {
   it('모든 등장인물에 자리가 있다', () => {
     for (const o of plan.objects) expect(L.objPos.has(o.objectId)).toBe(true)
     for (const v of plan.variables) expect(L.varPos.has(v.varKey)).toBe(true)
-    for (const f of plan.frames) expect(L.framePos.has(f.frameId)).toBe(true)
+    // 프레임 카드는 이제 id가 아니라 슬롯(0..STACK_SLOTS-1) 자리를 갖는다 —
+    // 어느 프레임이 어느 슬롯에 앉을지는 compose가 샷마다 정한다 (호출 스택 창)
+    for (let slot = 0; slot < STACK_SLOTS; slot++) expect(L.framePos.has(slot)).toBe(true)
+    expect(L.framePos.size).toBe(STACK_SLOTS)
+  })
+
+  it('스택 높이는 재귀 깊이에 흔들리지 않는다 — 창이 고정이므로', () => {
+    const deep: typeof plan = {
+      ...plan,
+      frames: Array.from({ length: 20 }, (_, i) => ({
+        frameId: i, func: i === 0 ? '<module>' : 'f', parentFrameId: i === 0 ? null : i - 1,
+        life: { from: 0, to: 99 }, depth: i, recursionIndex: i,
+      })),
+    }
+    expect(layoutStage(deep).height).toBe(L.height)
+    for (const r of layoutStage(deep).framePos.values()) expect(r.w).toBeGreaterThan(0)
   })
   it('객체 폭이 최대 크기만큼 예약된다', () => {
     const big = plan.objects.find(o => o.maxItems >= 12)!
