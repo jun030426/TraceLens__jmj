@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { compose, LINGER } from './compose'
+import { STACK_SLOTS } from './layout'
 import type { Shot, StagePlan } from './types'
 import type { StageLayout } from './layout'
 
@@ -440,5 +441,49 @@ describe('compose: 열 침범 금지', () => {
     const focus = comps[1].get('o1')!
     const side = comps[1].get('o2')!
     expect(side.x).toBeGreaterThanOrEqual(focus.x + 576 + 40)
+  })
+})
+
+
+describe('compose: 호출 스택 창', () => {
+  const framePlan = (n: number): StagePlan => ({
+    ...plan,
+    frames: Array.from({ length: n }, (_, i) => ({
+      frameId: i, func: i === 0 ? '<module>' : 'f', parentFrameId: i === 0 ? null : i - 1,
+      life: { from: 0, to: 99 }, depth: i, recursionIndex: i,
+    })),
+  })
+  const shots1 = [shot(0, [{ v: 'setVar', varKey: '0:i', text: '0' }]), shot(1, [{ v: 'stdout', text: 'x' }])]
+
+  it('얕으면 그대로 — 깊이순으로 슬롯 0부터', () => {
+    const { stacks } = compose(shots1, framePlan(3), layout)
+    expect(stacks[0].hidden).toBe(0)
+    expect([...stacks[0].slots.entries()].sort((a, b) => a[1] - b[1])).toEqual([[0, 0], [1, 1], [2, 2]])
+  })
+
+  it('창을 넘치면 가장 깊은 쪽만 남고 얕은 쪽이 접힌다', () => {
+    const { stacks } = compose(shots1, framePlan(11), layout)
+    const st = stacks[0]
+    expect(st.slots.size).toBe(STACK_SLOTS - 1) // 맨 아래 슬롯은 요약 띠 몫
+    expect(st.hidden).toBe(11 - (STACK_SLOTS - 1))
+    // 가장 깊은 프레임(10)이 창 안에 있다
+    expect(st.slots.has(10)).toBe(true)
+    // 얕은 것들은 접혔다
+    expect(st.slots.has(0)).toBe(false)
+  })
+
+  it('실행 중인(가장 깊은) 프레임은 어떤 깊이에서도 창 안이다 — 조명이 화면 밖으로 안 나간다', () => {
+    for (const n of [1, 5, 6, 12, 40]) {
+      const { stacks } = compose(shots1, framePlan(n), layout)
+      expect(stacks[0].slots.has(n - 1)).toBe(true)
+    }
+  })
+
+  it('슬롯은 항상 0..STACK_SLOTS-1 안이다 — 화면 밖 자리는 없다', () => {
+    const { stacks } = compose(shots1, framePlan(30), layout)
+    for (const slot of stacks[0].slots.values()) {
+      expect(slot).toBeGreaterThanOrEqual(0)
+      expect(slot).toBeLessThan(STACK_SLOTS)
+    }
   })
 })

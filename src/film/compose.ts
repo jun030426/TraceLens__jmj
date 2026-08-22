@@ -1,5 +1,5 @@
 import type { CompareTarget, Motion, Shot, StagePlan } from './types'
-import type { StageLayout } from './layout'
+import { STACK_SLOTS, type StageLayout } from './layout'
 
 /* 구성(composition) — 애니메이션 무대의 심장.
    샷마다 "누가 무대에, 어디에, 얼마나 크게"를 결정적으로 계산한다:
@@ -13,6 +13,8 @@ export type Composition = Map<string, Placement> // 'o<objectId>' | 'v<varKey>'
 export type Camera = { k: number; x: number; y: number }
 /** 저울 자리 — 샷마다 저울 허브가 설 화면 좌표. null = 그 샷에는 저울이 없다 */
 export type ScalePlace = { x: number; y: number }
+/** 호출 스택 창 — 프레임이 앉을 슬롯(0=맨 아래)과, 창 밖으로 생략된 얕은 호출 수 */
+export type FrameStack = { slots: Map<number, number>; hidden: number }
 
 export const LINGER = 6 // 마지막으로 닿은 뒤 무대에 머무는 샷 수
 /** 영화 프레임 높이 — WorldStage의 viewBox와 같은 값 (배우가 화면에 담기는지 판정한다) */
@@ -31,7 +33,13 @@ export function compose(
   shots: Shot[],
   plan: StagePlan,
   layout: StageLayout,
-): { comps: Composition[]; cams: Camera[]; scales: (ScalePlace | null)[]; autos: { k: number; x: number; y: number }[] } {
+): {
+  comps: Composition[]
+  cams: Camera[]
+  scales: (ScalePlace | null)[]
+  autos: { k: number; x: number; y: number }[]
+  stacks: FrameStack[]
+} {
   const objSize = new Map(
     plan.objects.map(o => {
       const r = layout.objPos.get(o.objectId)
@@ -452,5 +460,23 @@ export function compose(
     }
   })
 
-  return { comps, cams, scales, autos }
+  // ── 호출 스택 창 — 깊이는 무한할 수 있지만 화면은 유한하다.
+  // 창은 늘 "가장 깊은 쪽"을 잡는다: 현재 실행 중인 프레임이 곧 가장 깊은 프레임이므로
+  // 조명이 화면 밖으로 나가는 일이 구조적으로 없다. 생략되는 것은 얕은 쪽(아래)이고,
+  // 그 자리에 "앞선 호출 k개"를 적어 화면이 무엇을 안 보여주는지 스스로 밝힌다.
+  const stacks: FrameStack[] = shots.map(sh => {
+    const alive = plan.frames
+      .filter(f => f.life.from <= sh.seq && sh.seq <= f.life.to)
+      .sort((a, b) => a.depth - b.depth)
+    const slots = new Map<number, number>()
+    if (alive.length <= STACK_SLOTS) {
+      alive.forEach((f, i) => slots.set(f.frameId, i))
+      return { slots, hidden: 0 }
+    }
+    const shown = alive.slice(-(STACK_SLOTS - 1)) // 가장 깊은 것들 — 맨 아래 슬롯은 요약 띠 몫
+    shown.forEach((f, i) => slots.set(f.frameId, i + 1))
+    return { slots, hidden: alive.length - shown.length }
+  })
+
+  return { comps, cams, scales, autos, stacks }
 }
