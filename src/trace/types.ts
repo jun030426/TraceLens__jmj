@@ -33,10 +33,20 @@ export type TraceEvent = {
   returned?: Value
 }
 
+/** 구문 오류의 구조 정보 — 파서가 아는 사실. 실행은 0줄이었다 (트레이서가 compile 단계에서 싣는다) */
+export type SyntaxErrorInfo = {
+  name: string // SyntaxError | IndentationError | TabError
+  line: number | null
+  offset: number | null // 1-기준 글자 위치
+  text: string | null // 문제의 소스 줄 (개행 제거)
+  msg: string
+}
+
 export type TraceResult = {
   events: TraceEvent[]
   clipped: boolean
   error?: string
+  syntaxError?: SyntaxErrorInfo
 }
 
 export const MAX_EVENTS = 20000   // 스파이크 실측 근거: fib(15)=7,896 이벤트, 20k×~300B ≈ 6MB
