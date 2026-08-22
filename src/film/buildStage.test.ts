@@ -231,3 +231,41 @@ describe('buildStage: staging 힌트', () => {
     expect(plan.objects.find(o => o.objectId === 2)!.grid).toBeUndefined()
   })
 })
+
+/* 프레임 수명 — 반환하지 않은 프레임은 스택에 살아 있는 것이 사실이다.
+   수명을 마지막 관측에서 끊으면 무한 재귀(트레이서 사망)의 스택 창이 카드 한 장짜리가 된다 */
+describe('buildStage: 반환 없는 프레임의 수명', () => {
+  const P = (v: string, t = 'int') => ({ k: 'prim' as const, v, t })
+  const ev = (over: Partial<TraceEvent>, seq: number): TraceEvent => ({
+    seq, kind: 'line', frameId: 0, parentFrameId: null, func: '<module>',
+    causedByLine: null, observedAtLine: 1, localsDelta: [], objectsDelta: [], stdout: '',
+    ...over,
+  })
+
+  it('반환 없이 끝난 프레임은 마지막 이벤트까지 산다 — 스택의 사실', () => {
+    // countdown 축소판: 하강만 있고 아무도 반환하지 못한 채 기록이 끝난다
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ observedAtLine: 4 }, 1),
+      ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'countdown', localsDelta: [{ name: 'n', op: 'set', value: P('2') }] }, 2),
+      ev({ frameId: 1, func: 'countdown', observedAtLine: 2 }, 3),
+      ev({ kind: 'call', frameId: 2, parentFrameId: 1, func: 'countdown', localsDelta: [{ name: 'n', op: 'set', value: P('1') }] }, 4),
+      ev({ frameId: 2, func: 'countdown', observedAtLine: 2 }, 5),
+    ]
+    const plan = buildStage(events)
+    for (const f of plan.frames) expect(f.life.to).toBe(5)
+  })
+
+  it('반환한 프레임의 수명은 그 반환까지다 — 기존 그대로', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'f', localsDelta: [{ name: 'x', op: 'set', value: P('1') }] }, 1),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f' }, 2),
+      ev({ observedAtLine: 3 }, 3),
+      ev({ kind: 'return' }, 4),
+    ]
+    const plan = buildStage(events)
+    expect(plan.frames.find(f => f.frameId === 1)!.life.to).toBe(2)
+    expect(plan.frames.find(f => f.frameId === 0)!.life.to).toBe(4)
+  })
+})

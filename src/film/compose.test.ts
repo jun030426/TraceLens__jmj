@@ -175,6 +175,18 @@ describe('compose: 학습자 시선 — 무대 안정성', () => {
     expect(comps[2].has('v0:a')).toBe(true)
   })
 
+  it('모션으로 소개된 적 없는 변수는 알약 후보가 아니다 — 커튼콜 포함', () => {
+    // 빨리감기 태생 변수: plan에는 있으나(born) 어떤 모션도 닿은 적 없다. 소개 없이 세우면
+    // 값 한 번 못 받은 빈 알약이 선다 (부록 A 08-22 (마)①)
+    const shots = [
+      shot(0, [{ v: 'setVar', varKey: '0:i', text: '0' }]),
+      shot(1, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { comps } = compose(shots, plan, layout)
+    expect(comps[0].has('v0:a')).toBe(false)
+    expect(comps[comps.length - 1].has('v0:a')).toBe(false)
+  })
+
   it('커튼콜에는 살아있는 전원이 돌아온다 — 죽은 배우는 빼고', () => {
     const deadPlan: StagePlan = {
       ...plan,

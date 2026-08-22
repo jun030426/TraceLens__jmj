@@ -102,11 +102,17 @@ export function buildStage(events: TraceEvent[], staging?: StagingHints): StageP
 
   // ── 프레임 수집 ──
   const frameAcc = new Map<number, { func: string; parent: number | null; from: number; to: number }>()
+  const returnedFrames = new Set<number>()
   for (const e of events) {
     const cur = frameAcc.get(e.frameId)
     if (cur) cur.to = e.seq
     else frameAcc.set(e.frameId, { func: e.func, parent: e.parentFrameId, from: e.seq, to: e.seq })
+    if (e.kind === 'return') returnedFrames.add(e.frameId)
   }
+  // 반환하지 않은 프레임은 스택에 살아 있는 것이 사실이다 — 수명을 마지막 관측에서 끊으면
+  // 무한 재귀(트레이서 사망)·타임아웃의 스택 창이 카드 한 장짜리가 된다
+  const endSeq = events[events.length - 1].seq
+  for (const [fid, f] of frameAcc) if (!returnedFrames.has(fid)) f.to = endSeq
   const frames: CastFrame[] = [...frameAcc.entries()].map(([frameId, f]) => {
     let depth = 0
     let recursionIndex = 0

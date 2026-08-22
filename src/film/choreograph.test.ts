@@ -1498,7 +1498,9 @@ describe('choreograph: 끊긴 기록의 마침표', () => {
     expect(last.motions.some(m => m.v === 'crashEnd')).toBe(true)
     expect(last.motions.some(m => m.v === 'raise' && m.frameId === 2)).toBe(true)
     expect(last.caption).toBe('여기서 실행이 멈췄습니다 — RecursionError: maximum recursi…')
-    expect(last.seq).toBeGreaterThan(2)
+    // 마침표는 마지막 순간의 재독이다 — 트레이스 밖 seq를 지어내면 모든 프레임이
+    // 수명 밖이라 스택 창이 빈 무대가 된다 (원래 단언 `> 2`는 그 결함을 박아둔 것)
+    expect(last.seq).toBe(2)
   })
 
   it('이미 crashEnd가 나간 실행에는 덧붙이지 않는다 — 마침표는 하나다', () => {
@@ -1520,5 +1522,166 @@ describe('choreograph: 끊긴 기록의 마침표', () => {
     ]
     const shots = choreograph(events, buildStage(events))
     expect(shots.flatMap(x => x.motions).some(m => m.v === 'crashEnd')).toBe(false)
+  })
+})
+
+/* 깊은 하강의 빨리감기 — 일직선 사슬(>10)은 머리만 개별 재생하고 나머지를 정산 샷 하나로
+   접는다 (부록 A 08-22). 상태는 접히지 않는다 — 정산이 창에 보일 것들을 사실로 맞춘다 */
+describe('choreograph: 깊은 재귀의 빨리감기', () => {
+  const call = (fid: number, seq: number, func: string, n?: string): TraceEvent =>
+    ev({
+      kind: 'call', frameId: fid, parentFrameId: fid - 1 === 0 ? 0 : fid - 1, func,
+      ...(n !== undefined ? { localsDelta: [{ name: 'n', op: 'set', value: P(n) }] } : {}),
+    }, seq)
+  /** countdown 모양 — depth개의 같은 함수 호출이 일직선으로 내려가고 아무도 반환하지 못한다 */
+  const descent = (depth: number, func = 'countdown'): TraceEvent[] => {
+    const out: TraceEvent[] = [ev({ kind: 'call' }, 0), ev({ observedAtLine: 4 }, 1)]
+    for (let k = 1; k <= depth; k++) {
+      out.push(call(k, out.length, func, String(depth - k + 1)))
+      out.push(ev({ frameId: k, func, observedAtLine: 2 }, out.length))
+    }
+    return out
+  }
+
+  describe('countdown 모양 (30 깊이 + 트레이서 사망)', () => {
+    const events = descent(30)
+    const shots = choreograph(events, buildStage(events), undefined, 'RecursionError: maximum recursion depth exceeded')
+    const lapse = shots.find(s => s.timelapse)!
+
+    it('993샷의 축소판이 13샷이 된다 — 시작 1 + 호출 10 + 빨리감기 1 + 마침표 1', () => {
+      expect(shots).toHaveLength(13)
+      expect(shots.filter(s => s.caption?.includes('호출 — 새 작업 공간'))).toHaveLength(10)
+    })
+
+    it('정산 샷의 seq는 접힌 마지막 call — 스택 창이 최종 깊이로 점프한다', () => {
+      const calls = events.filter(e => e.kind === 'call' && e.func === 'countdown')
+      expect(lapse.seq).toBe(calls[29].seq)
+      expect(lapse.timelapse).toBe(20)
+      expect(lapse.caption).toBe('countdown 호출 — 남은 20회 빨리감기')
+      expect(lapse.focus).toEqual({ kind: 'frame', frameId: 30 })
+    })
+
+    it('정산이 가장 깊은 프레임의 n을 알약으로 세운다', () => {
+      expect(lapse.motions).toEqual(expect.arrayContaining([
+        { v: 'enterVar', varKey: '30:n' },
+        { v: 'setVar', varKey: '30:n', text: '1' },
+      ]))
+    })
+
+    it('정산이 창에 보일 카드들에 값을 쥐여준다 — 직전 알약(프레임 10)도 접힌다', () => {
+      const folds = lapse.motions.filter(m => m.v === 'foldVars')
+      const byFrame = new Map(folds.map(f => [f.frameId, f]))
+      expect(byFrame.get(29)).toEqual({ v: 'foldVars', frameId: 29, varKeys: ['29:n'], texts: ['n = 2'] })
+      expect(byFrame.get(27)).toEqual({ v: 'foldVars', frameId: 27, varKeys: ['27:n'], texts: ['n = 4'] })
+      expect(byFrame.get(10)).toEqual({ v: 'foldVars', frameId: 10, varKeys: ['10:n'], texts: ['n = 21'] })
+    })
+
+    it('마지막 샷은 여전히 멈춤의 마침표다', () => {
+      const last = shots[shots.length - 1]
+      expect(last.motions.some(m => m.v === 'crashEnd')).toBe(true)
+      expect(last.caption).toContain('여기서 실행이 멈췄습니다')
+    })
+
+    it('마침표 샷의 seq는 트레이스 안이다 — 스택 창이 크래시 순간에도 서 있는다', () => {
+      // 트레이스 밖(+1) seq를 주면 모든 프레임이 수명 밖이라 창이 통째로 비어,
+      // "여기서 멈췄다"가 빈 무대에서 말해진다 — 마침표는 마지막 순간의 재독이다
+      const last = shots[shots.length - 1]
+      expect(last.seq).toBe(events[events.length - 1].seq)
+    })
+  })
+
+  describe('fact 모양 (15 깊이 값 반환)', () => {
+    const events = (() => {
+      const out = descent(15, 'fact')
+      for (let k = 15; k >= 1; k--) {
+        out.push(ev({
+          kind: 'return', frameId: k, parentFrameId: k - 1 === 0 ? 0 : k - 1, func: 'fact',
+          returned: P(String(k)),
+        }, out.length))
+      }
+      out.push(ev({ kind: 'return' }, out.length))
+      return out
+    })()
+    const shots = choreograph(events, buildStage(events))
+    const lapses = shots.filter(s => s.timelapse)
+
+    it('하강과 unwind가 각각 접힌다 — 24샷 (1+10+1+10+1+1)', () => {
+      expect(lapses).toHaveLength(2)
+      expect(shots).toHaveLength(24)
+    })
+
+    it('unwind 머리 10개의 반환 칩이 개별 재생된다 — 값이 되돌아오는 그림', () => {
+      const played = shots.filter(s => !s.timelapse).flatMap(s => s.motions).filter(m => m.v === 'returnValue')
+      expect(played.map(m => m.frameId)).toEqual([15, 14, 13, 12, 11, 10, 9, 8, 7, 6])
+    })
+
+    it('unwind 정산이 사슬 끝의 반환 칩을 든다 — 마지막 값이 부모에 닿는 payoff', () => {
+      const u = lapses[1]
+      expect(u.caption).toBe('fact 반환 — 남은 5회 빨리감기')
+      expect(u.motions).toEqual(expect.arrayContaining([
+        { v: 'returnValue', frameId: 1, toFrameId: 0, text: '1' },
+      ]))
+    })
+
+    it('unwind 정산이 접힌 구간에서 죽은 무대 변수를 내린다', () => {
+      const u = lapses[1]
+      const exits = u.motions.filter(m => m.v === 'exitVar').map(m => m.varKey)
+      expect(exits).toContain('1:n')
+      expect(exits).toContain('5:n')
+    })
+
+    it('fold 태생 프레임이 실행 중이면 접힌 얕은 알약은 복귀하지 않는다', () => {
+      // 프레임 12의 반환 샷: 이제 가장 깊은 산 보유자는 11(fold 태생·무대 미소개) —
+      // 프레임 10의 n이 지금 값처럼 복귀하면 거짓이다. 11이 닫힌 뒤에야 10이 알약으로 돌아온다
+      const popShot = (fid: number) =>
+        shots.find(s => s.motions.some(m => m.v === 'popFrame' && m.frameId === fid))!
+      const unfold10 = (s: (typeof shots)[number]) =>
+        s.motions.some(m => m.v === 'foldVars' && m.frameId === 10 && m.varKeys.length === 0)
+      expect(unfold10(popShot(12))).toBe(false)
+      expect(unfold10(popShot(11))).toBe(true)
+    })
+  })
+
+  describe('크래시 unwind (15 깊이 전파)', () => {
+    const err = 'ZeroDivisionError: division by zero'
+    const events = (() => {
+      const out = descent(15, 'descend')
+      for (let k = 15; k >= 1; k--) {
+        out.push(ev({ kind: 'exception', frameId: k, parentFrameId: k - 1 === 0 ? 0 : k - 1, func: 'descend', error: err }, out.length))
+        out.push(ev({ kind: 'return', frameId: k, parentFrameId: k - 1 === 0 ? 0 : k - 1, func: 'descend' }, out.length))
+      }
+      out.push(ev({ kind: 'exception', error: err }, out.length))
+      out.push(ev({ kind: 'return' }, out.length))
+      return out
+    })()
+    const shots = choreograph(events, buildStage(events))
+
+    it('전파는 3프레임이면 선다 — 발생 1 + 전파 재생 뒤 나머지가 접힌다', () => {
+      const crashLapse = shots.find(s => s.caption?.includes('작업 공간을 지나'))!
+      expect(crashLapse.timelapse).toBe(12)
+      expect(crashLapse.caption).toBe('오류가 남은 12개의 작업 공간을 지나 올라갑니다 — 빨리감기')
+      // 재생된 raise: 발생(15) + 전파(14, 13) + 모듈 = 4
+      const raises = shots.filter(s => !s.timelapse).flatMap(s => s.motions).filter(m => m.v === 'raise')
+      expect(raises).toHaveLength(4)
+    })
+
+    it('접힌 전파를 지나도 마침표는 하나다 — 모듈이 crashEnd로 닫는다', () => {
+      const crashEnds = shots.flatMap(s => s.motions).filter(m => m.v === 'crashEnd')
+      expect(crashEnds).toHaveLength(1)
+      expect(shots[shots.length - 1].caption).toContain('여기서 실행이 멈췄습니다')
+    })
+  })
+
+  it('사슬 10이면 아무것도 접지 않는다 — fact(10)·descend(3) 회귀', () => {
+    const out = descent(10, 'fact')
+    for (let k = 10; k >= 1; k--) {
+      out.push(ev({
+        kind: 'return', frameId: k, parentFrameId: k - 1 === 0 ? 0 : k - 1, func: 'fact',
+        returned: P(String(k)),
+      }, out.length))
+    }
+    out.push(ev({ kind: 'return' }, out.length))
+    const shots = choreograph(out, buildStage(out))
+    expect(shots.some(s => s.timelapse)).toBe(false)
   })
 })
