@@ -1,0 +1,102 @@
+import type { DirectedResult } from './llmDirector'
+
+/* 연출 캐시 — 같은 코드면 같은 영화.
+
+   필름 트랙은 이미 결정적인데 대본 트랙이 매번 달라져 최종 화면이 비결정적이었다.
+   같은 코드를 다섯 번 돌리면 규칙 폴백과 AI가 섞이고, AI끼리도 연출 동사가 달라
+   시연도 검증도 성립하지 않았다. 캐싱은 성능 최적화가 아니라 재현성을 만드는 일이다.
+
+   키(설계서 9절 계약: code + digestHash + schema/prompt/modelVersion)는
+   `모델명 + 프롬프트` 한 줄로 충분하다 — buildPrompt가 이미 코드·다이제스트·지시문을
+   전부 담고 있어서, 지시문을 고치면 키가 저절로 바뀐다. */
+
+const PREFIX = 'tracelens.director.v1:'
+const INDEX_KEY = 'tracelens.director.v1.index'
+const MAX_ENTRIES = 30
+
+/** FNV-1a 32비트 두 벌(오프셋이 다르다)을 이어 64비트 상당으로. crypto.subtle은 비동기라 배선만 복잡해진다 */
+export function hashKey(input: string): string {
+  let a = 0x811c9dc5
+  let b = 0x01000193
+  for (let i = 0; i < input.length; i++) {
+    const c = input.charCodeAt(i)
+    a = Math.imul(a ^ c, 0x01000193) >>> 0
+    b = Math.imul(b ^ (c + i), 0x85ebca6b) >>> 0
+  }
+  return a.toString(36) + b.toString(36)
+}
+
+export const cacheKeyOf = (model: string, prompt: string) => hashKey(`${model}\u0000${prompt}`)
+
+const store = (): Storage | null => {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage
+  } catch {
+    return null // 사생활 모드 등 — 캐시는 있으면 좋은 것이지 필수가 아니다
+  }
+}
+
+const readIndex = (ls: Storage): string[] => {
+  try {
+    const raw = ls.getItem(INDEX_KEY)
+    const arr = raw ? (JSON.parse(raw) as unknown) : []
+    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+/** 적중하면 해석 완료된 대본을 그대로 돌려준다 — 이미 Resolver·검증을 통과했고, 키에 다이제스트가 들어가 있다 */
+export function readScreenplayCache(key: string): DirectedResult | null {
+  const ls = store()
+  if (!ls) return null
+  try {
+    const raw = ls.getItem(PREFIX + key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as DirectedResult
+    if (!parsed?.screenplay?.chapters) return null
+    // 최근 사용으로 올린다 (LRU)
+    const idx = readIndex(ls).filter(k => k !== key)
+    idx.push(key)
+    ls.setItem(INDEX_KEY, JSON.stringify(idx))
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+export function writeScreenplayCache(key: string, result: DirectedResult): void {
+  const ls = store()
+  if (!ls) return
+  try {
+    ls.setItem(PREFIX + key, JSON.stringify({ screenplay: result.screenplay, mode: result.mode }))
+    const idx = readIndex(ls).filter(k => k !== key)
+    idx.push(key)
+    while (idx.length > MAX_ENTRIES) {
+      const old = idx.shift()
+      if (old) ls.removeItem(PREFIX + old)
+    }
+    ls.setItem(INDEX_KEY, JSON.stringify(idx))
+  } catch {
+    /* 용량 초과 등 — 조용히 포기한다. 캐시 실패가 재생을 막아서는 안 된다 */
+  }
+}
+
+/** 탈출구 — AI가 한 번 이상한 대본을 뱉으면 그 코드로는 영원히 그 대본이 된다 */
+export function clearScreenplayCache(): number {
+  const ls = store()
+  if (!ls) return 0
+  try {
+    const idx = readIndex(ls)
+    for (const k of idx) ls.removeItem(PREFIX + k)
+    ls.removeItem(INDEX_KEY)
+    return idx.length
+  } catch {
+    return 0
+  }
+}
+
+export function screenplayCacheSize(): number {
+  const ls = store()
+  return ls ? readIndex(ls).length : 0
+}

@@ -1,0 +1,217 @@
+# -*- coding: utf-8 -*-
+# Algo-Scope Tracer — Pyodide와 로컬 CPython 겸용. sys.settrace 기반.
+# 계약: run_traced(code, emit, max_events) → emit(TraceEvent[] JSON) 반복, 마지막 emit({"done":...})
+import sys, json, io, contextlib, types, collections
+
+SAFE_TYPES = (int, float, bool, str, type(None))
+MAX_ITEMS = 20
+MAX_STR = 80
+MAX_DEPTH = 2
+CHUNK_SIZE = 200
+
+
+def _prim(v):
+    r = repr(v)
+    if len(r) > MAX_STR:
+        r = r[:MAX_STR] + '…'
+    return {'k': 'prim', 'v': r, 't': type(v).__name__}
+
+
+def _serialize(v, objects, depth=0):
+    """값 → Value. 컬렉션·객체는 objects에 ObjectSnap 등록 후 ref 반환. 부작용 없는 경로만."""
+    if isinstance(v, SAFE_TYPES):
+        return _prim(v)
+    oid = id(v)
+    ref = {'k': 'ref', 'id': oid}
+    if depth > MAX_DEPTH:
+        objects[oid] = {'id': oid, 'type': type(v).__name__, 'truncated': True}
+        return ref
+    if isinstance(v, (types.FunctionType, types.BuiltinFunctionType, types.ModuleType, type)):
+        objects[oid] = {'id': oid, 'type': type(v).__name__, 'unsupported': True}
+        return ref
+    if isinstance(v, (list, tuple, set, collections.deque)):
+        # n = 실제 원소 수. 화면이 "20 / 500"이라고 정직하게 말할 수 있게 싣는다.
+        # len()은 이 빌트인 분기에서만 부른다 — 사용자 객체의 __len__ 부작용 경로를 타지 않는다.
+        n = len(v)
+        items = list(v)[:MAX_ITEMS]
+        objects[oid] = {'id': oid, 'type': type(v).__name__,
+                        'items': [_serialize(x, objects, depth + 1) for x in items],
+                        'n': n, 'truncated': n > MAX_ITEMS}
+    elif isinstance(v, dict):
+        n = len(v)
+        entries = list(v.items())[:MAX_ITEMS]
+        objects[oid] = {'id': oid, 'type': 'dict',
+                        'entries': [[str(k)[:MAX_STR], _serialize(x, objects, depth + 1)] for k, x in entries],
+                        'n': n, 'truncated': n > MAX_ITEMS}
+    else:
+        d = getattr(type(v), '__dict__', None) and v.__dict__ if hasattr(v, '__dict__') else None
+        if isinstance(d, dict):
+            entries = list(d.items())[:MAX_ITEMS]
+            objects[oid] = {'id': oid, 'type': type(v).__name__,
+                            'entries': [[str(k), _serialize(x, objects, depth + 1)] for k, x in entries]}
+        else:
+            objects[oid] = {'id': oid, 'type': type(v).__name__, 'unsupported': True}
+    return ref
+
+
+# "반환값 없음"의 표식 — None은 실제 반환값일 수 있으므로 센티널이 따로 필요하다
+_NO_RET = object()
+
+
+class _Stop(Exception):
+    pass
+
+
+class _Tracer:
+    def __init__(self, emit, max_events):
+        self.emit = emit
+        self.max_events = max_events
+        self.buffer = []
+        self.seq = 0
+        self.clipped = False
+        self.frame_ids = {}
+        self.next_fid = 0
+        self.prev_locals = {}
+        self.prev_objects = {}
+        self.last_line = {}
+        self.raising = {}  # fid → 지금 예외로 되감기는 중 (return의 arg를 믿을 수 없다)
+        self.stdout = io.StringIO()
+        self.stdout_sent = 0
+
+    def _fid(self, frame):
+        key = id(frame)
+        if key not in self.frame_ids:
+            self.frame_ids[key] = self.next_fid
+            self.next_fid += 1
+        return self.frame_ids[key]
+
+    def _flush(self, force=False):
+        if len(self.buffer) >= CHUNK_SIZE or (force and self.buffer):
+            self.emit(json.dumps(self.buffer))
+            self.buffer = []
+
+    def _new_stdout(self):
+        s = self.stdout.getvalue()
+        out = s[self.stdout_sent:]
+        self.stdout_sent = len(s)
+        return out
+
+    def _record(self, frame, kind, err=None, returned=_NO_RET):
+        if self.clipped:
+            return
+        if self.seq >= self.max_events:
+            self.clipped = True
+            raise _Stop()
+        fid = self._fid(frame)
+        parent = self.frame_ids.get(id(frame.f_back)) if frame.f_back else None
+        objects = {}
+        cur = {}
+        for name, val in frame.f_locals.items():
+            if name.startswith('__'):
+                continue
+            try:
+                cur[name] = json.dumps(_serialize(val, objects))
+            except Exception:
+                cur[name] = json.dumps({'k': 'prim', 'v': '<직렬화 불가>', 't': type(val).__name__})
+        # 반환값도 같은 objects 레지스트리로 직렬화한다 — 컨테이너를 반환해도 ref가 해석된다
+        ret_val = None
+        if returned is not _NO_RET:
+            try:
+                ret_val = _serialize(returned, objects)
+            except Exception:
+                ret_val = {'k': 'prim', 'v': '<직렬화 불가>', 't': type(returned).__name__}
+        prev = self.prev_locals.get(fid, {})
+        delta = []
+        for name, vjson in cur.items():
+            if prev.get(name) != vjson:
+                delta.append({'name': name, 'op': 'set', 'value': json.loads(vjson)})
+        for name in prev:
+            if name not in cur:
+                delta.append({'name': name, 'op': 'delete'})
+        self.prev_locals[fid] = cur
+        obj_delta = []
+        for oid, snap in objects.items():
+            sjson = json.dumps(snap, sort_keys=True)
+            if self.prev_objects.get(oid) != sjson:
+                self.prev_objects[oid] = sjson
+                obj_delta.append({'op': 'set', 'obj': snap})
+        ev = {'seq': self.seq, 'kind': kind, 'frameId': fid, 'parentFrameId': parent,
+              'func': frame.f_code.co_name,
+              'causedByLine': self.last_line.get(fid), 'observedAtLine': frame.f_lineno,
+              'localsDelta': delta, 'objectsDelta': obj_delta, 'stdout': self._new_stdout()}
+        if err:
+            ev['error'] = err
+        if ret_val is not None:
+            ev['returned'] = ret_val
+        self.last_line[fid] = frame.f_lineno
+        self.seq += 1
+        self.buffer.append(ev)
+        self._flush()
+
+    def __call__(self, frame, event, arg):
+        if frame.f_code.co_filename != '<user>':
+            return None
+        try:
+            return self._dispatch(frame, event, arg)
+        except RecursionError:
+            # 기록 장치 자신이 한계에 부딪혔다 (직렬화·json이 스택을 더 쓴다). 트레이스 함수가
+            # 예외를 내면 CPython이 트레이싱을 끄므로 여기서 기록은 끝이다 — 죽음이 조용하지
+            # 않게 clipped로 밝히고, 사용자 코드의 RecursionError는 그대로 위로 올려보낸다.
+            # recursionlimit을 올려 연명하는 것은 사용자 코드의 한계 시점을 바꾸므로 하지 않는다.
+            self.clipped = True
+            raise
+
+    def _dispatch(self, frame, event, arg):
+        if event == 'line':
+            # 예외가 이 프레임에서 잡혔다 — 이후의 return은 진짜 반환이다
+            self.raising.pop(self._fid(frame), None)
+            self._record(frame, 'line')
+        elif event == 'call':
+            self.last_line.pop(self._fid(frame), None)
+            self._record(frame, 'call')
+        elif event == 'return':
+            # 예외로 되감기는 프레임의 return은 arg가 None이라 `return None`과 구분되지 않는다.
+            # 없는 반환을 지어내지 않는다 — 침묵한다. (예외가 잡히면 사이에 line이 끼어 플래그가
+            # 지워지므로 그 뒤의 정상 반환은 살아남는다. 실측으로 가른 경로다.)
+            # None 자체도 싣지 않는다: 암묵 반환과 구분되지 않고 화면에 올려도 가르치는 게 없다.
+            unwinding = self.raising.pop(self._fid(frame), False)
+            self._record(frame, 'return', returned=_NO_RET if (unwinding or arg is None) else arg)
+        elif event == 'exception':
+            self.raising[self._fid(frame)] = True
+            self._record(frame, 'exception', err=f"{arg[0].__name__}: {arg[1]}")
+        return self
+
+
+def run_traced(code, emit, max_events=5000):
+    tracer = _Tracer(emit, max_events)
+    error = None
+    # 구문 오류는 실행 0줄 — 파서가 아는 사실(줄·글자 위치·문제 줄·메시지)을 구조로 싣는다.
+    # 여기서 안 잡으면 worker의 fatal로 새서 화면에 Pyodide 내부 traceback이 닿는다.
+    # IndentationError·TabError는 SyntaxError의 하위라 같은 경로를 탄다.
+    try:
+        compiled = compile(code, '<user>', 'exec')
+    except SyntaxError as e:
+        emit(json.dumps({
+            'done': True, 'clipped': False,
+            'error': f"{type(e).__name__}: {e.msg}",
+            'syntaxError': {
+                'name': type(e).__name__, 'line': e.lineno, 'offset': e.offset,
+                'text': (e.text or '').rstrip(chr(10)) or None, 'msg': e.msg or '',
+            },
+        }))
+        return
+    # __name__을 '__main__'으로 주입 — 빈 globals면 builtins의 __name__('builtins')이 잡혀서
+    # AI 생성 스크립트에 흔한 `if __name__ == "__main__":` 블록이 통째로 건너뛰어진다
+    user_globals = {'__name__': '__main__'}
+    with contextlib.redirect_stdout(tracer.stdout):
+        sys.settrace(tracer)
+        try:
+            exec(compiled, user_globals)
+        except _Stop:
+            pass
+        except BaseException as e:
+            error = f"{type(e).__name__}: {e}"
+        finally:
+            sys.settrace(None)
+    tracer._flush(force=True)
+    emit(json.dumps({'done': True, 'clipped': tracer.clipped, 'error': error}))
