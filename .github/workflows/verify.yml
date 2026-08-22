@@ -1,0 +1,30 @@
+# 검증 게이트 — 로컬에서 빠뜨려도 여기서 걸린다.
+# 이 파일이 생긴 이유: `tsc --noEmit`과 vitest만 돌리는 습관 때문에 프로덕션 빌드가
+# 이틀간 깨진 채로 있었다 (`tsc -b`의 noUnusedLocals가 잡는 오류를 --noEmit은 놓친다).
+# 그래서 build가 반드시 들어간다.
+name: verify
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # lint → test → build (build = tsc -b && vite build)
+      - run: npm run verify
+
+      # 트레이서는 파이썬이라 vitest 밖에 있다 — 여기서만 돌아가면 놓치므로 게이트에 넣는다
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm run test:py
