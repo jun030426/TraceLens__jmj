@@ -181,11 +181,14 @@ export function compose(
 
     // ── 변수: 좌측 스트립 — 기준은 최근성이 아니라 생존이다. 살아있는 변수가 말없이
     // 사라지면 학습자는 "i 어디 갔지?"가 된다. 상한 초과분만 최근성으로 강등하고,
-    // 자리는 등장순으로 고정한다 (재배열은 알약 교차의 어지러움을 만든다)
+    // 자리는 등장순으로 고정한다 (재배열은 알약 교차의 어지러움을 만든다).
+    // 단, 모션으로 소개된 적 없는 변수는 후보가 아니다 — 사슬 빨리감기 태생 변수가
+    // 값 한 번 못 받은 빈 알약으로 서는 경로를 막는다 (부록 A 08-22 (마)①)
     const vars = plan.variables
       .filter(
         v =>
           born(v.life) &&
+          firstTouch.has(`v${v.varKey}`) &&
           !deadVars.has(`v${v.varKey}`) &&
           !pointerVars.has(`v${v.varKey}`) &&
           !boundVars.has(`v${v.varKey}`) &&

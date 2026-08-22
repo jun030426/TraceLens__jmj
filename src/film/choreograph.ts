@@ -1,5 +1,7 @@
 import type { TraceEvent, Value, ObjectSnap } from '../trace/types'
 import { buildDigest } from '../digest/buildDigest'
+import { detectCascades, type CascadeFold } from './cascades'
+import { STACK_SLOTS } from './layout'
 import type { CompareTarget, Motion, Shot, StagePlan } from './types'
 
 const BASE_MS = 520
@@ -9,6 +11,14 @@ const LAPSE_MS = 900
 const FULL_ITERATIONS = 10 // 반복은 10회까지 온전히 보여주고, 그 이후는 압축한다
 
 const capText = (s: string, n = 12) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
+
+/** 진행 중인 사슬 빨리감기 — 접힌 구간에서 모은 정산 사실 (마지막 프레임·stdout·반환) */
+type PendingCascade = {
+  fold: CascadeFold
+  lastFrame: number // 접힌 마지막 이벤트의 프레임 — 정산 샷의 조명
+  lastStdout: string
+  lastReturn: { frameId: number; toFrameId: number; text: string } | null
+}
 
 /* ── 학습자 자막 — 모션에서 결정적으로 생성하는 한 문장. 화면과 자막이 원리적으로
    일치한다 (대본과 필름의 압축 규칙이 달라 생기는 "자막 딴소리"의 구조적 해결).
@@ -357,9 +367,25 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   // 두 층이 같은 판정을 따로 하면 조용히 어긋난다.
   // 알약이 되는 것만 대상이다: prim 값을 쥔 변수 (ref는 이미 상자 이름표가 든다).
   const frameDepth = new Map(plan.frames.map(f => [f.frameId, f.depth]))
+  // 살아있는 프레임 — call이 세우고 return이 지운다. 압축 구간에서도 부기는 계속된다
+  // (상태는 접히지 않는다). 알약 주인 판정과 사슬 정산이 이 사실을 본다.
+  const liveFrames = new Set<number>()
   const prevFold = new Map<number, string>() // frameId → 직전 방출 서명 (바뀔 때만 방출)
   const emitFolds = (motions: Motion[]) => {
-    const byName = new Map<string, number[]>() // 이름 → 그 이름을 가진 살아있는 프레임들
+    // 이름의 주인 = **살아있는** 프레임 중 가장 깊은 보유자 — 무대 소개 여부와 무관한 사실.
+    // 주인이 무대에 소개된 적 없으면(빨리감기 태생) 그 이름의 알약은 없다: 접힌 얕은 값이
+    // 지금 값처럼 복귀하면 거짓이다 (부록 A 08-22 (마)②)
+    const ownerOf = new Map<string, number>()
+    for (const [key, v] of locals) {
+      if (v.k !== 'prim') continue
+      const cut = key.indexOf(':')
+      const fid = Number(key.slice(0, cut))
+      if (!liveFrames.has(fid)) continue
+      const name = key.slice(cut + 1)
+      const cur = ownerOf.get(name)
+      if (cur === undefined || (frameDepth.get(fid) ?? 0) > (frameDepth.get(cur) ?? 0)) ownerOf.set(name, fid)
+    }
+    const byName = new Map<string, number[]>() // 이름 → 그 이름을 무대에 올린 프레임들
     for (const [fid, keys] of frameVars)
       for (const k of keys) {
         if (locals.get(k)?.k !== 'prim') continue
@@ -368,9 +394,9 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       }
     const folded = new Map<number, Set<string>>()
     for (const [name, fids] of byName) {
-      if (fids.length < 2) continue
-      const deepest = fids.reduce((a, b) => ((frameDepth.get(b) ?? 0) > (frameDepth.get(a) ?? 0) ? b : a))
-      for (const fid of fids) if (fid !== deepest) (folded.get(fid) ?? folded.set(fid, new Set()).get(fid)!).add(`${fid}:${name}`)
+      const owner = ownerOf.get(name)
+      if (fids.length < 2 && fids[0] === owner) continue
+      for (const fid of fids) if (fid !== owner) (folded.get(fid) ?? folded.set(fid, new Set()).get(fid)!).add(`${fid}:${name}`)
     }
     for (const fid of frameVars.keys()) {
       // 순서는 알파벳이 아니라 **등장 순**이다 — 매개변수는 서명 순으로 들어오므로
@@ -552,6 +578,11 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   }
   const lapseAt = (seq: number) => lapse.find(l => seq >= l.from && seq <= l.to)
 
+  // 깊은 재귀의 빨리감기 — 같은 함수의 일직선 사슬(>10)은 머리만 개별 재생하고 접는다
+  // (부록 A 08-22). 루프 빨리감기와 겹치는 사슬은 감지가 양보한다 (한 이벤트의 주인은 하나다)
+  const cascades = detectCascades(events, lapse)
+  const cascadeAt = (seq: number) => cascades.find(c => seq >= c.from && seq <= c.to)
+
   // 반복 배지 — **사용자 소스의 반복문**에 접지한다. 다이제스트의 압축 스팬은 "보여주는
   // 방식"이지 반복문의 생애가 아니어서, 그것을 반복문으로 착각하면 4바퀴 도는 루프가
   // 3·4·5회차로 읽히고(접힘이 3회차 방문부터라 카운트를 2에서 출발시키는 보정이 들어갔다)
@@ -652,9 +683,9 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   // 압축 구간은 상태만 따라가며 모으고, 빠져나올 때 한 샷으로 "정산"한다 —
   // 칸·변수를 실제 최종 값으로 맞추므로 '…' 같은 잔상이 남지 않는다
   let pendingLapse: { from: number; startSeq: number; count: number } | null = null
-  const flushLapse = (p: { startSeq: number; count: number }): Shot => {
-    const motions: Motion[] = [{ v: 'loop', text: `남은 ${p.count}회 빨리감기` }]
-    // 격자·오버레이도 정산한다 — 빨리감기 뒤에도 격자는 진실을 보여야 한다
+  // 무대(격자·오버레이·상자)의 정산 — 루프 빨리감기와 사슬 빨리감기가 같은 코드를 쓴다.
+  // 빨리감기 뒤에도 화면은 진실을 보여야 한다
+  const settleStage = (motions: Motion[]) => {
     for (const gridId of gridInfo.keys()) {
       if (entered.has(gridId) && !exited.has(gridId)) emitGridDiff(gridId, motions)
     }
@@ -687,6 +718,10 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         prevTexts.delete(id)
       }
     }
+  }
+  const flushLapse = (p: { startSeq: number; count: number }): Shot => {
+    const motions: Motion[] = [{ v: 'loop', text: `남은 ${p.count}회 빨리감기` }]
+    settleStage(motions)
     // 변수 값도 정산한다 — 루프 변수가 낡은 값으로 남으면 그것도 거짓말이다
     for (const [key, v] of locals) {
       if (v.k !== 'prim' || !castVars.has(key)) continue
@@ -715,6 +750,74 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     }
   }
 
+  // ── 사슬 빨리감기의 정산 — 접힌 하강·unwind가 끝났다. 창에 보일 것을 사실로 맞춘다 ──
+  // 선언이 주석형이면 tsc(6.0.2)가 루프의 조건부 대입을 역전파하지 못해 흐름 타입을 null로
+  // 고착시키고, null 가드 뒤 속성 접근이 never가 된다 — 초기화식 캐스트가 그 사슬을 끊는다
+  let pendingCasc = null as PendingCascade | null
+  const cascadeCaption = (c: CascadeFold) =>
+    c.kind === 'descent' ? `${c.func} 호출 — 남은 ${c.count}회 빨리감기`
+    : c.kind === 'unwindValue' ? `${c.func} 반환 — 남은 ${c.count}회 빨리감기`
+    : c.kind === 'unwindQuiet' ? `${c.func} 종료 — 남은 ${c.count}회 빨리감기`
+    : `오류가 남은 ${c.count}개의 작업 공간을 지나 올라갑니다 — 빨리감기`
+  const flushCascade = (p: PendingCascade): Shot => {
+    // 루프 배지 칩은 쓰지 않는다 — 배지의 근거는 소스의 반복문이다. 빨리감기의 사실은
+    // 자막과 timelapse 태그(×N회 압축)가 말하고, 스택 창의 점프가 보여준다
+    const motions: Motion[] = []
+    settleStage(motions)
+    if (p.lastStdout) motions.push({ v: 'stdout', text: p.lastStdout })
+    // 접힌 구간에서 죽은 무대 변수를 내린다 — 알약·보유 부기를 정산이 이어받는다
+    for (const [fid, keys] of [...frameVars]) {
+      if (liveFrames.has(fid)) continue
+      for (const key of keys) {
+        motions.push({ v: 'exitVar', varKey: key })
+        varsSeen.delete(key)
+        releaseHold(key, motions)
+      }
+      frameVars.delete(fid)
+    }
+    // 잊혀진 상자 정리 — 본 재생과 같은 규칙
+    for (const id of heldOnce) {
+      if (!entered.has(id) || exited.has(id)) continue
+      if ((holderKeys.get(id)?.size ?? 0) === 0) {
+        motions.push({ v: 'exitObj', objectId: id })
+        exited.add(id)
+      }
+    }
+    if (p.fold.kind === 'descent') {
+      // 창에 보일 사슬 프레임(가장 깊은 4개)의 변수를 스테이징한다 — 가장 깊은 것만 알약이
+      // 되고 나머지는 emitFolds가 각자의 카드에 접는다. 창 밖으로 접힌 프레임의 값은 화면에
+      // 없다 — 요약 띠가 개수로 밝히고 인스펙터가 들고 있다 (창 결정이 이미 받아들인 손실)
+      const windowFids = [...liveFrames]
+        .sort((a, b) => (frameDepth.get(b) ?? 0) - (frameDepth.get(a) ?? 0))
+        .slice(0, STACK_SLOTS - 1)
+      for (const fid of windowFids) {
+        for (const [key, v] of locals) {
+          if (v.k !== 'prim' || !castVars.has(key)) continue
+          if (Number(key.slice(0, key.indexOf(':'))) !== fid) continue
+          if (!varsSeen.has(key)) {
+            varsSeen.add(key)
+            const set = frameVars.get(fid) ?? new Set<string>()
+            set.add(key)
+            frameVars.set(fid, set)
+            motions.push({ v: 'enterVar', varKey: key })
+          }
+          motions.push({ v: 'setVar', varKey: key, text: shortText(v, objects) })
+        }
+      }
+    }
+    // 값 반환 사슬의 마지막 칩 — 접힌 값이 부모에 닿는 순간은 트레이스의 사실이다
+    if (p.lastReturn) motions.push({ v: 'returnValue', ...p.lastReturn })
+    emitFolds(motions)
+    return {
+      seq: p.fold.to, // 접힌 마지막 이벤트 — 스택 창이 이 깊이로 점프한다
+      motions,
+      durationMs: LAPSE_MS,
+      focus: { kind: 'frame', frameId: p.lastFrame },
+      timelapse: p.fold.count,
+      caption: cascadeCaption(p.fold),
+    }
+  }
+
   for (const e of events) {
     for (const d of e.objectsDelta) {
       if (d.op === 'set' && d.obj) objects.set(d.obj.id, d.obj)
@@ -728,8 +831,18 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       else if (d.value) locals.set(key, d.value)
     }
 
-    // 배지 상태는 압축 구간에서도 따라간다 — 세지 않으면 빨리감기 뒤 회차가 건너뛴다
+    // 상태는 접히지 않는다 (부록 A 08-22 (라)) — 배지 회차·프레임 생존·전파(pendingCrash)의
+    // 부기는 압축 구간에서도 계속된다. 안 세면 빨리감기 뒤의 화면·자막이 사실에서 어긋난다
     const badge = badgeAt(e)
+    if (e.kind === 'call') liveFrames.add(e.frameId)
+    else if (e.kind === 'return' && e.parentFrameId !== null) liveFrames.delete(e.frameId)
+    // 모듈 프레임은 지우지 않는다 — 마지막 장면은 프로그램의 최종 상태를 보여야 하므로
+    // 모듈의 변수는 무대에 남고, 알약 주인 판정도 그 사실을 따른다
+    // 같은 오류의 재관측 = 전파 — 발생과 다른 문장을 받는다. 다른 오류 문자열이면 새 발생이다
+    const passedUp = e.kind === 'exception' && pendingCrash !== null && pendingCrash === (e.error ?? '오류')
+    if (e.kind === 'exception') pendingCrash = e.error ?? '오류'
+    else if (e.kind === 'line') pendingCrash = null
+
     const inLapse = lapseAt(e.seq)
     if (inLapse) {
       if (!pendingLapse || pendingLapse.from !== inLapse.from) {
@@ -742,6 +855,27 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       shots.push(flushLapse(pendingLapse))
       pendingLapse = null
       prevBadge = undefined // 빨리감기 문구가 배지를 덮었다 — 다음 상태를 반드시 다시 쓴다
+    }
+
+    // 사슬 빨리감기 — 접힌 이벤트는 모션을 내지 않고, 정산에 필요한 사실만 모은다.
+    // 배지 상태는 건드리지 않는다: 사슬 정산은 배지 칩을 쓰지 않으므로 덮을 것도 없다
+    const casc = cascadeAt(e.seq)
+    if (casc) {
+      let p: PendingCascade | null = pendingCasc
+      if (p === null || p.fold !== casc) {
+        if (p !== null) shots.push(flushCascade(p))
+        p = { fold: casc, lastFrame: e.frameId, lastStdout: '', lastReturn: null }
+        pendingCasc = p
+      }
+      p.lastFrame = e.frameId
+      if (e.stdout) p.lastStdout = e.stdout
+      if (e.kind === 'return' && e.returned && e.parentFrameId !== null)
+        p.lastReturn = { frameId: e.frameId, toFrameId: e.parentFrameId, text: shortText(e.returned, objects) }
+      continue
+    }
+    if (pendingCasc) {
+      shots.push(flushCascade(pendingCasc))
+      pendingCasc = null
     }
 
     const motions: Motion[] = []
@@ -764,11 +898,6 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
           lastCmp = { text: cmp.text, a: cmp.a, op: cmp.op, b: cmp.b, objectId: cell.objectId, shotIdx: shots.length }
       }
     }
-
-    // 같은 오류의 재관측 = 전파 — 발생과 다른 문장을 받는다. 다른 오류 문자열이면 새 발생이다
-    const passedUp = e.kind === 'exception' && pendingCrash !== null && pendingCrash === (e.error ?? '오류')
-    if (e.kind === 'exception') pendingCrash = e.error ?? '오류'
-    else if (e.kind === 'line') pendingCrash = null
 
     if (e.kind === 'call') motions.push({ v: 'pushFrame', frameId: e.frameId })
     if (e.kind === 'return') {
@@ -1073,6 +1202,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   }
   // 트레이스가 압축 구간에서 끝나면 정산 샷으로 마무리한다
   if (pendingLapse) shots.push(flushLapse(pendingLapse))
+  if (pendingCasc) shots.push(flushCascade(pendingCasc))
 
   // 끊긴 기록의 마침표 — 트레이스가 crashEnd 없이 끝났는데 런타임이 오류를 보고했으면
   // (무한 재귀에서 트레이서 자신이 죽는 케이스, 타임아웃) 그 사실로 마지막 샷을 닫는다.
@@ -1080,7 +1210,10 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   if (runError && !crashEnded && events.length > 0) {
     const lastEv = events[events.length - 1]
     shots.push({
-      seq: lastEv.seq + 1,
+      // 마지막 이벤트의 seq를 그대로 쓴다 — 마침표는 마지막 순간의 재독이다. 트레이스 밖(+1)
+      // seq를 지어내면 모든 프레임이 수명 밖이라 스택 창이 통째로 비어, 멈춤이 빈 무대에서
+      // 말해진다 (인스펙터도 같은 순간을 보므로 화면과 일치한다)
+      seq: lastEv.seq,
       motions: [
         { v: 'shake', frameId: lastEv.frameId },
         { v: 'raise', frameId: lastEv.frameId, text: runError },
