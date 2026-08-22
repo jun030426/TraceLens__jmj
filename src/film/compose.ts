@@ -383,12 +383,14 @@ export function compose(
     if (id === null) return IDENTITY
     const p = comps[si].get(`o${id}`)
     if (!p) return IDENTITY
-    const size = objSize.get(id) ?? { w: 120, h: 64 }
-    const cam = cams[si]
-    const bx0 = cam.x + cam.k * p.x
-    const bx1 = cam.x + cam.k * (p.x + size.w * p.s)
-    const by0 = cam.y + cam.k * (p.y - 26 * p.s)
-    const by1 = cam.y + cam.k * (p.y + (size.h + 16) * p.s)
+    // 배우가 실제로 점유하는 범위는 actorRect가 이미 안다 — 이름표 띠와 칸 번호는 물론
+    // 인덱스 포인터가 상자 아래로 늘어뜨리는 화살표 줄까지. 여기서 따로 계산하면
+    // 그만큼 대상이 중앙에서 아래로 밀린다 (실측 44px)
+    const r = actorRect(`o${id}`, p, cams[si], IDENTITY)
+    const bx0 = r.x0
+    const bx1 = r.x1
+    const by0 = r.y0
+    const by1 = r.y1
     const fits = (k: number) => (bx1 - bx0) * k <= AREA.x1 - AREA.x0 && (by1 - by0) * k <= AREA.y1 - AREA.y0
     let k = kWanted
     while (k > 1.15 && !fits(k)) k -= 0.05

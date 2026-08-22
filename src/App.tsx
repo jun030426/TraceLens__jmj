@@ -11,7 +11,7 @@ import { buildSnapshots, type Snapshot } from './trace/snapshots'
 import { buildScreenplay } from './screenplay/ruleDirector'
 import { buildDigest } from './digest/buildDigest'
 import { generateScreenplayWithSalvage } from './director/llmDirector'
-import { makeGeminiCall, geminiApiKey } from './director/gemini'
+import { makeGeminiCall, geminiApiKey, GEMINI_MODEL } from './director/gemini'
 import type { Screenplay } from './screenplay/types'
 import { expandScreenplay, type PlaybackStep } from './player/expand'
 import { buildStage } from './film/buildStage'
@@ -52,6 +52,8 @@ type RunArtifacts = {
   clipped: boolean
   error?: string
   directorMode: DirectorMode
+  /** 저장된 연출을 그대로 쓴 실행인가 — 방금 생성한 것과 같아 보이면 그것도 화면의 거짓말이다 */
+  directorCached?: boolean
   plan: StagePlan
   layout: StageLayout
   shots: Shot[]
@@ -232,7 +234,7 @@ function App() {
         void (async () => {
           try {
             const ai = await generateScreenplayWithSalvage(
-              code, buildDigest(result.events), makeGeminiCall(geminiApiKey), screenplay,
+              code, buildDigest(result.events), makeGeminiCall(geminiApiKey), screenplay, GEMINI_MODEL,
             )
             if (runId !== runIdRef.current) return
             setRun(prev => {
@@ -260,6 +262,7 @@ function App() {
                 layout: nextLayout,
                 shots: decorateShots(baseShots, ai.screenplay, nextPlan, nextLayout),
                 directorMode: ai.mode,
+                directorCached: !!ai.cached,
               }
             })
           } catch {
@@ -300,8 +303,8 @@ function App() {
   }, [run, seek, play])
 
   const directorLabel =
-    run?.directorMode === 'ai' ? 'AI 연출'
-    : run?.directorMode === 'ai-partial' ? 'AI 연출·일부 보강'
+    run?.directorMode === 'ai' ? (run.directorCached ? 'AI 연출 · 캐시' : 'AI 연출')
+    : run?.directorMode === 'ai-partial' ? (run.directorCached ? 'AI 연출·일부 보강 · 캐시' : 'AI 연출·일부 보강')
     : run?.directorMode === 'ai-fallback' ? '규칙 폴백'
     : '규칙 연출'
 
