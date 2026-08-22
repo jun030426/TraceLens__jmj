@@ -1406,3 +1406,80 @@ describe('choreograph: 터진 실행은 멈춤으로 끝난다', () => {
     expect(all.some(m => m.v === 'crashEnd')).toBe(true)
   })
 })
+
+/* 전파는 발생과 다른 문장이다 — 같은 오류의 재관측(passed)과 오류에 밀린 닫힘(unwound)을
+   자막이 갈라 말한다. 발생·전파·강제 닫힘은 트레이스가 구분해 주는 세 가지 사실이다 */
+describe('choreograph: 오류가 스택을 오르는 길', () => {
+  const ERR = 'ZeroDivisionError: division by zero'
+  const depth2: TraceEvent[] = [
+    ev({ kind: 'call' }, 0),
+    ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'report', localsDelta: [{ name: 's', op: 'set', value: P('1') }] }, 1),
+    ev({ kind: 'call', frameId: 2, parentFrameId: 1, func: 'average', localsDelta: [{ name: 'n', op: 'set', value: P('0') }] }, 2),
+    ev({ kind: 'exception', frameId: 2, parentFrameId: 1, func: 'average', error: ERR }, 3),
+    ev({ kind: 'return', frameId: 2, parentFrameId: 1, func: 'average' }, 4),
+    ev({ kind: 'exception', frameId: 1, parentFrameId: 0, func: 'report', error: ERR }, 5),
+    ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'report' }, 6),
+    ev({ kind: 'exception', error: ERR }, 7),
+    ev({ kind: 'return' }, 8),
+  ]
+  const shots = choreograph(depth2, buildStage(depth2))
+  const capAt = (pred: (m: Motion) => boolean) => shots.find(sh => sh.motions.some(pred))!.caption
+
+  it('첫 발생만 "오류 발생"이고 재관측은 passed가 붙는다', () => {
+    const raises = shots.flatMap(sh => sh.motions).filter(m => m.v === 'raise')
+    expect(raises.map(r => !!r.passed)).toEqual([false, true, true])
+  })
+
+  it('전파 자막 — 잡지 못했다고 말한다 (모듈은 문장이 다르다)', () => {
+    expect(capAt(m => m.v === 'raise' && !m.passed)).toContain('오류 발생')
+    expect(capAt(m => m.v === 'raise' && !!m.passed && m.frameId === 1)).toBe(
+      'report가 오류를 잡지 못했습니다 — 위로 올라갑니다',
+    )
+    expect(capAt(m => m.v === 'raise' && !!m.passed && m.frameId === 0)).toBe('프로그램도 오류를 잡지 못했습니다')
+  })
+
+  it('오류에 밀린 닫힘 — unwound가 붙고 자막이 다르다', () => {
+    const pops = shots.flatMap(sh => sh.motions).filter(m => m.v === 'popFrame')
+    expect(pops.find(pp => pp.frameId === 2)?.unwound).toBe(true)
+    expect(capAt(m => m.v === 'popFrame' && m.frameId === 2)).toBe('average가 오류와 함께 닫힙니다')
+    expect(capAt(m => m.v === 'popFrame' && m.frameId === 1)).toBe('report가 오류와 함께 닫힙니다')
+  })
+
+  it('전파돼 온 오류를 잡는 프레임 — "잡습니다"라고 말한다 (잡지 못했다는 거짓말 금지)', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'safe', localsDelta: [{ name: 'x', op: 'set', value: P('1') }] }, 1),
+      ev({ kind: 'call', frameId: 2, parentFrameId: 1, func: 'get_item', localsDelta: [{ name: 'i', op: 'set', value: P('9') }] }, 2),
+      ev({ kind: 'exception', frameId: 2, parentFrameId: 1, func: 'get_item', error: ERR }, 3),
+      ev({ kind: 'return', frameId: 2, parentFrameId: 1, func: 'get_item' }, 4),
+      ev({ kind: 'exception', frameId: 1, parentFrameId: 0, func: 'safe', error: ERR }, 5),
+      ev({ frameId: 1, parentFrameId: 0, func: 'safe', observedAtLine: 8, localsDelta: [{ name: 'x', op: 'set', value: P('-1') }] }, 6),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'safe', returned: P('-1') }, 7),
+      ev({ kind: 'return' }, 8),
+    ]
+    const sh = choreograph(events, buildStage(events))
+    expect(sh.find(x => x.motions.some(m => m.v === 'raise' && m.frameId === 1))!.caption).toBe(
+      'safe가 오류를 잡습니다',
+    )
+    // 잡은 뒤의 반환은 unwind가 아니다
+    const pop = sh.flatMap(x => x.motions).find(m => m.v === 'popFrame' && m.frameId === 1)
+    expect(pop?.unwound).toBeUndefined()
+  })
+
+  it('잡힌 오류 뒤의 닫힘은 정상 자막이다 — line이 전파를 끊는다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'safe', localsDelta: [{ name: 'x', op: 'set', value: P('1') }] }, 1),
+      ev({ kind: 'exception', frameId: 1, parentFrameId: 0, func: 'safe', error: ERR }, 2),
+      ev({ frameId: 1, parentFrameId: 0, func: 'safe', observedAtLine: 4, localsDelta: [{ name: 'x', op: 'set', value: P('-1') }] }, 3),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'safe' }, 4),
+      ev({ kind: 'return' }, 5),
+    ]
+    const sh = choreograph(events, buildStage(events))
+    const pop = sh.flatMap(x => x.motions).find(m => m.v === 'popFrame' && m.frameId === 1)
+    expect(pop?.unwound).toBeUndefined()
+    expect(sh.find(x => x.motions.some(m => m.v === 'popFrame' && m.frameId === 1))!.caption).toBe(
+      'safe 종료 — 작업 공간이 닫힙니다',
+    )
+  })
+})

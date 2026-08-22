@@ -58,13 +58,15 @@ export type Motion =
   | { v: 'swap'; objectId: number; i: number; k: number; iText: string; kText: string }
   | { v: 'exitObj'; objectId: number }
   | { v: 'pushFrame'; frameId: number }
-  | { v: 'popFrame'; frameId: number }
+  /** unwound — 오류에 밀려 닫히는 프레임 (pendingCrash가 선 채 반환). 자막이 갈라진다 */
+  | { v: 'popFrame'; frameId: number; unwound?: true }
   /** 반환 칩 — 닫히는 프레임 카드에서 값이 떠서 부모 카드로 내려앉는다.
       트레이스의 returned가 있을 때만 (예외 unwind·None은 애초에 오지 않는다) */
   | { v: 'returnValue'; frameId: number; toFrameId: number; text: string }
   | { v: 'stdout'; text: string }
   | { v: 'shake'; frameId: number }
-  | { v: 'raise'; frameId: number; text: string }
+  /** passed — 같은 오류의 재관측(전파). 발생과 다른 문장을 받는다 */
+  | { v: 'raise'; frameId: number; text: string; passed?: true; caught?: true }
   | { v: 'loop'; text: string }
   /** 터진 실행의 마침표 — 잡히지 않은 예외로 모듈 프레임이 닫힐 때. 자막이 멈춤을 말하고
       축하(sortedSweep)를 접는 근거가 된다. 렌더는 없음 — 오류 스트립은 raise가 이미 세웠다 */
