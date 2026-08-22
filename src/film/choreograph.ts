@@ -490,15 +490,81 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   }
   const lapseAt = (seq: number) => lapse.find(l => seq >= l.from && seq <= l.to)
 
-  // 반복 배지 — 접힘은 헤더 라인의 3회차 방문부터 시작되므로 카운트는 2에서 출발한다.
-  // 헤더 라인 = 접힘 시작 이벤트의 관측 라인 (몸통보다 먼저 3회차에 도달하는 줄).
-  // 카운터는 스팬이 아니라 헤더 라인 단위로 전 구간 누적한다 — 중첩 루프에서 스팬마다
-  // 리셋된 숫자가 5→3→9로 널뛰면 학습자는 시계를 잃는다. 줄마다 단조 증가가 정직하다.
-  const loopSpans = digest.spans
-    .filter(s => (s.iterations ?? 0) > 1)
-    .map(s => ({ from: s.sourceSeqRange[0], to: s.sourceSeqRange[1], headerLine: s.lines[1] }))
-  const headerSeen = new Map<string, number>()
-  let badgeOn = false
+  // 반복 배지 — **사용자 소스의 반복문**에 접지한다. 다이제스트의 압축 스팬은 "보여주는
+  // 방식"이지 반복문의 생애가 아니어서, 그것을 반복문으로 착각하면 4바퀴 도는 루프가
+  // 3·4·5회차로 읽히고(접힘이 3회차 방문부터라 카운트를 2에서 출발시키는 보정이 들어갔다)
+  // 정렬 한복판에서 "반복 구간이 끝났습니다"가 뜬다 (실측). 반복문의 모양은 값·순서가
+  // 아니라 코드의 어휘이므로 소스에서 읽어도 값의 신뢰성 축은 다치지 않는다.
+  type SrcLoop = { header: number; end: number; name?: string }
+  const parseLoops = (lines: string[]): SrcLoop[] => {
+    const out: SrcLoop[] = []
+    const indentOf = (t: string) => t.length - t.trimStart().length
+    const skip = (t: string) => t.trim() === '' || t.trim().startsWith('#')
+    lines.forEach((line, i) => {
+      const m = /^(\s*)(for|while)\b(.*):\s*(#.*)?$/.exec(line)
+      if (!m) return
+      const ind = m[1].length
+      let end = 0
+      for (let k = i + 1; k < lines.length; k++) {
+        if (skip(lines[k])) continue
+        if (indentOf(lines[k]) <= ind) break
+        end = k + 1
+      }
+      if (!end) return // 몸통을 못 찾았다 (한 줄 루프 등) — 지어내지 않고 침묵
+      // 튜플 언패킹(`for dr, dc in ...`)까지 읽는다 — BFS처럼 바깥이 `while`(이름 없음)이면
+      // 둘 다 숫자만 남아 4 → 1 → 2가 근거 없이 널뛰는 것으로 보인다 (실측)
+      const t =
+        m[2] === 'for' ? /^\s*([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)\s+in\s/.exec(m[3]) : null
+      out.push({ header: i + 1, end, ...(t ? { name: t[1].replace(/\s*,\s*/g, ', ') } : {}) })
+    })
+    return out
+  }
+  const srcLoops = code ? parseLoops(srcLines) : []
+  const parentFrame = new Map(plan.frames.map(f => [f.frameId, f.parentFrameId]))
+  const loopRun = new Map<string, { n: number; armed: boolean }>() // `${frameId}:${header}`
+  const loopKey = (fid: number, header: number) => `${fid}:${header}`
+  /** 이 이벤트 시점의 배지 문구. 회차는 **몸통이 실행된 횟수**다 — 헤더 줄을 밟으면 장전하고
+      몸통 줄에 들어설 때 오른다 (헤더 방문 수를 세면 마지막 소진 검사까지 세어 4바퀴가 5가 된다).
+      범위 밖으로 나가면 그 반복문은 끝났고 카운터는 리셋된다 (중첩에서 안쪽이 다시 1부터).
+      반복 안에서 함수를 부르면 호출 스택을 거슬러 찾는다 — 현재 프레임만 보면
+      `for x in xs: helper(x)`가 회차마다 배지 켜짐/꺼짐을 반복한다. */
+  const badgeAt = (e: TraceEvent): string | null => {
+    if (srcLoops.length === 0) return null
+    if (e.kind === 'return' && e.parentFrameId !== null)
+      for (const l of srcLoops) loopRun.delete(loopKey(e.frameId, l.header))
+    if (e.kind === 'line') {
+      const line = e.observedAtLine
+      for (const l of srcLoops) {
+        const key = loopKey(e.frameId, l.header)
+        if (line < l.header || line > l.end) {
+          loopRun.delete(key)
+          continue
+        }
+        const st = loopRun.get(key) ?? { n: 0, armed: false }
+        if (line === l.header) st.armed = true
+        else if (st.armed) {
+          st.n += 1
+          st.armed = false
+        }
+        loopRun.set(key, st)
+      }
+    }
+    let fid: number | null = e.frameId
+    const seen = new Set<number>()
+    while (fid !== null && !seen.has(fid)) {
+      seen.add(fid)
+      let best: SrcLoop | null = null
+      for (const l of srcLoops) {
+        const st = loopRun.get(loopKey(fid, l.header))
+        if (!st || st.n === 0) continue
+        if (!best || l.header > best.header) best = l
+      }
+      if (best) return `${best.name ? best.name + ' ' : ''}반복 ${loopRun.get(loopKey(fid, best.header))!.n}회차`
+      fid = parentFrame.get(fid) ?? null
+    }
+    return null
+  }
+  let prevBadge: string | null | undefined = null
 
   const shots: Shot[] = []
 
@@ -581,6 +647,8 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       else if (d.value) locals.set(key, d.value)
     }
 
+    // 배지 상태는 압축 구간에서도 따라간다 — 세지 않으면 빨리감기 뒤 회차가 건너뛴다
+    const badge = badgeAt(e)
     const inLapse = lapseAt(e.seq)
     if (inLapse) {
       if (!pendingLapse || pendingLapse.from !== inLapse.from) {
@@ -592,25 +660,18 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     if (pendingLapse) {
       shots.push(flushLapse(pendingLapse))
       pendingLapse = null
-      badgeOn = true
+      prevBadge = undefined // 빨리감기 문구가 배지를 덮었다 — 다음 상태를 반드시 다시 쓴다
     }
 
     const motions: Motion[] = []
     let slow = false
 
-    // "반복문이 돌고 있다"의 상시 표시 — 헤더 라인을 다시 밟을 때마다 회차가 오른다
-    // 배지는 카운트업만 — seen(헤더 방문 수)과 총계(구간 최소 방문 수)는 단위가 달라
-    // "5회차 / 총 4회" 같은 모순을 만들었다. 거짓말할 수 있는 숫자는 화면에 올리지 않는다.
-    const inLoop = loopSpans.find(l => e.seq >= l.from && e.seq <= l.to)
-    if (inLoop && e.kind === 'line' && e.observedAtLine === inLoop.headerLine) {
-      const hk = `${e.frameId}:${e.observedAtLine}`
-      const n = (headerSeen.get(hk) ?? 2) + 1
-      headerSeen.set(hk, n)
-      motions.push({ v: 'loop', text: `반복 ${n}회차` })
-      badgeOn = true
-    } else if (!inLoop && badgeOn) {
-      motions.push({ v: 'loopEnd' })
-      badgeOn = false
+    // "반복문이 돌고 있다"의 상시 표시 — 배지는 카운트업만 한다. 단위가 다른 총계는 달지
+    // 않는다 ("5회차 / 총 4회" 같은 모순 금지). 바뀔 때만 방출하므로 같은 회차가 여러 샷에
+    // 걸쳐도 배지는 가만히 있는다
+    if (badge !== prevBadge) {
+      motions.push(badge ? { v: 'loop', text: badge } : { v: 'loopEnd' })
+      prevBadge = badge
     }
 
     if (code && e.kind === 'line') {
