@@ -129,6 +129,27 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
     })
 
     const build = () => {
+      /* 카메라는 transform 속성을 직접 쓴다.
+         GSAP의 x/y/scale은 SVG에서 origin(transformOrigin은 bbox 기준, svgOrigin은 그 나름의
+         규칙)을 거치는데, 안쪽 프레임 카메라가 움직이면 바깥 강조 카메라의 bbox가 따라 밀려
+         origin이 흔들리고, smoothOrigin이 그 변화를 x에 구워버린다 (실측: 190px, 185px).
+         compose가 계산한 값이 곧 행렬이어야 하므로 프록시를 트윈하고 속성을 직접 쓴다. */
+      type Cam3 = { k: number; x: number; y: number }
+      const camWrite = (el: Element, v: Cam3) =>
+        el.setAttribute('transform', `translate(${v.x} ${v.y}) scale(${v.k})`)
+      const camStates = new Map<Element, Cam3>()
+      const camInit = (el: Element, v: Cam3) => {
+        gsap.set(el, { clearProps: 'transform' }) // GSAP이 남긴 style transform 제거 — 속성만 쓴다
+        const st = { ...v }
+        camStates.set(el, st)
+        camWrite(el, st)
+        return st
+      }
+      const camTo = (el: Element, v: Cam3, dur: number, at: number | string) => {
+        const st = camStates.get(el)
+        if (!st) return
+        tl.to(st, { k: v.k, x: v.x, y: v.y, duration: dur, ease: 'power2.inOut', onUpdate: () => camWrite(el, st) }, at)
+      }
       gsap.set(
         root.querySelectorAll(
           '[data-obj], [data-var], [data-frame], [data-cell], [data-token], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done, .film-obj-partial',
@@ -163,11 +184,11 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       // 트윈이 '0px 0px'로 바꾸는 순간 smoothOrigin이 보정 오프셋을 구워, 배율만 오르고
       // 중심 이동이 어긋난다 (토큰의 9px 오프셋과 같은 함정)
       const autoCam0 = q('.film-cam-auto')
-      if (autoCam0) gsap.set(autoCam0, { x: 0, y: 0, scale: 1, svgOrigin: '0 0' })
+      if (autoCam0) camInit(autoCam0, { k: 1, x: 0, y: 0 })
       // 오토 프레이밍 카메라 — 첫 구성의 프레임으로 시작
       const frameCam = q('.film-cam-frame')
       let appliedCam: Camera | null = cams[0] ?? null
-      if (frameCam && appliedCam) gsap.set(frameCam, { x: appliedCam.x, y: appliedCam.y, scale: appliedCam.k, svgOrigin: '0 0' })
+      if (frameCam && appliedCam) camInit(frameCam, { k: appliedCam.k, x: appliedCam.x, y: appliedCam.y })
       const tl = gsap.timeline({ paused: true })
       let liveFrame: Element | null = null
       let prevComp: Composition = new Map()
@@ -241,9 +262,10 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         // 선행 도착: 행동이 시작되기 camLead초 전에 출발한다 — 시선이 먼저 자리 잡게
         const camNow = cams[si]
         if (frameCam && camNow && camNow !== appliedCam) {
-          tl.to(
+          camTo(
             frameCam,
-            { x: camNow.x, y: camNow.y, scale: camNow.k, duration: sec(0.5), ease: 'power2.inOut', svgOrigin: '0 0' },
+            { k: camNow.k, x: camNow.x, y: camNow.y },
+            sec(0.5),
             Math.max(0, labelPos - sec(GRAMMAR.camLead)),
           )
           appliedCam = camNow
@@ -320,14 +342,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         const autoMoved =
           autoNow.k !== appliedAuto.k || autoNow.x !== appliedAuto.x || autoNow.y !== appliedAuto.y
         if (autoEl && autoMoved) {
-          tl.to(
-            autoEl,
-            {
-              x: autoNow.x, y: autoNow.y, scale: autoNow.k,
-              duration: sec(0.4), ease: 'power2.inOut', svgOrigin: '0 0',
-            },
-            emphAt,
-          )
+          camTo(autoEl, { k: autoNow.k, x: autoNow.x, y: autoNow.y }, sec(0.4), emphAt)
           appliedAuto = autoNow
         }
 
