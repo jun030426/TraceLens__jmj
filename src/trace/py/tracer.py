@@ -151,6 +151,17 @@ class _Tracer:
     def __call__(self, frame, event, arg):
         if frame.f_code.co_filename != '<user>':
             return None
+        try:
+            return self._dispatch(frame, event, arg)
+        except RecursionError:
+            # 기록 장치 자신이 한계에 부딪혔다 (직렬화·json이 스택을 더 쓴다). 트레이스 함수가
+            # 예외를 내면 CPython이 트레이싱을 끄므로 여기서 기록은 끝이다 — 죽음이 조용하지
+            # 않게 clipped로 밝히고, 사용자 코드의 RecursionError는 그대로 위로 올려보낸다.
+            # recursionlimit을 올려 연명하는 것은 사용자 코드의 한계 시점을 바꾸므로 하지 않는다.
+            self.clipped = True
+            raise
+
+    def _dispatch(self, frame, event, arg):
         if event == 'line':
             # 예외가 이 프레임에서 잡혔다 — 이후의 return은 진짜 반환이다
             self.raising.pop(self._fid(frame), None)

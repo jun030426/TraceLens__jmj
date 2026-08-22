@@ -1483,3 +1483,42 @@ describe('choreograph: 오류가 스택을 오르는 길', () => {
     )
   })
 })
+
+/* 트레이스가 끊겨도 영화는 닫힌다 — 런타임이 보고한 오류(done payload의 사실)로 마지막 샷을.
+   이미 crashEnd가 나간 실행에는 덧붙이지 않는다 — 마침표는 하나다 */
+describe('choreograph: 끊긴 기록의 마침표', () => {
+  it('트레이스가 하강 중에 끝나면 runError로 마지막 샷을 닫는다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'countdown', localsDelta: [{ name: 'n', op: 'set', value: P('5') }] }, 1),
+      ev({ kind: 'call', frameId: 2, parentFrameId: 1, func: 'countdown', localsDelta: [{ name: 'n', op: 'set', value: P('4') }] }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events), undefined, 'RecursionError: maximum recursion depth exceeded')
+    const last = shots[shots.length - 1]
+    expect(last.motions.some(m => m.v === 'crashEnd')).toBe(true)
+    expect(last.motions.some(m => m.v === 'raise' && m.frameId === 2)).toBe(true)
+    expect(last.caption).toBe('여기서 실행이 멈췄습니다 — RecursionError: maximum recursi…')
+    expect(last.seq).toBeGreaterThan(2)
+  })
+
+  it('이미 crashEnd가 나간 실행에는 덧붙이지 않는다 — 마침표는 하나다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'x', op: 'set', value: P('1') }] }, 1),
+      ev({ kind: 'exception', error: 'ValueError: boom' }, 2),
+      ev({ kind: 'return' }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events), undefined, 'ValueError: boom')
+    expect(shots.flatMap(x => x.motions).filter(m => m.v === 'crashEnd')).toHaveLength(1)
+  })
+
+  it('runError가 없으면 아무것도 덧붙이지 않는다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'x', op: 'set', value: P('1') }] }, 1),
+      ev({ kind: 'return' }, 2),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shots.flatMap(x => x.motions).some(m => m.v === 'crashEnd')).toBe(false)
+  })
+})
