@@ -44,15 +44,17 @@ describe('compose', () => {
     expect(c1.get('o1')!.x).toBeGreaterThan(c1.get('o2')!.x) // 대기열은 오른쪽
   })
 
-  it('LINGER를 넘긴 배우는 무대에서 빠진다 (커튼콜 전까지)', () => {
+  it('LINGER를 넘긴 조연은 무대에서 빠진다 (커튼콜 전까지)', () => {
+    // 리드(o1)는 무대를 지키므로 유예 규칙은 조연(o2)으로 검사한다 — 이 테스트의 의도는
+    // "이야기를 가져가지 않는 배우는 물러난다"이지 "주인공도 내려간다"가 아니었다
     const shots = [
-      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
+      shot(0, [{ v: 'grow', objectId: 2, index: 0, text: '1' }]),
       ...Array.from({ length: LINGER + 2 }, (_, k) => shot(k + 1, [{ v: 'setVar', varKey: '0:i', text: String(k) }])),
     ]
     const { comps } = compose(shots, plan, layout)
-    expect(comps[LINGER + 1].has('o1')).toBe(false) // 유예가 끝나면 중간 샷에서는 내려간다
-    expect(comps[LINGER].has('o1')).toBe(true) // 마지막 유예 샷까지는 남는다
-    expect(comps[comps.length - 1].has('o1')).toBe(true) // 커튼콜 — 살아있으니 최종 상태로 복귀
+    expect(comps[LINGER + 1].has('o2')).toBe(false) // 유예가 끝나면 중간 샷에서는 내려간다
+    expect(comps[LINGER].has('o2')).toBe(true) // 마지막 유예 샷까지는 남는다
+    expect(comps[comps.length - 1].has('o2')).toBe(true) // 커튼콜 — 살아있으니 최종 상태로 복귀
   })
 
   it('변수는 좌측 스트립 — 닿은 것이 포커스', () => {
@@ -510,5 +512,61 @@ describe('compose: 카드가 든 변수는 알약에서 빠진다', () => {
     ] satisfies Shot[]
     const { comps } = compose(shots, plan, layout)
     expect(comps[2].has('v0:i')).toBe(true)
+  })
+})
+
+/* 주인공은 무대를 지킨다 — LINGER는 "이야기를 가져가지 않는 조연은 물러난다"는 규칙이지
+   주인공을 내리라는 규칙이 아니었다 (실측 BFS: 격자가 19샷 무대 밖, 15샷은 상자 0개) */
+describe('compose: 리드 객체는 무대에서 내려가지 않는다', () => {
+  it('LINGER를 한참 넘겨도 리드는 무대에 남는다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
+      ...Array.from({ length: LINGER + 4 }, (_, k) => shot(k + 1, [{ v: 'setVar', varKey: '0:i', text: String(k) }])),
+      shot(LINGER + 5, [{ v: 'setVar', varKey: '0:i', text: 'x' }]),
+    ] satisfies Shot[]
+    const { comps } = compose(shots, plan, layout) // plan.leadObjectId = 1
+    const mid = comps[LINGER + 3]
+    expect(mid.has('o1')).toBe(true)
+    expect(mid.has('o2')).toBe(false) // 조연은 그대로 물러난다
+  })
+
+  it('무대에 배우가 있는데 포커스가 비면 리드가 중앙을 맡는다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
+      ...Array.from({ length: LINGER + 4 }, (_, k) => shot(k + 1, [{ v: 'setVar', varKey: '0:i', text: String(k) }])),
+      shot(LINGER + 5, [{ v: 'setVar', varKey: '0:i', text: 'x' }]),
+    ] satisfies Shot[]
+    const { comps } = compose(shots, plan, layout)
+    expect(comps[LINGER + 3].get('o1')!.focus).toBe(true)
+  })
+
+  it('격자는 리드가 아니어도 무대를 지킨다 — 벽은 안 바뀌지만 공간은 주인공이다', () => {
+    const gridPlan: StagePlan = {
+      ...plan,
+      objects: [
+        { objectId: 1, type: 'list', life: { from: 0, to: 99 }, maxItems: 4, changeCount: 9, referencedBy: ['0:a'], slot: 0 },
+        { objectId: 2, type: 'list', life: { from: 0, to: 99 }, maxItems: 4, changeCount: 1, referencedBy: ['0:b'], slot: -1,
+          grid: { rows: 2, cols: 2, binary: true } },
+      ],
+      leadObjectId: 1, // 변화 횟수로는 격자가 절대 리드가 되지 않는다
+    }
+    const shots = [
+      shot(0, [{ v: 'gridCell', objectId: 2, r: 0, c: 0, text: '0', wall: false }]),
+      ...Array.from({ length: LINGER + 4 }, (_, k) => shot(k + 1, [{ v: 'setVar', varKey: '0:i', text: String(k) }])),
+      shot(LINGER + 5, [{ v: 'setVar', varKey: '0:i', text: 'x' }]),
+    ] satisfies Shot[]
+    const { comps } = compose(shots, gridPlan, layout)
+    expect(comps[LINGER + 3].has('o2')).toBe(true)
+  })
+
+  it('명시적으로 퇴장한 리드는 붙잡지 않는다 — 죽은 상자는 돌아오지 않는다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
+      shot(1, [{ v: 'exitObj', objectId: 1 }]),
+      shot(2, [{ v: 'setVar', varKey: '0:i', text: '9' }]),
+      shot(3, [{ v: 'setVar', varKey: '0:i', text: '8' }]),
+    ] satisfies Shot[]
+    const { comps } = compose(shots, plan, layout)
+    expect(comps[2].has('o1')).toBe(false)
   })
 })
