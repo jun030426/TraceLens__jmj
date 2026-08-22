@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode, useMemo } from 'react'
-import { Link, ROUTES } from '../router'
+import { ROUTES } from '../router'
+import { Link } from '../ui/Link'
 import { geminiApiKey } from '../director/gemini'
 import { DEFAULTS, LIMITS, resetSettings, setSetting, useSettings, type CaptionSize } from '../settings/store'
 import { clearScreenplayCache, screenplayCacheSize } from '../director/cache'
@@ -117,7 +118,9 @@ export default function Settings() {
   const s = useSettings()
   // 캐시는 설정 저장소 밖(연출 캐시)이라 로컬 상태로만 다룬다 — 비운 결과를 그 자리에서 알린다
   const [cleared, setCleared] = useState<number | null>(null)
-  const cacheCount = useMemo(() => screenplayCacheSize(), [cleared])
+  // 비우기 전에만 읽는 수다 — 비운 뒤에는 버튼이 "N개 비웠습니다"로 바뀌므로 다시 세지 않는다.
+  // (cleared를 의존성에 넣어두면 다시 세는 것처럼 보이지만 그 값은 화면에 닿지 않는다)
+  const cacheCount = useMemo(() => screenplayCacheSize(), [])
   const aiPossible = Boolean(geminiApiKey)
 
   return (

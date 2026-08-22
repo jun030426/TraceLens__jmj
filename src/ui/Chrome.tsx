@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { Link, ROUTES } from '../router'
+import { ROUTES } from '../router'
+import { Link } from './Link'
 
 const NAV = [
   { to: ROUTES.about, label: '소개' },

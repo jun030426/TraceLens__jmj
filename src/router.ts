@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useSyncExternalStore, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 
 export const ROUTES = {
   landing: '/',
@@ -47,29 +47,4 @@ export function useSurfaceFlag(path: string) {
   useEffect(() => {
     document.documentElement.dataset.surface = path === ROUTES.app ? 'app' : 'site'
   }, [path])
-}
-
-export function Link({
-  to,
-  children,
-  className,
-  ...rest
-}: { to: string; children: ReactNode; className?: string } & Omit<
-  React.AnchorHTMLAttributes<HTMLAnchorElement>,
-  'href'
->) {
-  const path = usePath()
-  const onClick = useCallback(
-    (e: MouseEvent<HTMLAnchorElement>) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
-      e.preventDefault()
-      navigate(to)
-    },
-    [to],
-  )
-  return (
-    <a href={to} onClick={onClick} className={className} aria-current={path === to ? 'page' : undefined} {...rest}>
-      {children}
-    </a>
-  )
 }
