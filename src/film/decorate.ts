@@ -1,6 +1,6 @@
 import type { Pacing, Scene, Screenplay } from '../screenplay/types'
 import type { StageLayout } from './layout'
-import type { CompareTarget, Motion, Shot, StagePlan } from './types'
+import type { CompareTarget, Shot, StagePlan } from './types'
 
 const FACTOR: Record<Pacing, number> = { slow: 1.5, normal: 1, fast: 0.6 }
 const MAX_ZOOM_SCENES = 3 // AI가 남발해도 연출은 절제된다 — 결정적 캡
