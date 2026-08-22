@@ -248,7 +248,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     return nums.every(v => Number.isFinite(v)) && nums.every((v, k) => k === 0 || nums[k - 1] <= v)
   }
   const noteOrder = (id: number, texts: string[]) => {
-    const sig = [...texts].sort().join(' ')
+    const sig = [...texts].sort().join('\u0000')
     if (bagSig.get(id) !== sig) {
       bagSig.set(id, sig)
       shuffled.set(id, false)
