@@ -677,3 +677,11 @@
   font-size: var(--d-md);
   opacity: 0;
 }
+
+/* 반환 칩 — 닫히는 프레임 카드에서 값이 떠서 부모 카드로 내려앉는다.
+   같은 "값의 이동"이므로 색은 파랑(accent) — 4역할 계약 그대로다.
+   카드가 카메라 밖(HUD)에 살아서 무대의 이동 칩과 같은 부품을 쓸 수 없다 */
+.film-return-chip {
+  opacity: 0;
+  pointer-events: none;
+}

@@ -174,7 +174,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       }
       gsap.set(
         root.querySelectorAll(
-          '[data-obj], [data-var], [data-frame], [data-cell], [data-token], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done, .film-obj-partial, .film-stack-more, .film-frame-vals',
+          '[data-obj], [data-var], [data-frame], [data-cell], [data-token], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done, .film-obj-partial, .film-stack-more, .film-frame-vals, .film-return-chip',
         ),
         { opacity: 0 },
       )
@@ -277,6 +277,36 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         tl.to(chip, { opacity: 1, duration: sec(0.12) }, `${label}+=${delay}`)
         tl.to(chip, { x: to.x, y: to.y, duration: sec(0.5), ease: 'power2.inOut' }, `${label}+=${delay + sec(0.1)}`)
         tl.to(chip, { opacity: 0, duration: sec(0.15) }, `${label}+=${delay + sec(0.55)}`)
+      }
+
+      // 반환 칩 — 같은 "값의 이동" 은유지만 좌표계가 다르다. 프레임 카드는 카메라 밖(HUD)에
+      // 살아서 위의 이동 칩(카메라 안)으로는 카드 사이를 날 수 없다. 여정도 칸↔알약이 아니라
+      // 카드→카드이므로 부품을 따로 둔다. 도착하면 사라진다 — 부모가 그 값을 이름으로 가진
+      // 것이 아니므로 남기면 없는 사실을 지어내는 것이다 (이름이 있으면 다음 샷에 알약이 뜬다)
+      // 구간은 절대 초가 아니라 **샷 길이의 비율**이다 — 대본이 그 구간을 fast로 잡으면
+      // 샷이 520ms 밑으로도 내려가는데(실측 510ms), 고정 0.75초짜리 비행은 다음 샷으로
+      // 넘어가 같은 칩을 쓰는 다음 반환에 잘려나간다. 0.95d 안에 끝내면 겹칠 수가 없다.
+      const returnTravel = (
+        label: string,
+        d: number,
+        text: string,
+        from: { x: number; y: number },
+        to: { x: number; y: number },
+      ) => {
+        const chip = q('.film-return-chip')
+        if (!chip) return
+        tl.call(
+          () => {
+            const t = chip.querySelector('text')
+            if (t) t.textContent = text
+          },
+          undefined,
+          label,
+        )
+        tl.set(chip, { x: from.x, y: from.y, opacity: 0 }, label)
+        tl.to(chip, { opacity: 1, duration: d * 0.15 }, label)
+        tl.to(chip, { x: to.x, y: to.y, duration: d * 0.55, ease: 'power2.inOut' }, `${label}+=${d * 0.15}`)
+        tl.to(chip, { opacity: 0, duration: d * 0.2 }, `${label}+=${d * 0.75}`)
       }
 
       // 라벨은 절대 위치 — useFilm의 샷 경계(durationMs 누적)와 타임라인이 초 단위로
@@ -793,6 +823,23 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               writeFlash(`${cellSel(id, k)} .cell-flash`, `${label}+=${ant + fl}`, d * 0.45)
               setBar(id, i, iText, `${label}+=${ant + fl}`)
               setBar(id, k, kText, `${label}+=${ant + fl}`)
+              break
+            }
+            case 'returnValue': {
+              // 카드는 HUD 좌표계에 산다 — 슬롯 사각형이 곧 좌표다 (카메라를 타지 않는다).
+              // 도착지가 창 밖이면 띄우지 않는다: 반환하는 프레임은 늘 가장 깊고 부모는 그 바로
+              // 위라 실제로는 걸리지 않지만, 갈 곳 없는 칩을 날리느니 침묵한다
+              const stack = stacks[si]
+              const a = layout.framePos.get(stack?.slots.get(m.frameId) ?? -1)
+              const b = layout.framePos.get(stack?.slots.get(m.toFrameId) ?? -1)
+              if (a && b)
+                returnTravel(
+                  label,
+                  d,
+                  m.text,
+                  { x: a.x + a.w / 2, y: a.y + a.h / 2 },
+                  { x: b.x + b.w / 2, y: b.y + b.h / 2 },
+                )
               break
             }
             case 'pushFrame':
@@ -1343,6 +1390,12 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               </>
             )
           })()}
+        </g>
+        {/* 반환 칩 — 닫히는 카드에서 값이 떠서 부모 카드로 내려앉는다. 카드보다 뒤에 그려야
+            (SVG 문서 순서 = 겹침 순서) 카드 위를 지나간다 */}
+        <g className="film-return-chip">
+          <rect x={-56} y={-14} width={112} height={28} rx={8} fill="var(--accent-wash)" stroke="var(--accent)" strokeWidth={1.4} />
+          <text textAnchor="middle" y={5} className="svg-name" />
         </g>
         <g className="film-stdout">
           <rect x={24} y={layout.height - 52} width={layout.width - 48} height={36} rx={8} fill="var(--sunken)" stroke="var(--line)" strokeWidth={1} />

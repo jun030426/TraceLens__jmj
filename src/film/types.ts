@@ -59,6 +59,9 @@ export type Motion =
   | { v: 'exitObj'; objectId: number }
   | { v: 'pushFrame'; frameId: number }
   | { v: 'popFrame'; frameId: number }
+  /** 반환 칩 — 닫히는 프레임 카드에서 값이 떠서 부모 카드로 내려앉는다.
+      트레이스의 returned가 있을 때만 (예외 unwind·None은 애초에 오지 않는다) */
+  | { v: 'returnValue'; frameId: number; toFrameId: number; text: string }
   | { v: 'stdout'; text: string }
   | { v: 'shake'; frameId: number }
   | { v: 'raise'; frameId: number; text: string }

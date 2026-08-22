@@ -28,6 +28,9 @@ export type TraceEvent = {
   objectsDelta: ObjectsDelta[]
   stdout: string
   error?: string
+  /** return 이벤트의 반환값 — sys.settrace의 arg. 예외 unwind와 None은 실리지 않는다
+      (arg=None이 `return None`과 구분되지 않으므로 없는 반환을 지어내지 않는다) */
+  returned?: Value
 }
 
 export type TraceResult = {

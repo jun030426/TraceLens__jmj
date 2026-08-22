@@ -1025,3 +1025,90 @@ describe('choreograph: 이름이 겹치면 카드가 든다', () => {
     })
   })
 })
+
+/* 반환값 — 닫히는 프레임 카드에서 값 칩이 떠서 부모 카드로 내려앉는다.
+   사실은 트레이서의 returned이고(예외 unwind·None은 애초에 오지 않는다), 여기서는 옮기기만 한다 */
+describe('choreograph: 반환값은 카드에서 카드로 내려간다', () => {
+  const call = (fid: number, parent: number, seq: number, name: string, v: string): TraceEvent =>
+    ev({ kind: 'call', frameId: fid, parentFrameId: parent, func: 'f', localsDelta: [{ name, op: 'set', value: P(v) }] }, seq)
+
+  it('반환값이 있으면 returnValue 모션과 자막이 나온다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      call(1, 0, 1, 'x', '3'),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f', returned: P('6') }, 2),
+      ev({ localsDelta: [{ name: 'r', op: 'set', value: P('6') }] }, 3),
+      ev({ kind: 'return' }, 4),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const ret = shots.find(s => s.motions.some(m => m.v === 'popFrame'))!
+    expect(ret.motions).toEqual(
+      expect.arrayContaining([{ v: 'returnValue', frameId: 1, toFrameId: 0, text: '6' }]),
+    )
+    expect(ret.caption).toBe('f가 돌려준 값: 6')
+  })
+
+  it('반환값이 없으면 침묵한다 — 자막도 종료 그대로다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      call(1, 0, 1, 'x', '3'),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f' }, 2),
+      ev({ kind: 'return' }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const ret = shots.find(s => s.motions.some(m => m.v === 'popFrame'))!
+    expect(ret.motions.some(m => m.v === 'returnValue')).toBe(false)
+    expect(ret.caption).toBe('f 종료 — 작업 공간이 닫힙니다')
+  })
+
+  it('반환 샷은 읽을 시간을 받는다 — 값 없는 종료 샷보다 길다', () => {
+    const base: TraceEvent[] = [ev({ kind: 'call' }, 0), call(1, 0, 1, 'x', '3')]
+    const shotsWith = choreograph(
+      [...base, ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f', returned: P('6') }, 2), ev({ kind: 'return' }, 3)],
+      buildStage(base),
+    )
+    const shotsWithout = choreograph(
+      [...base, ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f' }, 2), ev({ kind: 'return' }, 3)],
+      buildStage(base),
+    )
+    const popOf = (sh: typeof shotsWith) => sh.find(s => s.motions.some(m => m.v === 'popFrame'))!
+    expect(popOf(shotsWith).durationMs).toBeGreaterThan(popOf(shotsWithout).durationMs)
+  })
+
+  it('컨테이너 반환은 요약 텍스트로 적는다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'make' }, 1),
+      ev({
+        kind: 'return', frameId: 1, parentFrameId: 0, func: 'make',
+        returned: { k: 'ref', id: 9 },
+        objectsDelta: [{ op: 'set', obj: { id: 9, type: 'list', items: [P('1'), P('2')] } }],
+      }, 2),
+      ev({ localsDelta: [{ name: 'xs', op: 'set', value: { k: 'ref', id: 9 } }] }, 3),
+      ev({ kind: 'return' }, 4),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const rv = shots.flatMap(s => s.motions).find(m => m.v === 'returnValue')
+    expect(rv).toEqual({ v: 'returnValue', frameId: 1, toFrameId: 0, text: '[1, 2]' })
+  })
+
+  it('재귀 unwind는 값이 커지며 되돌아온다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      call(1, 0, 1, 'n', '3'),
+      call(2, 1, 2, 'n', '2'),
+      call(3, 2, 3, 'n', '1'),
+      ev({ kind: 'return', frameId: 3, parentFrameId: 2, func: 'f', returned: P('1') }, 4),
+      ev({ kind: 'return', frameId: 2, parentFrameId: 1, func: 'f', returned: P('2') }, 5),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f', returned: P('6') }, 6),
+      ev({ kind: 'return' }, 7),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const rvs = shots.flatMap(s => s.motions).filter(m => m.v === 'returnValue')
+    expect(rvs).toEqual([
+      { v: 'returnValue', frameId: 3, toFrameId: 2, text: '1' },
+      { v: 'returnValue', frameId: 2, toFrameId: 1, text: '2' },
+      { v: 'returnValue', frameId: 1, toFrameId: 0, text: '6' },
+    ])
+  })
+})
