@@ -6,6 +6,7 @@ import { buildStage } from './buildStage'
 import { choreograph } from './choreograph'
 
 const demoEvents = (demo as { events: TraceEvent[] }).events
+const demoCode = (demo as { code?: string }).code ?? ''
 const aliasEvents = (aliasing as { events: TraceEvent[] }).events
 
 /* 합성 이벤트 헬퍼 — 특정 문법 상황을 최소 트레이스로 재현한다 */
@@ -82,7 +83,7 @@ describe('choreograph', () => {
 })
 
 describe('choreograph: 반복 배지', () => {
-  const shots = choreograph(demoEvents, buildStage(demoEvents))
+  const shots = choreograph(demoEvents, buildStage(demoEvents), demoCode)
   const all = shots.flatMap(s => s.motions)
 
   it('반복 중에 회차 배지가 나온다', () => {
@@ -605,7 +606,7 @@ describe('choreograph: 인덱스 포인터', () => {
 
 describe('choreograph: 정직한 배지·최종값', () => {
   it('반복 배지는 카운트업만 — 모순되는 총계를 달지 않는다', () => {
-    const shots = choreograph(demoEvents, buildStage(demoEvents))
+    const shots = choreograph(demoEvents, buildStage(demoEvents), demoCode)
     const loops = shots.flatMap(s => s.motions).filter(m => m.v === 'loop') as { text: string }[]
     expect(loops.some(l => l.text.includes('회차'))).toBe(true)
     expect(loops.every(l => !l.text.includes('총'))).toBe(true)
@@ -1156,5 +1157,82 @@ describe('choreograph: 반환값은 카드에서 카드로 내려간다', () => 
       { v: 'returnValue', frameId: 2, toFrameId: 1, text: '2' },
       { v: 'returnValue', frameId: 1, toFrameId: 0, text: '6' },
     ])
+  })
+})
+
+/* 반복 배지는 소스에 접지한다 — 다이제스트 압축 스팬은 반복문의 생애가 아니다.
+   회차는 몸통이 실행된 횟수이고 1부터 센다 (헤더 방문 수는 소진 검사까지 세어 하나 더 나온다) */
+describe('choreograph: 반복 배지는 사실대로 센다', () => {
+  const src = (...lines: string[]) => lines.join('\n')
+  const badges = (code: string, lines: number[]) => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ...lines.map((l, k) => ev({ observedAtLine: l, causedByLine: l }, k + 1)),
+      ev({ kind: 'return', observedAtLine: lines[lines.length - 1] }, lines.length + 1),
+    ]
+    const shots = choreograph(events, buildStage(events), code)
+    return shots
+      .flatMap(s => s.motions)
+      .filter(m => m.v === 'loop' || m.v === 'loopEnd')
+      .map(m => (m.v === 'loop' ? m.text : '—'))
+  }
+
+  const single = src('total = 0', 'for i in range(4):', '    total = total + i', 'print(total)')
+  // 헤더(2) ↔ 몸통(3)을 네 번, 마지막 헤더 방문은 소진 검사, 그리고 루프 밖(4)
+  const singleLines = [1, 2, 3, 2, 3, 2, 3, 2, 3, 2, 4]
+
+  it('4바퀴 도는 반복문은 1·2·3·4회차로 센다', () => {
+    expect(badges(single, singleLines)).toEqual([
+      'i 반복 1회차', 'i 반복 2회차', 'i 반복 3회차', 'i 반복 4회차', '—',
+    ])
+  })
+
+  it('for 반복문은 변수 이름을 달고 while은 숫자만 단다', () => {
+    const w = src('n = 3', 'while n > 0:', '    n = n - 1', 'print(n)')
+    expect(badges(w, [1, 2, 3, 2, 3, 2, 4])).toEqual(['반복 1회차', '반복 2회차', '—'])
+  })
+
+  it('튜플 언패킹 반복문도 이름을 단다 — 이름 없는 while과 섞여도 구분된다', () => {
+    // BFS의 모양: while 바깥(이름 없음) + for dr, dc 안쪽. 둘 다 숫자만이면 4 → 1 → 2가
+    // 근거 없이 널뛰는 것으로 보인다
+    const bfs = src('while queue:', '    pos = queue.pop()', '    for dr, dc in moves:', '        pass')
+    expect(badges(bfs, [1, 2, 3, 4, 3, 4, 3, 1, 2, 3, 4, 3, 1])).toEqual([
+      '반복 1회차',
+      'dr, dc 반복 1회차',
+      'dr, dc 반복 2회차',
+      '반복 1회차',
+      '반복 2회차',
+      'dr, dc 반복 1회차',
+      '반복 2회차',
+    ])
+  })
+
+  it('중첩 반복문에서 안쪽은 바깥이 한 바퀴 돌 때마다 다시 1부터 센다', () => {
+    const nested = src('for i in range(2):', '    for j in range(2):', '        pass')
+    const out = badges(nested, [1, 2, 3, 2, 3, 2, 1, 2, 3, 2, 3, 2, 1])
+    expect(out.filter(t => t.startsWith('j'))).toEqual([
+      'j 반복 1회차', 'j 반복 2회차', 'j 반복 1회차', 'j 반복 2회차',
+    ])
+    // 바깥 헤더를 밟는 순간에도 배지는 지금 도는 반복문을 말한다 — 그때 i는 아직 1회차까지
+    // 돌았고(회차는 몸통에 들어설 때 오른다) 다음 샷에 2회차가 된다
+    expect(out.filter(t => t.startsWith('i'))).toEqual([
+      'i 반복 1회차', 'i 반복 1회차', 'i 반복 2회차', 'i 반복 2회차',
+    ])
+  })
+
+  it('반복문 밖으로 나갈 때만 배지가 내려간다 — 도는 중에 끝났다고 하지 않는다', () => {
+    const out = badges(single, singleLines)
+    expect(out.filter(t => t === '—')).toHaveLength(1)
+    expect(out[out.length - 1]).toBe('—')
+  })
+
+  it('코드가 없으면 배지가 없다 — 근거 없이 숫자를 만들지 않는다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ...[1, 2, 3, 2, 3, 2, 4].map((l, k) => ev({ observedAtLine: l, causedByLine: l }, k + 1)),
+      ev({ kind: 'return', observedAtLine: 4 }, 8),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shots.flatMap(s => s.motions).some(m => m.v === 'loop' || m.v === 'loopEnd')).toBe(false)
   })
 })
