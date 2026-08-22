@@ -6,7 +6,7 @@ import PlayerBar from './components/PlayerBar'
 import Inspector from './components/Inspector'
 import { preflight, type PreflightIssue } from './trace/preflight'
 import { runTrace, warmUp, type TraceStage } from './trace/tracerClient'
-import type { TraceEvent } from './trace/types'
+import type { SyntaxErrorInfo, TraceEvent } from './trace/types'
 import { buildSnapshots, type Snapshot } from './trace/snapshots'
 import { buildScreenplay } from './screenplay/ruleDirector'
 import { buildDigest } from './digest/buildDigest'
@@ -20,6 +20,7 @@ import { choreograph } from './film/choreograph'
 import { decorateShots } from './film/decorate'
 import type { Shot, StagePlan } from './film/types'
 import WorldStage from './film/WorldStage'
+import { SyntaxScene } from './ui/SyntaxScene'
 import { applyGrammarPacing } from './film/presets'
 import { useFilm } from './film/useFilm'
 import { Nav } from './ui/Chrome'
@@ -51,6 +52,7 @@ type RunArtifacts = {
   screenplay: Screenplay
   clipped: boolean
   error?: string
+  syntaxError?: SyntaxErrorInfo
   directorMode: DirectorMode
   /** 저장된 연출을 그대로 쓴 실행인가 — 방금 생성한 것과 같아 보이면 그것도 화면의 거짓말이다 */
   directorCached?: boolean
@@ -220,7 +222,7 @@ function App() {
       const filmShots = choreograph(result.events, plan, code)
       setRun({
         steps: expandScreenplay(screenplay, snaps), snaps, screenplay,
-        clipped: result.clipped, error: result.error, directorMode: 'rule',
+        clipped: result.clipped, error: result.error, syntaxError: result.syntaxError, directorMode: 'rule',
         plan, layout, shots: filmShots, events: result.events,
       })
       setLoading(null)
@@ -345,7 +347,7 @@ function App() {
             </div>
           ))}
           {run?.clipped && <div className="issue-banner warn">실행이 길어 여기까지 시각화했어요.</div>}
-          {run?.error && <div className="issue-banner block">실행 결과: {run.error}</div>}
+          {run?.error && !run.syntaxError && <div className="issue-banner block">실행 결과: {tidyError(run.error)}</div>}
 
           <div className="tl-editor">
             <Editor
@@ -396,8 +398,11 @@ function App() {
           <div className="tl-stage">
             {run && shots.length > 0 ? (
               <WorldStage plan={run.plan} layout={run.layout} shots={shots} film={film} />
+            ) : run?.syntaxError ? (
+              /* 구문 오류 — 실행 0줄. 파서의 사실로 만든 장면이 무대를 받는다 */
+              <SyntaxScene info={run.syntaxError} />
             ) : run?.error ? (
-              /* 실행 전에 죽은 코드(구문 오류 등)도 빈 화면 대신 오류 장면을 받는다 */
+              /* 그 밖의 실행 전 죽음(환경 문제 등)은 정적 패널로 */
               <div className="stage-error" role="alert">
                 <span className="tl-label">실행이 여기서 멈췄습니다</span>
                 <code className="tl-mono">{tidyError(run.error)}</code>

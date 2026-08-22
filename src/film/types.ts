@@ -66,6 +66,9 @@ export type Motion =
   | { v: 'shake'; frameId: number }
   | { v: 'raise'; frameId: number; text: string }
   | { v: 'loop'; text: string }
+  /** 터진 실행의 마침표 — 잡히지 않은 예외로 모듈 프레임이 닫힐 때. 자막이 멈춤을 말하고
+      축하(sortedSweep)를 접는 근거가 된다. 렌더는 없음 — 오류 스트립은 raise가 이미 세웠다 */
+  | { v: 'crashEnd'; text: string }
   | { v: 'loopEnd' }
   /** a·op·b·verdict — 저울 렌더용 구조 필드. detectCompare가 접지한 실제 값이며, 숫자 판정이 안 되면 verdict는 없다 */
   | { v: 'compare'; text: string; targets: CompareTarget[]; a?: string; op?: string; b?: string; verdict?: boolean }

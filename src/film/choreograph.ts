@@ -54,6 +54,8 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
   const pop = find('popFrame')
   if (pop) {
     const f = names.frameFunc(pop.frameId)
+    const crash = find('crashEnd')
+    if (crash) return `여기서 실행이 멈췄습니다 — ${capText(crash.text, 32)}`
     if (f === '<module>') return find('sortedSweep') ? '실행 종료 — 정렬 완성!' : '실행 종료 — 최종 상태입니다'
     return `${f} 종료 — 작업 공간이 닫힙니다`
   }
@@ -617,6 +619,10 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   }
   let prevBadge: string | null | undefined = null
 
+  // 터진 채 끝나는가 — exception 이벤트가 세우고 이후의 line 이벤트가 지운다.
+  // 잡힌 예외는 except 절의 line이 끼므로 정상 마감으로 돌아온다 (returned의 unwind 판별과 같은 근거)
+  let pendingCrash: string | null = null
+
   const shots: Shot[] = []
 
   // 압축 구간은 상태만 따라가며 모으고, 빠져나올 때 한 샷으로 "정산"한다 —
@@ -735,6 +741,9 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       }
     }
 
+    if (e.kind === 'exception') pendingCrash = e.error ?? '오류'
+    else if (e.kind === 'line') pendingCrash = null
+
     if (e.kind === 'call') motions.push({ v: 'pushFrame', frameId: e.frameId })
     if (e.kind === 'return') {
       motions.push({ v: 'popFrame', frameId: e.frameId })
@@ -761,6 +770,9 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
           if (v.k !== 'prim' || !varsSeen.has(key) || !castVars.has(key)) continue
           motions.push({ v: 'setVar', varKey: key, text: shortText(v, objects) })
         }
+        // 터진 채 끝났다 — 마지막 인상은 멈춤이어야 하므로 축하(스윕)를 접는다.
+        // 최종값 정산은 위에서 이미 했다: 값은 사실이고 인스펙터와 화면이 일치해야 한다
+        if (pendingCrash) motions.push({ v: 'crashEnd', text: pendingCrash })
         // 정렬 완성의 마침표 — 실제로 오름차순으로 끝난 숫자 리스트에만 스윕을 준다
         for (const [id, texts] of prevTexts) {
           if (!entered.has(id) || exited.has(id) || gridInfo.has(id)) continue
@@ -771,6 +783,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
           // 지금 원소 구성으로 흐트러진 적이 없으면 이 리스트는 정렬된 것이 아니라 원래
           // 그랬거나 그렇게 만들어진 것이다 — 하지 않은 일을 선언하지 않는다
           if (!shuffled.get(id)) continue
+          if (pendingCrash) continue
           if (ascending(texts)) motions.push({ v: 'sortedSweep', objectId: id })
         }
       }

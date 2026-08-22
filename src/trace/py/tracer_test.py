@@ -108,4 +108,27 @@ r = caught(5)
 cr = [e['returned'] for e in events11 if e['kind'] == 'return' and e['func'] == 'caught' and 'returned' in e]
 assert [v['v'] for v in cr] == ['-1'], f"잡힌 예외 뒤 반환값 누락: {cr}"
 
+# 14) 구문 오류: 실행 0줄 — 파서의 사실(줄·위치·문제 줄·메시지)이 구조로 실린다.
+#     Pyodide 내부 traceback이 아니라 이것이 화면의 재료다
+events12, tail12 = collect("""def add(a, b)
+    return a + b
+""")
+assert events12 == [], "구문 오류인데 이벤트가 있다 — 아무것도 실행되지 않아야 한다"
+se = tail12.get('syntaxError')
+assert se, "syntaxError 구조 정보 누락"
+assert se['name'] == 'SyntaxError' and se['line'] == 1, se
+assert se['text'] == 'def add(a, b)', se
+assert isinstance(se['offset'], int) and se['offset'] >= 13, se
+assert 'expected' in se['msg'], se
+assert tail12['error'].startswith('SyntaxError:'), tail12['error']
+
+# 15) 들여쓰기 오류도 같은 경로다 (IndentationError는 SyntaxError의 하위)
+events13, tail13 = collect("x = 1\n  y = 2\n")
+se13 = tail13.get('syntaxError')
+assert se13 and se13['name'] == 'IndentationError' and se13['line'] == 2, se13
+
+# 16) 정상 실행에는 syntaxError가 없다
+_, tail14 = collect("x = 1\n")
+assert 'syntaxError' not in tail14, tail14
+
 print("tracer_test: ALL PASS")

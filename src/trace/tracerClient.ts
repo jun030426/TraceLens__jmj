@@ -42,7 +42,7 @@ export function runTrace(
         if (Array.isArray(parsed)) events.push(...parsed)
         else {
           onStage('building')
-          finish({ events, clipped: parsed.clipped, error: parsed.error ?? undefined })
+          finish({ events, clipped: parsed.clipped, error: parsed.error ?? undefined, syntaxError: parsed.syntaxError ?? undefined })
         }
       } else if (m.type === 'fatal') finish({ events, clipped: false, error: m.message })
     }

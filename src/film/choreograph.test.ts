@@ -1358,3 +1358,51 @@ describe('choreograph: 튜플 비교도 저울이 든다', () => {
     expect(run(lt, 3, [tup(7, ['0', '0']), tup(8, ['3', '3'])], [['pos', 7], ['goal', 8]])).toEqual([])
   })
 })
+
+/* 터진 실행의 마무리 — 잡히지 않은 예외로 끝나면 마지막 자막이 멈춤을 말하고 축하를 내지 않는다.
+   판정은 상태 기반: exception이 세우고 이후의 line이 지운다 (잡힌 예외는 except 절 line이 낀다) */
+describe('choreograph: 터진 실행은 멈춤으로 끝난다', () => {
+  it('잡히지 않은 예외 — 마지막 샷이 crashEnd와 멈춤 자막을 싣는다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({ localsDelta: [{ name: 'total', op: 'set', value: P('5600') }] }, 1),
+      ev({ kind: 'exception', observedAtLine: 4, error: 'IndexError: list index out of range' }, 2),
+      ev({ kind: 'return', observedAtLine: 4 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const last = shots[shots.length - 1]
+    expect(last.motions.some(m => m.v === 'crashEnd')).toBe(true)
+    expect(last.caption).toBe('여기서 실행이 멈췄습니다 — IndexError: list index out of r…')
+  })
+
+  it('잡힌 예외 — except 절의 line이 끼므로 정상 마감으로 돌아온다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({ kind: 'exception', observedAtLine: 3, error: 'ZeroDivisionError: division by zero' }, 1),
+      ev({ observedAtLine: 5, localsDelta: [{ name: 'r', op: 'set', value: P('-1') }] }, 2),
+      ev({ kind: 'return', observedAtLine: 5 }, 3),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const last = shots[shots.length - 1]
+    expect(last.motions.some(m => m.v === 'crashEnd')).toBe(false)
+    expect(last.caption).toBe('실행 종료 — 최종 상태입니다')
+  })
+
+  it('정렬을 마친 뒤 터져도 축하는 없다 — 마지막 인상은 멈춤이어야 한다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call', observedAtLine: 1 }, 0),
+      ev({
+        observedAtLine: 2,
+        localsDelta: [{ name: 'a', op: 'set', value: { k: 'ref', id: 1 } }],
+        objectsDelta: [listSet(['3', '1', '2'])],
+      }, 1),
+      ev({ observedAtLine: 3, objectsDelta: [listSet(['1', '2', '3'])] }, 2),
+      ev({ kind: 'exception', observedAtLine: 4, error: 'ValueError: boom' }, 3),
+      ev({ kind: 'return', observedAtLine: 4 }, 4),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const all = shots.flatMap(x => x.motions)
+    expect(all.some(m => m.v === 'sortedSweep')).toBe(false)
+    expect(all.some(m => m.v === 'crashEnd')).toBe(true)
+  })
+})

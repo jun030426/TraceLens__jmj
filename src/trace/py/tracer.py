@@ -174,7 +174,21 @@ class _Tracer:
 def run_traced(code, emit, max_events=5000):
     tracer = _Tracer(emit, max_events)
     error = None
-    compiled = compile(code, '<user>', 'exec')
+    # 구문 오류는 실행 0줄 — 파서가 아는 사실(줄·글자 위치·문제 줄·메시지)을 구조로 싣는다.
+    # 여기서 안 잡으면 worker의 fatal로 새서 화면에 Pyodide 내부 traceback이 닿는다.
+    # IndentationError·TabError는 SyntaxError의 하위라 같은 경로를 탄다.
+    try:
+        compiled = compile(code, '<user>', 'exec')
+    except SyntaxError as e:
+        emit(json.dumps({
+            'done': True, 'clipped': False,
+            'error': f"{type(e).__name__}: {e.msg}",
+            'syntaxError': {
+                'name': type(e).__name__, 'line': e.lineno, 'offset': e.offset,
+                'text': (e.text or '').rstrip(chr(10)) or None, 'msg': e.msg or '',
+            },
+        }))
+        return
     # __name__을 '__main__'으로 주입 — 빈 globals면 builtins의 __name__('builtins')이 잡혀서
     # AI 생성 스크립트에 흔한 `if __name__ == "__main__":` 블록이 통째로 건너뛰어진다
     user_globals = {'__name__': '__main__'}
