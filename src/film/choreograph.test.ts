@@ -933,3 +933,95 @@ describe('choreograph: 상자 이름표', () => {
     expect(cells.filter(c => c.flash).map(c => c.text)).toEqual(['7'])
   })
 })
+
+/* 재귀의 알약 접기 — 한 이름이 여러 살아있는 프레임에 동시에 있으면, 그 이름을 가진
+   가장 깊은 프레임의 것만 알약으로 남고 나머지는 각자의 프레임 카드가 든다.
+   판정은 사실이므로 의미층이 소유하고, 바뀔 때만 방출한다 (label·partial과 같은 패턴) */
+describe('choreograph: 이름이 겹치면 카드가 든다', () => {
+  // fact(3) 축소판 — n이 프레임 1·2·3에 차례로 태어난다
+  const recursionEvents: TraceEvent[] = [
+    ev({ kind: 'call' }, 0),
+    ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'f', localsDelta: [{ name: 'n', op: 'set', value: P('3') }] }, 1),
+    ev({ kind: 'call', frameId: 2, parentFrameId: 1, func: 'f', localsDelta: [{ name: 'n', op: 'set', value: P('2') }] }, 2),
+    ev({ kind: 'call', frameId: 3, parentFrameId: 2, func: 'f', localsDelta: [{ name: 'n', op: 'set', value: P('1') }] }, 3),
+    ev({ kind: 'return', frameId: 3, parentFrameId: 2, func: 'f' }, 4),
+    ev({ kind: 'return', frameId: 2, parentFrameId: 1, func: 'f' }, 5),
+    ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f' }, 6),
+    ev({ kind: 'return' }, 7),
+  ]
+  const recShots = choreograph(recursionEvents, buildStage(recursionEvents))
+  const folds = (seqOf: (s: (typeof recShots)[number]) => boolean) =>
+    recShots.find(seqOf)!.motions.filter(m => m.v === 'foldVars')
+
+  it('두 번째 호출에서 첫 프레임의 n이 카드로 물러난다', () => {
+    expect(folds(s => s.motions.some(m => m.v === 'pushFrame' && m.frameId === 2))).toEqual([
+      { v: 'foldVars', frameId: 1, varKeys: ['1:n'], texts: ['n = 3'] },
+    ])
+  })
+
+  it('세 번째 호출에서는 두 번째 프레임만 새로 접힌다 — 바뀐 것만 방출한다', () => {
+    expect(folds(s => s.motions.some(m => m.v === 'pushFrame' && m.frameId === 3))).toEqual([
+      { v: 'foldVars', frameId: 2, varKeys: ['2:n'], texts: ['n = 2'] },
+    ])
+  })
+
+  it('되돌아오면 다음으로 깊은 n이 알약으로 복귀한다 — 그 카드는 비워진다', () => {
+    expect(folds(s => s.motions.some(m => m.v === 'popFrame' && m.frameId === 3))).toEqual([
+      { v: 'foldVars', frameId: 2, varKeys: [], texts: [] },
+    ])
+  })
+
+  it('이름이 겹치지 않으면 아무것도 접지 않는다 — 평범한 중첩 호출은 그대로다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({ localsDelta: [{ name: 'total', op: 'set', value: P('0') }] }, 1),
+      ev({ kind: 'call', frameId: 1, parentFrameId: 0, func: 'helper', localsDelta: [{ name: 'x', op: 'set', value: P('2') }] }, 2),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'helper' }, 3),
+      ev({ kind: 'return' }, 4),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shots.flatMap(s => s.motions).filter(m => m.v === 'foldVars')).toEqual([])
+  })
+
+  it('겹치는 이름만 접는다 — 같은 프레임의 유일한 이름은 알약으로 남는다', () => {
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        kind: 'call', frameId: 1, parentFrameId: 0, func: 'f',
+        localsDelta: [{ name: 'n', op: 'set', value: P('3') }, { name: 'acc', op: 'set', value: P('9') }],
+      }, 1),
+      ev({ kind: 'call', frameId: 2, parentFrameId: 1, func: 'f', localsDelta: [{ name: 'n', op: 'set', value: P('2') }] }, 2),
+      ev({ kind: 'return', frameId: 2, parentFrameId: 1, func: 'f' }, 3),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'f' }, 4),
+      ev({ kind: 'return' }, 5),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    const all = shots.flatMap(s => s.motions).filter(m => m.v === 'foldVars')
+    expect(all).toEqual([
+      { v: 'foldVars', frameId: 1, varKeys: ['1:n'], texts: ['n = 3'] },
+      { v: 'foldVars', frameId: 1, varKeys: [], texts: [] },
+    ])
+  })
+
+  it('카드의 값은 등장 순으로 적는다 — 알파벳이 아니라 매개변수 서명 순', () => {
+    // 폭에 밀려 하나만 남을 때 알파벳 순이면 acc가 남고 n이 접힌다 — 재귀에서 읽을 값은 n이다
+    const events: TraceEvent[] = [
+      ev({ kind: 'call' }, 0),
+      ev({
+        kind: 'call', frameId: 1, parentFrameId: 0, func: 'go',
+        localsDelta: [{ name: 'n', op: 'set', value: P('7') }, { name: 'acc', op: 'set', value: P('1') }],
+      }, 1),
+      ev({
+        kind: 'call', frameId: 2, parentFrameId: 1, func: 'go',
+        localsDelta: [{ name: 'n', op: 'set', value: P('6') }, { name: 'acc', op: 'set', value: P('7') }],
+      }, 2),
+      ev({ kind: 'return', frameId: 2, parentFrameId: 1, func: 'go' }, 3),
+      ev({ kind: 'return', frameId: 1, parentFrameId: 0, func: 'go' }, 4),
+      ev({ kind: 'return' }, 5),
+    ]
+    const shots = choreograph(events, buildStage(events))
+    expect(shots.flatMap(s => s.motions).find(m => m.v === 'foldVars')).toEqual({
+      v: 'foldVars', frameId: 1, varKeys: ['1:n', '1:acc'], texts: ['n = 7', 'acc = 1'],
+    })
+  })
+})

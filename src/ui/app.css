@@ -667,3 +667,13 @@
   fill: var(--ink-3);
   font-size: var(--d-md);
 }
+
+/* 프레임 카드가 든 값 — 이름이 겹쳐(재귀) 알약에서 물러난 그 프레임의 변수들.
+   "한 값은 화면에 한 번만"의 두 번째 사례이고, 지금 일어나는 일이 아니라 물러나
+   있는 상태이므로 4역할 색이 아닌 중립 잉크다 (정직성 표시·접힌 호출과 같은 계열) */
+.film-frame-vals {
+  fill: var(--ink-3);
+  font-family: var(--mono);
+  font-size: var(--d-md);
+  opacity: 0;
+}
