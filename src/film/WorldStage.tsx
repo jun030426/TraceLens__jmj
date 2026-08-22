@@ -335,10 +335,17 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         }
 
         // ── 구성 전환 — 배우 가시성·위치·배율의 단일 소유자 ──
+        // 자리는 비운 뒤에 채운다. 퇴장과 등장이 같은 순간에 걸리면 두 배우가 반쯤 겹친 채
+        // 둘 다 읽히는데, 알약 스트립처럼 자리를 물려주는 구조에서는 그게 곧 오독이다
+        // (실측: 접히는 n = 10과 새로 서는 n = 9가 3,196px² 겹쳤다 — 재귀에서 "어느 n이
+        // 지금인가"가 그대로 되살아난다). 비우는 시간은 짧은 샷에서도 등장할 몫이 남도록 잰다.
+        const actorLeaves = [...prevComp.keys()].some(k => !comp.has(k))
+        const clearD = actorLeaves ? Math.min(sec(0.24), d * 0.4) : 0
+        const enterAt = labelPos + clearD
         for (const key of prevComp.keys()) {
           if (comp.has(key)) continue
           const el = actorEl(key)
-          if (el) tl.to(el, { opacity: 0, duration: sec(0.3), ease: 'power2.in' }, label)
+          if (el) tl.to(el, { opacity: 0, duration: clearD, ease: 'power2.in' }, label)
         }
         for (const [key, p] of comp) {
           const el = actorEl(key)
@@ -350,13 +357,13 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             tl.fromTo(
               el,
               { opacity: 0, x: p.x, y: p.y + 18, scale: p.s * 0.9, transformOrigin: '0px 0px' },
-              { opacity: op, y: p.y, scale: p.s, duration: sec(0.4), ease: 'power2.out' },
-              label,
+              { opacity: op, y: p.y, scale: p.s, duration: Math.min(sec(0.4), d - clearD), ease: 'power2.out' },
+              enterAt,
             )
           } else if (was.x !== p.x || was.y !== p.y || was.s !== p.s) {
             tl.to(
               el,
-              { x: p.x, y: p.y, scale: p.s, duration: sec(0.45), ease: 'power2.inOut', transformOrigin: '0px 0px' },
+              { x: p.x, y: p.y, scale: p.s, duration: Math.min(sec(0.45), d), ease: 'power2.inOut', transformOrigin: '0px 0px' },
               label,
             )
           }
@@ -403,6 +410,14 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         {
           const stack = stacks[si]
           const slot0 = layout.framePos.get(0)!
+          // 창은 자리를 물려주는 구조라 3단으로 갈라야 한다: ① 밀려난 카드가 사라지고
+          // ② 남은 카드가 그 자리로 내려온 다음 ③ 새 카드가 맨 위 슬롯에 들어온다.
+          // 셋을 같이 걸면 사라지는 카드 위로 이동 카드가 미끄러져 둘 다 읽히는 순간이
+          // 생긴다 (실측 3,902px² — 이름이 같은 fact 카드 둘이라 오독 그 자체다)
+          const cOut = Math.min(sec(0.14), d * 0.22)
+          const cMoveAt = labelPos + cOut
+          const cMove = Math.min(sec(0.24), d * 0.3)
+          const cEnterAt = cMoveAt + cMove
           for (const f of plan.frames) {
             const el = q(frameSel(f.frameId))
             if (!el) continue
@@ -410,7 +425,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             const was = frameSlot.get(f.frameId)
             if (slot === undefined) {
               if (was !== undefined) {
-                tl.to(el, { opacity: 0, duration: sec(0.3), ease: 'power2.in' }, label)
+                tl.to(el, { opacity: 0, duration: cOut, ease: 'power2.in' }, label)
                 frameSlot.delete(f.frameId)
               }
               continue
@@ -419,16 +434,19 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             const r = layout.framePos.get(slot)!
             const rect = el.querySelector('rect')
             if (was === undefined) {
+              // 창이 스크롤될 때 새 카드는 직전 점유자가 그 슬롯을 비운 뒤에 온다 —
+              // 같이 걸면 카드끼리 2,910px², 사라지는 프로그램 카드와 "⋯ 앞선 호출 k개" 띠가
+              // 2,838px² 겹쳤다 (실측). 배우 스트립과 같은 규율이다
               tl.fromTo(
                 el,
                 { opacity: 0, x: r.x - slot0.x - 26, y: r.y - slot0.y },
-                { opacity: 1, x: r.x - slot0.x, y: r.y - slot0.y, duration: d, ease: 'power3.out' },
-                label,
+                { opacity: 1, x: r.x - slot0.x, y: r.y - slot0.y, duration: d - cOut - cMove, ease: 'power3.out' },
+                cEnterAt,
               )
-              if (rect) tl.set(rect, { attr: { width: r.w } }, label)
+              if (rect) tl.set(rect, { attr: { width: r.w } }, cEnterAt)
             } else {
-              tl.to(el, { x: r.x - slot0.x, y: r.y - slot0.y, duration: sec(0.35), ease: 'power2.inOut' }, label)
-              if (rect) tl.to(rect, { attr: { width: r.w }, duration: sec(0.35), ease: 'power2.inOut' }, label)
+              tl.to(el, { x: r.x - slot0.x, y: r.y - slot0.y, duration: cMove, ease: 'power2.inOut' }, cMoveAt)
+              if (rect) tl.to(rect, { attr: { width: r.w }, duration: cMove, ease: 'power2.inOut' }, cMoveAt)
             }
             frameSlot.set(f.frameId, slot)
           }
@@ -445,9 +463,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
                 undefined,
                 label,
               )
-              tl.to(more, { opacity: 1, duration: sec(0.3) }, label)
+              tl.to(more, { opacity: 1, duration: d - cOut - cMove }, cEnterAt)
             } else {
-              tl.to(more, { opacity: 0, duration: sec(0.3) }, label)
+              tl.to(more, { opacity: 0, duration: cOut }, label)
             }
             prevHidden = hidden
           }
