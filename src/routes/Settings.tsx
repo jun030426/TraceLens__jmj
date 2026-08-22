@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode, useMemo } from 'react'
 import { Link, ROUTES } from '../router'
 import { geminiApiKey } from '../director/gemini'
 import { DEFAULTS, LIMITS, resetSettings, setSetting, useSettings, type CaptionSize } from '../settings/store'
+import { clearScreenplayCache, screenplayCacheSize } from '../director/cache'
 
 function Switch({
   on,
@@ -114,6 +115,9 @@ function Group({ title, intro, children }: { title: string; intro?: ReactNode; c
 
 export default function Settings() {
   const s = useSettings()
+  // 캐시는 설정 저장소 밖(연출 캐시)이라 로컬 상태로만 다룬다 — 비운 결과를 그 자리에서 알린다
+  const [cleared, setCleared] = useState<number | null>(null)
+  const cacheCount = useMemo(() => screenplayCacheSize(), [cleared])
   const aiPossible = Boolean(geminiApiKey)
 
   return (
@@ -151,6 +155,19 @@ export default function Settings() {
                 label="AI 연출 사용"
                 disabled={!aiPossible}
               />
+            </div>
+
+            <div className="tl-field">
+              <div>
+                <div className="tl-field__name">연출 캐시</div>
+                <p className="tl-field__help">
+                  같은 코드는 저장해 둔 연출을 그대로 씁니다 — 같은 코드면 같은 영화가 나오고, 모델을 다시
+                  부르지 않습니다. 연출이 마음에 들지 않으면 비우고 다시 실행하세요.
+                </p>
+              </div>
+              <button type="button" className="tl-btn tl-btn--quiet" onClick={() => setCleared(clearScreenplayCache())}>
+                {cleared === null ? `비우기 (${cacheCount})` : `${cleared}개 비웠습니다`}
+              </button>
             </div>
           </Group>
 

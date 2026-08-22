@@ -2,7 +2,10 @@ import type { LlmCallFn } from './llmDirector'
 
 // 개발용 직접 호출 어댑터. 키는 .env.local(VITE_GEMINI_API_KEY)에만 두고 절대 커밋하지 않는다.
 // 배포 시에는 이 어댑터 대신 서버리스 프록시를 거친다 (기획안 §3 — 키는 서버 측에만).
-export function makeGeminiCall(apiKey: string, model = 'gemini-2.5-flash'): LlmCallFn {
+/** 캐시 키의 modelVersion 조각 — 모델이 바뀌면 저장된 연출도 무효가 되어야 한다 */
+export const GEMINI_MODEL = 'gemini-2.5-flash'
+
+export function makeGeminiCall(apiKey: string, model = GEMINI_MODEL): LlmCallFn {
   return async (prompt: string) => {
     // 매달린 요청이 폴백을 영원히 막지 않게 — 20초면 실패로 친다
     const ctrl = new AbortController()

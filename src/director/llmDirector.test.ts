@@ -43,3 +43,5 @@ describe('generateScreenplay', () => {
     expect(call).toHaveBeenCalledTimes(2)
   })
 })
+
+/* 캐싱 — 같은 코드면 같은 영화. localStorage가 필요하므로 jsdom 환경의 별도 파일에서 다룬다 */

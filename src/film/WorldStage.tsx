@@ -163,11 +163,11 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       // 트윈이 '0px 0px'로 바꾸는 순간 smoothOrigin이 보정 오프셋을 구워, 배율만 오르고
       // 중심 이동이 어긋난다 (토큰의 9px 오프셋과 같은 함정)
       const autoCam0 = q('.film-cam-auto')
-      if (autoCam0) gsap.set(autoCam0, { x: 0, y: 0, scale: 1, transformOrigin: '0px 0px', smoothOrigin: false })
+      if (autoCam0) gsap.set(autoCam0, { x: 0, y: 0, scale: 1, svgOrigin: '0 0' })
       // 오토 프레이밍 카메라 — 첫 구성의 프레임으로 시작
       const frameCam = q('.film-cam-frame')
       let appliedCam: Camera | null = cams[0] ?? null
-      if (frameCam && appliedCam) gsap.set(frameCam, { x: appliedCam.x, y: appliedCam.y, scale: appliedCam.k, transformOrigin: '0px 0px' })
+      if (frameCam && appliedCam) gsap.set(frameCam, { x: appliedCam.x, y: appliedCam.y, scale: appliedCam.k, svgOrigin: '0 0' })
       const tl = gsap.timeline({ paused: true })
       let liveFrame: Element | null = null
       let prevComp: Composition = new Map()
@@ -243,7 +243,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
         if (frameCam && camNow && camNow !== appliedCam) {
           tl.to(
             frameCam,
-            { x: camNow.x, y: camNow.y, scale: camNow.k, duration: sec(0.5), ease: 'power2.inOut', transformOrigin: '0px 0px' },
+            { x: camNow.x, y: camNow.y, scale: camNow.k, duration: sec(0.5), ease: 'power2.inOut', svgOrigin: '0 0' },
             Math.max(0, labelPos - sec(GRAMMAR.camLead)),
           )
           appliedCam = camNow
@@ -324,7 +324,7 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
             autoEl,
             {
               x: autoNow.x, y: autoNow.y, scale: autoNow.k,
-              duration: sec(0.4), ease: 'power2.inOut', transformOrigin: '0px 0px', smoothOrigin: false,
+              duration: sec(0.4), ease: 'power2.inOut', svgOrigin: '0 0',
             },
             emphAt,
           )
