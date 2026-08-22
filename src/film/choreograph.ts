@@ -26,6 +26,8 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
   const all = <V extends Motion['v']>(v: V) =>
     motions.filter(m => m.v === v) as Extract<Motion, { v: V }>[]
 
+  const crashAlone = find('crashEnd')
+  if (crashAlone) return `여기서 실행이 멈췄습니다 — ${capText(crashAlone.text, 32)}`
   const raise = find('raise')
   if (raise) {
     if (raise.passed) {
@@ -62,8 +64,6 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
   const pop = find('popFrame')
   if (pop) {
     const f = names.frameFunc(pop.frameId)
-    const crash = find('crashEnd')
-    if (crash) return `여기서 실행이 멈췄습니다 — ${capText(crash.text, 32)}`
     if (pop.unwound) return `${names.frameFunc(pop.frameId)}가 오류와 함께 닫힙니다`
     if (f === '<module>') return find('sortedSweep') ? '실행 종료 — 정렬 완성!' : '실행 종료 — 최종 상태입니다'
     return `${f} 종료 — 작업 공간이 닫힙니다`
@@ -289,7 +289,7 @@ function detectCompare(
 }
 
 // 2패스 — 실행 사건을 "무엇이 어떻게 움직이는가"로 번역한다.
-export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string): Shot[] {
+export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string, runError?: string): Shot[] {
   const digest = buildDigest(events)
   const srcLines = (code ?? '').split('\n')
   const locals = new Map<string, Value>() // `${frameId}:${name}` → 최신 값 (compare 접지용)
@@ -645,6 +645,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   // 터진 채 끝나는가 — exception 이벤트가 세우고 이후의 line 이벤트가 지운다.
   // 잡힌 예외는 except 절의 line이 끼므로 정상 마감으로 돌아온다 (returned의 unwind 판별과 같은 근거)
   let pendingCrash: string | null = null
+  let crashEnded = false
 
   const shots: Shot[] = []
 
@@ -801,7 +802,10 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
         }
         // 터진 채 끝났다 — 마지막 인상은 멈춤이어야 하므로 축하(스윕)를 접는다.
         // 최종값 정산은 위에서 이미 했다: 값은 사실이고 인스펙터와 화면이 일치해야 한다
-        if (pendingCrash) motions.push({ v: 'crashEnd', text: pendingCrash })
+        if (pendingCrash) {
+          motions.push({ v: 'crashEnd', text: pendingCrash })
+          crashEnded = true
+        }
         // 정렬 완성의 마침표 — 실제로 오름차순으로 끝난 숫자 리스트에만 스윕을 준다
         for (const [id, texts] of prevTexts) {
           if (!entered.has(id) || exited.has(id) || gridInfo.has(id)) continue
@@ -1069,6 +1073,27 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   }
   // 트레이스가 압축 구간에서 끝나면 정산 샷으로 마무리한다
   if (pendingLapse) shots.push(flushLapse(pendingLapse))
+
+  // 끊긴 기록의 마침표 — 트레이스가 crashEnd 없이 끝났는데 런타임이 오류를 보고했으면
+  // (무한 재귀에서 트레이서 자신이 죽는 케이스, 타임아웃) 그 사실로 마지막 샷을 닫는다.
+  // 오류 문자열은 지어낸 것이 아니라 done payload의 사실이고, 마침표는 하나다.
+  if (runError && !crashEnded && events.length > 0) {
+    const lastEv = events[events.length - 1]
+    shots.push({
+      seq: lastEv.seq + 1,
+      motions: [
+        { v: 'shake', frameId: lastEv.frameId },
+        { v: 'raise', frameId: lastEv.frameId, text: runError },
+        { v: 'crashEnd', text: runError },
+      ],
+      durationMs: SLOW_MS,
+      focus: { kind: 'frame', frameId: lastEv.frameId },
+      caption: captionOf(
+        [{ v: 'crashEnd', text: runError }],
+        nameCtx,
+      ),
+    })
+  }
 
   return shots
 }

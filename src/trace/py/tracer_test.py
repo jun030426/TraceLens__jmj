@@ -131,4 +131,15 @@ assert se13 and se13['name'] == 'IndentationError' and se13['line'] == 2, se13
 _, tail14 = collect("x = 1\n")
 assert 'syntaxError' not in tail14, tail14
 
+# 17) 무한 재귀: 트레이서 자신이 RecursionError로 죽는 지점 — 죽음이 조용하면 안 된다.
+#     clipped=True(기록은 여기까지) + error(사용자 코드의 RecursionError)가 둘 다 실린다
+events15, tail15 = collect("""def countdown(n):
+    return countdown(n - 1)
+
+countdown(5)
+""", max_events=20000)
+assert tail15['clipped'] is True, f"트레이서가 죽었는데 clipped=False — 기록이 온전하다는 거짓말: {tail15}"
+assert tail15.get('error', '').startswith('RecursionError'), tail15.get('error')
+assert all(e['kind'] in ('call', 'line') for e in events15), "관측 못 한 캐스케이드가 있는 척하면 안 된다"
+
 print("tracer_test: ALL PASS")

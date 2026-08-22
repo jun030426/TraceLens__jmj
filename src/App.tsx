@@ -219,7 +219,7 @@ function App() {
       // 무대는 AI와 무관하게 트레이스에서 계산된다 — 콘티가 없어도 영화는 나온다
       const plan = buildStage(result.events)
       const layout = layoutStage(plan)
-      const filmShots = choreograph(result.events, plan, code)
+      const filmShots = choreograph(result.events, plan, code, result.error)
       setRun({
         steps: expandScreenplay(screenplay, snaps), snaps, screenplay,
         clipped: result.clipped, error: result.error, syntaxError: result.syntaxError, directorMode: 'rule',
@@ -253,7 +253,7 @@ function App() {
                 if (gridIds(rebuilt) !== gridIds(prev.plan)) {
                   nextPlan = rebuilt
                   nextLayout = layoutStage(rebuilt)
-                  baseShots = choreograph(prev.events, rebuilt, code)
+                  baseShots = choreograph(prev.events, rebuilt, code, prev.error)
                 }
               }
               return {
