@@ -228,7 +228,7 @@ Motion — 의미층의 동사들:
 
 **수행 완료**: Tracer 스파이크(Go — `2026-08-11-tracer-spike-report.md`) · 기술 벤치마크 1차(`2026-08-11-benchmark-report.md`, 하네스는 `src/bench/`에 상시 회귀) · Slice 1 완주(태그 `slice-1`) · 필름 파이프라인 단위·E2E 회귀 323 + 트레이서 파이썬 테스트 13.
 
-**검증 게이트**: `npm run verify` (lint → vitest → **build**) + `npm run test:py`. CI(`.github/workflows/verify.yml`)가 push·PR마다 같은 것을 돌린다. **build가 게이트에 들어간 이유**는 실측이다 — `tsc --noEmit`과 vitest만 돌리는 습관 때문에 프로덕션 빌드(`tsc -b`)가 이틀간 깨진 채였고, `--noEmit`은 빌드 설정의 `noUnusedLocals` 같은 검사를 타지 않아 아무도 몰랐다. 트레이서는 파이썬이라 vitest 밖에 있으므로 따로 건다 — 게이트 밖에 있으면 결국 안 돌아간다.
+**검증 게이트**: `npm run verify` (lint → vitest → **build**) + `npm run test:py`. lint는 `--deny-warnings`라 **경고 하나도 남기지 않는다** — 경고는 쌓이면 아무도 안 읽어서 결국 진짜 신호를 덮는다. CI(`.github/workflows/verify.yml`)가 push·PR마다 같은 것을 돌린다. **build가 게이트에 들어간 이유**는 실측이다 — `tsc --noEmit`과 vitest만 돌리는 습관 때문에 프로덕션 빌드(`tsc -b`)가 이틀간 깨진 채였고, `--noEmit`은 빌드 설정의 `noUnusedLocals` 같은 검사를 타지 않아 아무도 몰랐다. 트레이서는 파이썬이라 vitest 밖에 있으므로 따로 건다 — 게이트 밖에 있으면 결국 안 돌아간다.
 
 **화면 계약의 검증은 브라우저 실측으로** — 패널이 안 보이면 rAF가 멎으므로 `__filmTl.time(t)`로 임의 시점을 동기 렌더하고 DOM을 재서 "엔진이 계산한 값"과 "실제 픽셀"을 같은 좌표계에서 대조한다 (겹침 0·클리핑 0 같은 기하 계약은 눈이 아니라 숫자로 증명한다).
 

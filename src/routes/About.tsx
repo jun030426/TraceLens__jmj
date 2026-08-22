@@ -1,4 +1,5 @@
-import { Link, ROUTES } from '../router'
+import { ROUTES } from '../router'
+import { Link } from '../ui/Link'
 
 const STAGES: [string, string][] = [
   ['Tracer', '브라우저 안에서 코드를 실제로 실행하고, 줄 경계마다 상태를 비교해 사건으로 남깁니다.'],

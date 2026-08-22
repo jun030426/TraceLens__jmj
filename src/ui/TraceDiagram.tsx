@@ -79,7 +79,8 @@ export default function TraceDiagram({ still = false }: { still?: boolean }) {
       onKeyDown={e => {
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault()
-          playing ? pause() : play()
+          if (playing) pause()
+          else play()
         } else if (e.key === 'ArrowRight') {
           e.preventDefault()
           seek(index + 1)

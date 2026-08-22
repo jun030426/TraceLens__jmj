@@ -1,4 +1,5 @@
-import { Link, ROUTES } from '../router'
+import { ROUTES } from '../router'
+import { Link } from '../ui/Link'
 import TraceDiagram from '../ui/TraceDiagram'
 
 const DIFFS: [string, string][] = [

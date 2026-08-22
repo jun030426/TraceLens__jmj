@@ -1,4 +1,5 @@
-import { Link, ROUTES } from '../router'
+import { ROUTES } from '../router'
+import { Link } from '../ui/Link'
 
 type Tone = 'ok' | 'info' | 'warn' | 'stop'
 
