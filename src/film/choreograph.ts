@@ -47,6 +47,10 @@ function captionOf(motions: Motion[], names: NameCtx): string | undefined {
     const f = names.frameFunc(push.frameId)
     return f === '<module>' ? '실행 시작' : `${f} 호출 — 새 작업 공간이 열립니다`
   }
+  // 값에 조사를 붙이지 않는다 — 을/를은 값의 마지막 소리에 달리는데 값은 숫자·문자열·상자
+  // 무엇이든 될 수 있다. 콜론 형식은 기존 자막들과 같은 어법이다 ("비교: …", "출력: …")
+  const rv = find('returnValue')
+  if (rv) return `${names.frameFunc(rv.frameId)}가 돌려준 값: ${rv.text}`
   const pop = find('popFrame')
   if (pop) {
     const f = names.frameFunc(pop.frameId)
@@ -602,6 +606,13 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     if (e.kind === 'call') motions.push({ v: 'pushFrame', frameId: e.frameId })
     if (e.kind === 'return') {
       motions.push({ v: 'popFrame', frameId: e.frameId })
+      // 값이 카드에서 카드로 내려간다 — 사실은 트레이서의 returned이고 여기서는 옮기기만 한다.
+      // 예외 unwind와 None은 트레이서가 이미 걸렀으므로 여기 도착한 것은 전부 진짜 반환이다
+      if (e.returned && e.parentFrameId !== null)
+        motions.push({
+          v: 'returnValue', frameId: e.frameId, toFrameId: e.parentFrameId,
+          text: shortText(e.returned, objects),
+        })
       // 반환된 프레임의 지역 변수는 무대에서 내린다 — 남겨두면 잔상이 된다.
       // 단, 모듈 프레임은 남긴다: 마지막 장면은 프로그램의 최종 상태를 보여줘야 한다.
       if (e.parentFrameId !== null) {
@@ -865,7 +876,8 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
     const focusObj = motions.find(m => m.v === 'grow' || m.v === 'bind' || m.v === 'enterObj') as
       | { objectId: number }
       | undefined
-    const hasCmp = motions.some(m => m.v === 'compare')
+    // 판단과 반환은 읽을 시간을 받는다 — 칩에 적힌 값이 읽히기 전에 사라지면 없는 것과 같다
+    const hasCmp = motions.some(m => m.v === 'compare' || m.v === 'returnValue')
     shots.push({
       seq: e.seq,
       motions,

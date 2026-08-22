@@ -54,6 +54,10 @@ def _serialize(v, objects, depth=0):
     return ref
 
 
+# "반환값 없음"의 표식 — None은 실제 반환값일 수 있으므로 센티널이 따로 필요하다
+_NO_RET = object()
+
+
 class _Stop(Exception):
     pass
 
@@ -70,6 +74,7 @@ class _Tracer:
         self.prev_locals = {}
         self.prev_objects = {}
         self.last_line = {}
+        self.raising = {}  # fid → 지금 예외로 되감기는 중 (return의 arg를 믿을 수 없다)
         self.stdout = io.StringIO()
         self.stdout_sent = 0
 
@@ -91,7 +96,7 @@ class _Tracer:
         self.stdout_sent = len(s)
         return out
 
-    def _record(self, frame, kind, err=None):
+    def _record(self, frame, kind, err=None, returned=_NO_RET):
         if self.clipped:
             return
         if self.seq >= self.max_events:
@@ -108,6 +113,13 @@ class _Tracer:
                 cur[name] = json.dumps(_serialize(val, objects))
             except Exception:
                 cur[name] = json.dumps({'k': 'prim', 'v': '<직렬화 불가>', 't': type(val).__name__})
+        # 반환값도 같은 objects 레지스트리로 직렬화한다 — 컨테이너를 반환해도 ref가 해석된다
+        ret_val = None
+        if returned is not _NO_RET:
+            try:
+                ret_val = _serialize(returned, objects)
+            except Exception:
+                ret_val = {'k': 'prim', 'v': '<직렬화 불가>', 't': type(returned).__name__}
         prev = self.prev_locals.get(fid, {})
         delta = []
         for name, vjson in cur.items():
@@ -129,6 +141,8 @@ class _Tracer:
               'localsDelta': delta, 'objectsDelta': obj_delta, 'stdout': self._new_stdout()}
         if err:
             ev['error'] = err
+        if ret_val is not None:
+            ev['returned'] = ret_val
         self.last_line[fid] = frame.f_lineno
         self.seq += 1
         self.buffer.append(ev)
@@ -138,13 +152,21 @@ class _Tracer:
         if frame.f_code.co_filename != '<user>':
             return None
         if event == 'line':
+            # 예외가 이 프레임에서 잡혔다 — 이후의 return은 진짜 반환이다
+            self.raising.pop(self._fid(frame), None)
             self._record(frame, 'line')
         elif event == 'call':
             self.last_line.pop(self._fid(frame), None)
             self._record(frame, 'call')
         elif event == 'return':
-            self._record(frame, 'return')
+            # 예외로 되감기는 프레임의 return은 arg가 None이라 `return None`과 구분되지 않는다.
+            # 없는 반환을 지어내지 않는다 — 침묵한다. (예외가 잡히면 사이에 line이 끼어 플래그가
+            # 지워지므로 그 뒤의 정상 반환은 살아남는다. 실측으로 가른 경로다.)
+            # None 자체도 싣지 않는다: 암묵 반환과 구분되지 않고 화면에 올려도 가르치는 게 없다.
+            unwinding = self.raising.pop(self._fid(frame), False)
+            self._record(frame, 'return', returned=_NO_RET if (unwinding or arg is None) else arg)
         elif event == 'exception':
+            self.raising[self._fid(frame)] = True
             self._record(frame, 'exception', err=f"{arg[0].__name__}: {arg[1]}")
         return self
 
