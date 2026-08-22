@@ -339,6 +339,52 @@ describe('compose: 저울 자리 (scales)', () => {
     expect(autos[0]).toEqual({ k: 1, x: 0, y: 0 })
   })
 
+  it('강조로 화면 밖에 밀려날 배우는 구성에서 빠진다 — 반쯤 잘린 배우를 남기지 않는다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '5' }, { v: 'setVar', varKey: '0:i', text: '0' }]),
+      shot(1, [cellCmp(1, 0, 1), { v: 'emphasis', k: 1.45 }]),
+      shot(2, [{ v: 'setVar', varKey: '0:i', text: '1' }]),
+      shot(3, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { comps, cams, autos } = compose(shots, plan, layout)
+    const a = autos[1]
+    expect(a.k).toBeGreaterThan(1)
+    // 남아 있는 배우는 전부 프레임 안에 온전히 담긴다
+    for (const [key, p] of comps[1]) {
+      const size = key[0] === 'o' ? { w: 300, h: 64 } : { w: 190, h: 36 }
+      const band = key[0] === 'o' ? { top: 26, bot: 16 } : { top: 0, bot: 0 }
+      const fx = (v: number) => a.x + a.k * (cams[1].x + cams[1].k * v)
+      const fy = (v: number) => a.y + a.k * (cams[1].y + cams[1].k * v)
+      expect(fx(p.x)).toBeGreaterThanOrEqual(0)
+      expect(fx(p.x + size.w * p.s)).toBeLessThanOrEqual(1200)
+      expect(fy(p.y - band.top * p.s)).toBeGreaterThanOrEqual(0)
+      expect(fy(p.y + (size.h + band.bot) * p.s)).toBeLessThanOrEqual(640)
+    }
+  })
+
+  it('강조 대상은 절대 접히지 않는다 — 볼 것을 지우면 강조가 아니다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '5' }, { v: 'setVar', varKey: '0:i', text: '0' }]),
+      shot(1, [cellCmp(1, 0, 1), { v: 'emphasis', k: 1.45 }]),
+      shot(2, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { comps, autos } = compose(shots, plan, layout)
+    expect(autos[1].k).toBeGreaterThan(1)
+    expect(comps[1].has('o1')).toBe(true)
+  })
+
+  it('강조가 없는 샷의 구성은 정리되지 않는다 — 접기는 강조의 대가일 뿐이다', () => {
+    const shots = [
+      shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '5' }, { v: 'setVar', varKey: '0:i', text: '0' }]),
+      shot(1, [{ v: 'setVar', varKey: '0:i', text: '1' }]),
+      shot(2, [{ v: 'stdout', text: 'x' }]),
+    ]
+    const { comps, autos } = compose(shots, plan, layout)
+    expect(autos[1]).toEqual({ k: 1, x: 0, y: 0 })
+    expect(comps[1].has('o1')).toBe(true)
+    expect(comps[1].has('v0:i')).toBe(true)
+  })
+
   it('강조가 없는 샷의 카메라는 항등 — 강조는 한 비트만 산다', () => {
     const shots = [
       shot(0, [{ v: 'grow', objectId: 1, index: 0, text: '5' }]),

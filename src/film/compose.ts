@@ -15,6 +15,8 @@ export type Camera = { k: number; x: number; y: number }
 export type ScalePlace = { x: number; y: number }
 
 export const LINGER = 6 // 마지막으로 닿은 뒤 무대에 머무는 샷 수
+/** 영화 프레임 높이 — WorldStage의 viewBox와 같은 값 (배우가 화면에 담기는지 판정한다) */
+const FRAME_H = 640
 
 const TOP = 90
 const FOCUS_CX = 760 // 포커스 열의 중심축
@@ -405,6 +407,17 @@ export function compose(
     const emph = sh.motions.find(m => m.v === 'emphasis') as Extract<Motion, { v: 'emphasis' }> | undefined
     auto = emph ? autoFor(si, emph.k) : IDENTITY
     autos.push(auto)
+    // 강조는 "이것만 본다"는 선언이다 — 그 배율에 밀려 프레임에 온전히 담기지 않는 배우는
+    // 가장자리에 반쯤 걸치는 대신 물러난다. 사라짐이 카메라의 부작용이 아니라 구성의 결정이
+    // 되어야 "구성이 가시성의 단일 소유자"가 지켜진다 (무대 밖 상태는 인스펙터가 들고 있다).
+    // cams·autos는 다시 계산하지 않는다 — 그러면 강조 좌표가 무효가 되어 진짜 순환이 된다.
+    // 대상은 autoFor가 AREA(프레임보다 좁다) 안에 넣으므로 절대 접히지 않는다.
+    if (auto.k !== 1) {
+      for (const [key, p] of [...comps[si]]) {
+        const r = actorRect(key, p, cams[si], auto)
+        if (r.x0 < 0 || r.x1 > layout.width || r.y0 < 0 || r.y1 > FRAME_H) comps[si].delete(key)
+      }
+    }
     const cur = rectsOf(comps[si], cams[si], auto)
     // 이 샷 동안 배우가 실제로 점유하는 범위 = 세 사각형의 껍질:
     // ① 직전 배치(구성 전환 트윈의 출발) ② 현재 배치를 직전 카메라로 본 것(카메라 트윈의
