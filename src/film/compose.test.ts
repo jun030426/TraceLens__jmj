@@ -487,3 +487,28 @@ describe('compose: 호출 스택 창', () => {
     }
   })
 })
+
+/* 접기 판정은 의미층이 하고 구성은 받아 쓴다 — 두 층이 같은 판정을 따로 하면 어긋난다 */
+describe('compose: 카드가 든 변수는 알약에서 빠진다', () => {
+  it('foldVars가 지목한 변수는 알약 스트립에 서지 않는다', () => {
+    const shots = [
+      shot(0, [{ v: 'setVar', varKey: '0:i', text: '1' }]),
+      shot(1, [{ v: 'foldVars', frameId: 0, varKeys: ['0:i'], texts: ['i = 1'] }]),
+      shot(2, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
+    ] satisfies Shot[]
+    const { comps } = compose(shots, plan, layout)
+    expect(comps[0].has('v0:i')).toBe(true)
+    expect(comps[1].has('v0:i')).toBe(false)
+  })
+
+  it('접힘이 풀리면 알약이 돌아온다', () => {
+    const shots = [
+      shot(0, [{ v: 'setVar', varKey: '0:i', text: '1' }]),
+      shot(1, [{ v: 'foldVars', frameId: 0, varKeys: ['0:i'], texts: ['i = 1'] }]),
+      shot(2, [{ v: 'foldVars', frameId: 0, varKeys: [], texts: [] }]),
+      shot(3, [{ v: 'grow', objectId: 1, index: 0, text: '1' }]),
+    ] satisfies Shot[]
+    const { comps } = compose(shots, plan, layout)
+    expect(comps[2].has('v0:i')).toBe(true)
+  })
+})

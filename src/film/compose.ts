@@ -60,6 +60,9 @@ export function compose(
 
   // 상자를 쥔 변수도 알약을 접는다 — 상자가 이미 그 이름표를 달고 있어 알약은 중복 소음이다.
   // ("numbers → 상자" 알약이 그 예.) 프림을 다시 쥐면(재대입) 알약으로 복귀한다.
+  // 이름이 겹쳐 카드가 든 변수도 알약을 접는다 — 판정은 의미층(foldVars)이 했다.
+  // 여기서 같은 판정을 다시 하지 않는다: 두 층이 각자 판정하면 조용히 어긋난다.
+  const foldedVars = new Set<string>()
   const boundVars = new Set<string>()
   const comps: Composition[] = []
   let prevOrder: string[] = [] // 직전 구성의 객체 세로 순서 (sticky)
@@ -68,6 +71,12 @@ export function compose(
   shots.forEach((sh, i) => {
     const touched = new Set<string>()
     for (const m of sh.motions) {
+      if (m.v === 'foldVars') {
+        // 물러나는 것은 "닿음"이 아니다. 이 프레임이 든 목록을 통째로 갈아끼운다
+        for (const k of [...foldedVars]) if (k.startsWith(`v${m.frameId}:`)) foldedVars.delete(k)
+        for (const k of m.varKeys) foldedVars.add(`v${k}`)
+        continue
+      }
       // 퇴장·이름표 정리는 "닿음"이 아니다 — 떠나는 배우를 무대에 붙잡으면 모순이 된다
       if (m.v === 'exitObj' || m.v === 'exitVar' || m.v === 'label') {
         if (m.v === 'exitObj') {
@@ -155,7 +164,8 @@ export function compose(
           born(v.life) &&
           !deadVars.has(`v${v.varKey}`) &&
           !pointerVars.has(`v${v.varKey}`) &&
-          !boundVars.has(`v${v.varKey}`),
+          !boundVars.has(`v${v.varKey}`) &&
+          !foldedVars.has(`v${v.varKey}`),
       )
       .map(v => `v${v.varKey}`)
       .sort((a, b) => (lastTouch.get(b) ?? 0) - (lastTouch.get(a) ?? 0))

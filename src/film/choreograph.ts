@@ -263,6 +263,45 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
   // 자막용 이름 — 값·이름은 전부 계획(캐스팅)과 보유 관계에서 온다
   const varNameMap = new Map(plan.variables.map(v => [v.varKey, v.name]))
   const frameFuncMap = new Map(plan.frames.map(f => [f.frameId, f.func]))
+
+  // ── 이름이 겹치면 카드가 든다 ──
+  // 한 이름이 여러 살아있는 프레임에 동시에 있으면(=재귀), 그 이름을 가진 **가장 깊은**
+  // 프레임의 것만 알약으로 남고 나머지는 각자의 프레임 카드가 든다. "한 값은 화면에
+  // 한 번만"의 두 번째 사례다 (첫 사례: 상자를 쥔 변수는 상자 이름표가 대신 말한다).
+  // 판정은 트레이스의 사실이므로 여기(의미층)가 소유하고, 구성·렌더는 받아 쓴다 —
+  // 두 층이 같은 판정을 따로 하면 조용히 어긋난다.
+  // 알약이 되는 것만 대상이다: prim 값을 쥔 변수 (ref는 이미 상자 이름표가 든다).
+  const frameDepth = new Map(plan.frames.map(f => [f.frameId, f.depth]))
+  const prevFold = new Map<number, string>() // frameId → 직전 방출 서명 (바뀔 때만 방출)
+  const emitFolds = (motions: Motion[]) => {
+    const byName = new Map<string, number[]>() // 이름 → 그 이름을 가진 살아있는 프레임들
+    for (const [fid, keys] of frameVars)
+      for (const k of keys) {
+        if (locals.get(k)?.k !== 'prim') continue
+        const name = k.slice(k.indexOf(':') + 1)
+        byName.set(name, [...(byName.get(name) ?? []), fid])
+      }
+    const folded = new Map<number, Set<string>>()
+    for (const [name, fids] of byName) {
+      if (fids.length < 2) continue
+      const deepest = fids.reduce((a, b) => ((frameDepth.get(b) ?? 0) > (frameDepth.get(a) ?? 0) ? b : a))
+      for (const fid of fids) if (fid !== deepest) (folded.get(fid) ?? folded.set(fid, new Set()).get(fid)!).add(`${fid}:${name}`)
+    }
+    for (const fid of frameVars.keys()) {
+      // 순서는 알파벳이 아니라 **등장 순**이다 — 매개변수는 서명 순으로 들어오므로
+      // 카드가 폭에 밀려 하나만 남길 때 첫 매개변수가 남는다 (알파벳 순은 acc를 남기고 n을 접었다)
+      const foldedHere = folded.get(fid)
+      const varKeys = [...(frameVars.get(fid) ?? [])].filter(k => foldedHere?.has(k))
+      const texts = varKeys.map(k => {
+        const v = locals.get(k)!
+        return `${varNameMap.get(k) ?? k.slice(k.indexOf(':') + 1)} = ${shortText(v, objects)}`
+      })
+      const sig = texts.join(' · ')
+      if ((prevFold.get(fid) ?? '') === sig) continue
+      prevFold.set(fid, sig)
+      motions.push({ v: 'foldVars', frameId: fid, varKeys, texts })
+    }
+  }
   const nameCtx: NameCtx = {
     varName: key => varNameMap.get(key) ?? key.slice(key.indexOf(':') + 1),
     objName: id => {
@@ -491,6 +530,7 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
       }
       motions.push({ v: 'setVar', varKey: key, text: shortText(v, objects) })
     }
+    emitFolds(motions)
     const target = [...objects.entries()]
       .filter(([id]) => castObjects.has(id))
       .sort((a, b) => (b[1].items?.length ?? 0) - (a[1].items?.length ?? 0))[0]
@@ -818,6 +858,9 @@ export function choreograph(events: TraceEvent[], plan: StagePlan, code?: string
 
     if (e.stdout) motions.push({ v: 'stdout', text: e.stdout })
     if (motions.length === 0) continue
+    // 카드가 드는 값은 마지막에 정산한다 — 이 이벤트의 호출·반환·대입이 모두 반영된 뒤여야
+    // 겹침 판정이 맞다. 샷이 되는 이벤트에서만 방출하므로 접힘 표시만 있는 빈 샷은 생기지 않는다
+    emitFolds(motions)
 
     const focusObj = motions.find(m => m.v === 'grow' || m.v === 'bind' || m.v === 'enterObj') as
       | { objectId: number }

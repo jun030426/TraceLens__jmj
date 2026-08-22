@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import gsap from 'gsap'
 import type { Motion, Shot, StagePlan } from './types'
-import { GRID_CELL, type StageLayout } from './layout'
+import { GRID_CELL, STACK_SLOTS, type StageLayout } from './layout'
 import { compose, type Camera, type Composition } from './compose'
 import { detectTheme } from './theme'
 import { GRAMMAR } from './presets'
@@ -22,6 +22,28 @@ const tokSel = (id: number, i: number) => `[data-token="${id}-${i}"]`
 const varSel = (key: string) => `[data-var="${esc(key)}"]`
 const ptrSel = (key: string) => `[data-ptr="${esc(key)}"]`
 const frameSel = (id: number) => `[data-frame="${id}"]`
+
+/** 프레임 카드가 든 값 줄 — 카드 밖으로 나가지 않게 **실제 렌더 폭**으로 맞추고, 못 넣은
+    것은 개수로 밝힌다 (`⋯ 앞선 호출 k개`·`20 / 500`과 같은 계열). 글자폭 상수를 추정하지
+    않는 이유: 폰트가 바뀌면 상수는 조용히 틀린다. 기준은 **가장 좁은 슬롯**의 폭이라
+    창이 스크롤해 카드가 슬롯을 옮겨도 다시 재지 않는다. */
+const fitFrameVals = (el: SVGTextElement, texts: string[], maxW: number) => {
+  if (texts.length === 0) {
+    el.textContent = ''
+    return
+  }
+  for (let n = texts.length; n >= 1; n--) {
+    const hidden = texts.length - n
+    el.textContent = texts.slice(0, n).join(' · ') + (hidden ? ` +${hidden}` : '')
+    if (el.getComputedTextLength() <= maxW) return
+  }
+  // 하나도 통째로는 안 들어간다 — 글자를 줄이고 나머지는 개수로 밝힌다
+  const tail = texts.length > 1 ? ` +${texts.length - 1}` : ''
+  for (let cut = texts[0].length - 1; cut >= 1; cut--) {
+    el.textContent = texts[0].slice(0, cut) + '…' + tail
+    if (el.getComputedTextLength() <= maxW) return
+  }
+}
 
 const VAR_W = 190
 const VAR_H = 36
@@ -152,12 +174,21 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
       }
       gsap.set(
         root.querySelectorAll(
-          '[data-obj], [data-var], [data-frame], [data-cell], [data-token], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done, .film-obj-partial, .film-stack-more',
+          '[data-obj], [data-var], [data-frame], [data-cell], [data-token], [data-gcursor], [data-gtrail], .film-chip, .film-error, .film-loop, .cell-flash, .pill-flash, .cell-ring, .pill-ring, .film-scale, .film-scale-stamp, .cell-done, .film-obj-partial, .film-stack-more, .film-frame-vals',
         ),
         { opacity: 0 },
       )
       // 값 막대는 바닥에서 자란다 — scaleY 하나로 리셋·스크럽이 전부 일관된다
       gsap.set(root.querySelectorAll('.cell-bar'), { scaleY: 0, transformOrigin: '50% 100%' })
+      // 카드가 든 값 — 텍스트와 이름 자리를 초기 상태로 되돌린다. 이름의 y는 attr이라
+      // GSAP의 opacity 리셋 대상 밖이고, 남으면 다음 재생에서 이름이 올라간 채 시작한다
+      for (const f of plan.frames) {
+        const card = q(frameSel(f.frameId))
+        if (!card) continue
+        const vt = card.querySelector('.film-frame-vals')
+        if (vt) vt.textContent = ''
+        card.querySelector('.svg-name')?.setAttribute('y', String(layout.framePos.get(0)!.y + 34))
+      }
       // 저울 빔의 잔여 회전 청소 (attr 기반이라 GSAP 리셋 대상 밖)
       root.querySelector('.film-scale-beam')?.setAttribute('transform', 'rotate(0)')
       // 인덱스 포인터 — 0번 칸 밑에서 숨은 채 시작, 첫 setVar가 자리로 데려간다
@@ -529,6 +560,33 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               )
               const el = q(`${objSel(id)} .film-obj-partial`)
               if (el) tl.to(el, { opacity: text ? 1 : 0, duration: sec(0.25) }, label)
+              break
+            }
+            case 'foldVars': {
+              // 이름이 겹쳐 알약에서 물러난 변수들 — 그 값은 이 프레임의 카드가 든다.
+              // 누가 물러나는지는 의미층이 정했고(varKeys는 compose가 쓴다) 여기서는 적기만 한다.
+              // label·partial과 같은 tl.call 패턴이라 스크럽에 안전하다
+              const fid = m.frameId
+              const texts = m.texts
+              const maxW = (layout.framePos.get(STACK_SLOTS - 1)?.w ?? 188) - 28
+              tl.call(
+                () => {
+                  const el = root.querySelector(`${frameSel(fid)} .film-frame-vals`) as SVGTextElement | null
+                  if (el) fitFrameVals(el, texts, maxW)
+                },
+                undefined,
+                label,
+              )
+              // 값을 받으면 카드가 자리를 내준다 — 이름이 위로 올라가고 값 줄이 켜진다.
+              // 값이 없는 카드는 이름이 세로 중앙에 그대로 있으므로 재귀 아닌 코드는 화면 변화 0.
+              // 위치는 attr 트윈이라 스크럽에서 양방향으로 복원된다 (tl.call과 달리)
+              const has = texts.length > 0
+              const base = layout.framePos.get(0)!
+              const nameEl = q(`${frameSel(fid)} .svg-name`)
+              const valsEl = q(`${frameSel(fid)} .film-frame-vals`)
+              if (nameEl)
+                tl.to(nameEl, { attr: { y: base.y + (has ? 24 : 34) }, duration: sec(0.25), ease: 'power2.out' }, label)
+              if (valsEl) tl.to(valsEl, { opacity: has ? 1 : 0, duration: sec(0.25) }, label)
               break
             }
             case 'label': {
@@ -1268,6 +1326,9 @@ export default function WorldStage({ plan, layout, shots, film }: Props) {
               <text x={r.x + 14} y={r.y + 34} className="svg-name">
                 {f.func === '<module>' ? '프로그램' : f.func}
               </text>
+              {/* 이 프레임이 든 값 — 이름이 겹쳐 알약에서 물러난 변수들 (foldVars).
+                  값을 받기 전에는 꺼져 있고, 이름은 그때 위로 올라간다 */}
+              <text className="film-frame-vals" x={r.x + 14} y={r.y + 44} />
             </g>
           )
         })}

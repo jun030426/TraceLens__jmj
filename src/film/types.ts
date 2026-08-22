@@ -82,6 +82,10 @@ export type Motion =
   | { v: 'sortedSweep'; objectId: number }
   /** 인덱스 변수 선언 — 소스에서 NAME[IDX]로 접지된 변수는 알약이 아니라 그 배열 아래 화살표로 산다 */
   | { v: 'pointer'; varKey: string; objectId: number }
+  /** 이름이 겹쳐 알약에서 물러난 그 프레임의 변수들 — 값은 프레임 카드가 든다.
+      varKeys는 구성이 알약에서 뺄 목록, texts는 카드가 적을 `이름 = 값` (같은 순서).
+      바뀔 때만 방출한다 (label·partial과 같은 스크럽 안전 패턴) */
+  | { v: 'foldVars'; frameId: number; varKeys: string[]; texts: string[] }
 
 export type Shot = {
   seq: number
