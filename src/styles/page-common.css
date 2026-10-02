@@ -1,0 +1,199 @@
+/* [로그인 후 페이지 공통] 메뉴 강조 · 페이지 제목(.course-list-heading) · 요약 카드(.course-summary)
+   · 진행 바 · 빈 화면(.course-empty) · 강의 색상(.course-card-색상) — 학생/교수자 페이지 모두 사용 */
+
+/* 현재 페이지 메뉴 강조 */
+.study-landing-nav a.active {
+  color: #5145f5;
+  font-weight: 700;
+}
+
+.course-list-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f6f7ff 0%, #ffffff 420px);
+}
+
+.course-list-main {
+  max-width: 1180px;
+  margin: 0 auto;
+  /* 헤더가 position: fixed 라면 위쪽 여백을 헤더 높이만큼 늘려주세요 */
+  padding: 56px 24px 96px;
+}
+
+/* HEADING */
+
+.course-list-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.course-list-label {
+  color: #5145f5;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.course-list-heading h1 {
+  margin: 8px 0 6px;
+  color: #172033;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.course-list-heading p {
+  margin: 0;
+  color: #6b7789;
+  font-size: 15px;
+}
+
+.course-list-semester {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: 1px solid rgba(88, 76, 255, 0.22);
+  border-radius: 999px;
+  background: #fff;
+  color: #5145f5;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+/* SUMMARY */
+
+.course-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 32px;
+}
+
+.course-summary-item {
+  padding: 18px 20px;
+  border: 1px solid rgba(208, 223, 242, 0.9);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(87, 75, 230, 0.05);
+}
+
+.course-summary-item span {
+  display: block;
+  color: #8d9aaa;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.course-summary-item strong {
+  display: block;
+  margin-top: 6px;
+  color: #172033;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.course-summary-item small {
+  margin-left: 3px;
+  color: #8d9aaa;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 강의 색상 — course-card-색상 클래스가 --accent 변수를 정해요 */
+
+.course-card-purple { --accent: #5145f5; --accent-soft: #efedff; }
+.course-card-blue   { --accent: #3b82f6; --accent-soft: #e8f1ff; }
+.course-card-green  { --accent: #16a36a; --accent-soft: #e5f7ee; }
+.course-card-orange { --accent: #e8850c; --accent-soft: #fff2e1; }
+.course-card-pink   { --accent: #e0457b; --accent-soft: #fde8ef; }
+
+.course-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.course-card-row span {
+  color: #8d9aaa;
+  font-weight: 600;
+}
+
+.course-card-row strong {
+  color: #172033;
+  font-weight: 700;
+}
+
+.course-progress-track {
+  height: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf1f7;
+}
+
+.course-progress-value {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.5s ease;
+}
+
+/* EMPTY */
+
+.course-empty {
+  padding: 72px 24px;
+  border: 1px dashed rgba(208, 223, 242, 1);
+  border-radius: 20px;
+  background: #fff;
+  text-align: center;
+}
+
+.course-empty-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #efedff;
+  color: #5145f5;
+  font-size: 22px;
+}
+
+.course-empty h2 {
+  margin: 0 0 6px;
+  color: #172033;
+  font-size: 18px;
+}
+
+.course-empty p {
+  margin: 0;
+  color: #8d9aaa;
+  font-size: 14px;
+}
+
+/* MOBILE */
+
+@media (max-width: 900px) {
+  .course-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .course-list-main {
+    padding: 32px 16px 64px;
+  }
+
+  .course-list-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .course-list-heading h1 {
+    font-size: 26px;
+  }
+
+  
+}

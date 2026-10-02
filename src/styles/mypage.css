@@ -1,0 +1,163 @@
+/* [내 정보 페이지 /mypage, /professor/mypage] — 패널/입력창은 professor.css 재사용 */
+
+.mypage-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.mypage-forms {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 프로필 카드 */
+
+.mypage-profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 28px 22px;
+}
+
+.mypage-avatar {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6c5cff, #5145f5);
+  color: #fff;
+  font-size: 32px;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(81, 69, 245, 0.25);
+}
+
+.mypage-professor .mypage-avatar {
+  background: linear-gradient(135deg, #2f3b55, #172033);
+  box-shadow: 0 10px 24px rgba(23, 32, 51, 0.22);
+}
+
+.mypage-name {
+  margin-top: 14px;
+  color: var(--prof-ink);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.mypage-role {
+  margin-top: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(81, 69, 245, 0.1);
+  color: var(--prof-brand);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mypage-summary {
+  width: 100%;
+  margin: 22px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--prof-soft-line);
+  text-align: left;
+}
+
+.mypage-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.mypage-summary dt {
+  flex-shrink: 0;
+  color: var(--prof-muted);
+}
+
+.mypage-summary dd {
+  margin: 0;
+  color: var(--prof-ink);
+  font-weight: 600;
+  word-break: break-all;
+  text-align: right;
+}
+
+/* 알림 메시지 */
+
+.mypage-notice {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mypage-notice.success {
+  background: #ecfaf1;
+  color: #16834a;
+}
+
+.mypage-notice.error {
+  background: #fff1f1;
+  color: #d23b3b;
+}
+
+/* 버튼 */
+
+.mypage-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.mypage-btn {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.mypage-btn.primary {
+  border: 0;
+  background: var(--prof-brand);
+  color: #fff;
+}
+
+.mypage-btn.primary:hover:not(:disabled) {
+  background: #4337e0;
+}
+
+.mypage-btn.secondary {
+  border: 1px solid var(--prof-line);
+  background: #fff;
+  color: var(--prof-text);
+}
+
+.mypage-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 860px) {
+  .mypage-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .mypage .prof-field-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

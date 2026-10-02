@@ -1,0 +1,197 @@
+/* [학생 출석 현황 페이지 /attendance] — 목록 모양은 student-courses.css(.s-list, .s-row) 재사용 */
+
+.course-summary.att-summary {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.att-text-warn {
+  color: #d9780a !important;
+}
+
+.att-grid {
+  grid-template-columns: minmax(240px, 2.4fr) minmax(160px, 1.4fr) 100px 80px;
+}
+
+/* 출석률 막대 색: 상태에 따라 */
+.att-bar.ok i {
+  background: #16a36a;
+}
+.att-bar.warn i {
+  background: #e8930c;
+}
+.att-bar.danger i {
+  background: #d05a5a;
+}
+
+.att-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.att-badge.ok {
+  background: #e5f7ee;
+  color: #16a36a;
+}
+.att-badge.warn {
+  background: #fff2e1;
+  color: #d9780a;
+}
+.att-badge.danger {
+  background: #fff1f1;
+  color: #d05a5a;
+}
+
+.att-hint {
+  margin: 14px 4px 0;
+  color: #8d9aaa;
+  font-size: 12px;
+}
+
+/* 토끼 상태 카드 */
+.att-mood {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+  padding: 16px 22px;
+  border: 1px solid rgba(208, 223, 242, 0.9);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(62, 98, 144, 0.06);
+}
+
+.att-mood-img {
+  flex-shrink: 0;
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+  animation: attMoodIn 0.4s ease-out;
+}
+
+.att-mood strong {
+  display: block;
+  color: #172033;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.att-mood p {
+  margin: 4px 0 0;
+  color: #6b7789;
+  font-size: 14px;
+}
+
+.att-mood-fire {
+  border-color: #ffd2a8;
+  background: linear-gradient(90deg, #fff4e8 0%, #fff 70%);
+}
+
+.att-mood-fire strong {
+  color: #e0560b;
+}
+
+.att-mood-sleep {
+  border-color: #d6dcf5;
+  background: linear-gradient(90deg, #eef1fb 0%, #fff 70%);
+}
+
+.att-mood-sleep strong {
+  color: #4a5aa8;
+}
+
+.att-mood-cry {
+  border-color: #cfe3fb;
+  background: linear-gradient(90deg, #eaf4ff 0%, #fff 70%);
+}
+
+.att-mood-cry strong {
+  color: #2f78c4;
+}
+
+@keyframes attMoodIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .att-mood-img {
+    animation: none;
+  }
+}
+
+/* 출석 스탬프 계단 패널 */
+.att-stairs-panel {
+  margin-bottom: 24px;
+  padding: 22px;
+  border: 1px solid rgba(208, 223, 242, 0.9);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(62, 98, 144, 0.06);
+}
+
+.att-stairs-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.att-stairs-head h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.att-stairs-head p {
+  margin: 4px 0 0;
+  color: #8d9aaa;
+  font-size: 13px;
+}
+
+.att-course-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.att-chip {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(208, 223, 242, 0.9);
+  border-radius: 999px;
+  background: #fff;
+  color: #465469;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.att-chip:hover {
+  border-color: var(--accent);
+}
+
+.att-chip.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+@media (max-width: 860px) {
+  .course-summary.att-summary {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .att-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

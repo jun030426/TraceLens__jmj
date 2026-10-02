@@ -1,0 +1,269 @@
+/* [학생 퀴즈 목록 페이지 /quiz] + 필터 칩(.quiz-filter) · 버튼(.quiz-btn, .quiz-generate-btn)은 교수자 페이지도 사용
+   - 페이지 제목·요약 카드·진행 바·빈 화면은 page-common.css 재사용 */
+
+/* AI 퀴즈 만들기 버튼 */
+
+.quiz-generate-btn {
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #5145f5 0%, #6659f5 55%, #7167f4 100%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(81, 69, 245, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quiz-generate-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(81, 69, 245, 0.32);
+}
+
+/* 강의별 필터 */
+
+.quiz-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.quiz-filter button {
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid rgba(208, 223, 242, 0.9);
+  border-radius: 999px;
+  background: #fff;
+  color: #465469;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.quiz-filter button:hover {
+  border-color: rgba(88, 76, 255, 0.4);
+  color: #5145f5;
+}
+
+.quiz-filter button.active {
+  border-color: #5145f5;
+  background: #5145f5;
+  color: #fff;
+}
+
+/* 카드 */
+
+.quiz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.quiz-card {
+  --accent: #5145f5;
+  --accent-soft: #efedff;
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid rgba(208, 223, 242, 0.9);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(62, 98, 144, 0.06);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.quiz-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 16px 32px rgba(62, 98, 144, 0.12);
+}
+
+.quiz-card-purple { --accent: #5145f5; --accent-soft: #efedff; }
+.quiz-card-blue   { --accent: #3b82f6; --accent-soft: #e8f1ff; }
+.quiz-card-green  { --accent: #16a36a; --accent-soft: #e5f7ee; }
+.quiz-card-orange { --accent: #e8850c; --accent-soft: #fff2e1; }
+.quiz-card-pink   { --accent: #e0457b; --accent-soft: #fde8ef; }
+
+.quiz-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.quiz-card-course {
+  overflow: hidden;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quiz-card-badges {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.quiz-badge {
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quiz-badge.ai   { background: #f3f0ff; color: #6d5cf6; }
+.quiz-badge.done { background: #e5f7ee; color: #16a36a; }
+.quiz-badge.todo { background: #fff2e1; color: #d9780a; }
+
+.quiz-card-info h2 {
+  margin: 0 0 4px;
+  color: #172033;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.quiz-card-info p {
+  margin: 0;
+  color: #6b7789;
+  font-size: 14px;
+}
+
+/* 점수 영역 */
+
+.quiz-card-score {
+  padding: 14px;
+  border-radius: 12px;
+  background: #f7f9fc;
+}
+
+.quiz-card-score-main {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.quiz-card-score-main strong {
+  color: #172033;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.quiz-card-score-main span {
+  color: #8d9aaa;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.quiz-card-score-main em {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+/* page-common.css 의 진행 바는 --accent 를 사용하므로 그대로 동작 */
+.quiz-card .course-progress-track {
+  margin-top: 8px;
+}
+
+.quiz-card-score p {
+  margin: 10px 0 0;
+  color: #8d9aaa;
+  font-size: 12px;
+}
+
+.quiz-card-score.empty {
+  display: grid;
+  place-items: center;
+  min-height: 86px;
+}
+
+.quiz-card-score.empty p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* 버튼 */
+
+.quiz-card-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.quiz-btn {
+  flex: 1;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.15s ease, filter 0.15s ease;
+}
+
+.quiz-btn.primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.quiz-btn.primary:hover {
+  filter: brightness(1.08);
+}
+
+.quiz-btn.secondary {
+  border: 1px solid rgba(208, 223, 242, 0.9);
+  background: #fff;
+  color: #465469;
+}
+
+.quiz-btn.secondary:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.quiz-btn:focus-visible,
+.quiz-filter button:focus-visible,
+.quiz-generate-btn:focus-visible {
+  outline: 3px solid #5145f5;
+  outline-offset: 2px;
+}
+
+/* MOBILE */
+
+@media (max-width: 760px) {
+  .quiz-generate-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .quiz-filter {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .quiz-filter button {
+    flex-shrink: 0;
+  }
+
+  .quiz-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,43 @@
+/* [회원가입 페이지] 아이디 라벨 + [학번 | 교수자] 선택 버튼 (components/auth/RoleToggle.tsx) */
+
+.id-label-row {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.role-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  background: #f1eefc;
+}
+
+.role-toggle button {
+  padding: 2px 10px;
+  line-height: 16px; /* 토글 전체 높이 24px 로 고정 */
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #8a85a6;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.role-toggle button.active {
+  background: #fff;
+  color: #6d4ef0;
+  box-shadow: 0 1px 4px rgba(43, 37, 89, 0.12);
+}
+
+.role-toggle button:focus-visible {
+  outline: 2px solid #a78bfa;
+  outline-offset: 1px;
+}

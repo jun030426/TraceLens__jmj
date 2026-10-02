@@ -1,0 +1,373 @@
+/* [출석 스탬프 계단] components/attendance/AttendanceStairs.tsx — 계단 높이·토끼 위치는 CSS 변수로 계산 */
+
+.stairs {
+  --step-base: 34px; /* 출발점 높이 */
+  --stage-h: 320px; /* 무대 전체 높이 */
+  --rabbit-w: 78px;
+  --rise: calc((var(--stage-h) - var(--step-base) - 110px) / (var(--cols) - 1)); /* 한 칸 높이 */
+}
+
+.stairs-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.stairs-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #6b7789;
+  font-size: 14px;
+}
+
+.stairs-count strong {
+  color: #e06a00;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.stairs-replay {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(208, 223, 242, 0.9);
+  border-radius: 10px;
+  background: #fff;
+  color: #465469;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.stairs-replay:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.stairs-scroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.stairs-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  align-items: end;
+  min-width: calc(var(--cols) * 46px);
+  height: var(--stage-h);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 85% 18%, rgba(255, 222, 140, 0.45) 0, transparent 28%),
+    linear-gradient(180deg, #eef4ff 0%, #f8fbff 70%, #fff 100%);
+}
+
+/* 계단 한 칸 */
+.stairs-step {
+  position: relative;
+  height: calc(var(--step-base) + var(--k) * var(--rise));
+  border-radius: 8px 8px 0 0;
+  background: #dfe5f1;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.7);
+  transition: background 0.3s ease;
+}
+
+.stairs-step + .stairs-step {
+  margin-left: 2px;
+}
+
+.stairs-step.start {
+  background: #c9e8c4;
+}
+
+/* 출석해서 받을 칸(아직 토끼가 안 왔어도) */
+.stairs-step.earned {
+  background: #e9e4ff;
+}
+
+/* 토끼가 지나간 칸 */
+.stairs-step.reached {
+  background: #b9b0ff;
+}
+
+.stairs-step.goal {
+  background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.35) 0 6px, transparent 6px 12px);
+}
+
+.stairs-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  color: #8d9aaa;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.stairs-step.reached .stairs-label {
+  color: #fff;
+}
+
+/* 출석 도장 */
+.stairs-stamp {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  border-radius: 50%;
+  background: #fff;
+  color: #5145f5;
+  font-size: 11px;
+  font-weight: 800;
+  animation: stampIn 0.35s ease-out both;
+}
+
+/* 계단 위 당근 */
+.stairs-carrot {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-bottom: 2px;
+  transform: translateX(-50%);
+  line-height: 0;
+  animation: carrotBob 2.4s ease-in-out infinite;
+  animation-delay: calc(var(--k) * -0.15s);
+}
+
+/* 아직 출석 전인 칸의 당근은 흐리게 */
+.stairs-carrot.later {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+}
+
+/* 토끼가 도착하면 당근이 위로 튀어 오르며 사라짐 (= 토끼가 챙김) */
+.stairs-carrot.collect {
+  animation: carrotCollect 0.5s ease-in forwards;
+  animation-delay: calc(var(--hop-ms) * 0.45);
+}
+
+.stairs-carrot.gone {
+  visibility: hidden;
+}
+
+/* 토끼: 칸 가운데, 계단 윗면 위에 서 있게 */
+.stairs-rabbit {
+  position: absolute;
+  z-index: 2;
+  /* 마지막 칸에서 무대 밖으로 잘리지 않게 오른쪽 끝을 넘지 않도록 */
+  left: min(
+    calc((var(--p) + 0.5) * 100% / var(--cols)),
+    calc(100% - var(--rabbit-w) / 2 - 4px)
+  );
+  bottom: calc(var(--step-base) + var(--p) * var(--rise) - 6px);
+  width: var(--rabbit-w);
+  transform: translateX(-50%);
+  transition:
+    left var(--hop-ms) ease-in-out,
+    bottom var(--hop-ms) cubic-bezier(0.3, 0, 0.6, 1);
+  pointer-events: none;
+}
+
+.stairs-rabbit-hop {
+  position: relative;
+  transform-origin: 50% 100%;
+}
+
+.stairs-rabbit-hop.hop {
+  animation: rabbitHop var(--hop-ms) ease-out;
+}
+
+.stairs-rabbit img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 6px 6px rgba(23, 32, 51, 0.18));
+  user-select: none;
+}
+
+/* 토끼가 챙긴 당근 개수 */
+.stairs-bag {
+  position: absolute;
+  top: -6px;
+  left: -14px; /* 오른쪽 끝(마지막 칸)에서도 잘리지 않게 왼쪽에 */
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 7px 2px 4px;
+  border-radius: 999px;
+  background: #fff;
+  color: #e06a00;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 3px 8px rgba(23, 32, 51, 0.15);
+  animation: bagBump 0.35s ease-out;
+  animation-delay: calc(var(--hop-ms) * 0.5);
+  animation-fill-mode: backwards;
+}
+
+.stairs-message {
+  margin: 10px 2px 0;
+  color: #465469;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 다 올라간 뒤 상태 토끼로 바뀔 때 */
+.stairs-rabbit-hop.mood {
+  animation: moodPop 0.4s ease-out;
+}
+
+/* 불타는 토끼: 살짝 들썩 */
+.stairs-rabbit-hop.mood-fire img {
+  animation: moodFire 0.9s ease-in-out 0.4s infinite;
+}
+
+/* 자는 토끼: 천천히 숨쉬기 */
+.stairs-rabbit-hop.mood-sleep img {
+  transform-origin: 50% 100%;
+  animation: moodBreath 2.6s ease-in-out 0.4s infinite;
+}
+
+/* 우는 토끼: 작게 흐느낌 */
+.stairs-rabbit-hop.mood-cry img {
+  animation: moodSob 1.4s ease-in-out 0.4s infinite;
+}
+
+@keyframes moodPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes moodFire {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.03);
+  }
+}
+
+@keyframes moodBreath {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.02, 0.96);
+  }
+}
+
+@keyframes moodSob {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-1.5px);
+  }
+  75% {
+    transform: translateX(1.5px);
+  }
+}
+
+@keyframes rabbitHop {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  15% {
+    transform: translateY(0) scale(1.08, 0.9);
+  }
+  50% {
+    transform: translateY(-34px) scale(0.95, 1.06) rotate(-4deg);
+  }
+  85% {
+    transform: translateY(0) scale(1.06, 0.92);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
+@keyframes carrotBob {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, -3px);
+  }
+}
+
+@keyframes carrotCollect {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  40% {
+    opacity: 1;
+    transform: translate(-50%, -22px) scale(1.3) rotate(-15deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-10%, -46px) scale(0.4) rotate(20deg);
+  }
+}
+
+@keyframes stampIn {
+  from {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+@keyframes bagBump {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stairs-rabbit,
+  .stairs-step {
+    transition: none;
+  }
+
+  .stairs-carrot,
+  .stairs-bag,
+  .stairs-stamp,
+  .stairs-rabbit-hop.mood,
+  .stairs-rabbit-hop.mood img {
+    animation: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .stairs {
+    --stage-h: 270px;
+    --rabbit-w: 60px;
+  }
+}

@@ -1,0 +1,459 @@
+/* [학생 수강목록 페이지 /courses] 탭 · 강의 한 줄 목록(.s-list) · 수강 신청 확인 창 — 출석 현황 페이지도 목록 모양 사용 */
+
+/* 탭 */
+.s-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 4px;
+  width: fit-content;
+  border-radius: 14px;
+  background: #eef1f8;
+}
+
+.s-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #6b7789;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.s-tabs button.active {
+  background: #fff;
+  color: #172033;
+  box-shadow: 0 2px 8px rgba(23, 32, 51, 0.08);
+}
+
+.s-tabs em {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #e2e6f0;
+  color: #6b7789;
+  font-size: 12px;
+  font-style: normal;
+  text-align: center;
+}
+
+.s-tabs button.active em {
+  background: #efedff;
+  color: #5145f5;
+}
+
+/* 알림 */
+.s-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #ecfaf1;
+  color: #16834a;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.s-notice.error {
+  background: #fff1f1;
+  color: #d23b3b;
+}
+
+.s-notice button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* 목록 */
+.s-list {
+  overflow: hidden;
+  border: 1px solid rgba(208, 223, 242, 0.9);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(62, 98, 144, 0.06);
+}
+
+.s-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 열 너비 */
+.s-grid-mine {
+  grid-template-columns: minmax(240px, 2.4fr) minmax(150px, 1.5fr) minmax(140px, 1.2fr) 90px;
+}
+
+.s-grid-enroll {
+  grid-template-columns: minmax(240px, 2.4fr) minmax(150px, 1.5fr) 90px 90px 96px;
+}
+
+.s-list-head,
+.s-row {
+  display: grid;
+  align-items: center;
+  gap: 16px;
+  padding: 0 22px;
+}
+
+.s-list-head {
+  height: 44px;
+  border-bottom: 1px solid #edf2f8;
+  background: #f7f9fc;
+  color: #8d9aaa;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.s-row {
+  position: relative;
+  min-height: 76px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  color: #465469;
+  font-size: 14px;
+  transition: background 0.15s ease;
+}
+
+.s-list li + li {
+  border-top: 1px solid #edf2f8;
+}
+
+/* 왼쪽 강의 색 띠 */
+.s-row::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--accent);
+}
+
+.s-row:hover {
+  background: #fafbff;
+}
+
+.s-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.s-title > div {
+  min-width: 0;
+}
+
+.s-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.s-title strong {
+  display: block;
+  overflow: hidden;
+  color: #172033;
+  font-size: 15px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.s-title small {
+  display: block;
+  margin-top: 3px;
+  color: #8d9aaa;
+  font-size: 12px;
+}
+
+.s-desc {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: #6b7789;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.s-cell b {
+  color: #172033;
+  font-weight: 800;
+}
+
+.s-muted {
+  color: #8d9aaa;
+}
+
+.s-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.s-bar {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf2f8;
+}
+
+.s-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.s-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.s-btn {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #f1f4f8;
+  color: #8d9aaa;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.s-btn.primary {
+  background: #5145f5;
+  color: #fff;
+}
+
+.s-btn.primary:hover {
+  background: #4337e0;
+}
+
+.s-btn.ghost {
+  border: 1px solid rgba(208, 223, 242, 0.9);
+  background: #fff;
+  color: #465469;
+}
+
+.s-btn.ghost:hover {
+  border-color: #d05a5a;
+  color: #d05a5a;
+}
+
+.s-btn:disabled {
+  cursor: default;
+}
+
+/* 상태 배지 */
+.enroll-state {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.enroll-state.open {
+  background: #efedff;
+  color: #5145f5;
+}
+.enroll-state.pending {
+  background: #fff2e1;
+  color: #d9780a;
+}
+.enroll-state.enrolled {
+  background: #e5f7ee;
+  color: #16a36a;
+}
+.enroll-state.rejected {
+  background: #fff1f1;
+  color: #d05a5a;
+}
+.enroll-state.full {
+  background: #f1f4f8;
+  color: #6b7789;
+}
+
+/* 수강 신청 확인 창 */
+.s-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(23, 32, 51, 0.45);
+  animation: sFade 0.15s ease-out;
+}
+
+.s-modal {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 380px;
+  padding: 28px 24px 22px;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(23, 32, 51, 0.25);
+  text-align: center;
+  animation: sPop 0.18s ease-out;
+}
+
+.s-modal-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  border-radius: 16px;
+  background: var(--accent-soft, #efedff);
+  color: var(--accent, #5145f5);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.s-modal-icon.done {
+  border-radius: 50%;
+  background: #e5f7ee;
+  color: #16a36a;
+}
+
+.s-modal-icon.error {
+  border-radius: 50%;
+  background: #fff1f1;
+  color: #d05a5a;
+}
+
+.s-modal h2 {
+  margin: 0 0 14px;
+  color: #172033;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.s-modal-course {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f7f9fc;
+  color: #6b7789;
+  font-size: 13px;
+}
+
+.s-modal-course strong {
+  color: #172033;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.s-modal-text {
+  margin: 0;
+  color: #465469;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.s-modal-text b {
+  color: #172033;
+}
+
+.s-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.s-modal-actions .s-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.s-btn:focus-visible {
+  outline: 3px solid rgba(81, 69, 245, 0.35);
+  outline-offset: 2px;
+}
+
+@keyframes sFade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sPop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* 좁은 화면: 표 머리 숨기고 강의 하나를 작은 카드처럼 */
+@media (max-width: 860px) {
+  .s-list-head {
+    display: none;
+  }
+
+  .s-grid-mine,
+  .s-grid-enroll {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 16px;
+    padding: 16px 18px 16px 22px;
+  }
+
+  .s-title,
+  .s-action {
+    grid-column: 1 / -1;
+  }
+
+  .s-action .s-btn {
+    width: 100%;
+  }
+
+  .s-cell::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    color: #8d9aaa;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .s-tabs {
+    width: 100%;
+  }
+
+  .s-tabs button {
+    flex: 1;
+    justify-content: center;
+  }
+}
