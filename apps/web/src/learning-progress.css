@@ -1,0 +1,335 @@
+.learning-progress {
+  margin-top: 24px;
+}
+.material-week {
+  scroll-margin-top: 24px;
+}
+.learning-progress [hidden] {
+  display: none !important;
+}
+.learning-view-tabs {
+  display: flex;
+  gap: 22px;
+  border-bottom: 1px solid #e7dfed;
+  margin-bottom: 24px;
+}
+.learning-view-tabs button {
+  border: 0;
+  border-radius: 0;
+  padding: 10px 0 13px;
+  background: transparent;
+  color: #756880;
+  font-size: 14px;
+}
+.learning-view-tabs button[aria-pressed="true"] {
+  color: #513368;
+  border-bottom: 2px solid #856298;
+  font-weight: 700;
+}
+.learning-progress .concept-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.learning-progress .concept-section-heading h3 {
+  margin: 0;
+  color: #352940;
+  font-size: 17px;
+  letter-spacing: -0.4px;
+}
+.concept-section-heading > span,
+.concept-section-heading h3 > span {
+  font-size: 12px;
+  color: #776485;
+  font-weight: 400;
+}
+.concept-kicker {
+  display: block;
+  font-size: 12px;
+  color: #785d8c;
+  margin-bottom: 7px;
+}
+.learning-progress .concept-recommendations {
+  padding: 20px;
+  background: #f8f4fc;
+  border: 1px solid #e5d9ef;
+  border-radius: 13px;
+  margin: 0 0 27px;
+}
+.concept-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 0;
+  border-top: 1px solid #e8dfef;
+}
+.concept-suggestion:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.concept-suggestion:last-child {
+  padding-bottom: 0;
+}
+.concept-suggestion > div {
+  min-width: 0;
+}
+.concept-suggestion strong {
+  color: #432c53;
+  font-size: 17px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.concept-suggestion p {
+  font-size: 13px !important;
+  line-height: 1.65 !important;
+  margin: 6px 0 0;
+}
+.concept-study-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 11px;
+  border: 1px solid #cebadd;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.concept-study-link:hover {
+  background: #f0e8fa;
+}
+.concept-filters {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.5fr) repeat(3, minmax(90px, 1fr));
+  gap: 10px;
+}
+.learning-progress .concept-filters label,
+.learning-progress .learning-date-filter label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+}
+.learning-progress :is(input, select) {
+  width: 100%;
+  min-width: 0;
+  height: 39px;
+  font: inherit;
+  font-size: 13px;
+  background: #fff;
+  color: #4a3856;
+  border: 1px solid #dfd5e7;
+  border-radius: 7px;
+  padding: 8px 10px;
+  margin: 0;
+}
+.concept-result-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 15px 0 10px;
+  color: #776485;
+  font-size: 12px;
+}
+.learning-progress .concept-text-button {
+  border: 0;
+  padding: 5px 0;
+  background: transparent;
+  color: #735382;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.concept-recommendations > .concept-text-button {
+  margin-top: 14px;
+}
+.concept-list {
+  border-top: 1px solid #e7dfed;
+}
+.concept-list-item {
+  padding: 15px 0 11px;
+  border-bottom: 1px solid #ece6f1;
+}
+.concept-item-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.concept-item-main > div {
+  flex: 1;
+  min-width: 0;
+}
+.concept-item-main h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.concept-week-label {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #7d6d87;
+}
+.concept-status {
+  font-size: 11px;
+  white-space: nowrap;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: #f4f1f7;
+  color: #76657f;
+}
+.concept-status.is-review {
+  background: #f9f0e4;
+  color: #8b602e;
+}
+.concept-status.is-mastered {
+  background: #edf5ef;
+  color: #43634e;
+}
+.learning-progress .concept-detail {
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.concept-detail summary {
+  cursor: pointer;
+  width: fit-content;
+  font-size: 11px;
+  color: #7b6a86;
+  padding: 3px 0;
+}
+.concept-detail > div {
+  margin-top: 8px;
+  padding: 10px 13px;
+  border-radius: 7px;
+  background: #f8f6fa;
+}
+.concept-detail p {
+  margin: 0;
+  font-size: 12px !important;
+}
+.concept-detail p + p {
+  margin-top: 5px;
+}
+.learning-progress .concept-quiet {
+  padding: 12px 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.learning-pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-top: 18px;
+}
+.learning-pager span {
+  font-size: 12px;
+  color: #776485;
+}
+.learning-pager button {
+  font-size: 12px;
+  min-height: 36px;
+  background: #fff;
+}
+.learning-date-filter {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.learning-date-filter label {
+  flex: 1;
+  min-width: 130px;
+}
+.learning-date-filter button {
+  min-height: 39px;
+  font-size: 12px;
+}
+.learning-history-count {
+  font-size: 12px !important;
+}
+.learning-history-item {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid #ece6f1;
+  padding: 17px 0;
+}
+.learning-history-item time {
+  color: #574260;
+  font-size: 13px;
+}
+.learning-history-item > div {
+  flex: 1;
+}
+.learning-history-item strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 550;
+}
+.learning-history-item > div > span {
+  display: block;
+  font-size: 12px;
+  color: #7b6a86;
+  margin-top: 4px;
+}
+.learning-history-item > a {
+  font-size: 12px;
+}
+@media (max-width: 1000px) {
+  .concept-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .concept-search {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 600px) {
+  .learning-progress .concept-recommendations {
+    padding: 16px;
+  }
+  .concept-suggestion {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .concept-item-main {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .concept-item-main > div {
+    min-width: 55%;
+  }
+  .concept-item-main .concept-study-link {
+    min-height: 40px;
+  }
+  .concept-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .concept-filters label:last-child {
+    grid-column: 1 / -1;
+  }
+  .concept-result-caption {
+    flex-wrap: wrap;
+  }
+  .learning-history-item {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .learning-history-item > a {
+    flex-basis: 100%;
+  }
+}

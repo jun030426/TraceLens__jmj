@@ -1,0 +1,122 @@
+/* Shared navigation: a disclosure on narrow screens, ordinary links on desktop. */
+#root .app-header .mobile-menu-toggle { display:none; }
+#root .app-header :is(a,button):focus-visible { outline:3px solid #9777b5; outline-offset:3px; }
+@media (max-width:760px) {
+  #root header.app-header { position:relative; display:flex; flex-wrap:nowrap; align-items:center; gap:12px; height:72px; min-height:72px; padding:12px 20px; z-index:30; }
+  #root .app-header .brand { font-size:25px; margin:0; }
+  #root .app-header .lesson-exit { margin:0 0 0 auto; min-height:44px; font-size:13px; white-space:nowrap; }
+  #root .app-header .mobile-menu-toggle { display:inline-flex; align-items:center; justify-content:center; gap:7px; margin:0 0 0 auto; min-height:44px; padding:8px 12px; font-size:14px; border-radius:10px; flex-shrink:0; }
+  #root .app-header.lesson-header .mobile-menu-toggle { margin-left:0; }
+  #root .mobile-menu-toggle > span { font-size:19px; }
+  #root header.app-header #app-navigation { display:none; position:absolute; top:calc(100% - 1px); left:12px; right:12px; width:auto; margin:0; padding:12px; border:1px solid #ded3e7; border-radius:0 0 14px 14px; background:#fff; box-shadow:0 12px 26px #30273e18; max-height:calc(100dvh - 88px); overflow-y:auto; }
+  #root header.app-header #app-navigation[data-open=true] { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  #root header.app-header #app-navigation :is(a,button) { display:flex; align-items:center; justify-content:flex-start; min-height:44px; padding:10px 14px; font-size:14px; line-height:1.5; margin:0; border-radius:8px; }
+  #root header.app-header #app-navigation a.active { background:#f0eaf7; font-weight:650; }
+  #root header.app-header #app-navigation > span { display:block; grid-column:1/-1; padding:8px 14px; font-size:12px; color:#665b72; }
+}
+
+/* Keep all messages and archives reachable while the composer remains in view. */
+.chat-mobile-course { display:none; }
+#root .chat-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-shrink:0; }
+#root .chat-heading h2 { font-size:19px; line-height:1.5; margin:0; }
+#root .chat-heading button { flex-shrink:0; min-height:40px; margin:0; padding:8px 14px; font-size:13px; }
+#root .chat-page { padding-top:24px; padding-bottom:24px; }
+#root .chat-page > .student-eyebrow { display:none; }
+#root .chat-page > h1 { margin:0 0 6px; font-size:30px; }
+#root .chat-page .ai-page-description { margin:0; font-size:13px; }
+#root .chat-page .ai-workspace { margin-top:16px; }
+#root .chat-page .chat { display:flex; flex-direction:column; height:calc(100dvh - 224px); min-height:400px; padding:20px; box-sizing:border-box; }
+#root .chat-page .chat > .muted { flex-shrink:0; padding:5px 0 8px; margin:0; font-size:12px; border:0; line-height:1.6; }
+#root .chat-page .chat .chat-messages { flex:1; min-height:0; max-height:none; overflow-y:auto; margin:0; padding:12px 6px 12px 0; overscroll-behavior:contain; }
+#root .chat-page .chat-welcome { padding:18px 4px; }
+#root .chat-page .chat-archive { flex-shrink:0; padding:0; margin:0; border-top:1px solid #eee8f2; border-bottom:1px solid #eee8f2; }
+#root .chat-page .chat-archive > summary { min-height:40px; padding:10px 0; box-sizing:border-box; font-size:13px; cursor:pointer; }
+#root .chat-page .chat-archive[open] { display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+#root .chat-page .chat-archive[open] > summary { position:sticky; top:0; background:#fff; z-index:1; }
+#root .chat-page .chat:has(> .chat-archive[open]) .chat-messages { display:none; }
+#root .chat-page .chat-composer { flex-shrink:0; border-top:1px solid #eee8f2; background:#fff; padding-top:10px; }
+#root .chat-page .chat-composer .form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:end; margin:0; }
+#root .chat-page .chat-composer fieldset { min-width:0; margin:0; padding:0; }
+#root .chat-page .chat-composer label { display:grid; gap:5px; }
+#root .chat-page .chat-composer textarea { display:block; box-sizing:border-box; width:100%; height:72px; min-height:72px; max-height:120px; resize:vertical; padding:10px 12px; line-height:1.6; margin:0; }
+#root .chat-page .chat-composer .primary { margin:0; min-height:44px; padding:10px 16px; }
+#root .chat-page .chat-composer .error { grid-column:1/-1; grid-row:2; margin:0; }
+@media (max-width:760px) {
+  #root .chat-page { padding-top:18px; }
+  #root .chat-page > h1 { font-size:26px; }
+  #root .chat-page .ai-workspace { display:flex; flex-direction:column; gap:12px; margin-top:12px; }
+  #root .chat-page .course-rail { display:none; }
+  #root .chat-page .ai-workspace > div { width:100%; min-width:0; }
+  #root .chat-page .chat-mobile-course { display:block; }
+  #root .chat-mobile-course label { display:grid; gap:5px; font-size:12px; }
+  #root .chat-mobile-course select { width:100%; min-width:0; min-height:44px; margin:0; padding:9px 12px; font:inherit; font-size:13px; border:1px solid #dfd5e7; border-radius:8px; background:#fff; color:#4a3856; }
+  #root .chat-page .chat { height:calc(100dvh - 280px); min-height:400px; padding:14px; }
+  #root .chat-heading h2 { font-size:16px; }
+  #root .chat-heading button { padding:7px 10px; }
+  #root .chat-page .chat-composer .form { gap:8px; }
+  #root .chat-page .chat-composer textarea { font-size:16px; }
+  #root .chat-page .chat-composer .primary { font-size:13px; padding:10px 12px; }
+}
+
+/* Material rows expand in place; filters apply to the entire course. */
+#root .teacher-materials .materials-heading { margin:0; }
+#root .teacher-materials .materials-heading h2 { margin:0 0 8px; }
+#root .teacher-materials .materials-heading p { margin:0; }
+#root .teacher-materials .material-more { margin:0; padding:0; }
+#root .teacher-materials .material-list-tools { grid-column:1/-1; margin:0; align-items:end; gap:12px; }
+#root .material-list-tools label:first-child { flex:2 1 220px; }
+#root .material-list-tools label { flex:1 1 140px; }
+#root .material-list-tools .material-filter-count { flex-basis:100%; margin:0; font-size:12px; }
+#root .teacher-materials .material { grid-template-columns:minmax(0,1fr) 165px 112px; padding:16px 20px; gap:10px 20px; }
+#root .teacher-materials .material h3 { font-size:15px; line-height:1.5; margin:4px 0 0; }
+#root .teacher-materials .material-more summary { min-height:44px; padding:8px 10px; box-sizing:border-box; font-size:13px; }
+#root .teacher-materials .material-more[open] { grid-column:1/-1; }
+#root .teacher-materials .material-detail-state { border-radius:10px; background:#f8f5fb; padding:12px 16px; margin-top:8px; }
+#root .teacher-materials .material-detail-state p { font-size:13px; line-height:1.7; margin:0 0 5px; }
+#root .teacher-materials .material-detail-state button { margin:8px 0 0; min-height:40px; padding:8px 12px; font-size:13px; }
+#root .teacher-materials .material .actions { margin-top:12px; padding-top:12px; gap:8px 16px; }
+#root .teacher-materials .material .actions :is(a,button) { display:inline-flex; align-items:center; min-height:40px; font-size:13px; padding:8px 10px; box-sizing:border-box; }
+#root .teacher-materials .student-list-count { padding:12px 20px; margin:0; border-bottom:1px solid #eee8f2; }
+#root .teacher-materials .student-list-pager { padding:16px 20px; margin:0; border-top:1px solid #eee8f2; }
+#root .teacher-materials .student-list-pager span { display:block; font-size:13px; }
+@media (max-width:700px) {
+  #root .teacher-materials .material { grid-template-columns:minmax(0,1fr) auto; padding:14px; gap:8px 12px; }
+  #root .teacher-materials .material > div:first-child { grid-column:1/-1; }
+  #root .teacher-materials .material-state { grid-column:1; grid-row:2; }
+  #root .teacher-materials .material-more { grid-column:2; grid-row:2; }
+  #root .teacher-materials .material-more[open] { grid-column:1/-1; grid-row:3; }
+  #root .teacher-materials .materials-heading { flex-wrap:wrap; }
+  #root .teacher-materials .material-list-tools label { min-width:0; }
+}
+
+/* Less introductory chrome, more room for the learning action. */
+#root .quiz-catalog { padding-top:24px; }
+#root .quiz-catalog > h1 { font-size:32px; margin:6px 0; }
+#root .quiz-catalog .quiz-description { margin:0 0 14px; }
+#root .quiz-catalog .quiz-streak-summary { margin:14px 0; padding:10px 16px; gap:8px 20px; }
+#root .quiz-catalog .quiz-streak-summary strong { font-size:16px; }
+#root .quiz-catalog .quiz-criteria-toggle { min-height:40px; margin:0; }
+#root .quiz-catalog > .student-list-tools { margin:14px 0; }
+#root .quiz-catalog .quiz-section-heading { margin:18px 0 12px; }
+#root .quiz-catalog .quiz-section-heading h2 { font-size:20px; margin:0; }
+#root .quiz-catalog .quiz-course-heading { margin:0 0 12px; padding:0; }
+#root .quiz-catalog .quiz-course-heading h3 { font-size:17px; }
+#root .quiz-catalog .quiz-mode-card { padding:20px; min-height:0; gap:0; }
+#root .quiz-catalog .quiz-mode-card h4 { font-size:20px; margin:14px 0 8px; }
+#root .quiz-catalog .quiz-mode-description { margin:0 0 14px; font-size:13px; }
+#root .quiz-catalog .quiz-mode-footer { padding-top:12px; gap:10px; }
+#root .quiz-catalog .quiz-mode-footer p { font-size:12px; flex:1 1 140px; }
+#root .quiz-catalog .quiz-mode-footer .ln-cta { min-height:44px; box-sizing:border-box; padding:12px 16px; }
+@media (max-width:700px) {
+  #root .quiz-catalog { padding-top:18px; }
+  #root .quiz-catalog .quiz-streak-summary { padding:10px 12px; gap:6px; }
+  #root .quiz-catalog .quiz-streak-summary > p { font-size:12px; line-height:1.5; }
+  #root .quiz-catalog .quiz-mode-card { padding:18px; }
+}
+
+#root .quiz-results .result-answer-comparison { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:16px 0; }
+#root .quiz-results .result-answer-comparison .result-answer { display:grid; gap:8px; margin:0; padding:14px 18px; overflow-wrap:anywhere; white-space:pre-wrap; }
+#root .quiz-results .result-answer-comparison .result-answer:only-child { grid-column:1/-1; }
+#root .quiz-results .result-answer-comparison strong { font-size:12px; }
+#root .quiz-results .result-feedback { font-size:14px; line-height:1.8; white-space:pre-wrap; margin:12px 0; }
+@media (max-width:600px) { #root .quiz-results .result-answer-comparison { grid-template-columns:1fr; } }

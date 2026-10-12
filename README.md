@@ -1,32 +1,122 @@
-# React + TypeScript + Vite
+# Lerny
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**교수님의 자료로부터, 나의 이해까지.**
 
-Currently, two official plugins are available:
+알고보자 팀의 대학교 캡스톤 디자인 프로젝트입니다. 교수자의 강의 자료를 중심으로 학생의 질문, 개념 학습, 이론·실습 퀴즈와 복습을 연결하고, 교수자는 학생들의 학습 현황과 취약 개념을 확인합니다.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+현재 개발 저장소는 [jun030426/TraceLens__jmj](https://github.com/jun030426/TraceLens__jmj), 기본 브랜치는 `master`입니다. 제품 이름은 Lerny를 유지합니다. 2026-10-12까지의 노트북 환경 구성, 학생·교수 화면 개선과 후속 개발 맥락은 [저장소 이전·개발 인수인계](docs/15_저장소_이전과_개발_인수인계.md)를 먼저 확인하세요.
 
-## React Compiler
+## 주요 학습 경험
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **강의 자료 기반 질문:** 수업 자료의 근거와 함께 개념을 확인합니다.
+- **이론과 실습:** 이론 3문항 또는 직접 구현 실습 2문제를 일일 학습 기준으로 하며, 완료 후 추가 학습을 이어가는 것을 목표로 합니다.
+- **AI 강의:** AI 강사가 칠판의 도표와 예시로 설명하는 개념별 짧은 강의를 준비합니다.
+- **코드 시각화:** 작성한 코드의 실행 흐름을 살펴보며 이해하는 실습을 준비합니다.
+- **교수자 학습 분석:** 분반별 참여, 개념별 정답률과 학생별 학습 기록을 확인합니다.
+- **시험 대비:** 공개된 시험 범위의 기출·연습 문제와 자료를 자유롭게 학습합니다.
 
-## Expanding the Oxlint configuration
+## 현재 구현 상태
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+목표 기능과 현재 동작하는 기능을 구분합니다.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+| 영역 | 현재 상태 |
+| --- | --- |
+| 계정·강의·분반 | 로그인, 학생 가입, 프로필, 수강 및 자료 관리 구현. 이메일 저장·형식 검증 연결 |
+| 자료 기반 학습 | 자료 처리, 근거 답변, 이론 문항 생성·제출·채점·복습 흐름 구현 |
+| 교수자 화면 | 강의 관리, 수강생 관리, 이론 학습 분석 화면 및 API 구현 |
+| AI 강의 | 강사 선택, 주차별 자료, 질문 연결 프론트 구현. 실제 영상 제작·재생은 미연결 |
+| 실습 | 풀이·결과 화면 구현. 2문제 배정, 격리 실행·채점·시각화는 후속 작업 |
+| 추가·예습·음성 대화 | 확정 기획을 기준으로 후속 구현 필요 |
+
+전체 기능 완료 또는 실제 수업 운영 준비 완료 상태는 아닙니다. 실제 강의 자료의 품질 평가, 다수 사용자 검증, 개인정보 처리와 운영 검증이 남아 있습니다.
+
+## 기획과 개발 문서
+
+최신 기능 정책은 **확정 기획 v0.4**를 기준으로 합니다.
+
+| 문서 | 내용 |
+| --- | --- |
+| [확정 기획](docs/11_확정_기획_2026-10-12.md) | 최신 기능 정책과 보류된 결정 |
+| [기획 변경 대조표](docs/12_기획_변경_대조표.md) | 기존 기획에서 달라진 내용 |
+| [남은 개발 작업](docs/13_남은_개발_작업.md) | 미완료 항목과 권장 진행 순서 |
+| [로컬 구현 현황](docs/09_로컬_구현_현황.md) | 구현·검증 이력과 현재 한계 |
+| [개발 착수 기준](docs/00_개발_착수_기준.md) | 기술 설계와 개발 기준 |
+| [개발환경 점검](docs/08_개발환경_점검.md) | 기존 Windows 환경 구성 |
+| [RTX 4060 노트북 실행 점검](docs/14_Windows_노트북_실행_점검.md) | 현재 C: 경로·실행 방법·합성 데이터·실측 한계 |
+| [저장소 이전·개발 인수인계](docs/15_저장소_이전과_개발_인수인계.md) | 새 원격·완료한 개선·다음 작업·이전 이력 |
+| [검증과 개발 관문](docs/07_검증과_개발_관문.md) | 품질·운영 검증 기준 |
+
+[기존 기능 명세 v0.3](Lerny%20기능%20명세%20초안.md)은 변경 전 이력으로 보존합니다.
+
+## 프로젝트 구성
+
+- `apps/web`: React · TypeScript · Vite 프론트엔드
+- `apps/api`: FastAPI · SQLAlchemy 백엔드 및 테스트
+- `migrations`: Alembic DB 마이그레이션
+- `scripts`: Windows 개발환경 및 서비스 실행 스크립트
+- `docs`: 기획·설계·검증 문서
+
+## 로컬 실행
+
+아래 명령은 **필수 도구와 런타임 구성이 끝난 Windows 환경**을 기준으로 합니다. 새 PC의 최초 설치 명령은 아닙니다.
+
+기존 개발 PC는 D: 드라이브를 사용했습니다. 현재 스크립트는 `LERNY_RUNTIME_ROOT`를 우선하고, 미지정 시 `%USERPROFILE%\LernyData`를 사용합니다. 기존 PC에서는 실행 전에 `$env:LERNY_RUNTIME_ROOT = 'D:\LernyData'`를 지정해 기존 데이터를 유지하세요. 새 PC에서는 실제 드라이브와 경로를 먼저 확인해야 합니다.
+
+프로젝트 루트 PowerShell에서:
+
+```powershell
+. .\scripts\Enter-Dev.ps1
+uv sync --locked
+# 프론트 의존성은 외부 런타임에 설치하고 node_modules를 연결합니다.
+$webDeps = Join-Path $env:LERNY_RUNTIME_ROOT 'dependencies\web'
+New-Item -ItemType Directory -Force -Path $webDeps | Out-Null
+Copy-Item apps/web/package.json,apps/web/package-lock.json -Destination $webDeps
+npm.cmd --prefix $webDeps ci
+if (-not (Test-Path apps/web/node_modules)) {
+    New-Item -ItemType Junction -Path apps/web/node_modules -Target (Join-Path $webDeps 'node_modules')
 }
+.\scripts\Start-Local.ps1
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+`Start-Local.ps1`은 DB 준비와 마이그레이션을 수행한 뒤 모델·API·웹·작업 처리 서비스를 시작합니다. 이미 사용 중인 포트의 프로세스는 교체하지 않습니다.
+
+- 웹: [http://127.0.0.1:5173](http://127.0.0.1:5173)
+- API: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- 개별 실행: `Start-Api.ps1`, `Start-Web.ps1`, `Start-Model.ps1`, `Start-Worker.ps1`
+- 로그: 런타임 디렉터리의 `logs`
+
+`/api/v1/health/live`는 프로세스 응답을 확인합니다. `/api/v1/health/ready`는 DB·모델·격리 실행 준비 상태를 확인하므로 미구현 관문이 있는 현재는 503을 반환할 수 있습니다. 학생 코드 실행은 격리 환경 검증 전까지 비활성 상태입니다.
+
+## 다른 PC에서 이어서 개발하기
+
+```powershell
+git clone https://github.com/jun030426/TraceLens__jmj.git
+cd TraceLens__jmj
+```
+
+기존 체크아웃이 있다면 로컬 변경사항을 먼저 확인하고 최신 커밋을 반영합니다.
+
+저장소에는 소스·잠금 파일·마이그레이션·문서가 포함됩니다. **기존 PC의 계정, 비밀번호, DB 데이터, 업로드 자료, 모델과 의존성 폴더는 포함되지 않습니다.** 새 환경에서는 다음 작업이 필요합니다.
+
+1. `AGENTS.md`와 최신 기획·구현 현황을 확인합니다. 경로는 현재 장치에 맞게 적용합니다.
+2. Python·Node.js·uv·PostgreSQL·모델 런타임과 GPU 환경을 점검합니다.
+3. 의존성을 복원하고 새 로컬 DB에 마이그레이션을 적용합니다.
+4. 가상의 교수·학생 계정, 강의·분반·주차 자료와 학습 기록을 구성합니다.
+5. 학생·교수 화면, API 및 모델 연결을 각각 확인합니다.
+
+기존 PC의 비밀정보를 복사하거나 실제 학생 데이터를 사용할 필요는 없습니다. 테스트 계정의 자격 정보는 소스 밖 로컬 파일에 보관합니다.
+
+## 검증
+
+```powershell
+. .\scripts\Enter-Dev.ps1
+uv run --locked pytest -q
+npm.cmd --prefix apps/web run build
+npm.cmd --prefix apps/web run test:student
+```
+
+2026-10-12 UX 개선 시 TypeScript/Vite 빌드와 전체 API 테스트 30개를 통과했습니다. 이는 해당 변경의 검증 결과이며, 전체 기능·실제 수업 품질·부하 검증 완료를 의미하지 않습니다.
+
+이후 노트북의 학생·교수 목록 탐색과 프런트 디자인 개선 기록은 docs/14에 누적했습니다. 가장 최근 화면 개선의 빌드·프런트 회귀 9개와 브라우저 점검도 통과했으며, 자동 생성 품질·실습 격리·AI 강의 영상 등 남은 기능은 docs/13과 docs/15에서 구분합니다.
+
+`TraceLens__jmj` 이전 준비 시에는 전체 API 회귀 **35개**를 전용 테스트 DB에서 다시 실행해 통과했습니다.

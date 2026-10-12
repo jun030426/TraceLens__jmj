@@ -1,0 +1,37 @@
+.student-paged-list { min-width: 0; scroll-margin-top: 24px; }
+.student-list-tools { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.student-list-tools label { display: flex; flex: 1; min-width: 160px; flex-direction: column; gap: 7px; font-size: 12px; color: #736080; }
+.student-list-tools :is(input,select), .course-rail select { width: 100%; min-width: 0; height: 40px; padding: 8px 10px; border: 1px solid #dfd5e7; border-radius: 8px; background: white; color: #4a3856; font: inherit; }
+.student-list-tools button { min-height: 40px; font-size: 12px; }
+.student-list-count { color: #776485; font-size: 12px !important; margin: 12px 0 !important; }
+.student-list-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0 8px; }
+.student-list-pager button { min-height: 36px; font-size: 12px; background: white; }
+.student-list-pager span { font-size: 12px; color: #776485; }
+.student-list-empty { color: #776485; font-size: 13px; padding: 20px 0; }
+.student-record-archive { margin-top: 30px; border: 1px solid #e5ddec; border-radius: 12px; padding: 18px; background: #fff; }
+.student-record-archive > summary { cursor: pointer; color: #4d385b; font-weight: 600; font-size: 15px; }
+.student-record-archive > summary small { font-weight: 400; font-size: 12px; margin-left: 12px; }
+.course-rail .student-course-choice { display: flex; flex-direction: column; gap: 10px; font-size: 12px; margin-bottom: 20px; }
+.course-rail .student-course-choice p { margin: 0; overflow-wrap: anywhere; line-height: 1.7; }
+.student-course-choice label { display: flex; flex-direction: column; gap: 8px; }
+.chat .chat-messages { max-height: 520px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.chat-archive { margin: 16px 0; border-top: 1px solid #e7dfed; border-bottom: 1px solid #e7dfed; padding: 14px 0; }
+.chat-archive > summary { font-size: 13px; cursor: pointer; color: #6c527e; }
+.chat-archive-entry { border-top: 1px solid #eee7f2; padding: 12px 0; }
+.chat-archive-entry summary { cursor: pointer; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.chat-archive-entry time { display: block; font-size: 11px; color: #897893; }
+.chat-archive-entry summary > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.chat-archive-entry[open] summary > span { display: block; }
+.chat-archive-entry .answer { white-space: pre-wrap; line-height: 1.8; font-size: 13px; }
+.chat-archive-entry a { display: block; font-size: 12px; margin-top: 8px; overflow-wrap: anywhere; }
+.exam-study .exam-resource-list { margin-top: 12px; }
+.exam-study .exam-question-jump { max-width: 330px; }
+.instructor-curriculum .student-list-tools { padding: 0 18px; }
+.instructor-week-items .student-list-pager { padding: 0 8px; }
+.instructor-week-items .student-list-pager button { min-height: 34px; display: block; padding: 6px 9px; border: 1px solid #dfd5e7; }
+@media(max-width: 600px) {
+  .student-list-tools label { min-width: 0; flex-basis: 100%; }
+  .student-record-archive { padding: 15px; }
+  .student-record-archive > summary small { display: block; margin: 8px 0 0; }
+  .chat .chat-messages { max-height: 440px; }
+}

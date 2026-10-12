@@ -1,0 +1,482 @@
+/* The student dashboard puts real course work before decorative content. */
+.student-today .today-greeting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  height: auto;
+  min-height: 0;
+  margin-bottom: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  position: static;
+}
+.student-today .today-greeting h1 {
+  font-size: 25px;
+  font-weight: 650;
+  letter-spacing: -0.7px;
+  line-height: 1.4;
+  margin: 8px 0 0;
+}
+.today-streak {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 15px;
+  border: 1px solid #e5dbed;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.today-streak > span:first-child {
+  color: #8a65ac;
+  font-size: 20px;
+}
+.today-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  border: 1px solid #dfd1ed;
+  border-radius: 18px;
+  padding: 26px 28px;
+  background: linear-gradient(110deg, #f1eafa, #f8f4fd);
+}
+.today-next-copy {
+  min-width: 0;
+}
+.today-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 5px 10px;
+  border: 1px solid #d9c8e9;
+  border-radius: 7px;
+  background: #fff9;
+  color: #694282;
+}
+.today-status.is-complete {
+  background: #edf5ef;
+  border-color: #cbded0;
+  color: #3f6750;
+}
+.today-next h2 {
+  font-size: 25px;
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: -0.65px;
+  margin: 12px 0 9px;
+}
+.today-next p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.today-progress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: #665b72;
+}
+.today-progress progress {
+  width: 90px;
+  height: 5px;
+  border: 0;
+  border-radius: 9px;
+  overflow: hidden;
+  appearance: none;
+  background: #e4d9ed;
+}
+.today-progress progress::-webkit-progress-bar {
+  background: #e4d9ed;
+}
+.today-progress progress::-webkit-progress-value {
+  background: #8a6aa5;
+  border-radius: 9px;
+}
+.today-progress progress::-moz-progress-bar {
+  background: #8a6aa5;
+}
+.today-next-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.student-today .today-next-actions .ln-cta {
+  min-height: 48px;
+  padding: 13px 21px;
+  gap: 22px;
+  font-size: 14px;
+  white-space: nowrap;
+  border-radius: 11px;
+}
+.today-text-link {
+  font-size: 12px;
+  padding: 3px;
+}
+.today-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 28px 0 14px;
+}
+.today-section-heading h2 {
+  font-size: 19px;
+  letter-spacing: -0.45px;
+  margin: 0;
+  font-weight: 650;
+}
+.today-section-heading h2 > span {
+  color: #8a739b;
+  font-size: 15px;
+  margin-left: 5px;
+}
+.today-section-heading > :is(a, span) {
+  font-size: 12px;
+  color: #665b72;
+}
+.today-course-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.today-course {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 21px 23px;
+  border: 1px solid #e5ddeb;
+  border-radius: 15px;
+  background: #fff;
+  transition:
+    border-color 0.16s,
+    box-shadow 0.16s;
+}
+.today-course:hover {
+  border-color: #bba3cf;
+  box-shadow: 0 5px 18px #6942820c;
+}
+.today-course:only-child {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 28px;
+}
+.today-course:only-child > :not(.today-course-footer) {
+  grid-column: 1;
+}
+.today-course:only-child .today-course-footer {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  border-top: 0;
+  border-left: 1px solid #eee8f4;
+  padding: 12px 0 12px 28px;
+  margin: 0;
+}
+.today-course:only-child p {
+  margin-bottom: 0;
+}
+.today-course-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.today-week {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: #f2edf8;
+  color: #695080;
+}
+.today-course h3 {
+  margin: 16px 0 6px;
+  color: #30273e;
+  font-size: 20px;
+  line-height: 1.45;
+  letter-spacing: -0.45px;
+  overflow-wrap: anywhere;
+}
+.today-course p {
+  margin: 0 0 19px;
+}
+.today-course-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 15px;
+  border-top: 1px solid #eee8f4;
+  font-size: 12px;
+}
+.today-course-footer strong {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.today-course-footer strong > span {
+  margin-left: 10px;
+}
+.today-recent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.today-recent-card {
+  min-width: 0;
+  padding: 20px 23px 8px;
+  border: 1px solid #e5ddeb;
+  border-radius: 15px;
+  background: #fff;
+}
+.today-recent-card:only-child {
+  grid-column: 1 / -1;
+}
+.today-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.today-card-heading h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+.today-card-heading > a {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.today-recent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 0;
+  border-top: 1px solid #f0eaf5;
+}
+.today-recent-row:first-of-type {
+  border-top: 0;
+}
+.today-recent-row > span:first-child {
+  min-width: 0;
+}
+.today-recent-row strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.6;
+  color: #42344e;
+  overflow-wrap: anywhere;
+}
+.today-recent-row small {
+  display: block;
+  margin-top: 3px;
+}
+.today-question-text {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* These rules are scoped to student material groups; teacher controls stay separate. */
+.student-material-weeks {
+  width: 100%;
+}
+.material-week-guide {
+  margin: 0 0 15px;
+}
+.student-material-weeks .material-week {
+  border: 1px solid #e6dfec;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+  margin: 0 0 9px;
+  padding: 0;
+}
+.material-week.is-current {
+  border-color: #bea7d0;
+}
+.material-week > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 16px 18px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+.material-week > summary::-webkit-details-marker {
+  display: none;
+}
+.material-week > summary > span {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.material-week > summary:focus-visible {
+  outline: 3px solid #9279a8;
+  outline-offset: -3px;
+}
+.material-week > summary:hover,
+.material-week.is-current > summary {
+  background: #f6f1fa;
+}
+.material-week-current {
+  font-size: 11px;
+  color: #694282;
+  font-weight: 600;
+}
+.material-week-count {
+  color: #756981;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.material-week-chevron {
+  display: inline-block;
+  font-size: 18px;
+}
+.material-week[open] .material-week-chevron {
+  transform: rotate(180deg);
+}
+.material-week-content {
+  padding: 0 18px;
+  border-top: 1px solid #eee7f3;
+}
+.student-material {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 18px 0;
+  border-bottom: 1px solid #eee7f3;
+}
+.student-material:last-child {
+  border-bottom: 0;
+}
+.student-material-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 40px;
+  background: #f2edf7;
+  border-radius: 7px;
+  color: #8b709e;
+  font-size: 20px;
+}
+.student-material > div {
+  flex: 1;
+  min-width: 0;
+}
+.student-material h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.student-material > a {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 8px 12px;
+  border: 1px solid #e2d6eb;
+  border-radius: 8px;
+  background: #fff;
+}
+.student-material > a:hover {
+  background: #f6f1fa;
+}
+@media (max-width: 760px) {
+  .student-today .today-greeting {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .student-today .today-greeting h1 {
+    font-size: 22px;
+  }
+  .today-streak {
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 9px;
+    font-size: 12px;
+  }
+  .today-streak > span:last-child {
+    display: none;
+  }
+  .today-next {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 22px;
+    gap: 21px;
+  }
+  .today-next h2 {
+    font-size: 23px;
+  }
+  .today-next-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 18px;
+    width: 100%;
+  }
+  .today-course-grid,
+  .today-recent-grid {
+    grid-template-columns: 1fr;
+  }
+  .today-course:only-child {
+    display: flex;
+  }
+  .today-course:only-child .today-course-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-left: 0;
+    border-top: 1px solid #eee8f4;
+    padding: 15px 0 0;
+    margin-top: 19px;
+  }
+  .today-section-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .today-course,
+  .today-recent-card {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .today-course h3 {
+    font-size: 19px;
+  }
+  .student-material {
+    flex-wrap: wrap;
+  }
+  .student-material > a {
+    margin-left: 47px;
+  }
+  .material-week > summary {
+    padding: 15px 13px;
+  }
+  .material-week > summary > span {
+    gap: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .today-course {
+    transition: none;
+  }
+}

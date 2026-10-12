@@ -1,0 +1,518 @@
+/* Scoped rules keep professor analysis and exam controls independent of student pages. */
+.teacher-course-page .prof-analysis [hidden] {
+  display: none !important;
+}
+.teacher-course-page .prof-analysis .prof-count-note {
+  margin: -6px 0 24px;
+}
+.teacher-course-page .prof-count-note p {
+  margin: 0 0 4px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.teacher-course-page .prof-count-note small {
+  font-size: 12px;
+}
+.teacher-course-page .prof-analysis .prof-no-rate {
+  font-size: 22px;
+}
+.teacher-course-page .prof-analysis .prof-view-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid #e8e1ee;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+}
+.teacher-course-page .prof-analysis .prof-view-switch button {
+  min-height: 44px;
+  padding: 10px 16px;
+  background: #fff;
+  font-weight: 600;
+}
+.teacher-course-page
+  .prof-analysis
+  .prof-view-switch
+  button[aria-pressed="true"],
+.teacher-course-page .prof-analysis .prof-filters button[aria-pressed="true"] {
+  background: #eee6f7;
+  border-color: #bfa4d1;
+  color: #4e365f;
+}
+.prof-view-switch span,
+.prof-filters span {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.teacher-course-page .prof-section-heading {
+  margin: 0 0 16px;
+}
+.teacher-course-page .prof-section-heading h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.teacher-course-page .prof-section-heading p {
+  margin: 0;
+  font-size: 13px;
+}
+.teacher-course-page .prof-review {
+  padding: 18px 20px;
+  margin: 0 0 24px;
+  background: #f7f3fa;
+  border: 1px solid #e4d9ed;
+  border-radius: 12px;
+}
+.teacher-course-page .prof-review h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+.teacher-course-page .prof-review p {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+.teacher-course-page .prof-concept-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(120px, 200px) minmax(
+      90px,
+      1fr
+    );
+  max-width: 720px;
+  align-items: center;
+  gap: 24px;
+  padding: 15px 0;
+  border-bottom: 1px solid #ede6f2;
+  font-size: 14px;
+}
+.prof-concept-name {
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  color: #352a40;
+}
+.prof-concept-score {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.prof-concept-score b {
+  min-width: 56px;
+  text-align: right;
+  color: #483353;
+  white-space: nowrap;
+}
+.prof-score-track {
+  display: block;
+  height: 6px;
+  flex: 1;
+  background: #e7dfec;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.prof-score-track > span {
+  display: block;
+  height: 100%;
+  background: #9b7db4;
+  border-radius: inherit;
+}
+.prof-concept-sample {
+  color: #73637e;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.prof-review .prof-concept-row:last-child {
+  border: 0;
+  padding-bottom: 0;
+}
+.prof-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.teacher-course-page .prof-analysis .prof-filters button {
+  min-height: 38px;
+  border-radius: 20px;
+  padding: 8px 13px;
+}
+.prof-list-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin: 16px 0;
+  max-width: 760px;
+}
+.teacher-course-page .prof-list-tools label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 140px;
+  font-size: 12px;
+}
+.teacher-course-page .prof-list-tools :is(input, select) {
+  width: 100%;
+  height: 42px;
+  padding: 8px 10px !important;
+  background: #fff !important;
+}
+.teacher-course-page .prof-list-tools button {
+  min-height: 42px;
+}
+.prof-filter-actions {
+  display: flex;
+  gap: 8px;
+}
+.teacher-course-page .prof-empty {
+  padding: 24px 0;
+  margin: 0;
+  font-size: 14px;
+}
+.teacher-course-page .prof-result-count {
+  font-size: 12px;
+  margin: 18px 0 10px;
+}
+.prof-student-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.prof-student-list > li {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 90px minmax(220px, 1fr);
+  gap: 24px;
+  align-items: center;
+  padding: 18px 0;
+  border-bottom: 1px solid #ece5f1;
+}
+.teacher-course-page .prof-analysis .prof-student-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  text-align: left;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  min-width: 0;
+}
+.prof-student-link strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.prof-student-link span {
+  font-size: 12px;
+  font-weight: 400;
+}
+.teacher-course-page .prof-analysis .prof-student-link:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+.prof-student-rate {
+  display: grid;
+  gap: 5px;
+  text-align: right;
+}
+.prof-student-rate span {
+  font-size: 12px;
+  color: #756581;
+}
+.prof-student-rate b {
+  font-size: 16px;
+  color: #43304e;
+  font-variant-numeric: tabular-nums;
+}
+.prof-student-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 0;
+}
+.prof-student-counts div {
+  text-align: right;
+}
+.prof-student-counts dt {
+  font-size: 12px;
+  color: #756581;
+}
+.prof-student-counts dd {
+  font-size: 14px;
+  margin: 5px 0 0;
+  color: #493a54;
+}
+.teacher-course-page .prof-analysis .prof-back {
+  margin: 0 0 20px;
+  min-height: 40px;
+}
+.prof-student-detail {
+  scroll-margin-top: 24px;
+}
+.prof-student-detail h3:focus {
+  outline: none;
+}
+.prof-answer {
+  border-bottom: 1px solid #e8e0ef;
+  padding: 16px 0;
+}
+.prof-answer:first-child {
+  border-top: 1px solid #e8e0ef;
+}
+.prof-answer summary {
+  cursor: pointer;
+  list-style: none;
+}
+.prof-answer summary::-webkit-details-marker {
+  display: none;
+}
+.prof-answer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: #756581;
+}
+.prof-answer-question {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.7;
+  color: #3c2b48;
+  overflow-wrap: anywhere;
+}
+.prof-answer[open] .prof-answer-question {
+  display: block;
+}
+.prof-answer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #735686;
+}
+.prof-answer[open] .prof-answer-toggle > span {
+  transform: rotate(180deg);
+}
+.prof-answer-body {
+  background: #faf8fc;
+  padding: 16px 18px;
+  border-radius: 10px;
+  margin-top: 14px;
+}
+.teacher-course-page .prof-answer-body h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.teacher-course-page .prof-answer-body p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0 0 18px;
+  font-size: 14px;
+}
+.prof-answer-body ul {
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.prof-analysis :is(button, summary, input, select):focus-visible {
+  outline: 2px solid #9875b1;
+  outline-offset: 3px;
+}
+.prof-analysis .student-list-pager > span {
+  display: block;
+  white-space: nowrap;
+}
+
+/* Override legacy text-action spacing only inside professor exam management. */
+.teacher-course-page .exam-manager .exam-range-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px;
+}
+.teacher-course-page .exam-manager .exam-range-info {
+  min-width: 0;
+}
+.teacher-course-page .exam-manager .exam-range-row h3 {
+  margin: 0 0 10px;
+  font-size: 17px;
+  line-height: 1.6;
+}
+.exam-range-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.teacher-course-page .exam-manager .exam-range-weeks {
+  margin: 0;
+  font-size: 13px;
+}
+.teacher-course-page .exam-manager .exam-range-weeks strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.teacher-course-page .exam-manager .exam-visibility {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #e5ddec;
+  background: #f7f3fa;
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: #6b557a;
+  font-size: 12px;
+}
+.teacher-course-page .exam-manager .exam-visibility.is-public {
+  border-color: #d9cbe3;
+  background: #efe8f5;
+}
+.teacher-course-page .exam-manager .exam-range-actions {
+  flex-shrink: 0;
+  gap: 10px;
+  align-items: flex-start;
+}
+.teacher-course-page .exam-manager .exam-range-actions .form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 0;
+}
+.teacher-course-page .exam-manager .exam-range-actions .form .error {
+  order: 1;
+  max-width: 200px;
+  margin: 8px 0 0;
+}
+.teacher-course-page .exam-manager .exam-range-actions button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  height: auto;
+  margin: 0;
+  padding: 10px 15px;
+  line-height: 20px;
+  font-size: 13px;
+  white-space: nowrap;
+  border-radius: 8px;
+}
+.teacher-course-page .exam-manager .exam-range-editor {
+  padding: 24px;
+}
+.teacher-course-page .exam-manager .exam-range-editor > p {
+  margin-bottom: 20px;
+}
+.teacher-course-page .exam-manager .exam-range-editor .form fieldset {
+  gap: 20px;
+}
+.teacher-course-page .exam-manager .exam-range-editor .form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.teacher-course-page .exam-manager .exam-range-editor .form-actions > button {
+  min-height: 42px;
+  margin: 0;
+  padding: 10px 18px;
+  line-height: 20px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+.teacher-course-page
+  .exam-manager
+  .exam-range-editor
+  input:not([type="checkbox"]) {
+  min-height: 44px;
+}
+.teacher-course-page .exam-manager .exam-publish-field {
+  padding-top: 16px;
+}
+.teacher-course-page
+  .exam-manager
+  .exam-range-editor
+  .exam-publish-field
+  small {
+  margin-top: 4px;
+}
+.teacher-course-page .exam-manager .exam-list-label {
+  margin-bottom: 12px;
+}
+.teacher-course-page .exam-manager .exam-range-editor:focus {
+  outline: none;
+}
+@media (max-width: 700px) {
+  .teacher-course-page .prof-analysis {
+    padding: 18px;
+  }
+  .teacher-course-page .prof-analysis .prof-view-switch {
+    gap: 6px;
+  }
+  .teacher-course-page .prof-analysis .prof-view-switch button {
+    flex: 1;
+    padding: 10px 8px;
+  }
+  .prof-student-list > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+  }
+  .prof-student-counts {
+    grid-column: 1/-1;
+    background: #f8f5fb;
+    padding: 10px 12px;
+    border-radius: 8px;
+  }
+  .prof-student-counts div {
+    text-align: left;
+  }
+  .teacher-course-page .prof-review {
+    padding: 16px;
+  }
+  .teacher-course-page .prof-concept-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 16px;
+  }
+  .prof-concept-score {
+    grid-column: 2;
+    grid-row: 1/3;
+  }
+  .prof-score-track {
+    display: none;
+  }
+  .prof-concept-sample {
+    grid-column: 1;
+    white-space: normal;
+  }
+  .teacher-course-page .prof-list-tools label {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+  .teacher-course-page .prof-answer-filters label:has(input[type="date"]) {
+    flex-basis: calc(50% - 12px);
+  }
+  .prof-filter-actions {
+    width: 100%;
+  }
+  .prof-filter-actions button {
+    flex: 1;
+  }
+  .teacher-course-page .exam-manager .exam-range-row {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 20px;
+    gap: 18px;
+  }
+  .teacher-course-page .exam-manager .exam-range-actions {
+    justify-content: flex-start;
+    padding-top: 16px;
+  }
+  .teacher-course-page .exam-manager .exam-range-editor {
+    padding: 20px;
+  }
+}
