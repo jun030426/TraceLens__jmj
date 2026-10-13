@@ -28,3 +28,5 @@ runtime/
 *.dump
 .DS_Store
 Thumbs.db
+public/
+.vercel/

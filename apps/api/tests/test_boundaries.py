@@ -9,7 +9,10 @@ async def check_readiness_boundary():
         transport=httpx.ASGITransport(app=create_app()), base_url="http://test"
     ) as client:
         assert (await client.get("/api/v1/health/live")).status_code == 200
-        response = await client.get("/api/v1/health/ready")
+        general = await client.get("/api/v1/health/ready")
+        assert general.json()["scope"] == "general_service"
+        assert general.json()["ai_required"] is False
+        response = await client.get("/api/v1/health/learning")
         assert response.status_code == 503
         assert response.json()["dependencies"]["sandbox"] == "disabled"
 

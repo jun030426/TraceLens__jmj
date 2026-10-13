@@ -211,7 +211,7 @@ export function QuestionBank({
   const [job, setJob] = useState<AsyncJob>();
   const [error, setError] = useState("");
   useEffect(() => {
-    if (!job || !["queued", "running"].includes(job.status)) return;
+    if (!job || !["queued", "running", "waiting_ai"].includes(job.status)) return;
     const timer = setInterval(() => {
       void api<AsyncJob>(`/jobs/${job.id}`)
         .then((j) => {
@@ -262,6 +262,7 @@ export function QuestionBank({
             ? "문항 생성·검증 완료"
             : job.status === "failed"
               ? `문항을 공개하지 못했어요: ${job.error?.code}`
+              : job.status === "waiting_ai" ? "AI 처리 대기 중이에요. 연결 후 생성을 이어갑니다."
               : "자료를 읽고 문항을 생성·검증 중이에요."}
         </Notice>
       )}

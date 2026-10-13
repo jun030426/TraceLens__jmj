@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 def app_db():
     test_engine = create_engine(engine().url.set(database="lerny_test"))
     assert test_engine.url.database == "lerny_test"
+    assert test_engine.url.host in {"127.0.0.1", "localhost", "::1"}, "Tests must never reset a cloud database"
     Base.metadata.drop_all(test_engine)
     Base.metadata.create_all(test_engine)
     connection = test_engine.connect()

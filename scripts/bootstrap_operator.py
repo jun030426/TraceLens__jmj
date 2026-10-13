@@ -18,8 +18,9 @@ with Session(engine()) as db:
         db.add(User(login_id='operator', display_name='운영 담당자', role='operator',
                     password_hash=hasher.hash(password), must_change_password=True))
         db.commit()
-        path = settings().runtime_root / 'secrets/initial-operator.json'
+        filename = 'initial-cloud-operator.json' if settings().deployment == 'cloud' else 'initial-operator.json'
+        path = settings().runtime_root / 'secrets' / filename
         path.write_text(json.dumps({'login_id': 'operator', 'password': password}, indent=2))
-        print('Initial operator issued. See external secrets/initial-operator.json; change at first login.')
+        print(f'Initial operator issued. See external secrets/{filename}; change at first login.')
     else:
         print('Operator already exists; credentials were not changed.')

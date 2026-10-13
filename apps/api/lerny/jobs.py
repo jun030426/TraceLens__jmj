@@ -87,7 +87,7 @@ def ask(
         pending = session.scalar(
             select(Job)
             .where(
-                Job.owner_id == actor.id, Job.kind == "chat", Job.status.in_(["queued", "running"])
+                Job.owner_id == actor.id, Job.kind == "chat", Job.status.in_(["queued", "running", "waiting_ai"])
             )
             .limit(1)
         )
@@ -143,6 +143,7 @@ def get_job(job_id: str, session: Db, actor: Actor):
                 "answer": "자료 공개 범위가 변경되어 답변을 다시 요청해 주세요.",
                 "citations": [],
             }
+    from lerny.cloud_jobs import ai_status
     return {
         "id": job.id,
         "kind": job.kind,
@@ -150,6 +151,7 @@ def get_job(job_id: str, session: Db, actor: Actor):
         "attempt": job.attempt,
         "result": result,
         "error": {"code": job.error_code, "retryable": True} if job.error_code else None,
+        "ai_status": ai_status(session) if job.status == "waiting_ai" else None,
     }
 
 
@@ -159,7 +161,7 @@ def cancel(job_id: str, session: Db, actor: Actor):
     if not job or job.owner_id != actor.id:
         deny(404)
     course_access(session, actor, job.course_id)
-    if job.status not in ("queued", "running"):
+    if job.status not in ("queued", "running", "waiting_ai"):
         deny(409)
     job.status, job.lease_token = "cancelled", None
     if job.kind == "grade":
@@ -179,6 +181,12 @@ def retry(job_id: str, session: Db, actor: Actor):
     if job.status != "failed":
         deny(409)
     job.status, job.error_code = "queued", None
+    job.payload = {**job.payload, "_ai_generation": job.payload.get("_ai_generation", 0) + 1}
+    if job.kind in {"extract", "embed"}:
+        from lerny.models import MaterialVersion
+        version = session.get(MaterialVersion, job.payload["version_id"])
+        version.status = "extracted" if job.kind == "embed" else "queued"
+        version.error_code = None
     if job.kind == "grade":
         attempt = session.get(Attempt, job.payload["attempt_id"])
         if attempt.status != "held":
@@ -236,7 +244,7 @@ def chat_history(
             Job.owner_id == actor.id,
             Job.course_id == section.course_id,
             Job.kind == "chat",
-            Job.status.in_(["queued", "running"]),
+            Job.status.in_(["queued", "running", "waiting_ai"]),
         )
         .order_by(Job.created_at.desc())
         .limit(1)

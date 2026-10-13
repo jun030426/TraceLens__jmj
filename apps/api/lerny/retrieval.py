@@ -3,27 +3,21 @@
 import math
 import re
 
-import httpx
 from sqlalchemy import select
 
-from lerny.config import settings
+from lerny.inference import perform
 from lerny.models import Chunk, Material, MaterialVersion
 
 EMBED_MODEL = "qwen3-embedding:0.6b"
 
 
 def embed(texts):
-    with httpx.Client(timeout=120, trust_env=False) as client:
-        result = client.post(
-            settings().model_url + "/api/embed",
-            json={
+    result = perform("embed", {
                 "model": EMBED_MODEL,
                 "input": texts,
                 "truncate": False,
-            },
-        )
-        result.raise_for_status()
-        vectors = result.json()["embeddings"]
+            })
+    vectors = result["embeddings"]
     if len(vectors) != len(texts) or any(
         not v or any(not math.isfinite(x) for x in v) for v in vectors
     ):

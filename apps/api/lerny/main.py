@@ -10,10 +10,12 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from lerny import auth, courses, jobs, learning, materials, exams
+from lerny import auth, cloud_jobs, cloud_uploads, courses, jobs, learning, materials, exams, storage
 from lerny.config import settings
 from lerny.db import engine
 from lerny.retrieval import EMBED_MODEL
+
+SCHEMA_REVISION = "a7b18d65ec90"
 
 
 class Capabilities(BaseModel):
@@ -35,6 +37,8 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router)
     app.include_router(learning.router)
     app.include_router(exams.router)
+    app.include_router(cloud_uploads.router)
+    app.include_router(cloud_jobs.router)
 
     def error(request, status, code, message, retryable=False):
         return JSONResponse(
@@ -56,12 +60,7 @@ def create_app() -> FastAPI:
         if (
             request.method not in ("GET", "HEAD", "OPTIONS")
             and origin
-            and origin
-            not in (
-                "http://127.0.0.1:5173",
-                "http://localhost:5173",
-                "http://127.0.0.1:8000",
-            )
+            and origin not in settings().allowed_origins
         ):
             return error(request, 403, "ORIGIN_DENIED", "요청 출처를 확인해 주세요.")
         response = await call_next(request)
@@ -88,11 +87,35 @@ def create_app() -> FastAPI:
             request, 503, "DATABASE_UNAVAILABLE", "데이터베이스 연결을 확인해 주세요.", True
         )
 
+    @app.exception_handler(storage.StorageUnavailable)
+    async def storage_unavailable(request, exc):
+        return error(request, 503, "STORAGE_UNAVAILABLE", "파일 저장소 연결을 확인해 주세요.", True)
+
     @app.get("/api/v1/health/live")
     def live() -> dict[str, str]:
         return {"status": "ok", "service": "lerny-api"}
 
-    @app.get("/api/v1/health/ready", responses={503: {"description": "Setup incomplete"}})
+    @app.get("/api/v1/health/ready")
+    def service_ready() -> JSONResponse:
+        database, files = "unavailable", "local"
+        try:
+            with engine().connect() as connection:
+                revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar()
+                database = "ready" if revision == SCHEMA_REVISION else "migration_required"
+        except (RuntimeError, OperationalError):
+            pass
+        if settings().deployment == "cloud":
+            try:
+                files = "ready" if storage.ready() else "private_bucket_required"
+            except storage.StorageUnavailable:
+                files = "unavailable"
+        is_ready = database == "ready" and files in {"ready", "local"}
+        return JSONResponse(status_code=200 if is_ready else 503, content={
+            "status": "ready" if is_ready else "not_ready",
+            "scope": "general_service", "dependencies": {"database": database, "storage": files},
+            "ai_required": False})
+
+    @app.get("/api/v1/health/learning", responses={503: {"description": "Quality gates incomplete"}})
     def ready() -> JSONResponse:
         # A running HTTP process is not a working learning service.
         database = "not_configured"
@@ -104,6 +127,8 @@ def create_app() -> FastAPI:
         except (RuntimeError, OperationalError):
             pass
         try:
+            if settings().deployment == "cloud":
+                raise ValueError("Queue mode: no localhost model probe")
             with httpx.Client(timeout=2, trust_env=False) as client:
                 response = client.get(settings().model_url + "/api/tags")
                 response.raise_for_status()
@@ -130,6 +155,14 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/capabilities", response_model=Capabilities)
     def capabilities() -> Capabilities:
         return Capabilities()
+
+    @app.get("/api/v1/ai/status")
+    def model_status(session: auth.Db, actor: auth.Actor):
+        if settings().deployment == "local":
+            return {"status": "local", "message": "로컬 AI 테스트 모드입니다."}
+        state = cloud_jobs.ai_status(session)
+        return {"status": state, "message": "AI 처리 서버에 연결되어 있어요." if state == "online"
+                else "AI 테스트 서버가 오프라인이에요. 요청은 보관되며 서버 연결 후 처리됩니다."}
 
     return app
 

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "fastapi",
+  "buildCommand": "python scripts/build_vercel.py",
+  "rewrites": [
+    { "source": "/:path((?!api/|assets/|.*\\.).*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "main.py": { "maxDuration": 300 }
+  }
+}

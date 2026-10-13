@@ -29,6 +29,19 @@ export function Notice({ children }: { children: ReactNode }) {
     </p>
   );
 }
+export function AIAvailability() {
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    let active = true;
+    const check = () => void api<{ status: string }>("/ai/status").then(value => {
+      if (active) setOffline(value.status === "offline");
+    }).catch(() => { /* The page handles its own connectivity errors. */ });
+    check();
+    const timer = setInterval(check, 30000);
+    return () => { active = false; clearInterval(timer); };
+  }, []);
+  return offline ? <Notice>AI 기능이 현재 대기 중이에요. 요청은 보관되며 연결 후 처리됩니다. 기존 자료와 학습 기록은 계속 확인할 수 있어요.</Notice> : null;
+}
 export function ErrorNotice({ text }: { text: string }) {
   return text ? (
     <p className="error" role="alert">

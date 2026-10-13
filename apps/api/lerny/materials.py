@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Form, Header, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import Field
 from sqlalchemy import select
 
@@ -50,13 +50,20 @@ def material_view(session, material):
         view(version, "id version_no filename status error_code concept_ids") if version else None
     )
     if version:
+        processing = session.scalar(select(Job).where(
+            Job.course_id == material.course_id, Job.kind.in_(["extract", "embed"]),
+            Job.payload["version_id"].as_string() == version.id
+        ).order_by(Job.created_at.desc()).limit(1))
+        result["processing_job_id"] = processing.id if processing else None
         jobs = list(session.scalars(select(Job).where(Job.course_id == material.course_id, Job.kind.in_(["auto_concepts", "questions"]))))
         jobs = [j for j in jobs if j.payload.get("source_version_id") == version.id]
-        result["learning_status"] = ("failed" if any(j.status == "failed" for j in jobs) else "generating" if any(j.status in {"queued", "running"} for j in jobs) else "ready" if jobs else "not_started")
+        result["learning_status"] = ("failed" if any(j.status == "failed" for j in jobs) else "waiting_ai" if any(j.status == "waiting_ai" for j in jobs) else "generating" if any(j.status in {"queued", "running"} for j in jobs) else "ready" if jobs else "not_started")
     return result
 
 
 def save_version(file, material, actor, session):
+    if settings().deployment == "cloud":
+        deny(409, "클라우드 업로드 주소를 먼저 발급받아 주세요.")
     filename = (file.filename or "unknown").replace("\\", "/").split("/")[-1][:200]
     suffix = Path(filename).suffix.lower()
     if suffix not in SUFFIXES:
@@ -194,7 +201,7 @@ def file_download(material_id: str, session: Db, actor: Actor, version_id: str |
     if version_id:
         query = query.where(MaterialVersion.id == version_id)
     version = session.scalar(query.order_by(MaterialVersion.version_no.desc()).limit(1))
-    if not version or not source_path(version).is_file():
+    if not version:
         deny(404)
     if actor.role == "student" and version_id:
         latest = session.scalar(
@@ -205,6 +212,11 @@ def file_download(material_id: str, session: Db, actor: Actor, version_id: str |
         )
         if version.id not in {latest, material.active_version_id}:
             deny(404, "교체된 자료는 더 이상 다운로드할 수 없습니다.")
+    if settings().deployment == "cloud":
+        from lerny.storage import signed_download
+        return RedirectResponse(signed_download(version.object_key, version.filename), status_code=303)
+    if not source_path(version).is_file():
+        deny(404)
     return FileResponse(
         source_path(version),
         filename=version.filename,
@@ -430,6 +442,7 @@ def retry_learning(material_id: str, session: Db, actor: Actor):
     for job in jobs:
         if job.status == "failed":
             job.status, job.error_code, job.result = "queued", None, None
+            job.payload = {**job.payload, "_ai_generation": job.payload.get("_ai_generation", 0) + 1}
     enqueue_concepts(session, material, version, actor.id)
     session.commit()
     return {"status": "queued"}

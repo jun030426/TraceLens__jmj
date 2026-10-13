@@ -1,0 +1,7 @@
+{
+  "cloud_url": "https://YOUR_PROJECT.vercel.app",
+  "worker_token": "SAME_VALUE_AS_VERCEL_LERNY_AI_WORKER_TOKEN",
+  "worker_id": "test-pc",
+  "model_url": "http://127.0.0.1:11434",
+  "allowed_models": ["qwen3:4b-instruct", "qwen3-embedding:0.6b"]
+}

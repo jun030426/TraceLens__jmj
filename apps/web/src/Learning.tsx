@@ -3,26 +3,29 @@ import { matchesSearch } from "./listNavigation";
 import { QuestionArchive } from "./QuestionArchive";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { api, post, type Answer, type Job, type Material } from "./api";
-import { ErrorNotice, Form, Notice, field, useLoad } from "./components";
+import { api, post, uploadMaterial, type Answer, type Job, type Material } from "./api";
+import { AIAvailability, ErrorNotice, Form, Notice, field, useLoad } from "./components";
 import { materialWeeks, weekLabel } from "./studentOverview";
 import { sourceLabel } from "./sourceLabels";
 
 const labels: Record<string, string> = {
   queued: "처리 대기",
   running: "처리 중",
+  extracted: "원문 추출 완료 · AI 처리 대기",
   ready: "자료 원문 준비 완료",
   failed: "원문 처리 실패",
   needs_review: "텍스트 확인 필요",
 };
 function materialState(m: Material) {
-  if (m.version?.status === "failed") return { text: "자료 처리 실패", tone: "failed", hint: "파일 내용을 읽지 못했어요. 더보기에서 텍스트를 확인하거나 수정본을 올려주세요." };
+  if (m.version?.status === "failed") return { text: "자료 처리 실패", tone: "failed", hint: "원문 또는 AI 처리 중 문제가 발생했어요. 원본은 보관되어 있으며 다시 시도하거나 텍스트를 확인할 수 있어요." };
   if (m.version?.status === "needs_review") return { text: "텍스트 확인 필요", tone: "failed", hint: "추출한 내용을 확인해야 준비를 이어갈 수 있어요." };
+  if (m.version?.status === "extracted") return { text: "원문 추출 완료 · AI 대기", tone: "pending", hint: "파일 저장과 텍스트 추출은 완료됐어요. AI 연결 후 임베딩과 학습 준비가 이어집니다." };
   if (m.version?.status !== "ready") return { text: "자료 준비 중", tone: "pending", hint: "" };
   if (m.visibility !== "public") return { text: "비공개 보관", tone: "neutral", hint: "" };
   if (["past_exam", "answer", "transcript"].includes(m.kind)) return { text: "참고 자료", tone: "neutral", hint: "" };
   if (m.learning_status === "ready") return { text: "개념·문항 준비 완료", tone: "ready", hint: "자료 원문과 자동 생성 작업이 준비됐어요." };
   if (m.learning_status === "failed") return { text: "개념·문항 생성 실패", tone: "failed", hint: "자료 원문은 준비됐지만 개념 추출 또는 문항 생성 중 실패한 작업이 있어요. 다시 시도할 수 있어요." };
+  if (m.learning_status === "waiting_ai") return { text: "AI 처리 대기", tone: "pending", hint: "요청이 보관되어 있어요. AI 연결 후 개념·문항 생성을 이어갑니다." };
   return { text: "개념·문항 준비 중", tone: "pending", hint: "자료 원문은 준비됐어요. 개념 추출과 문항 생성 상태를 확인하고 있어요." };
 }
 export function Materials({
@@ -53,7 +56,7 @@ export function Materials({
   const [kind, setKind] = useState("lecture"),
     [visibility, setVisibility] = useState("public");
   useEffect(() => {
-    if (!list.data?.items.some(m => ["queued","running"].includes(m.version?.status || "") || m.learning_status === "generating")) return;
+    if (!list.data?.items.some(m => ["queued","running","extracted"].includes(m.version?.status || "") || ["generating", "waiting_ai"].includes(m.learning_status || ""))) return;
     const timer = setInterval(list.reload, 5000);
     return () => clearInterval(timer);
   }, [list.data]);
@@ -73,6 +76,7 @@ export function Materials({
         {teacher ? <button className="materials-add" aria-expanded={uploadOpen} aria-controls="material-upload" onClick={() => setUploadOpen(!uploadOpen)}>{uploadOpen ? "업로드 닫기" : "+ 자료 올리기"}</button> : <button onClick={list.reload}>상태 새로고침</button>}
       </div>
       <ErrorNotice text={error || list.error} />
+      {teacher && <AIAvailability />}
       {message && <Notice>{message}</Notice>}
       {teacher && !!list.data?.items.length && <div className="material-list-tools student-list-tools">
         <label>자료 검색<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="자료 이름" /></label>
@@ -102,6 +106,7 @@ export function Materials({
             <div className="material-detail-state">
               <p>원문: {labels[m.version?.status || ""] || "자료 준비 중"}</p>
               {materialState(m).hint && <p>{materialState(m).hint}</p>}
+              {m.version?.status === "failed" && m.processing_job_id && <button onClick={() => void run(async () => { await api(`/jobs/${m.processing_job_id}/retry`, post({})); })}>자료 처리 다시 시도</button>}
               {m.learning_status === "failed" && m.version?.status === "ready" && m.visibility === "public" && ["lecture", "example", "assignment"].includes(m.kind) && <button onClick={() => void run(async () => { await api(`/materials/${m.id}/learning`, post({})); })}>개념·문항 생성 다시 시도</button>}
             </div>
             <div className="actions">
@@ -148,11 +153,7 @@ export function Materials({
                           void run(async () => {
                             const f = new FormData();
                             f.append("file", file);
-                            await api("/materials/" + m.id + "/versions", {
-                              method: "POST",
-                              headers: { "If-Match": String(m.revision) },
-                              body: f,
-                            });
+                            await uploadMaterial(courseId, f, { id: m.id, revision: m.revision });
                           });
                       }}
                     />
@@ -199,10 +200,7 @@ export function Materials({
           <Form
             label="자료 올리기"
             onSubmit={async (f) => {
-              await api("/courses/" + courseId + "/materials", {
-                method: "POST",
-                body: f,
-              });
+              await uploadMaterial(courseId, f);
               setMessage(
                 "자료를 저장했어요. 공개된 강의 자료는 개념 추출과 학습 문항 생성이 자동으로 이어집니다.",
               );
@@ -424,6 +422,7 @@ export function Chat({ sectionId }: { sectionId: string }) {
   }, [items, historyLoading]);
   return (
     <section className="panel chat">
+      <AIAvailability />
       <div className="chat-heading">
       <h2>어떤 부분이 궁금한가요?</h2>
       <button

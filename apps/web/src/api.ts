@@ -24,6 +24,34 @@ export const post = (body: unknown): RequestInit => ({
   method: "POST",
   body: JSON.stringify(body),
 });
+
+/** Authorize with the app session; upload bytes directly to private Storage. */
+export async function uploadMaterial(courseId: string, form: FormData, replacement?: { id: string; revision: number }) {
+  const config = await api<{ direct: boolean; max_file_bytes: number }>("/uploads/config");
+  if (!config.direct) {
+    return api(replacement ? `/materials/${replacement.id}/versions` : `/courses/${courseId}/materials`, {
+      method: "POST", body: form,
+      headers: replacement ? { "If-Match": String(replacement.revision) } : undefined,
+    });
+  }
+  const file = form.get("file");
+  if (!(file instanceof File) || !file.size) throw new Error("파일을 선택해 주세요.");
+  if (file.size > config.max_file_bytes) throw new Error(`현재 파일 크기 제한은 ${config.max_file_bytes / 1024 / 1024}MB입니다.`);
+  const ticket = await api<{ upload_id: string; url: string }>(`/courses/${courseId}/uploads`, post({
+    filename: file.name, size: file.size,
+    kind: String(form.get("kind") || "lecture"), week: Number(form.get("week") || 1),
+    visibility: String(form.get("visibility") || "public"),
+    internal_use: String(form.get("internal_use") || "none"),
+    material_id: replacement?.id, revision: replacement?.revision,
+  }));
+  const uploaded = await fetch(ticket.url, {
+    method: "PUT", credentials: "omit",
+    headers: { "Content-Type": file.type || "application/octet-stream", "x-upsert": "false" },
+    body: file,
+  });
+  if (!uploaded.ok) throw new Error("파일 업로드를 완료하지 못했어요. 연결과 파일 크기를 확인해 주세요.");
+  return api(`/uploads/${ticket.upload_id}/complete`, post({}));
+}
 export interface User {
   major: string | null;
   student_number: string | null;
@@ -65,6 +93,7 @@ export interface Concept {
 }
 export interface Material {
   learning_status?: string;
+  processing_job_id?: string | null;
   id: string;
   title: string;
   kind: string;
@@ -111,4 +140,5 @@ export interface Job {
   status: string;
   result: Answer | null;
   error: { code: string; retryable: boolean } | null;
+  ai_status?: string | null;
 }

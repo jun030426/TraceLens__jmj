@@ -182,6 +182,41 @@ class Job(Identity, Base):
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class ModelCall(Identity, Base):
+    """Only model I/O crosses the worker boundary; all application writes stay in the API."""
+    __tablename__ = "model_calls"
+    __table_args__ = (Index("uq_model_call", "job_id", "generation", "fingerprint", unique=True),)
+    job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id"), index=True)
+    generation: Mapped[int] = mapped_column(Integer)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    request: Mapped[dict] = mapped_column(JSON)
+    response: Mapped[dict | None] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(20), default="queued", index=True)
+    lease_token: Mapped[str | None] = mapped_column(String(36))
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_code: Mapped[str | None] = mapped_column(String(50))
+
+
+class AIWorker(Base):
+    __tablename__ = "ai_workers"
+    id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    models_ready: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class UploadIntent(Identity, Base):
+    __tablename__ = "upload_intents"
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    course_id: Mapped[str] = mapped_column(ForeignKey("courses.id"))
+    material_id: Mapped[str | None] = mapped_column(ForeignKey("materials.id"))
+    object_key: Mapped[str] = mapped_column(String(100), unique=True)
+    filename: Mapped[str] = mapped_column(String(200))
+    size: Mapped[int] = mapped_column(Integer)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSON)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    result: Mapped[dict | None] = mapped_column(JSON)
+
+
 class ChatMessage(Identity, Base):
     __tablename__ = "chat_messages"
     student_id: Mapped[str] = mapped_column(ForeignKey("users.id"))

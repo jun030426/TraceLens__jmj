@@ -9,7 +9,7 @@ import {
 } from "react-router-dom";
 import { Auth } from "./Auth";
 import { api, post, type Classroom, type Course, type Section, type Enrollment, type Term } from "./api";
-import { ErrorNotice, Notice, useLoad } from "./components";
+import { AIAvailability, ErrorNotice, Notice, useLoad } from "./components";
 import { Chat, Materials } from "./Learning";
 import { type Daily } from "./Theory";
 import { LearningHistory, LearningProgress } from "./LearningProgress";
@@ -407,6 +407,7 @@ export function QuizResults() {
       </Link>
       <span className="student-eyebrow result-eyebrow">TURN ANSWERS INTO UNDERSTANDING</span>
       <h1>결과와 복습</h1>
+      {submitted.some(q => q.attempt?.status === "pending") && <AIAvailability />}
       <p className="result-intro">맞힌 이유도, 헷갈린 부분도. 해설과 함께 이해를 한 걸음 넓혀 보세요.</p>
       <ErrorNotice text={r.error} />
       {!r.data && !r.error && <Notice>결과를 불러오는 중…</Notice>}
