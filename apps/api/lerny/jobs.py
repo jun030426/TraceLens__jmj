@@ -226,12 +226,23 @@ def chat_history(
     section_id: str, session: Db, actor: Actor,
     offset: int = Query(default=0, ge=0), limit: int = Query(default=50, ge=1, le=50),
     q: str = Query(default="", max_length=200),
+    thread_id: str | None = Query(default=None, max_length=36),
+    latest_thread: bool = False,
 ):
     section = section_student(session, actor, section_id)
     epoch = session.get(Course, section.course_id).access_epoch
     query = select(ChatMessage).where(
         ChatMessage.student_id == actor.id, ChatMessage.section_id == section_id
     )
+    if latest_thread and not thread_id:
+        thread_id = session.scalar(
+            select(ChatMessage.thread_id)
+            .where(ChatMessage.student_id == actor.id, ChatMessage.section_id == section_id)
+            .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
+            .limit(1)
+        )
+    if thread_id:
+        query = query.where(ChatMessage.thread_id == thread_id)
     if q.strip():
         query = query.where(ChatMessage.question.icontains(q.strip(), autoescape=True))
     total = session.scalar(select(func.count()).select_from(query.subquery()))

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import {
   Link,
   Navigate,
@@ -16,6 +16,7 @@ import { LearningHistory, LearningProgress } from "./LearningProgress";
 
 import { PagedList } from "./StudentLists";
 import { matchesSearch } from "./listNavigation";
+import { QuestionArchive } from "./QuestionArchive";
 
 type Record = {
   id: string;
@@ -513,26 +514,10 @@ export function CourseWorkspace({ mode }: { mode: "chat" | "progress" }) {
   const domain = params.get("domain") === "practice" ? "practice" : "theory";
   const active = rooms.data?.items.filter((r) => r.status === "active") || [];
   const room = active.find((r) => r.section.id === params.get("section"));
-  return (
-    <section className={mode === "chat" ? "student-home ai-page chat-page" : "student-home progress-page ai-page"}>
-      <span className={"student-eyebrow"}>
-        {mode === "chat" ? "CONNECT THROUGH QUESTIONS" : "MY LEARNING"}
-      </span>
-      <h1>{mode === "chat" ? "AI 질문" : "학습 기록과 복습"}</h1>
-      {mode === "chat" && (
-        <p className="ai-page-description">
-          수업 자료에서 답변의 근거를 함께 확인하세요.
-        </p>
-      )}
-      <ErrorNotice text={rooms.error} />
-      {mode === "progress" && (
-        <p>
-          배운 만큼 쌓이는 나의 이해. 개념별 학습과 복습할 내용을 확인해 보세요.
-        </p>
-      )}
-      <div className={"workspace ai-workspace"}>
-        {mode === "chat" && <div className="chat-mobile-course"><label>질문할 강의<select value={room?.section.id || ""} onChange={e => setParams({ section: e.target.value })}><option value="" disabled>강의를 선택하세요</option>{active.map(r => <option key={r.section.id} value={r.section.id}>{r.course.title} · {r.section.title}</option>)}</select></label></div>}
-        <aside className="course-rail">
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveRevision, setArchiveRevision] = useState(0);
+  const updateArchive = useCallback(() => setArchiveRevision(value => value + 1), []);
+  const courseRail = <>
           <h2>내 강의</h2>
           {active.length > 5 ? <div className="student-course-choice"><label>학습할 강의<select value={room?.section.id || ""} onChange={e => setParams(mode === "progress" ? {section:e.target.value,domain} : {section:e.target.value})}><option value="" disabled>강의를 선택하세요</option>{active.map(r => <option key={r.section.id} value={r.section.id}>{r.course.title} · {r.section.title}</option>)}</select></label>{room && <p>{room.course.title}<br />{room.section.title}</p>}</div> : <>
           {active.map((r) => {
@@ -554,11 +539,34 @@ export function CourseWorkspace({ mode }: { mode: "chat" | "progress" }) {
           })}
           </>}
           <Link to="/courses">강의·수강 관리 →</Link>
+  </>;
+  return (
+    <section className={mode === "chat" ? "student-home ai-page chat-page" : "student-home progress-page ai-page"}>
+      <span className={"student-eyebrow"}>
+        {mode === "chat" ? "CONNECT THROUGH QUESTIONS" : "MY LEARNING"}
+      </span>
+      <h1>{mode === "chat" ? "AI 질문" : "학습 기록과 복습"}</h1>
+      {mode === "chat" && (
+        <p className="ai-page-description">
+          수업 자료에서 답변의 근거를 함께 확인하세요.
+        </p>
+      )}
+      <ErrorNotice text={rooms.error} />
+      {mode === "progress" && (
+        <p>
+          배운 만큼 쌓이는 나의 이해. 개념별 학습과 복습할 내용을 확인해 보세요.
+        </p>
+      )}
+      <div className={"workspace ai-workspace"}>
+        {mode === "chat" && <div className="chat-mobile-course"><label>질문할 강의<select value={room?.section.id || ""} onChange={e => setParams({ section: e.target.value })}><option value="" disabled>강의를 선택하세요</option>{active.map(r => <option key={r.section.id} value={r.section.id}>{r.course.title} · {r.section.title}</option>)}</select></label></div>}
+        <aside className={mode === "chat" ? "course-rail chat-sidebar" : "course-rail"}>
+          {mode === "chat" ? <div className="chat-course-list">{courseRail}</div> : courseRail}
+          {mode === "chat" && room && <QuestionArchive key={room.section.id} sectionId={room.section.id} revision={archiveRevision} open={archiveOpen} onOpenChange={setArchiveOpen} />}
         </aside>
-        <div>
+        <div className={mode === "chat" ? "chat-column" : undefined}>
           {room ? (
             mode === "chat" ? (
-              <Chat key={room.section.id} sectionId={room.section.id} />
+              <Chat key={room.section.id} sectionId={room.section.id} courseTitle={`${room.course.title} · ${room.section.title}`} archiveInSidebar onHistoryChange={updateArchive} />
             ) : (
               <section className="panel progress-panel">
                 <span className="student-eyebrow">MY UNDERSTANDING</span>

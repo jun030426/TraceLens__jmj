@@ -29,7 +29,7 @@ export function Notice({ children }: { children: ReactNode }) {
     </p>
   );
 }
-export function AIAvailability() {
+export function AIAvailability({ compact = false }: { compact?: boolean }) {
   const [offline, setOffline] = useState(false);
   useEffect(() => {
     let active = true;
@@ -40,7 +40,12 @@ export function AIAvailability() {
     const timer = setInterval(check, 30000);
     return () => { active = false; clearInterval(timer); };
   }, []);
-  return offline ? <Notice>AI 기능이 현재 대기 중이에요. 요청은 보관되며 연결 후 처리됩니다. 기존 자료와 학습 기록은 계속 확인할 수 있어요.</Notice> : null;
+  if (!offline) return null;
+  if (compact) return <details className="chat-availability">
+    <summary><span className="chat-status-dot" aria-hidden="true" /><span role="status">AI 연결 대기 중</span><span className="chat-status-help">안내</span></summary>
+    <p>질문은 보관되며 AI 연결 후 처리됩니다. 기존 자료와 학습 기록은 계속 확인할 수 있어요.</p>
+  </details>;
+  return <Notice>AI 기능이 현재 대기 중이에요. 요청은 보관되며 연결 후 처리됩니다. 기존 자료와 학습 기록은 계속 확인할 수 있어요.</Notice>;
 }
 export function ErrorNotice({ text }: { text: string }) {
   return text ? (
