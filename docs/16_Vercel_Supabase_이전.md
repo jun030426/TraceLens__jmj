@@ -1,6 +1,6 @@
 # Vercel·Supabase 이전과 AI 테스트 실행기
 
-2026-10-13. 목표는 **개발 PC를 꺼도 일반 서비스가 동작하고, PC에는 모델 연산 테스트만 남기는 것**이다. 이번 변경은 배포용 코드와 검증을 준비한다. 실제 계정 설정·클라우드 배포·PC 종료 후 외부 기기 검증은 별도로 확인한다.
+2026-10-13. 목표는 **개발 PC를 꺼도 일반 서비스가 동작하고, PC에는 모델 연산 테스트만 남기는 것**이다. [운영 주소](https://lerny-ten.vercel.app/login)에 배포했고 실제 클라우드 DB·Storage·Cron 경로를 검증했다. 물리적인 PC 종료 후 외부 기기 검증은 별도 확인한다. 사용자가 새 클라우드 DB로 시작하기로 선택했으며 기존 로컬 데이터는 복사하지 않았다.
 
 ## 1. 배치 구조
 
@@ -59,17 +59,17 @@ GitHub의 `jun030426/TraceLens__jmj`를 Import하고 다음과 같이 설정한�
 | 설정 | 값 |
 | --- | --- |
 | Root Directory | 저장소 루트. `apps/web`로 지정하지 않음 |
-| Framework | FastAPI |
-| Build Command | `python scripts/build_vercel.py` (`vercel.json`에 포함) |
+| Framework | 프로젝트 override 없음. 각 service에 Vite/FastAPI 지정 |
+| Build Command | 프로젝트 override 없음. frontend의 `npm run build`, backend의 기본 Python 빌드 |
 | Output Directory | 수동 override를 비워 둠 |
 | Production Branch | `master` |
 | Python | `pyproject.toml`의 3.12 기준 |
 
-빌드 도구는 Vite를 빌드해 루트 `public/`에 복사한다. API와 웹을 같은 출처로 제공하며, SPA 경로 새로고침은 `index.html`로 연결한다. `/api/`와 정적 자산 경로는 SPA rewrite에서 제외한다. DB 마이그레이션이나 운영자 생성은 빌드 중 실행하지 않는다.
+`vercel.json`은 Vercel Services(현재 베타)를 사용한다. `apps/web`의 Vite frontend와 저장소 루트 `main:app`의 FastAPI backend를 독립 빌드한 뒤 함께 배포한다. 최상위 `/api/(.*)`는 backend로, 나머지는 frontend로 전달한다. frontend 내부 SPA rewrite로 직접 진입과 새로고침을 처리하고 실제 정적 파일도 제공한다. 서울 `icn1`, 함수 제한 300초를 지정한다. DB 마이그레이션이나 운영자 생성은 빌드 중 실행하지 않는다.
 
 Vercel Environment Variables의 **Production**에 다음을 설정한다. 비밀 값은 Sensitive로 보관한다. Preview에는 운영 DB/관리자 키를 연결하지 않는다. Preview가 필요하면 별도 Supabase 개발 프로젝트와 전용 토큰을 사용한다.
 
-기존 Supabase 프로젝트를 Vercel 통합으로 연결한 경우 `POSTGRES_URL`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`(또는 `SUPABASE_SERVICE_ROLE_KEY`)를 그대로 읽는다. `POSTGRES_URL`은 SQLAlchemy psycopg URI와 SSL 설정으로 변환한다. 별도의 `LERNY_DATABASE_URL`·`LERNY_SUPABASE_SERVICE_KEY`를 중복 입력하지 않아도 된다. `LERNY_*` 값을 직접 설정하면 통합 값보다 우선한다. 출처 목록을 직접 지정하지 않으면 Vercel의 `VERCEL_PROJECT_PRODUCTION_URL`을 사용한다.
+기존 Supabase 프로젝트를 Vercel 통합으로 연결한 경우 `POSTGRES_URL`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`(또는 `SUPABASE_SERVICE_ROLE_KEY`)를 그대로 읽는다. `POSTGRES_URL`의 통합용 `supa` 및 다른 드라이버 전용 쿼리를 제거하고 SQLAlchemy psycopg URI와 SSL 설정으로 변환한다. 별도의 `LERNY_DATABASE_URL`·`LERNY_SUPABASE_SERVICE_KEY`를 중복 입력하지 않아도 된다. `LERNY_*` 값을 직접 설정하면 통합 값보다 우선한다. 출처 목록을 직접 지정하지 않으면 Vercel의 `VERCEL_PROJECT_PRODUCTION_URL`을 사용한다.
 
 | 이름 | 값 |
 | --- | --- |
@@ -90,7 +90,7 @@ Vercel Environment Variables의 **Production**에 다음을 설정한다. 비밀
 
 Vercel Deployment Protection을 사용할 경우 PC와 Supabase 호출에도 인증이 필요하다. 해당 프로젝트의 Automation Bypass 값을 PC 설정의 `vercel_protection_bypass`와 Vault의 `lerny_vercel_bypass`에 각각 보관한다. 웹 사용자에게 공개할 Production 주소의 접근 정책도 확인한다. 우회 키를 URL 쿼리나 Git에 넣지 않는다.
 
-참고: [FastAPI 배포](https://vercel.com/docs/frameworks/backend/fastapi), [함수 제한](https://vercel.com/docs/functions/limitations).
+참고: [Vercel Services](https://vercel.com/docs/services), [FastAPI 배포](https://vercel.com/docs/frameworks/backend/fastapi), [함수 제한](https://vercel.com/docs/functions/limitations).
 
 ## 5. 테이블과 최초 운영자 생성
 
@@ -169,7 +169,12 @@ uv run --locked python scripts/migrate_cloud_files.py
 2026-10-13 적용 기록:
 
 - 기존 Supabase `Lerny` (`gwuzahbpnnedzqopxkiv`, 서울 리전)에서 빈 앱 스키마를 확인한 후 Alembic 초기→`a7b18d65ec90` SQL을 MCP로 적용했다. 앱/버전 테이블 27개에 RLS 활성화를 확인했다. DB 비밀번호를 PC에 복사하지 않았다.
-- 비공개 `lerny-materials` 버킷(50MB)과 `pg_cron`·`pg_net` 확장을 준비했다. 실제 주기 작업은 배포 URL 확인 후 등록한다.
+- 비공개 `lerny-materials` 버킷(50MB)과 `pg_cron`·`pg_net` 확장을 준비했다. Vault에 전용 스케줄러 인증과 운영 URL을 저장하고 `lerny-cloud-jobs`를 매분 실행하도록 등록했다. Supabase 호출 이력의 HTTP 200, 자료 추출 성공 및 AI 실행기 없이 임베딩만 `waiting_ai`로 대기하는 것을 확인했다.
 - Vercel `kigkig495-2084s-projects/lerny` (`prj_l1hy0WZuGPfyl2NNiTGz7HL1hyYv`)를 만들었다. 사용자가 기존 Supabase 계정 통합을 완료했고 Production DB/서버 키의 변수 이름과 대상 환경을 확인했다. 비밀 값은 출력하지 않았다.
 - API 회귀 43개, 프런트 회귀 9개, TypeScript/Vite 빌드가 통과했다. 실제 Alembic 적용·되돌리기도 로컬 전용 테스트 DB의 격리 스키마에서 검증했다.
 - 모델 요청의 임시 입력/응답은 종료된 작업에 한해 1일 후 정리한다. 만료된 업로드의 staging 원본도 스케줄에서 정리하며, 게시된 자료 원본과 학습 기록은 이 정리에서 삭제하지 않는다.
+- 실제 운영 주소의 `/login` 및 JavaScript 파일 200, `/api/v1/health/ready`의 DB/Storage 준비 완료 200, 미등록 API의 JSON 404를 확인했다. 운영 주소는 Vercel 추가 로그인 없이 접근 가능하다.
+- 합성 검증 계정으로 클라우드 로그인·보안 쿠키·최초 운영자 비밀번호 변경 관문·강의/분반/수강 등록·실제 서명 PUT 업로드와 다운로드·중복 완료 요청·비수강생 파일 접근 차단을 확인했다. 로컬 API/DB를 호출하지 않았다. 이 검증은 실제 학생 자료나 개인정보를 사용하지 않았다.
+- 최초 운영자 `operator`의 임시 비밀번호는 Git 밖 `LernyData/secrets/initial-cloud-operator.json`에 저장했다. 사용자가 최초 로그인 후 변경한다. AI 실행기 설정의 `cloud_url`도 운영 주소로 갱신했다.
+- PC 추론 실행기를 잠깐 연결해 실제 Ollama 임베딩과 개념 추론 응답이 클라우드로 돌아오고 자료가 `ready`로 활성화되는 것을 확인한 뒤 실행기를 종료했다. 자동 문항 생성은 기존 답안 교차검증에서 `ANSWER_KEY_MISMATCH`로 차단됐다. 연결 성공을 문항 품질 관문 통과로 해석하지 않는다. 기본 모델을 바꾸거나 검증을 우회하지 않았다.
+- 합성 검증 계정 2개는 비활성화하고 로그인 세션을 폐기했다. 검증 자료는 접근을 철회했으며, 표시 이름이 `클라우드 배포 검증 전용`인 합성 이력과 비공개 원본은 검증 증거로 남겼다. 사용자 계정·수업 데이터는 포함하지 않는다.
