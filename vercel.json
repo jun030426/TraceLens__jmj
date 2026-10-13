@@ -14,7 +14,6 @@
       "root": ".",
       "framework": "fastapi",
       "entrypoint": "main:app",
-      "buildCommand": "",
       "functions": { "main.py": { "maxDuration": 300 } }
     }
   },
