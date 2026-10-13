@@ -10,7 +10,7 @@ def test_vercel_integration_variables_work_without_PC_config(monkeypatch, tmp_pa
     (tmp_path / "secrets/app.json").write_text(json.dumps({"database_url": "local-only-secret"}))
     values = {
         "VERCEL": "1", "LERNY_RUNTIME_ROOT": str(tmp_path),
-        "POSTGRES_URL": "postgres://app:example@pooler.example:6543/postgres",
+        "POSTGRES_URL": "postgres://app:example@pooler.example:6543/postgres?supa=integration&pgbouncer=true",
         "SUPABASE_URL": "https://project.supabase.co", "SUPABASE_SECRET_KEY": "sb_secret_example",
         "VERCEL_PROJECT_PRODUCTION_URL": "lerny.example", "LERNY_AI_WORKER_TOKEN": "w" * 40,
         "CRON_SECRET": "c" * 40,
@@ -22,6 +22,7 @@ def test_vercel_integration_variables_work_without_PC_config(monkeypatch, tmp_pa
     assert config.allowed_origins == ["https://lerny.example"]
     assert config.database_url.startswith("postgresql+psycopg://")
     assert "sslmode=require" in config.database_url
+    assert "supa=" not in config.database_url and "pgbouncer=" not in config.database_url
     assert "local-only-secret" not in config.database_url
 
 

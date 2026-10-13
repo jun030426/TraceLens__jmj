@@ -1,12 +1,25 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "fastapi",
   "regions": ["icn1"],
-  "buildCommand": "python scripts/build_vercel.py",
+  "services": {
+    "frontend": {
+      "root": "apps/web",
+      "framework": "vite",
+      "installCommand": "npm ci",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist",
+      "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+    },
+    "backend": {
+      "root": ".",
+      "framework": "fastapi",
+      "entrypoint": "main:app",
+      "buildCommand": "",
+      "functions": { "main.py": { "maxDuration": 300 } }
+    }
+  },
   "rewrites": [
-    { "source": "/:path((?!api/|assets/|.*\\.).*)", "destination": "/index.html" }
-  ],
-  "functions": {
-    "main.py": { "maxDuration": 300 }
-  }
+    { "source": "/api/(.*)", "destination": { "service": "backend" } },
+    { "source": "/(.*)", "destination": { "service": "frontend" } }
+  ]
 }

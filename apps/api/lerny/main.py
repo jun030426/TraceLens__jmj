@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
 from lerny import auth, cloud_jobs, cloud_uploads, courses, jobs, learning, materials, exams, storage
 from lerny.config import settings
@@ -102,7 +102,7 @@ def create_app() -> FastAPI:
             with engine().connect() as connection:
                 revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar()
                 database = "ready" if revision == SCHEMA_REVISION else "migration_required"
-        except (RuntimeError, OperationalError):
+        except (RuntimeError, SQLAlchemyError):
             pass
         if settings().deployment == "cloud":
             try:

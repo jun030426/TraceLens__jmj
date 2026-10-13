@@ -76,7 +76,9 @@ def settings() -> Settings:
             database_pool_mode="transaction",
         )
         if url := os.environ.get("POSTGRES_URL"):
-            values["database_url"] = make_url(url).set(drivername="postgresql+psycopg").update_query_dict(
+            values["database_url"] = make_url(url).difference_update_query(
+                ["supa", "pgbouncer", "connection_limit", "pool_timeout", "schema"]
+            ).set(drivername="postgresql+psycopg").update_query_dict(
                 {"sslmode": "require"}).render_as_string(hide_password=False)
         if origin := os.environ.get("VERCEL_PROJECT_PRODUCTION_URL"):
             values["allowed_origins"] = ["https://" + origin]
