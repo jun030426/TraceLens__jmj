@@ -48,6 +48,8 @@ def current_user(request: Request, session: Db) -> User:
     ):
         deny(403, "초기 비밀번호를 먼저 변경해 주세요.")
     request.state.login = login
+    from lerny.operations import guard_request
+    guard_request(session, request)
     return user
 
 

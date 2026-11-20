@@ -1,0 +1,1673 @@
+/* [랜딩] 따뜻한 종이 위의 소개 — 앱 화면과 같은 토큰(--d-*, lerny-design.css)을 써요.
+   - 느낌: 따뜻하고 부드러운 프리미엄 미니멀. 종이색 바탕, 가는 명조 제목, 조용한 고딕 본문, 행동 색은 자두색 하나.
+   - 보라 그라데이션은 배경의 옅은 빛(모브 · 라일락 · 장밋빛)으로만, 짙은 면은 자두색 띠 하나.
+   - 레이아웃: 구역마다 다른 구성 — 책상 장면(개편 전 그대로) / 붙어 있는 단계 + 데모 / 짙은 띠 위 엇갈린 카드 / 붙어 있는 제목 + 목록 / 가운데 마무리
+   - 움직임: 누르면 0.97, 올리면 살짝, 처음 보일 때 한 번. 움직임 줄이기 설정이면 모두 멈춰요. */
+
+#root .lerny-landing {
+  --lw-max: 1200px;
+  --lw-gutter: clamp(20px, 5vw, 72px);
+  background: var(--d-ground);
+  color: var(--d-ink);
+  word-break: keep-all;
+}
+
+#root .lerny-landing main.v-landing.lw {
+  display: block;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow-x: clip;
+  background: var(--d-ground);
+  color: var(--d-ink);
+}
+
+#root .lerny-landing .lw :where(h1, h2, h3, p, ol, ul, li, figure) {
+  margin: 0;
+  padding: 0;
+}
+
+#root .lerny-landing .lw :where(ol, ul) {
+  list-style: none;
+}
+
+#root .lerny-landing :is(.lw-flow, .lw-tools, .lw-bridge) h2 {
+  font-family: var(--d-serif);
+  font-weight: 300;
+  color: var(--d-ink);
+  letter-spacing: -0.04em;
+}
+
+#root .lerny-landing .lw-num {
+  color: var(--d-ink-3);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- 알약 버튼 ---------- */
+
+#root .lerny-landing .lw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 26px;
+  border: 1px solid var(--d-ink-2);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--d-ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: none;
+  cursor: pointer;
+  transition: transform 160ms var(--d-ease-out), background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+#root .lerny-landing .lw-btn svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 220ms var(--d-ease-out);
+}
+
+#root .lerny-landing .lw-btn.solid {
+  border-color: var(--d-accent);
+  background: var(--d-accent);
+  color: #ffffff;
+}
+
+#root .lerny-landing .lw-btn.on-dark {
+  border-color: var(--d-on-night);
+  background: var(--d-on-night);
+  color: var(--d-night);
+}
+
+#root .lerny-landing .lw-btn:active {
+  transform: scale(0.97);
+}
+
+#root .lerny-landing .lw-btn:focus-visible {
+  outline: 2px solid var(--d-accent);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #root .lerny-landing .lw-btn:hover {
+    background: rgba(75, 48, 72, 0.06);
+  }
+
+  #root .lerny-landing .lw-btn.solid:hover {
+    border-color: var(--d-accent-deep);
+    background: var(--d-accent-deep);
+  }
+
+  #root .lerny-landing .lw-btn.on-dark:hover {
+    background: #ffffff;
+  }
+
+  #root .lerny-landing .lw-btn:hover svg {
+    transform: translate(2px, -2px);
+  }
+}
+
+/* ① 첫 화면은 개편 전 책상 장면 그대로예요 (DeskScene.tsx · landing.css / lerny-landing.css) */
+
+@keyframes lw-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ======================================================================
+   ② 하루의 학습 — 붙어 있는 화면: 왼쪽 단계 목록, 오른쪽 모브 · 장밋빛 바탕 위 데모
+   ====================================================================== */
+
+/* 데모 안쪽 색도 같은 조합으로 (원래 남색 · 보라 → 자두색 · 모브) */
+#root .lerny-landing .lw-flow {
+  --v-panel: #4b3048;
+  --v-panel-2: #3a2438;
+  --v-violet: #cbb8d7;
+  --v-strong: #9b7bb8;
+  --v-strong-soft: #cbb8d7;
+  --v-weak: #d39aa9;
+  --v-step-material: #9b7bb8;
+  --v-step-2: #9b7bb8;
+  --v-step-3: #9b7bb8;
+  --v-step-4: #9b7bb8;
+  --v-step-5: #9b7bb8;
+  --v-deep: #7b4a80;
+  position: relative;
+  background: var(--d-ground);
+}
+
+#root .lerny-landing .lw-flow-sticky {
+  position: sticky;
+  top: 0;
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 80px);
+  height: 100svh;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 88px var(--lw-gutter) 40px;
+}
+
+#root .lerny-landing .lw-flow-side h2 {
+  margin-bottom: clamp(28px, 4vh, 48px);
+  font-size: clamp(40px, 4.6vw, 68px);
+  line-height: 1.1;
+}
+
+#root .lerny-landing .lw-flow-steps {
+  display: grid;
+  gap: 4px;
+}
+
+#root .lerny-landing .lw-flow-label {
+  position: relative;
+  display: block;
+  padding: 14px 0 12px;
+  color: var(--d-ink-3);
+  font-size: 15px;
+  font-weight: 600;
+  transition: color 240ms ease;
+}
+
+/* 단계 아래 가는 줄: 지나온 만큼 자두색으로 차올라요 */
+#root .lerny-landing .lw-flow-label::after,
+#root .lerny-landing .lw-flow-label i {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+}
+
+#root .lerny-landing .lw-flow-label::after {
+  background: var(--d-hair);
+}
+
+#root .lerny-landing .lw-flow-label i {
+  z-index: 1;
+  background: var(--d-accent);
+  transform-origin: left;
+}
+
+#root .lerny-landing .lw-flow-steps li.on .lw-flow-label,
+#root .lerny-landing .lw-flow-steps li.done .lw-flow-label {
+  color: var(--d-ink);
+}
+
+/* 지금 단계만 제목과 설명이 펼쳐져요 */
+#root .lerny-landing .lw-flow-copy {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 420ms var(--d-ease-out);
+}
+
+#root .lerny-landing .lw-flow-copy > div {
+  overflow: hidden;
+}
+
+#root .lerny-landing .lw-flow-steps li.on .lw-flow-copy {
+  grid-template-rows: 1fr;
+}
+
+#root .lerny-landing .lw-flow-copy h3 {
+  padding-top: 18px;
+  color: var(--d-ink);
+  font-family: var(--d-serif);
+  font-size: clamp(26px, 2.4vw, 34px);
+  font-weight: 400;
+  line-height: 1.28;
+  letter-spacing: -0.035em;
+}
+
+#root .lerny-landing .lw-flow-copy p {
+  padding: 12px 0 20px;
+  color: var(--d-ink-2);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+/* 데모 받침: 모브에서 장밋빛으로 번지는 면 */
+#root .lerny-landing .lw-flow-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: min(720px, calc(100svh - 140px));
+  padding: clamp(20px, 3vw, 40px);
+  border-radius: 32px;
+  background:
+    radial-gradient(70% 80% at 100% 0%, rgba(155, 123, 184, 0.5) 0%, transparent 70%),
+    radial-gradient(60% 70% at 0% 100%, rgba(238, 223, 215, 0.95) 0%, transparent 70%),
+    var(--d-rose);
+  color: var(--d-ink);
+  animation: lw-swap 420ms var(--d-ease-out) both;
+}
+
+@keyframes lw-swap {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+#root .lerny-landing .lw-flow-stage > .v-app {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+#root .lerny-landing .lw-flow-stage .v-app-canvas {
+  background: transparent;
+}
+
+#root .lerny-landing .lw-flow-stage.is-quiz > .v-app {
+  height: auto;
+  flex: 0 1 auto;
+}
+
+/* 숏폼 강의 데모: 원래 차가운 보라를 자두색 · 모브로 */
+#root .lerny-landing .lw-flow-stage .v-material-demo {
+  height: 100%;
+  max-height: none;
+}
+
+#root .lerny-landing .lw-flow-stage.v-material-light {
+  background:
+    radial-gradient(70% 80% at 100% 0%, rgba(155, 123, 184, 0.5) 0%, transparent 70%),
+    radial-gradient(60% 70% at 0% 100%, rgba(238, 223, 215, 0.95) 0%, transparent 70%),
+    var(--d-rose);
+}
+
+#root .lerny-landing .v-material-light .v-material-panel { background: rgba(255, 252, 250, 0.86); }
+#root .lerny-landing .v-material-light :is(.v-material-heading, .v-material-toggle, .v-material-week, .v-material-replay) { color: var(--d-night); }
+#root .lerny-landing .v-material-light .v-material-week.selected { background: var(--d-accent-wash); color: var(--d-night); }
+#root .lerny-landing .v-material-light :is(.v-material-heading, .v-material-toggle, .v-material-week):hover { background: var(--d-step); }
+#root .lerny-landing .v-material-light .v-material-weeks { border-color: var(--d-hair); }
+#root .lerny-landing .v-material-light .v-material-more { color: var(--d-ink-3); }
+#root .lerny-landing .v-material-light .v-material-empty { color: var(--d-night); background: rgba(255, 252, 250, 0.86); }
+#root .lerny-landing .v-material-light .v-material-empty > span { color: var(--d-mauve); }
+
+/* ======================================================================
+   ③ 학습 도구 — 짙은 자두색 띠 위에 종이 카드. 가운데 줄은 한 칸 내려앉아요
+   ====================================================================== */
+
+#root .lerny-landing .lw-tools {
+  padding: clamp(96px, 11vw, 160px) var(--lw-gutter) clamp(128px, 14vw, 200px);
+  background:
+    radial-gradient(50% 60% at 100% 0%, rgba(155, 123, 184, 0.4) 0%, transparent 70%),
+    radial-gradient(40% 50% at 0% 100%, rgba(235, 214, 229, 0.14) 0%, transparent 70%),
+    var(--d-night);
+  color: var(--d-on-night);
+}
+
+#root .lerny-landing .lw-tools-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: var(--lw-max);
+  margin: 0 auto clamp(48px, 6vw, 80px);
+}
+
+#root .lerny-landing .lw-tools h2 {
+  color: var(--d-on-night);
+  font-size: clamp(44px, 5.6vw, 84px);
+  line-height: 1.08;
+}
+
+#root .lerny-landing .lw-tools ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  max-width: var(--lw-max);
+  margin: 0 auto;
+}
+
+#root .lerny-landing .lw-tools li {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 220px;
+  padding: 32px 28px 28px;
+  border-radius: var(--d-r-card);
+  background: var(--d-pearl);
+  color: var(--d-ink);
+  transition: transform 260ms var(--d-ease-out);
+}
+
+/* 가운데 줄만 한 칸 아래로 */
+#root .lerny-landing .lw-tools li:nth-child(3n + 2) {
+  translate: 0 48px;
+}
+
+
+#root .lerny-landing .lw-tools li strong {
+  font-family: var(--d-serif);
+  margin-bottom: auto;
+  padding-bottom: 32px;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+#root .lerny-landing .lw-tools li > span:last-child {
+  color: var(--d-ink-2);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #root .lerny-landing .lw-tools li:hover {
+    transform: translateY(-4px);
+  }
+}
+
+/* ======================================================================
+   ④ 교수자 — 왼쪽 제목은 붙어 있고 오른쪽 네 가지가 한 줄씩
+   ====================================================================== */
+
+#root .lerny-landing .lw-bridge {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  align-items: start;
+  gap: clamp(40px, 6vw, 112px);
+  max-width: var(--lw-max);
+  margin: 0 auto;
+  padding: clamp(112px, 12vw, 176px) var(--lw-gutter);
+}
+
+#root .lerny-landing .lw-bridge-head {
+  position: sticky;
+  top: 112px;
+  display: grid;
+  justify-items: start;
+  gap: 24px;
+}
+
+#root .lerny-landing .lw-bridge h2 {
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 1.12;
+}
+
+#root .lerny-landing .lw-bridge-head p {
+  max-width: 40ch;
+  color: var(--d-ink-2);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+#root .lerny-landing .lw-bridge ol {
+  display: grid;
+}
+
+#root .lerny-landing .lw-bridge li {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: baseline;
+  gap: 24px;
+  padding: 36px 0;
+  border-top: 1px solid var(--d-hair);
+  transition: padding-left 260ms var(--d-ease-out);
+}
+
+#root .lerny-landing .lw-bridge li:last-child {
+  border-bottom: 1px solid var(--d-hair);
+}
+
+#root .lerny-landing .lw-bridge li strong {
+  font-family: var(--d-serif);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+#root .lerny-landing .lw-bridge li span {
+  color: var(--d-ink-2);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #root .lerny-landing .lw-bridge li:hover {
+    padding-left: 8px;
+  }
+}
+
+/* 교수자 단계 자동 넘김 — 지금 단계(.on)만 진하게, 위쪽 선이 채워지면 다음 단계로 (LandingNew.tsx 의 BRIDGE_MS) */
+#root .lerny-landing .lw-bridge li {
+  position: relative;
+}
+
+#root .lerny-landing .lw-bridge-num {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--d-ink-3);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  transition: color 300ms ease;
+}
+
+#root .lerny-landing .lw-bridge ol.is-auto li :is(strong, span) {
+  transition: color 300ms ease, opacity 300ms ease;
+}
+
+#root .lerny-landing .lw-bridge ol.is-auto li:not(.on) strong {
+  color: var(--d-ink-3);
+}
+
+#root .lerny-landing .lw-bridge ol.is-auto li:not(.on) span {
+  opacity: 0.5;
+}
+
+#root .lerny-landing .lw-bridge ol.is-auto li.on {
+  padding-left: 8px;
+}
+
+#root .lerny-landing .lw-bridge li.on .lw-bridge-num {
+  color: var(--d-accent);
+}
+
+#root .lerny-landing .lw-bridge-bar {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--d-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: lw-bridge-fill var(--lw-bridge-ms, 2800ms) linear forwards;
+}
+
+#root .lerny-landing .lw-bridge ol.is-hold .lw-bridge-bar {
+  animation: none;
+  transform: scaleX(1);
+}
+
+@keyframes lw-bridge-fill {
+  to { transform: scaleX(1); }
+}
+
+/* ---------- 화면에 들어오면 한 장씩 (is-in 이 붙을 때만 움직여서, 스크립트가 없어도 보여요) ---------- */
+
+#root .lerny-landing :is(.lw-tools, .lw-bridge).is-in :is(.lw-tools li, .lw-bridge li) {
+  animation: lw-rise 700ms var(--d-ease-out) both;
+  animation-delay: calc(var(--i) * 60ms);
+}
+
+/* ======================================================================
+   ⑤ 마무리 — 라일락에서 장밋빛으로, 가운데 명조 한 문장
+   ====================================================================== */
+
+/* 마무리 문장부터 아래 띠의 검은 바닥줄 전까지 바탕 하나로 이어져요 (두 칸 사이에 경계가 생기지 않게) */
+#root .study-landing.lerny-landing .ln-page {
+  background:
+    radial-gradient(70% 24% at 50% 46%, rgba(155, 123, 184, 0.3) 0%, transparent 70%),
+    linear-gradient(180deg, var(--d-ground) 0%, var(--d-mist) 26%, var(--d-rose) 48%, var(--d-rose) 62%, var(--d-ground) 100%);
+}
+
+#root .lerny-landing .ln-page section.ln-finale.ln-closing {
+  /* 바로 위 맥북 화면 속으로 들어가면 곧장 이 문장이 보이도록 위쪽 여백을 줄였어요 */
+  padding: clamp(40px, 5vw, 72px) var(--lw-gutter) clamp(56px, 7vw, 104px) !important;
+  background: transparent;
+  text-align: center;
+}
+
+#root .lerny-landing .ln-page .ln-closing-head {
+  display: grid;
+  justify-items: center;
+  gap: 40px;
+  max-width: var(--lw-max);
+  margin: 0 auto;
+  padding: 0;
+}
+
+#root .lerny-landing .ln-page .ln-closing-head h2 {
+  margin: 0;
+  color: var(--d-ink);
+  font-family: var(--d-serif);
+  font-size: clamp(38px, 5.4vw, 84px);
+  font-weight: 300;
+  line-height: 1.18;
+  letter-spacing: -0.045em;
+}
+
+#root .lerny-landing .ln-page .ln-closing-head h2 span {
+  color: var(--d-accent);
+}
+
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 28px;
+  border: 0 !important;
+  border-radius: 9999px;
+  background: var(--d-accent) !important;
+  color: #ffffff !important;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: none !important;
+  transition: transform 160ms var(--d-ease-out), background-color 200ms ease !important;
+}
+
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta:hover {
+  background: var(--d-accent-deep) !important;
+}
+
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta:active {
+  transform: scale(0.97);
+}
+
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta span {
+  display: inline-flex;
+  transition: transform 220ms var(--d-ease-out);
+}
+
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta:hover span {
+  transform: translate(2px, -2px);
+}
+
+/* 아래 Lerny 띠: 글자는 그대로, 바탕과 링크 색만 종이와 자두색으로 */
+#root .lerny-landing section.ln-band {
+  --band: transparent;
+  --band-line: transparent;
+  border-top: 0;
+}
+
+#root .lerny-landing section.ln-band .ln-band-grid {
+  max-width: var(--lw-max);
+  margin: 0 auto;
+  border-bottom: 0;
+}
+
+#root .lerny-landing section.ln-band .ln-band-grid > * {
+  border: 0 !important;
+}
+
+#root .lerny-landing section.ln-band .ln-band-label {
+  color: var(--d-ink-3);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#root .lerny-landing section.ln-band .ln-band-grid nav a {
+  color: var(--d-ink);
+}
+
+#root .lerny-landing section.ln-band .ln-band-grid nav a:hover {
+  color: var(--d-accent);
+}
+
+#root .lerny-landing section.ln-band .ln-band-bar {
+  background: var(--d-night);
+}
+
+/* ======================================================================
+   태블릿 · 휴대폰
+   ====================================================================== */
+
+@media (max-width: 960px) {
+  /* 단계는 위에 한 줄, 지금 단계 설명은 그 아래, 데모는 남은 자리에 */
+  #root .lerny-landing .lw-flow-sticky {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: stretch;
+    gap: 16px;
+    padding: 76px 16px 16px;
+  }
+
+  #root .lerny-landing .lw-flow-side h2 {
+    display: none;
+  }
+
+  #root .lerny-landing .lw-flow-steps {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0 8px;
+  }
+
+  #root .lerny-landing .lw-flow-steps li {
+    display: contents;
+  }
+
+  #root .lerny-landing .lw-flow-label {
+    grid-row: 1;
+    padding: 8px 0;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  #root .lerny-landing .lw-flow-steps li:not(.on) .lw-flow-copy {
+    display: none;
+  }
+
+  #root .lerny-landing .lw-flow-steps li.on .lw-flow-copy {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+
+  #root .lerny-landing .lw-flow-copy h3 {
+    padding-top: 12px;
+    font-size: 24px;
+  }
+
+  #root .lerny-landing .lw-flow-copy p {
+    padding: 6px 0 0;
+    font-size: 15px;
+  }
+
+  #root .lerny-landing .lw-flow-stage {
+    height: auto;
+    min-height: 0;
+    padding: 12px;
+    border-radius: 24px;
+  }
+
+  /* 축소해서 보여주는 데모는 받침을 데모 비율에 맞춰 위쪽에 붙여요 (빈 분홍 면이 커지지 않게) */
+  #root .lerny-landing .lw-flow-stage:is(.is-code, .is-stats) {
+    align-self: start;
+    height: 74vw;
+    padding: 6px;
+  }
+
+  #root .lerny-landing .lw-flow-stage.is-chat {
+    align-self: start;
+    height: min(118vw, 100%);
+    padding: 6px;
+  }
+
+  #root .lerny-landing .lw-tools ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #root .lerny-landing .lw-tools li:nth-child(3n + 2) {
+    translate: none;
+  }
+
+  #root .lerny-landing .lw-tools li:nth-child(2n) {
+    translate: 0 40px;
+  }
+
+  #root .lerny-landing .lw-bridge {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #root .lerny-landing .lw-bridge-head {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  #root .lerny-landing .lw-tools-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  #root .lerny-landing .lw-tools ul {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #root .lerny-landing .lw-tools li:nth-child(n) {
+    translate: none;
+    min-height: 0;
+  }
+
+  #root .lerny-landing .lw-tools li strong {
+    padding-bottom: 8px;
+  }
+
+  #root .lerny-landing .lw-bridge li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 28px 0;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root .lerny-landing :is(.lw-flow-stage, .lw-tools li, .lw-bridge li) {
+    animation: none !important;
+  }
+
+  #root .lerny-landing :is(.lw-btn, .lw-btn svg, .lw-flow-copy, .lw-flow-label, .lw-tools li, .lw-bridge li) {
+    transition: none;
+  }
+}
+
+/* ---------- 맨 아래 띠: 바탕 · 글꼴 · 연보라 글자색은 예전 그대로, 배치만 바꿨어요
+   (저작권 줄 + 가는 선, 그 아래 화면 너비를 꽉 채운 큰 Lerny. — 아래쪽은 잘림) ---------- */
+#root .lerny-landing section.ln-band .ln-band-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 28px var(--lw-gutter) 26px;
+  border-bottom: 1px solid var(--d-hair);
+  background: transparent;
+  color: var(--d-ink-2);
+  font-size: 14px;
+}
+
+#root .lerny-landing section.ln-band .ln-band-word {
+  margin: 0;
+  padding: 4vw 0 0;
+  background: none;
+  -webkit-text-fill-color: initial;
+  font-size: 0;
+  line-height: 0;
+  overflow: hidden;
+}
+
+#root .lerny-landing section.ln-band .ln-band-word svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+#root .lerny-landing section.ln-band .ln-band-word text {
+  font-family: var(--v-sans);
+  font-size: 440px;
+  font-weight: 600;
+  letter-spacing: -0.055em;
+}
+
+@media (max-width: 760px) {
+  #root .lerny-landing section.ln-band .ln-band-bar {
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+  }
+}
+
+/* 하루의 학습 — 스크롤 대신 시간으로 자동 넘김 (LandingNew.tsx 의 FLOW_MS). 한 화면 높이만 차지해요 */
+#root .lerny-landing .lw-flow.is-auto { height: auto; }
+#root .lerny-landing .lw-flow.is-auto .lw-flow-sticky { position: relative; }
+#root .lerny-landing .lw-flow.is-auto .lw-flow-steps li { cursor: pointer; }
+#root .lerny-landing .lw-flow.is-auto .lw-flow-stage { animation: lw-flow-swap 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes lw-flow-swap { from { opacity: 0; transform: translateY(14px) scale(0.985); } }
+@media (prefers-reduced-motion: reduce) {
+  #root .lerny-landing .lw-flow.is-auto .lw-flow-stage { animation: none; }
+}
+
+/* ======================================================================
+   ③ 학습 도구 — 한 줄로 늘어선 카드가 왼쪽으로 천천히 흘러요 (마우스를 대면 멈춰요)
+   ====================================================================== */
+#root .lerny-landing .lw-tools { padding-left: 0; padding-right: 0; }
+#root .lerny-landing .lw-tools-head { padding: 0 var(--lw-gutter); }
+
+#root .lerny-landing .lw-marquee {
+  overflow: hidden;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  mask: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+}
+
+#root .lerny-landing .lw-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: lw-marquee 36s linear infinite;
+}
+
+#root .lerny-landing .lw-marquee:hover .lw-marquee-track { animation-play-state: paused; }
+
+#root .lerny-landing .lw-tools .lw-marquee ul {
+  display: flex;
+  gap: 16px;
+  max-width: none;
+  margin: 0;
+  padding-right: 16px;
+}
+
+#root .lerny-landing .lw-tools .lw-marquee li,
+#root .lerny-landing .lw-tools .lw-marquee li:nth-child(n) {
+  flex: 0 0 auto;
+  width: clamp(240px, 24vw, 320px);
+  min-height: 200px;
+  translate: none;
+  animation: none;
+}
+
+@keyframes lw-marquee { to { transform: translateX(-50%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  #root .lerny-landing .lw-marquee-track { animation: none; }
+  #root .lerny-landing .lw-marquee { overflow-x: auto; }
+}
+
+/* ======================================================================
+   ② 하루의 학습 — 위에 제목 · 단계 · 설명, 그 아래 화면. 보라 받침 없이 바탕 위에 바로 놓여요
+   ====================================================================== */
+#root .lerny-landing .lw-flow.is-auto .lw-flow-sticky {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(16px, 2.4vh, 28px);
+  height: auto;
+  min-height: 100svh;
+  max-width: 1160px;
+  padding: clamp(72px, 10vh, 120px) var(--lw-gutter) clamp(40px, 6vh, 72px);
+}
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-side { text-align: center; }
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-side h2 { margin-bottom: clamp(16px, 2.6vh, 28px); }
+
+/* 단계는 가로 한 줄, 지금 단계의 설명만 그 아래에 */
+#root .lerny-landing .lw-flow.is-auto .lw-flow-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  column-gap: 8px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-steps li { display: contents; }
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-label {
+  grid-row: 1;
+  padding: 10px 0 10px;
+  text-align: center;
+  cursor: pointer;
+}
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-copy {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  display: none;
+  text-align: center;
+}
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-steps li.on .lw-flow-copy {
+  display: block;
+  animation: lw-swap 420ms var(--d-ease-out) both;
+}
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-copy h3 { padding-top: 16px; }
+#root .lerny-landing .lw-flow.is-auto .lw-flow-copy p { padding: 8px 0 0; }
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-stage,
+#root .lerny-landing .lw-flow.is-auto .lw-flow-stage.v-material-light {
+  width: 100%;
+  max-width: 980px;
+  height: clamp(380px, 56vh, 600px);
+  margin: 0 auto;
+  padding: 0;
+  border-radius: 0;
+  background: none !important;
+}
+
+@media (max-width: 760px) {
+  #root .lerny-landing .lw-flow.is-auto .lw-flow-steps { column-gap: 2px; }
+  #root .lerny-landing .lw-flow.is-auto .lw-flow-label { font-size: 13px; }
+  #root .lerny-landing .lw-flow.is-auto .lw-flow-stage { height: min(118vw, 520px); }
+}
+
+/* ======================================================================
+   ④ 교수자 — 한 줄 위의 좌표 1 → 2 → 3 → 4 (LandingNew.tsx 의 BRIDGE_MS 마다 다음 좌표로)
+   ====================================================================== */
+#root .lerny-landing .lw-bridge.is-line {
+  display: block;
+  max-width: var(--lw-max);
+  margin: 0 auto;
+}
+
+#root .lerny-landing .lw-bridge.is-line .lw-bridge-head {
+  position: static;
+  max-width: 720px;
+  margin: 0 auto clamp(48px, 7vw, 88px);
+  text-align: center;
+}
+
+#root .lerny-landing .lw-bridge.is-line .lw-bridge-head p { margin: 18px auto 0; }
+
+#root .lerny-landing .lw-bridge-track {
+  --dot: 44px;
+  position: relative;
+}
+
+/* 가로 선: 첫 좌표 가운데에서 마지막 좌표 가운데까지 */
+#root .lerny-landing .lw-bridge-rail {
+  position: absolute;
+  top: calc(var(--dot) / 2 - 1px);
+  left: calc(100% / var(--n) / 2);
+  right: calc(100% / var(--n) / 2);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--d-hair);
+}
+
+#root .lerny-landing .lw-bridge-rail i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(100% * var(--s) / (var(--n) - 1));
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--d-lilac), var(--d-accent));
+  transition: width 900ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+#root .lerny-landing .lw-bridge.is-line ol {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#root .lerny-landing .lw-bridge.is-line li,
+#root .lerny-landing .lw-bridge.is-line li:last-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  text-align: center;
+  transform: none;
+  cursor: default;
+}
+
+/* 좌표 점 */
+#root .lerny-landing .lw-bridge-dot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--dot);
+  height: var(--dot);
+  margin-bottom: 22px;
+  border-radius: 50%;
+  background: var(--d-ground);
+  box-shadow: inset 0 0 0 2px var(--d-hair);
+  color: var(--d-ink-3);
+  font-size: 16px;
+  transition: background-color 400ms ease, color 400ms ease, box-shadow 400ms ease, transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#root .lerny-landing .lw-bridge.is-line li.done .lw-bridge-dot {
+  box-shadow: inset 0 0 0 2px var(--d-accent);
+  color: var(--d-accent);
+}
+
+#root .lerny-landing .lw-bridge.is-line li.on .lw-bridge-dot {
+  background: var(--d-accent);
+  box-shadow: 0 10px 24px -8px rgba(102, 49, 219, 0.6);
+  color: #ffffff;
+  transform: scale(1.12);
+}
+
+/* 지금 좌표에서 빛 고리가 퍼져요 */
+#root .lerny-landing .lw-bridge.is-line li.on .lw-bridge-dot::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--d-accent);
+  animation: lw-bridge-ping 1.8s ease-out infinite;
+}
+
+@keyframes lw-bridge-ping {
+  from { opacity: 0.7; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.7); }
+}
+
+#root .lerny-landing .lw-bridge.is-line li strong {
+  display: block;
+  color: var(--d-ink-3);
+  font-size: clamp(18px, 1.6vw, 22px);
+  font-weight: 400;
+  transition: color 400ms ease;
+}
+
+#root .lerny-landing .lw-bridge.is-line li .lw-bridge-desc {
+  max-width: 15em;
+  margin-top: 8px;
+  color: var(--d-ink-3);
+  font-size: 14.5px;
+  line-height: 1.6;
+  opacity: 0.7;
+  transition: color 400ms ease, opacity 400ms ease;
+}
+
+#root .lerny-landing .lw-bridge.is-line li:is(.on, .done) strong { color: var(--d-ink); }
+#root .lerny-landing .lw-bridge.is-line li.on .lw-bridge-desc { color: var(--d-ink-2); opacity: 1; }
+
+#root .lerny-landing .lw-bridge-cta {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(40px, 6vw, 72px);
+}
+
+/* 휴대폰: 세로 한 줄로 */
+@media (max-width: 760px) {
+  #root .lerny-landing .lw-bridge-track { --dot: 38px; }
+  #root .lerny-landing .lw-bridge-rail {
+    top: calc(100% / var(--n) / 2);
+    bottom: calc(100% / var(--n) / 2);
+    left: calc(var(--dot) / 2 - 1px);
+    right: auto;
+    width: 2px;
+    height: auto;
+  }
+  #root .lerny-landing .lw-bridge-rail i {
+    inset: 0 0 auto 0;
+    width: auto;
+    height: calc(100% * var(--s) / (var(--n) - 1));
+    transition-property: height;
+  }
+  #root .lerny-landing .lw-bridge.is-line ol { grid-template-columns: minmax(0, 1fr); row-gap: 28px; }
+  #root .lerny-landing .lw-bridge.is-line li,
+  #root .lerny-landing .lw-bridge.is-line li:last-child {
+    display: grid;
+    grid-template-columns: var(--dot) minmax(0, 1fr);
+    column-gap: 16px;
+    align-items: start;
+    padding: 0;
+    text-align: left;
+  }
+  #root .lerny-landing .lw-bridge-dot { grid-row: span 2; margin: 0; }
+  #root .lerny-landing .lw-bridge.is-line li .lw-bridge-desc { margin-top: 4px; max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root .lerny-landing .lw-bridge.is-line li.on .lw-bridge-dot::after { animation: none; }
+}
+
+/* ======================================================================
+   ② 하루의 학습 — 옆으로 넘기기 (11/18)
+   지금 화면은 반대쪽으로 빠지고 다음 화면이 옆에서 밀려 들어와요.
+   --dir: 1 = 다음 단계 (오른쪽에서 들어옴), -1 = 앞 단계 (왼쪽에서 들어옴) — LandingNew.tsx 의 go()
+   ====================================================================== */
+#root .lerny-landing .lw-flow.is-auto { overflow-x: clip; }
+
+/* 넘기는 길은 화면 가로 전체 — 화면이 창 밖으로 완전히 빠져나가요 */
+#root .lerny-landing .lw-flow.is-auto .lw-flow-slider {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  height: clamp(380px, 56vh, 600px);
+}
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-slider > .lw-flow-stage,
+#root .lerny-landing .lw-flow.is-auto .lw-flow-slider > .lw-flow-stage.v-material-light {
+  position: absolute;
+  inset: 0;
+  width: min(980px, calc(100% - 2 * var(--lw-gutter, 24px)));
+  max-width: none;
+  height: 100%;
+  margin: 0 auto;
+  animation: none;
+}
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-slider > .lw-flow-stage.is-enter {
+  animation: lw-slide-in 700ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+#root .lerny-landing .lw-flow.is-auto .lw-flow-slider > .lw-flow-stage.is-leave {
+  pointer-events: none;
+  animation: lw-slide-out 700ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+@keyframes lw-slide-in {
+  from { transform: translateX(calc(var(--dir, 1) * 100vw)); opacity: 0.6; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes lw-slide-out {
+  from { transform: none; opacity: 1; }
+  to { transform: translateX(calc(var(--dir, 1) * -100vw)); opacity: 0.6; }
+}
+
+/* 설명 문구도 같은 방향으로 살짝 밀려 들어와요 */
+#root .lerny-landing .lw-flow.is-auto .lw-flow-steps li.on .lw-flow-copy {
+  animation: lw-copy-in 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes lw-copy-in {
+  from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 40px)); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 760px) {
+  #root .lerny-landing .lw-flow.is-auto .lw-flow-slider { height: min(118vw, 520px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root .lerny-landing .lw-flow.is-auto .lw-flow-slider > .lw-flow-stage.is-enter,
+  #root .lerny-landing .lw-flow.is-auto .lw-flow-steps li.on .lw-flow-copy { animation: none; }
+  #root .lerny-landing .lw-flow.is-auto .lw-flow-slider > .lw-flow-stage.is-leave { display: none; }
+}
+
+/* 하루의 학습 — 학생용 페이지 미리보기 (StudentPreview.tsx) 를 넣으면서 화면 칸을 키웠어요 */
+#root .lerny-landing .lw-flow.is-auto .lw-flow-sticky { padding-top: clamp(48px, 6vh, 88px); padding-bottom: clamp(28px, 4vh, 56px); gap: clamp(10px, 1.6vh, 20px); }
+#root .lerny-landing .lw-flow.is-auto .lw-flow-slider { height: clamp(400px, 60vh, 680px); }
+#root .lerny-landing .lw-flow.is-auto .lw-flow-slider > .lw-flow-stage,
+#root .lerny-landing .lw-flow.is-auto .lw-flow-slider > .lw-flow-stage.v-material-light { width: min(1120px, calc(100% - 2 * var(--lw-gutter, 24px))); }
+
+/* ======================================================================
+   ③ 학습 도구 — 목록형 (11/18). 왼쪽 큰 제목 · 설명, 오른쪽 01 ~ 06 번호 목록
+   LandingNew.tsx 의 USE_TOOL_LIST 를 false 로 바꾸면 예전 흐르는 카드로 돌아가요
+   ====================================================================== */
+#root .lerny-landing .lw-tools.lw-kit { padding: clamp(96px, 12vw, 168px) var(--lw-gutter); }
+#root .lerny-landing .lw-kit-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(40px, 6vw, 110px);
+  align-items: start;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+#root .lerny-landing .lw-kit-head { position: sticky; top: 120px; }
+#root .lerny-landing .lw-kit-head h2 {
+  margin: 0;
+  color: var(--d-ink);
+  font-size: clamp(44px, 5.4vw, 80px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.05em;
+}
+#root .lerny-landing .lw-kit-head p { margin: 26px 0 30px; color: var(--d-ink-2); font-size: clamp(16px, 1.35vw, 19px); line-height: 1.6; }
+
+#root .lerny-landing .lw-kit-list { border-top: 1px solid rgba(102, 49, 219, 0.14); }
+#root .lerny-landing .lw-kit-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px 64px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  padding: clamp(22px, 2.6vw, 34px) 8px clamp(22px, 2.6vw, 34px) 4px;
+  border: 0;
+  border-bottom: 1px solid rgba(102, 49, 219, 0.14);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s;
+  transition-delay: calc(var(--i, 0) * 80ms), calc(var(--i, 0) * 80ms), 0s;
+}
+#root .lerny-landing .lw-kit.is-in .lw-kit-row { opacity: 1; transform: none; }
+/* 마우스를 대면 줄 아래로 연보라 면이 번지고, 화살표가 오른쪽 위로 살짝 움직여요 */
+#root .lerny-landing .lw-kit-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 -14px;
+  z-index: -1;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.55);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+#root .lerny-landing .lw-kit-row:hover::before,
+#root .lerny-landing .lw-kit-row:focus-visible::before { opacity: 1; }
+#root .lerny-landing .lw-kit-num { align-self: start; padding-top: 6px; color: var(--d-accent, #6631db); font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+#root .lerny-landing .lw-kit-icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 90% at 25% 15%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 45%),
+    linear-gradient(145deg, #c9b3ff 0%, #9b74f2 55%, #6a3fd6 100%);
+  box-shadow: 0 14px 24px -12px rgba(102, 49, 219, 0.55), inset 0 -3px 6px rgba(60, 20, 140, 0.25), inset 0 2px 2px rgba(255, 255, 255, 0.6);
+  color: #fff;
+  transform: rotate(-6deg);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#root .lerny-landing .lw-kit-row:nth-child(even) .lw-kit-icon {
+  background:
+    radial-gradient(120% 90% at 25% 15%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 45%),
+    linear-gradient(145deg, #f6d3e2 0%, #d993b6 55%, #a95b8c 100%);
+  box-shadow: 0 14px 24px -12px rgba(169, 91, 140, 0.55), inset 0 -3px 6px rgba(120, 40, 90, 0.22), inset 0 2px 2px rgba(255, 255, 255, 0.6);
+  transform: rotate(5deg);
+}
+#root .lerny-landing .lw-kit-row:hover .lw-kit-icon { transform: rotate(0deg) scale(1.06); }
+#root .lerny-landing .lw-kit-icon svg { filter: drop-shadow(0 2px 2px rgba(60, 20, 120, 0.3)); }
+#root .lerny-landing .lw-kit-text strong { display: block; color: var(--d-ink); font-size: clamp(20px, 1.9vw, 27px); font-weight: 800; letter-spacing: -0.035em; }
+#root .lerny-landing .lw-kit-text > span { display: block; margin-top: 8px; color: var(--d-ink-2); font-size: clamp(14.5px, 1.2vw, 17px); line-height: 1.55; }
+#root .lerny-landing .lw-kit-go { align-self: start; margin-top: 4px; color: var(--d-ink-3); transition: transform 0.25s, color 0.25s; }
+#root .lerny-landing .lw-kit-row:hover .lw-kit-go { color: var(--d-accent, #6631db); transform: translate(3px, -3px); }
+
+@media (max-width: 860px) {
+  #root .lerny-landing .lw-kit-inner { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+  #root .lerny-landing .lw-kit-head { position: static; }
+  #root .lerny-landing .lw-kit-row { grid-template-columns: 30px 48px minmax(0, 1fr) 20px; gap: 12px; }
+  #root .lerny-landing .lw-kit-icon { width: 46px; height: 46px; border-radius: 14px; }
+  #root .lerny-landing .lw-kit-icon svg { width: 24px; height: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .lerny-landing .lw-kit-row { opacity: 1; transform: none; transition: none; }
+}
+
+/* ======================================================================
+   ② 하루의 학습 — 왼쪽 세로 단계 목록 + 오른쪽 큰 화면 (11/18, LandingNew.tsx 의 FLOW_SIDE_LIST)
+   ====================================================================== */
+#root .lerny-landing .lw-flow.is-side .lw-flow-sticky {
+  display: grid;
+  grid-template-columns: minmax(240px, 330px) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(28px, 4vw, 64px);
+  max-width: 1480px;
+  min-height: 100svh;
+  padding: clamp(56px, 8vh, 96px) var(--lw-gutter);
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-side { text-align: left; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-side h2 { margin: 0 0 clamp(20px, 3.2vh, 36px); }
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps { display: block; max-width: none; margin: 0; border-top: 1px solid var(--d-hair); }
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li {
+  position: relative;
+  display: block;
+  padding: clamp(12px, 1.7vh, 18px) 4px;
+  border-bottom: 1px solid var(--d-hair);
+  cursor: pointer;
+}
+/* 진행 막대는 그 단계 줄 맨 아래에 — 지금 단계가 흐르는 만큼 차올라요 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-label { position: static; display: flex; align-items: baseline; gap: 12px; padding: 0; text-align: left; font-size: clamp(16px, 1.3vw, 18px); }
+#root .lerny-landing .lw-flow.is-side .lw-flow-label::after { display: none; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-label i { bottom: -1px; height: 2px; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-num { min-width: 22px; color: var(--d-ink-3); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; transition: color 0.25s; }
+#root .lerny-landing .lw-flow.is-side li.on .lw-flow-num { color: var(--d-accent); }
+#root .lerny-landing .lw-flow.is-side li.on .lw-flow-label { color: var(--d-ink); font-weight: 800; }
+#root .lerny-landing .lw-flow.is-side li:not(.on):hover .lw-flow-label { color: var(--d-ink); }
+/* 지금 단계만 설명이 부드럽게 펼쳐져요 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-copy,
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li.on .lw-flow-copy {
+  display: grid;
+  grid-template-rows: 0fr;
+  padding-left: 34px;
+  text-align: left;
+  animation: none;
+  transition: grid-template-rows 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s;
+  opacity: 0;
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li.on .lw-flow-copy { grid-template-rows: 1fr; opacity: 1; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-copy h3 { padding-top: 10px; font-size: clamp(19px, 1.6vw, 23px); }
+#root .lerny-landing .lw-flow.is-side .lw-flow-copy p { padding: 6px 0 2px; font-size: clamp(14px, 1.1vw, 15.5px); line-height: 1.6; }
+/* 오른쪽 화면: 칸 안에서 옆으로 넘어가요 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider {
+  width: 100%;
+  margin: 0;
+  height: clamp(420px, 72vh, 760px);
+  overflow-x: clip;
+  overflow-clip-margin: 40px;
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider > .lw-flow-stage,
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider > .lw-flow-stage.v-material-light { width: 100%; }
+@keyframes lw-slide-in-side { from { transform: translateX(calc(var(--dir, 1) * 105%)); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes lw-slide-out-side { from { transform: none; opacity: 1; } to { transform: translateX(calc(var(--dir, 1) * -105%)); opacity: 0.4; } }
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider > .lw-flow-stage.is-enter { animation-name: lw-slide-in-side; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider > .lw-flow-stage.is-leave { animation-name: lw-slide-out-side; }
+
+@media (max-width: 960px) {
+  #root .lerny-landing .lw-flow.is-side .lw-flow-sticky { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-side h2 { display: block; }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-slider { height: min(70vw, 520px); }
+}
+
+/* ② 하루의 학습 — 세로 단계선 (11/18): 교수자 칸의 1 → 2 → 3 → 4 좌표처럼 번호 동그라미를 세로 선으로 잇고,
+   지금 단계는 채워진 동그라미 + 빛 테두리, 다음 동그라미까지 선이 아래로 차올라요 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps { border-top: 0; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li {
+  padding: 0 0 clamp(18px, 2.6vh, 30px) 66px;
+  border-bottom: 0;
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li:last-child { padding-bottom: 0; }
+/* 동그라미 사이 선 (회색 바탕) */
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li::before {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: 46px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--d-accent) 16%, transparent);
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li:last-child::before { display: none; }
+/* 차오르는 선 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-label i {
+  left: 22px;
+  right: auto;
+  top: 46px;
+  bottom: 2px;
+  width: 2px;
+  height: auto;
+  background: linear-gradient(180deg, var(--d-accent), color-mix(in srgb, var(--d-accent) 55%, #c9b3ff));
+  transform: scaleY(var(--fill, 0)) !important;
+  transform-origin: top;
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li:last-child .lw-flow-label i { display: none; }
+/* 번호 동그라미 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-num {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 2px solid color-mix(in srgb, var(--d-accent) 18%, transparent);
+  border-radius: 50%;
+  background: var(--d-ground, #f7f0f8);
+  color: var(--d-accent);
+  font-size: 17px;
+  font-weight: 500;
+  transition: background 0.3s, color 0.3s, border-color 0.3s, box-shadow 0.4s;
+}
+#root .lerny-landing .lw-flow.is-side li.done .lw-flow-num { border-color: var(--d-accent); }
+#root .lerny-landing .lw-flow.is-side li.on .lw-flow-num {
+  border-color: var(--d-accent);
+  background: var(--d-accent);
+  color: #fff;
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--d-accent) 14%, transparent), 0 0 0 9px color-mix(in srgb, var(--d-accent) 30%, transparent), 0 10px 24px -6px color-mix(in srgb, var(--d-accent) 55%, transparent);
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-label { min-height: 46px; align-items: center; font-size: clamp(18px, 1.5vw, 21px); color: var(--d-ink-3); }
+#root .lerny-landing .lw-flow.is-side li.done .lw-flow-label { color: var(--d-ink); }
+#root .lerny-landing .lw-flow.is-side li.on .lw-flow-label { color: var(--d-ink); font-weight: 700; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-copy,
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li.on .lw-flow-copy { padding-left: 0; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-copy h3 { padding-top: 4px; }
+#root .lerny-landing .lw-flow.is-side li.on .lw-flow-copy p { color: var(--d-accent); }
+
+/* ======================================================================
+   ③ 학습 도구 — 칸 나눔 디자인 (11/18, LandingNew.tsx 의 USE_TOOL_GRID)
+   위 가운데 제목 · 설명 · 버튼, 아래 3 × 2 칸 (세로 선으로 나눔).
+   마우스를 대면 제목 왼쪽 막대가 보라로 길어지고 글자가 살짝 밀리며, 칸에 연보라 그라데이션이 번져요
+   ====================================================================== */
+#root .lerny-landing .lw-kit.is-grid .lw-kit-inner { display: block; max-width: 1240px; }
+#root .lerny-landing .lw-kit.is-grid .lw-kit-head { position: static; margin-bottom: clamp(40px, 5vw, 72px); text-align: center; }
+#root .lerny-landing .lw-kit.is-grid .lw-kit-head h2 { font-size: clamp(40px, 4.6vw, 68px); }
+#root .lerny-landing .lw-kit.is-grid .lw-kit-head p { margin: 18px auto 26px; }
+#root .lerny-landing .lw-feat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+#root .lerny-landing .lw-feat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: clamp(36px, 4vw, 56px) clamp(4px, 0.6vw, 10px) clamp(36px, 4vw, 56px) 0;
+  border: 0;
+  border-left: 1px solid rgba(40, 20, 80, 0.1);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+#root .lerny-landing .lw-feat:nth-child(3n) { border-right: 1px solid rgba(40, 20, 80, 0.1); }
+#root .lerny-landing .lw-feat.top { border-bottom: 1px solid rgba(40, 20, 80, 0.1); }
+#root .lerny-landing .lw-kit.is-in .lw-feat { opacity: 1; transform: none; }
+/* 번지는 그라데이션: 윗줄은 아래에서, 아랫줄은 위에서 */
+#root .lerny-landing .lw-feat::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, color-mix(in srgb, var(--d-accent, #6631db) 9%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+#root .lerny-landing .lw-feat.bot::before { background: linear-gradient(to bottom, color-mix(in srgb, var(--d-accent, #6631db) 9%, transparent), transparent 70%); }
+#root .lerny-landing .lw-feat:hover::before,
+#root .lerny-landing .lw-feat:focus-visible::before { opacity: 1; }
+#root .lerny-landing .lw-feat-icon { position: relative; padding-left: clamp(24px, 2.6vw, 40px); color: var(--d-ink-2); }
+#root .lerny-landing .lw-feat-title {
+  position: relative;
+  display: block;
+  margin-top: 22px;
+  padding-left: clamp(24px, 2.6vw, 40px);
+  color: var(--d-ink);
+  font-size: clamp(19px, 1.6vw, 23px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  transition: transform 0.22s;
+}
+/* 제목 왼쪽 막대 */
+#root .lerny-landing .lw-feat-title::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  width: 4px;
+  height: 24px;
+  border-radius: 0 999px 999px 0;
+  background: rgba(40, 20, 80, 0.16);
+  transform: translateY(-50%);
+  transition: height 0.22s, background 0.22s;
+}
+#root .lerny-landing .lw-feat:hover .lw-feat-title { transform: translateX(8px); }
+#root .lerny-landing .lw-feat:hover .lw-feat-title::before { height: 32px; background: var(--d-accent, #6631db); transform: translate(-8px, -50%); }
+#root .lerny-landing .lw-feat-desc {
+  position: relative;
+  display: block;
+  max-width: 30ch;
+  margin-top: 10px;
+  padding-left: clamp(24px, 2.6vw, 40px);
+  color: var(--d-ink-2);
+  font-size: clamp(14px, 1.1vw, 16px);
+  line-height: 1.6;
+}
+@media (max-width: 860px) {
+  #root .lerny-landing .lw-feat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #root .lerny-landing .lw-feat:nth-child(3n) { border-right: 0; }
+  #root .lerny-landing .lw-feat:nth-child(2n) { border-right: 1px solid rgba(40, 20, 80, 0.1); }
+  #root .lerny-landing .lw-feat { border-bottom: 1px solid rgba(40, 20, 80, 0.1); }
+}
+@media (max-width: 520px) {
+  #root .lerny-landing .lw-feat-grid { grid-template-columns: minmax(0, 1fr); }
+  #root .lerny-landing .lw-feat { border-right: 1px solid rgba(40, 20, 80, 0.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .lerny-landing .lw-feat { opacity: 1; transform: none; transition: none; }
+}
+#root .lerny-landing .lw-feat { border-top: 0; border-radius: 0; box-shadow: none; outline-offset: -2px; }
+#root .lerny-landing .lw-feat.bot { border-bottom: 0; }
+
+/* ② 하루의 학습 (11/18 뒤): 제목은 맨 위 전체 폭, 아래 왼쪽은 작은 점 단계, 오른쪽 화면은 더 크게 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-sticky {
+  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  row-gap: clamp(14px, 2.4vh, 28px);
+  max-width: 1600px;
+  padding-top: clamp(28px, 5vh, 64px);
+  padding-bottom: clamp(20px, 3vh, 40px);
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-top {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: left;
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider { height: clamp(440px, calc(100svh - 190px), 860px); }
+/* 번호 동그라미 → 작은 점 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li { padding-left: 30px; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-num {
+  top: 50%;
+  top: 23px;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-width: 2px;
+  font-size: 0;
+}
+#root .lerny-landing .lw-flow.is-side li.on .lw-flow-num {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--d-accent) 16%, transparent);
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li::before,
+#root .lerny-landing .lw-flow.is-side .lw-flow-label i { left: 5px; top: 31px; }
+@media (max-width: 960px) {
+  #root .lerny-landing .lw-flow.is-side .lw-flow-sticky { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-slider { height: min(70vw, 520px); }
+}
+#root .lerny-landing .lw-flow.is-side .lw-flow-top { font-size: clamp(38px, 4.2vw, 64px); line-height: 1.1; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-sticky { grid-template-columns: minmax(180px, 220px) minmax(0, 1fr); column-gap: clamp(20px, 2.6vw, 44px); max-width: 1680px; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider { height: auto; aspect-ratio: 1120 / 644; max-height: calc(100svh - 170px); }
+#root .lerny-landing .lw-flow.is-side .lw-flow-num { min-width: 0; padding: 0; box-sizing: border-box; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-sticky { grid-template-rows: auto auto; align-content: center; }
+@media (max-width: 960px) {
+  #root .lerny-landing .lw-flow.is-side .lw-flow-sticky { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-slider { max-height: none; }
+}
+/* 11/18 뒤: 칸마다 도구 이름 · 설명이 각각 한 줄로 (넓은 화면) */
+@media (min-width: 1100px) {
+  #root .lerny-landing .lw-feat-title,
+  #root .lerny-landing .lw-feat-desc { max-width: none; white-space: nowrap; }
+  #root .lerny-landing .lw-feat-desc { font-size: clamp(13.5px, 1.05vw, 16px); }
+  #root .lerny-landing .lw-feat-icon,
+  #root .lerny-landing .lw-feat-title,
+  #root .lerny-landing .lw-feat-desc { padding-left: clamp(22px, 2.2vw, 36px); }
+}
+/* 11/18 뒤: 학습 도구 제목 · 문구 · 버튼을 한 줄에 나란히 (넓은 화면) */
+@media (min-width: 900px) {
+  #root .lerny-landing .lw-kit.is-grid .lw-kit-head {
+    display: flex;
+    align-items: baseline;
+    gap: clamp(16px, 2vw, 32px);
+    text-align: left;
+  }
+  #root .lerny-landing .lw-kit.is-grid .lw-kit-head h2 { flex: none; white-space: nowrap; }
+  #root .lerny-landing .lw-kit.is-grid .lw-kit-head p { flex: 1 1 auto; min-width: 0; margin: 0; }
+  #root .lerny-landing .lw-kit.is-grid .lw-kit-head .lw-btn { flex: none; align-self: center; margin-left: auto; }
+}
+/* 11/18 뒤: 단계 설명은 오른쪽 화면 바로 위에 (왼쪽 목록에서는 숨김) */
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps .lw-flow-copy { display: none; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-right { display: flex; flex-direction: column; gap: clamp(10px, 1.8vh, 18px); min-width: 0; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-cap { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; animation: lw-cap-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-cap h3 { margin: 0; color: var(--d-ink); font-size: clamp(20px, 1.8vw, 26px); font-weight: 800; letter-spacing: -0.03em; }
+#root .lerny-landing .lw-flow.is-side .lw-flow-cap p { margin: 0; color: var(--d-accent); font-size: clamp(14px, 1.15vw, 16.5px); line-height: 1.5; }
+@keyframes lw-cap-in { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 24px)); } to { opacity: 1; transform: none; } }
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li { padding-bottom: clamp(14px, 2.2vh, 24px); }
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider { max-height: calc(100svh - 230px); }
+@media (prefers-reduced-motion: reduce) { #root .lerny-landing .lw-flow.is-side .lw-flow-cap { animation: none; } }
+/* 11/18 뒤: 화면 세로를 더 길게 (StudentPreview 의 H 700 → 820, 1120 × 764) */
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider { aspect-ratio: 1120 / 764; max-height: calc(100svh - 200px); }
+#root .lerny-landing .lw-flow.is-side .lw-flow-sticky { padding-top: clamp(24px, 4vh, 52px); row-gap: clamp(10px, 2vh, 22px); }
+#root .lerny-landing .lw-flow.is-side .lw-flow-top { font-size: clamp(34px, 3.6vw, 56px); }
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li .lw-flow-copy,
+#root .lerny-landing .lw-flow.is-side .lw-flow-steps li.on .lw-flow-copy { display: none; }
+/* 11/18 뒤: 교수자 칸 제목 아래 문구를 한 줄로 (넓은 화면) */
+@media (min-width: 1200px) {
+  #root .lerny-landing .lw-bridge.is-line .lw-bridge-head { max-width: none; }
+  #root .lerny-landing .lw-bridge.is-line .lw-bridge-head p { max-width: none; white-space: nowrap; font-size: clamp(14.5px, 1.15vw, 17px); }
+}
+#root .lerny-landing .lw-bridge.is-line .lw-bridge-head { justify-items: center; }
+/* 11/18 뒤: 학습 도구 제목 더 두껍게, 버튼은 연한 보라 + 오른쪽 화살표 */
+#root .lerny-landing .lw-kit.is-grid .lw-kit-head h2 { font-weight: 800; letter-spacing: -0.045em; }
+#root .lerny-landing .lw-kit.is-grid .lw-btn.is-soft {
+  border: 0 !important;
+  background: color-mix(in srgb, var(--d-accent) 14%, #fff) !important;
+  color: var(--d-accent) !important;
+  box-shadow: none !important;
+}
+#root .lerny-landing .lw-kit.is-grid .lw-btn.is-soft:hover { background: color-mix(in srgb, var(--d-accent) 22%, #fff) !important; }
+#root .lerny-landing .lw-kit.is-grid .lw-btn.is-soft svg { transition: transform 0.2s; }
+#root .lerny-landing .lw-kit.is-grid .lw-btn.is-soft:hover svg { transform: translateX(3px); }
+/* 제목 글꼴(Gowun Dodum)은 굵기가 한 가지뿐이라, 글자 테두리를 살짝 입혀 더 두껍게 보이게 해요 */
+#root .lerny-landing .lw-kit.is-grid .lw-kit-head h2 { -webkit-text-stroke: 0.028em currentColor; paint-order: stroke fill; }
+/* 11/18: 큰 제목 굵기를 '나만의 학습 도구'와 같게 — 첫 화면 제목 · 연결 제목 · 하루의 학습 · 강의실과 내 공부를 연결
+   (Gowun Dodum 은 굵기가 한 가지라 글자 테두리 0.028em 으로 두께를 맞춰요) */
+#root .lerny-landing .hp-root h1,
+#root .lerny-landing .cn-head h2,
+#root .lerny-landing .lw-flow.is-side .lw-flow-top,
+#root .lerny-landing .lw-bridge h2 { -webkit-text-stroke: 0.028em currentColor; paint-order: stroke fill; }
+/* 11/18 뒤: 화면 박스를 칸 왼쪽 위에 붙여, 위 설명 문구의 시작과 박스의 시작을 맞춰요 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider .sp-box { justify-content: flex-start; align-items: flex-start; }
+/* 11/18 뒤: 하루의 학습 목차(자료 · 이론 · 실습 …) 글자를 굵게 (글꼴 굵기가 하나라 글자 테두리로) */
+#root .lerny-landing .lw-flow.is-side .lw-flow-label { -webkit-text-stroke: 0.03em currentColor; paint-order: stroke fill; }
+/* 설명 제목(직접 구현하며 익혀요)도 같은 굵기로 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-cap h3 { -webkit-text-stroke: 0.028em currentColor; paint-order: stroke fill; }
+/* 11/18 뒤: 하루의 학습 화면 칸 둘레 바탕 · 그림자 없음 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider > .lw-flow-stage,
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider > .lw-flow-stage.v-material-light { background: none; box-shadow: none; border: 0; }
+/* 11/18 뒤: '하루의 학습' 제목(왼쪽)과 단계 설명(오른쪽)을 같은 줄에, 그 아래 왼쪽 목차 · 오른쪽 화면 */
+@media (min-width: 961px) {
+  #root .lerny-landing .lw-flow.is-side .lw-flow-sticky { grid-template-columns: minmax(200px, 250px) minmax(0, 1fr); align-items: start; }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-right { display: contents; }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-top { grid-column: 1; grid-row: 1; align-self: end; }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-cap { grid-column: 2; grid-row: 1; align-self: end; padding-bottom: 0.35em; padding-left: 3.4%; }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-side { grid-column: 1; grid-row: 2; align-self: center; }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-slider { grid-column: 2; grid-row: 2; }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-top { font-size: clamp(34px, 3.2vw, 50px); white-space: nowrap; }
+}
+/* 11/18 뒤: 마무리 버튼 화살표는 오른쪽(→) — 마우스를 대면 오른쪽으로 살짝 */
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta:hover span { transform: translateX(3px); }
+/* 11/18 뒤: 랜딩 버튼을 '교수자로 시작하기'와 같은 모양으로 — 투명 바탕 · 가는 테두리 알약, 화살표는 오른쪽으로 살짝 */
+@media (hover: hover) and (pointer: fine) {
+  #root .lerny-landing .lw-btn:hover svg { transform: translateX(3px); }
+}
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta {
+  min-height: 52px;
+  padding: 0 26px;
+  border: 1px solid var(--d-ink-2) !important;
+  background: transparent !important;
+  color: var(--d-ink) !important;
+}
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta:hover { background: rgba(102, 49, 219, 0.08) !important; }
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta svg { width: 16px; height: 16px; }
+
+/* 11/18 밤: 하루의 학습 — 화면은 화면 높이에 덜 묶이게 더 크게(1000 × 844), 왼쪽 목차는 화면 윗선부터 · 사이 간격 넓게 */
+#root .lerny-landing .lw-flow.is-side .lw-flow-slider { aspect-ratio: 1000 / 844; max-height: calc(100svh - 110px); }
+@media (min-width: 900px) {
+  #root .lerny-landing .lw-flow.is-side .lw-flow-side { align-self: start; padding-top: var(--sp-top, clamp(36px, 6vh, 64px)); } /* 11/18 밤: 목차를 조금 아래로 */
+}
+@media (min-width: 900px) {
+  #root .lerny-landing .lw-flow.is-side .lw-flow-steps li { padding-bottom: clamp(40px, 7.5vh, 84px); }
+  #root .lerny-landing .lw-flow.is-side .lw-flow-steps li:last-child { padding-bottom: 0; }
+}
+
+/* 11/18 밤: 'Lerny에서 시작하기' 마우스 효과를 '교수자로 시작하기'와 똑같이 — 위로 뜨거나 글자가 하얘지지 않고, 연보라 바탕 + 화살표만 오른쪽으로 */
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta { transition: transform 160ms var(--d-ease-out), background-color 200ms ease, border-color 200ms ease, color 200ms ease !important; }
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta:hover {
+  transform: none !important;
+  border-color: var(--d-ink-2) !important;
+  color: var(--d-ink) !important;
+  background: rgba(102, 49, 219, 0.08) !important;
+}
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta:active { transform: scale(0.97) !important; }
+#root .lerny-landing .ln-page .ln-closing-head a.ln-cta span { transition: transform 220ms var(--d-ease-out) !important; }
+
+/* ───────── 11/18 밤 점검: 흔한 AI 디자인 티 걷어내기 ───────── */
+/* ① 보라 → 분홍 그라데이션 글자 대신 한 가지 보라로 (마지막 화면만 — 첫 화면 '하나의 복습으로 모여요'는 그라데이션 그대로) */
+#root .lerny-landing.lerny-landing .ln-page .ln-closing-head h2 span {
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: var(--d-accent);
+}
+/* ② 흐린 보조 글자 대비 올리기 (#8a76a8 은 바탕 대비 3.5:1 → 5:1 이상) */
+#root .lerny-landing.lerny-landing { --d-ink-3: #6e5a8c; }
+/* ③ 연결 화면에 흩뿌린 장식 점 없애기 */
+#root .lerny-landing .cn-specks { display: none; }
+/* ④ 학습 도구 칸 뒤 보라 · 살구 번짐을 걷고 바탕색 그대로 */
+#root .lerny-landing .lw-tools.lw-kit.is-grid { background: var(--d-ground); }
+/* ⑤ 하루의 학습 → 학습 도구 사이 빈 공간 줄이기 */
+#root .lerny-landing .lw-tools.lw-kit { padding-top: clamp(64px, 7vw, 112px); padding-bottom: clamp(72px, 8vw, 128px); }
+:root[data-theme="dark"] #root .lerny-landing.lerny-landing .ln-page .ln-closing-head h2 span { color: #c6b0ff; }
+
+/* ⑥ 좁은 화면 마무리: 학습 도구 설명은 칸 폭까지 쓰고 */
+@media (max-width: 899px) {
+  #root .lerny-landing .lw-feat-desc { max-width: none; }
+}
+/* 11/18 밤: 첫 화면 배지에서 AI 글자를 빼서 왼쪽 여백을 맞춰요 */
+#root .lerny-landing .hp-eyebrow { padding: 6px 14px; }

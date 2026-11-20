@@ -144,6 +144,8 @@ async def test_password_reset_is_one_time_and_revokes_sessions(app_db):
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as c:
         await login(c, "operator1")
+        from test_admin import authorize
+        authorize(session, level="operator")
         teacher = session.scalar(select(User).where(User.login_id == "teacher1"))
         token = (
             await c.post(f"/api/v1/ops/users/{teacher.id}/reset-token", json={"reason": "test"})

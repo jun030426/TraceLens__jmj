@@ -1,0 +1,525 @@
+{
+  "source_result": "outputs/ink-continuation-v1/results/frame-00007-ink-001.json",
+  "package": {
+    "task": {
+      "id": "frame-00007-ink-001",
+      "source_sha256": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6",
+      "frame_id": "frame-00007",
+      "time_seconds": 120.0,
+      "onset_interval_seconds": [
+        100.0,
+        120.0
+      ],
+      "bbox": [
+        731,
+        260,
+        755,
+        293
+      ],
+      "current_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00007.png",
+      "audio_interval": [
+        97.0,
+        125.0
+      ],
+      "asr_context": [
+        {
+          "id": "asr-0000-0030",
+          "start_seconds": 93.06,
+          "end_seconds": 97.32,
+          "text": "다음과 같이 지금 보니까 애플, 바나나, 오렌지라고 지정이 되어 있죠?"
+        },
+        {
+          "id": "asr-0000-0031",
+          "start_seconds": 97.48,
+          "end_seconds": 99.8,
+          "text": "지금 보니까 중괄호로 만들어져 있어요."
+        },
+        {
+          "id": "asr-0000-0032",
+          "start_seconds": 100.24,
+          "end_seconds": 103.28,
+          "text": "근데 여기에 키와 밸류라고 하는 쌍으로 만들어져 있어요."
+        },
+        {
+          "id": "asr-0000-0033",
+          "start_seconds": 103.46,
+          "end_seconds": 104.7,
+          "text": "그러면 딕셔넬이 아니죠?"
+        },
+        {
+          "id": "asr-0000-0034",
+          "start_seconds": 105.16,
+          "end_seconds": 107.46,
+          "text": "그러면 중괄호를 쓸 수 있는 것 중에 하나 뭐가 있었더라?"
+        },
+        {
+          "id": "asr-0000-0035",
+          "start_seconds": 108.02,
+          "end_seconds": 109.82,
+          "text": "집합이 있었던 거 기억이 나시죠?"
+        },
+        {
+          "id": "asr-0000-0036",
+          "start_seconds": 110.3,
+          "end_seconds": 115.24,
+          "text": "가로는 튜플이다, 대가로는 뭐라고요? 리스트다 라고 얘기를 했었어요."
+        },
+        {
+          "id": "asr-0000-0037",
+          "start_seconds": 115.6,
+          "end_seconds": 118.28,
+          "text": "그래서 키와 값과 분리가 되어 있지 않았다."
+        },
+        {
+          "id": "asr-0000-0038",
+          "start_seconds": 118.46,
+          "end_seconds": 122.78,
+          "text": "그러면 얘네들은 멍인 거다, 집합이다 라고 하는 것을 알아야지만 됩니다."
+        },
+        {
+          "id": "asr-0000-0039",
+          "start_seconds": 123.5,
+          "end_seconds": 127.9,
+          "text": "자 그때 그 데이터 값을 객체를 불러가지고 와서"
+        }
+      ],
+      "speech_cue_hits": [
+        "기억",
+        "다음",
+        "여기"
+      ],
+      "priority_score": 5.178,
+      "before_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00007.png",
+      "after_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00007.png",
+      "asr_status": "machine_transcription_not_verified",
+      "previous_context_only": false,
+      "evidence": {
+        "selected_frame": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00007.png",
+        "frame_candidates": [
+          {
+            "path": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00007.png",
+            "eligible": true,
+            "local_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "global_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "sharpness": 1773.6086739953143,
+            "contrast": 28.0
+          }
+        ],
+        "source_size": [
+          1280,
+          720
+        ],
+        "views": {
+          "original": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00007-ink-001/original.png",
+            "crop_in_source": [
+              0.72109375,
+              0.24305555555555555,
+              0.76484375,
+              0.30972222222222223
+            ],
+            "size": [
+              56,
+              48
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          },
+          "contrast": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00007-ink-001/contrast.png",
+            "crop_in_source": [
+              0.72109375,
+              0.24305555555555555,
+              0.76484375,
+              0.30972222222222223
+            ],
+            "size": [
+              56,
+              48
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "contrast",
+            "never_replaces_original": true
+          },
+          "denoise": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00007-ink-001/denoise.png",
+            "crop_in_source": [
+              0.72109375,
+              0.24305555555555555,
+              0.76484375,
+              0.30972222222222223
+            ],
+            "size": [
+              56,
+              48
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "denoise",
+            "never_replaces_original": true
+          },
+          "binary": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00007-ink-001/binary.png",
+            "crop_in_source": [
+              0.72109375,
+              0.24305555555555555,
+              0.76484375,
+              0.30972222222222223
+            ],
+            "size": [
+              56,
+              48
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "binary",
+            "never_replaces_original": true
+          },
+          "expanded": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00007-ink-001/expanded.png",
+            "crop_in_source": [
+              0.71484375,
+              0.2375,
+              0.77109375,
+              0.31527777777777777
+            ],
+            "size": [
+              72,
+              56
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          }
+        },
+        "selected_frame_seconds": 120.0
+      }
+    },
+    "view": {
+      "path": "outputs/ink-continuation-v1/evidence/frame-00007-ink-001/review/source-context.png",
+      "size": [
+        113,
+        97
+      ],
+      "crop_in_source": [
+        0.69921875,
+        0.20833333333333334,
+        0.7875,
+        0.34305555555555556
+      ],
+      "operation": "source_crop_only",
+      "eligible": true,
+      "core_unchanged": true
+    },
+    "ocr": {
+      "state": "candidate",
+      "words": [],
+      "raw": {
+        "res": {
+          "input_path": "outputs/ink-continuation-v1/evidence/frame-00007-ink-001/original.png",
+          "page_index": null,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_textline_orientation": false
+          },
+          "dt_polys": [],
+          "text_det_params": {
+            "limit_side_len": 64,
+            "limit_type": "min",
+            "thresh": 0.3,
+            "max_side_limit": 4000,
+            "box_thresh": 0.6,
+            "unclip_ratio": 1.5
+          },
+          "text_type": "general",
+          "text_rec_score_thresh": 0.0,
+          "return_word_box": false,
+          "rec_texts": [],
+          "rec_scores": [],
+          "rec_polys": [],
+          "rec_boxes": []
+        }
+      },
+      "provider": "PaddleOCR",
+      "model_hashes": {
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/config.json": "7ac1c33f377ba58561f4b89d3180b6add2b7c5c60a4edac90fa4e0ceccdc6665",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.json": "05feef1acb00aa4cd7362b15f7f501fc4f99d7b1fa73c1c871e0c7b1504b0f5c",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.pdiparams": "afa1820cb16c1fd0dad589d0f8b389139061c1ef6d68019685fd07be997dda5b",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.yml": "98069072e1b6b37d727fd9d9f11725faa46d6ea0de012f2ed26caea011c37699",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/config.json": "c86a49d6301e6c4ff3398a87a2a1926b3521a46e90042833e18bbfa8ba6165c2",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.json": "562404e3c590c50c93778d5f0a94df21b47b5ab8f3ea6d47c7f8a7930c3bc844",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.pdiparams": "cac3e5f12cf04aaa77f6a5bc704e4e736ef2908476551891d84b41b4e9090462",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.yml": "f757fa1c40e99edcf27e9cce879b93eb2a51fa46f5ef39095689b8c37dd75998"
+      },
+      "id": "frame-00007-ink-001-original",
+      "task_id": "frame-00007-ink-001",
+      "view": "original",
+      "path": "outputs/ink-continuation-v1/evidence/frame-00007-ink-001/original.png",
+      "image_sha256": "ec817980f98e32f46666eff414ce0e44bcee1cf141cd99417828a9e55e822dee",
+      "alternative_words": []
+    },
+    "ocr_coverage": {
+      "left": 247.78761061946884,
+      "top": 257.7319587628865,
+      "right": 743.3628318584078,
+      "bottom": 752.5773195876288
+    },
+    "base": {
+      "items": [
+        {
+          "id": "item-0",
+          "kind": "handwriting",
+          "box": {
+            "left": 404,
+            "top": 432,
+            "right": 596,
+            "bottom": 570
+          },
+          "text": "ㄷ",
+          "uncertainties": [
+            "ㄷ",
+            "⊂",
+            "c"
+          ],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-1",
+          "kind": "handwriting",
+          "box": {
+            "left": 827,
+            "top": 393,
+            "right": 1000,
+            "bottom": 597
+          },
+          "text": "ㄱ",
+          "uncertainties": [
+            "ㄱ",
+            "コ"
+          ],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-2",
+          "kind": "bracket",
+          "box": {
+            "left": 374,
+            "top": 743,
+            "right": 526,
+            "bottom": 1000
+          },
+          "text": "(",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-3",
+          "kind": "bracket",
+          "box": {
+            "left": 869,
+            "top": 778,
+            "right": 986,
+            "bottom": 1000
+          },
+          "text": ")",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [],
+      "complete": false,
+      "notes": []
+    },
+    "candidate": {
+      "items": [
+        {
+          "id": "item-0",
+          "kind": "handwriting",
+          "box": {
+            "left": 404,
+            "top": 432,
+            "right": 596,
+            "bottom": 570
+          },
+          "text": "ㄷ",
+          "uncertainties": [
+            "ㄷ",
+            "⊂",
+            "c",
+            "ᄃ"
+          ],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-1",
+          "kind": "handwriting",
+          "box": {
+            "left": 827,
+            "top": 393,
+            "right": 1000,
+            "bottom": 597
+          },
+          "text": "ㄱ",
+          "uncertainties": [
+            "ㄱ",
+            "コ"
+          ],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-2",
+          "kind": "bracket",
+          "box": {
+            "left": 374,
+            "top": 743,
+            "right": 526,
+            "bottom": 1000
+          },
+          "text": "(",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-3",
+          "kind": "bracket",
+          "box": {
+            "left": 869,
+            "top": 778,
+            "right": 986,
+            "bottom": 1000
+          },
+          "text": ")",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [],
+      "complete": true,
+      "notes": []
+    },
+    "audio_context": {
+      "bindings": [
+        {
+          "item_ids": [
+            "item-0",
+            "item-1",
+            "item-2",
+            "item-3"
+          ],
+          "quote": "가로는 튜플이다, 대가로는 뭐라고요? 리스트다 라고 얘기를 했었어요.",
+          "start_seconds": 110.3,
+          "end_seconds": 115.24,
+          "relevance": "aligned",
+          "reason": "The spoken segment refers to brackets/parentheses ('가로', '대가로') corresponding to the drawn bracket symbols."
+        }
+      ],
+      "concepts": [],
+      "word_candidates": [],
+      "notes": [
+        "ASR-derived context, not independently listened speech."
+      ],
+      "rejected_bindings": []
+    },
+    "failed_ids": [
+      "item-0"
+    ]
+  },
+  "audit": {
+    "checks": [
+      {
+        "id": "item-0",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "The mark is the opening square bracket '[' drawn horizontally/loosely resembling 'ㄷ' or '[', correctly enclosed in the specified box.",
+        "full_text": "[",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "structural",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      }
+    ],
+    "missing": [],
+    "complete": true
+  },
+  "previous_decisions": [
+    {
+      "id": "item-0",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "unclear_item",
+        "partial_word_or_expression_omission"
+      ],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_no_detection"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [
+        "unclear_item"
+      ],
+      "warnings": [
+        "context_crop_boundary"
+      ],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-2",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [
+        "symbol_text"
+      ],
+      "warnings": [
+        "context_crop_boundary"
+      ],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-3",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [
+        "symbol_text"
+      ],
+      "warnings": [
+        "context_crop_boundary"
+      ],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    }
+  ]
+}

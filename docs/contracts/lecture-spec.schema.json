@@ -1,0 +1,631 @@
+{
+  "$defs": {
+    "Card": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "title_card",
+            "key_points"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "heading": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Heading",
+          "type": "string"
+        },
+        "key_points": {
+          "items": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Key Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "heading",
+        "key_points"
+      ],
+      "title": "Card",
+      "type": "object"
+    },
+    "Element": {
+      "additionalProperties": false,
+      "properties": {
+        "element_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Element Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "number_block",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "title": "Value",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "element_id",
+        "type",
+        "value"
+      ],
+      "title": "Element",
+      "type": "object"
+    },
+    "Event": {
+      "additionalProperties": false,
+      "properties": {
+        "event_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Event Id",
+          "type": "string"
+        },
+        "trigger": {
+          "$ref": "#/$defs/Trigger"
+        },
+        "action": {
+          "enum": [
+            "push",
+            "pop"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "container_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Container Id",
+          "type": "string"
+        },
+        "element_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Element Id",
+          "type": "string"
+        },
+        "expected_value": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Value"
+        }
+      },
+      "required": [
+        "event_id",
+        "trigger",
+        "action",
+        "container_id",
+        "element_id"
+      ],
+      "title": "Event",
+      "type": "object"
+    },
+    "Gesture": {
+      "additionalProperties": false,
+      "properties": {
+        "cue_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Cue Id",
+          "type": "string"
+        },
+        "utterance_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Utterance Id",
+          "type": "string"
+        },
+        "action": {
+          "const": "point_toward",
+          "title": "Action",
+          "type": "string"
+        },
+        "target_element_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Target Element Id",
+          "type": "string"
+        },
+        "intent": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Intent",
+          "type": "string"
+        },
+        "intensity": {
+          "const": "subtle",
+          "title": "Intensity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cue_id",
+        "utterance_id",
+        "action",
+        "target_element_id",
+        "intent",
+        "intensity"
+      ],
+      "title": "Gesture",
+      "type": "object"
+    },
+    "Issue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Message",
+          "type": "string"
+        },
+        "source_refs": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "title": "Source Refs",
+          "type": "array"
+        },
+        "affected_utterance_ids": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "title": "Affected Utterance Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "source_refs",
+        "affected_utterance_ids"
+      ],
+      "title": "Issue",
+      "type": "object"
+    },
+    "LearningLinks": {
+      "additionalProperties": false,
+      "properties": {
+        "related_concept_ids": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Related Concept Ids",
+          "type": "array"
+        },
+        "practice_objective": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Practice Objective",
+          "type": "string"
+        }
+      },
+      "required": [
+        "related_concept_ids",
+        "practice_objective"
+      ],
+      "title": "LearningLinks",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "source_example",
+            "generated_example"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Description",
+          "type": "string"
+        },
+        "source_refs": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "minItems": 1,
+          "title": "Source Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "description",
+        "source_refs"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Scene": {
+      "additionalProperties": false,
+      "properties": {
+        "scene_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Scene Id",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "introduction",
+            "explanation",
+            "worked_example",
+            "summary"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "utterances": {
+          "items": {
+            "$ref": "#/$defs/Utterance"
+          },
+          "maxItems": 30,
+          "minItems": 1,
+          "title": "Utterances",
+          "type": "array"
+        },
+        "visual": {
+          "discriminator": {
+            "mapping": {
+              "key_points": "#/$defs/Card",
+              "stack_diagram": "#/$defs/Stack",
+              "title_card": "#/$defs/Card"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Card"
+            },
+            {
+              "$ref": "#/$defs/Stack"
+            }
+          ],
+          "title": "Visual"
+        },
+        "visual_events": {
+          "items": {
+            "$ref": "#/$defs/Event"
+          },
+          "maxItems": 50,
+          "title": "Visual Events",
+          "type": "array"
+        },
+        "gesture_cues": {
+          "items": {
+            "$ref": "#/$defs/Gesture"
+          },
+          "maxItems": 20,
+          "title": "Gesture Cues",
+          "type": "array"
+        },
+        "example_provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "scene_id",
+        "role",
+        "utterances",
+        "visual",
+        "visual_events",
+        "gesture_cues"
+      ],
+      "title": "Scene",
+      "type": "object"
+    },
+    "Stack": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "stack_diagram",
+          "title": "Type",
+          "type": "string"
+        },
+        "heading": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Heading",
+          "type": "string"
+        },
+        "element_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Element Id",
+          "type": "string"
+        },
+        "initial_state": {
+          "$ref": "#/$defs/StackState"
+        },
+        "elements": {
+          "items": {
+            "$ref": "#/$defs/Element"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Elements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "heading",
+        "element_id",
+        "initial_state",
+        "elements"
+      ],
+      "title": "Stack",
+      "type": "object"
+    },
+    "StackState": {
+      "additionalProperties": false,
+      "properties": {
+        "items_bottom_to_top": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Items Bottom To Top",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items_bottom_to_top"
+      ],
+      "title": "StackState",
+      "type": "object"
+    },
+    "Trigger": {
+      "additionalProperties": false,
+      "properties": {
+        "utterance_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Utterance Id",
+          "type": "string"
+        },
+        "boundary": {
+          "enum": [
+            "start",
+            "end"
+          ],
+          "title": "Boundary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "utterance_id",
+        "boundary"
+      ],
+      "title": "Trigger",
+      "type": "object"
+    },
+    "Utterance": {
+      "additionalProperties": false,
+      "properties": {
+        "utterance_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Utterance Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Text",
+          "type": "string"
+        },
+        "content_origin": {
+          "enum": [
+            "source_based",
+            "generated_example",
+            "connective"
+          ],
+          "title": "Content Origin",
+          "type": "string"
+        },
+        "source_refs": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "title": "Source Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "utterance_id",
+        "text",
+        "content_origin",
+        "source_refs"
+      ],
+      "title": "Utterance",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "request_id": {
+      "maxLength": 100,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "title": "Request Id",
+      "type": "string"
+    },
+    "concept_id": {
+      "maxLength": 100,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "title": "Concept Id",
+      "type": "string"
+    },
+    "concept_revision": {
+      "minimum": 1,
+      "title": "Concept Revision",
+      "type": "integer"
+    },
+    "source_snapshot_id": {
+      "maxLength": 100,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "title": "Source Snapshot Id",
+      "type": "string"
+    },
+    "generation_status": {
+      "enum": [
+        "draft",
+        "insufficient_evidence",
+        "conflicting_evidence"
+      ],
+      "title": "Generation Status",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Title",
+      "type": "string"
+    },
+    "language": {
+      "const": "ko-KR",
+      "title": "Language",
+      "type": "string"
+    },
+    "learning_objective": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Learning Objective",
+      "type": "string"
+    },
+    "target_duration_seconds": {
+      "maximum": 90,
+      "minimum": 15,
+      "title": "Target Duration Seconds",
+      "type": "integer"
+    },
+    "scenes": {
+      "items": {
+        "$ref": "#/$defs/Scene"
+      },
+      "maxItems": 8,
+      "title": "Scenes",
+      "type": "array"
+    },
+    "learning_links": {
+      "$ref": "#/$defs/LearningLinks"
+    },
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/Issue"
+      },
+      "maxItems": 30,
+      "title": "Issues",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "concept_id",
+    "concept_revision",
+    "source_snapshot_id",
+    "generation_status",
+    "title",
+    "language",
+    "learning_objective",
+    "target_duration_seconds",
+    "scenes",
+    "learning_links",
+    "issues"
+  ],
+  "title": "LectureSpec",
+  "type": "object"
+}

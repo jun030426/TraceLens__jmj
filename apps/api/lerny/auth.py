@@ -249,9 +249,9 @@ class Provision(Input):
 
 
 @router.post("/ops/teachers", status_code=201)
-def provision(body: Provision, session: Db, actor: Actor):
-    if actor.role != "operator":
-        deny()
+def provision(body: Provision, request: Request, session: Db, actor: Actor):
+    from lerny.admin_security import audit, require_admin
+    require_admin(session, actor, request)
     user = User(
         login_id=body.login_id,
         display_name=body.display_name,
@@ -267,7 +267,7 @@ def provision(body: Provision, session: Db, actor: Actor):
             user_id=user.id, token_hash=digest(token), expires_at=now() + timedelta(hours=24)
         )
     )
-    session.add(AuditEvent(actor_id=actor.id, action="teacher_provisioned", target_id=user.id))
+    audit(session, actor, "user_created", user.id, outcome="succeeded", role="teacher", reason="교수자 계정 발급")
     session.commit()
     return {"user": public_user(user), "one_time_token": token, "expires_in_hours": 24}
 
@@ -277,23 +277,17 @@ class Reason(Input):
 
 
 @router.post("/ops/users/{user_id}/reset-token")
-def issue_reset(user_id: str, body: Reason, session: Db, actor: Actor):
-    if actor.role != "operator":
-        deny()
-    if not session.get(User, user_id):
-        deny(404)
+def issue_reset(user_id: str, body: Reason, request: Request, session: Db, actor: Actor):
+    from lerny.admin_api import managed_user
+    from lerny.admin_security import audit
+    user = managed_user(session, actor, request, user_id)
+    user.must_change_password = True
+    session.execute(delete(LoginSession).where(LoginSession.user_id == user_id))
     session.execute(delete(ResetToken).where(ResetToken.user_id == user_id))
     token = secrets.token_urlsafe(32)
     session.add(
         ResetToken(user_id=user_id, token_hash=digest(token), expires_at=now() + timedelta(hours=1))
     )
-    session.add(
-        AuditEvent(
-            actor_id=actor.id,
-            action="password_reset_issued",
-            target_id=user_id,
-            detail={"reason": body.reason},
-        )
-    )
+    audit(session, actor, "user_reset", user_id, reason=body.reason, outcome="succeeded")
     session.commit()
     return {"one_time_token": token, "expires_in_hours": 1}

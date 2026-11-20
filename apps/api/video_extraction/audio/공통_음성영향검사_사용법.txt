@@ -1,0 +1,38 @@
+새 음성의 보류 영향 검사
+
+audio_impact_batch.py는 이번 강의의 ID, 문장, 수동 판정, 출력 경로를 사용하지 않습니다.
+음성 추출/복원 전체를 대체하지 않고, 추출 후 공통 형식의 보류 항목을 받아
+새 원음 판독 + 의미 영향 검사를 거쳐 관리자 검토/일반 보류로 분류하는 단계입니다.
+기존 사례 전용 audio_remaining_impact.py의 LOCAL 판정은 새 자료에 적용하지 않습니다.
+검증 스키마·영향 판정 함수만 재사용합니다.
+
+입력: UTF-8 JSONL (행마다 객체)
+음성 필수 필드: id, modality="audio", source_audio, start_seconds, end_seconds,
+observed_text (누락 구간은 빈 문자열), eligible_for_chunking (boolean).
+source_audio는 추출/정규화된 PCM WAV입니다. 상대 경로는 JSONL 위치를 기준으로 합니다.
+기본 시간축은 WAV 파일 기준 초입니다. 영상 절대 시간인 경우
+ time_basis="media_absolute", audio_offset_seconds=음원 시작 시각을 명시합니다.
+시간축을 추측하거나 임의로 보정하지 않습니다. 다른 자료 유형은 변경하지 않습니다.
+
+처리:
+- eligible_for_chunking=false 중 아직 관리자에게 배정되지 않은 항목만 새 검사 대상으로 생성.
+- 파일별 실제 길이·샘플레이트 확인, 동일 원음에서 대상과 앞뒤 문맥을 분리.
+- 서로 다른 음성의 문맥, 검사 결과, 기존 강의 수동 판정을 섞지 않음.
+- 판독·의미 영향 근거가 부족하면 unknown 일반 보류. 짧다는 이유로 낮은 영향 판정 금지.
+- 낮은 영향으로 확인돼도 관리자 보류이며 사용 데이터에서 제외. 전사를 수정/삭제하지 않음.
+- 기존 원문과 결과 보존, 입력/코드 변경 시 새 출력 폴더 필요, 동일 설정으로 재개 가능.
+- 잘못된 시간·중복 ID·누락 메타데이터는 input_issues에 남기고 정상 항목은 준비 계속.
+- 너무 긴 항목은 target_requires_segmentation. 기본 60초(옵션 변경 가능), 자동 잘라 판정하지 않음.
+
+프로젝트 폴더에서 사용하는 CLI:
+python -m video_extraction.audio.audio_impact_batch prepare --records /절대경로/records.jsonl --output /절대경로/검사결과 --model 사용할_Gemini_모델
+prepare는 API를 호출하지 않습니다. summary.json에서 대상 수와 예상 API 호출 수(대상당 2회)를 확인합니다.
+python -m video_extraction.audio.audio_impact_batch run --output /절대경로/검사결과 --max-api-calls 20
+run만 API를 호출합니다. 사용자가 터미널에서 실행합니다. 키는 GEMINI_API_KEY 또는 --env-file로 지정합니다.
+
+결과: latest.json → revisions/.../records.jsonl (업데이트된 분류),
+impact-decisions.jsonl / administrator-review.jsonl / ordinary-holds.jsonl.
+이 결과를 후속 단계 입력으로 명시적으로 넘겨야 하며 모든 기존 파이프라인에 자동 연결된 것은 아닙니다.
+
+검증 한계: 다른 ID·내용·샘플레이트·채널·시간 기준의 합성 테스트로 입출력과
+안전 장치를 검증했습니다. 새 실제 강의의 내용 정확도를 측정한 것은 아닙니다.

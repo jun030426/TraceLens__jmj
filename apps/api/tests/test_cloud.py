@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import httpx
 import pytest
-from lerny import cloud_jobs, inference, main, storage, worker
+from lerny import cloud_jobs, health, inference, main, storage, worker
 from lerny import db as db_module
 from lerny.config import settings
 from lerny.models import Base, Chunk, Job, MaterialVersion, ModelCall, Question, User, now
@@ -22,7 +22,7 @@ SOURCE = "큐는 선입선출 자료구조입니다. 큐에서는 먼저 들어�
 
 
 @pytest.fixture
-def cloud_db(monkeypatch, tmp_path):
+def cloud_db(monkeypatch, tmp_path, request):
     url = db_module.engine().url.set(database="lerny_test")
     assert url.host in {"127.0.0.1", "localhost", "::1"} and url.database == "lerny_test"
     isolated = create_engine(url)
@@ -37,11 +37,13 @@ def cloud_db(monkeypatch, tmp_path):
             text("INSERT INTO alembic_version VALUES (:revision)"),
             {"revision": main.SCHEMA_REVISION},
         )
-    for module in (db_module, inference, main, worker, cloud_jobs):
+    for module in (db_module, inference, health, worker, cloud_jobs):
         monkeypatch.setattr(module, "engine", lambda: isolated)
     config = settings()
     for name, value in {
         "deployment": "cloud",
+        "ai_provider": "ollama",
+        "rag_storage": "local",
         "cookie_secure": True,
         "allowed_origins": ["https://lerny.example"],
         "ai_worker_token": SecretStr("w" * 40),
@@ -49,6 +51,9 @@ def cloud_db(monkeypatch, tmp_path):
         "runtime_root": tmp_path / "unused-PC-data",
     }.items():
         monkeypatch.setattr(config, name, value)
+    if getattr(request, "param", "cloud") == "shared":
+        monkeypatch.setattr(config, "deployment", "local")
+        monkeypatch.setattr(config, "file_storage", "supabase")
     objects = {}
     monkeypatch.setattr(storage, "signed_upload", lambda key: "https://storage.example/" + key)
     monkeypatch.setattr(
@@ -89,7 +94,7 @@ async def direct_upload(client, objects, course_id):
     content = SOURCE.encode()
     prepared = await client.post(
         f"/api/v1/courses/{course_id}/uploads",
-        json={"filename": "lecture.txt", "size": len(content), "week": 1},
+        json={"kind": "lecture", "filename": "lecture.txt", "size": len(content), "week": 1},
     )
     assert prepared.status_code == 201, prepared.text
     ticket = prepared.json()
@@ -115,7 +120,9 @@ def synthetic_response(task):
     schema = body["format"]
     properties = schema["properties"]
     if "concepts" in properties:
-        value = {"concepts": [{"name": "큐", "quote": "큐는 선입선출 자료구조입니다."}]}
+        value = {"concepts": [{"name": "큐", "quote": "큐는 선입선출 자료구조입니다.","version_id":json.loads(body["messages"][-1]["content"].rsplit("\n",1)[1])[0]["version_id"]}]}
+    elif "programs" in properties:
+        value = {"programs": []}
     elif "questions" in properties:
         keys = schema["$defs"]["Source"]["properties"]["chunk_id"]["enum"]
         common = {
@@ -141,6 +148,13 @@ def synthetic_response(task):
                 },
                 {
                     **common,
+                    "kind": "mcq",
+                    "prompt": "큐에 A, B를 차례로 넣으면 먼저 삭제되는 값은?",
+                    "options": ["A", "B", "둘 다 동시에", "삭제할 수 없음"],
+                    "criteria": [],
+                },
+                {
+                    **common,
                     "kind": "essay",
                     "prompt": "큐의 처리 순서를 설명하세요.",
                     "options": [],
@@ -148,8 +162,8 @@ def synthetic_response(task):
                 },
             ]
         }
-    elif "correct_option" in properties:
-        value = {"correct_option": properties["correct_option"]["enum"][0]}
+    elif "correct_options" in properties:
+        value = {"correct_options": [properties["correct_options"]["items"]["enum"][0]]}
     elif "supported" in properties:
         value = {"supported": True, "unambiguous": True, "answer_correct": True}
     elif "criteria" in properties:
@@ -223,6 +237,42 @@ async def test_general_service_and_file_processing_without_PC(cloud_db):
         assert (await client.get(f"/api/v1/courses/{course['id']}/materials")).status_code == 200
 
 
+@pytest.mark.parametrize("cloud_db", ["shared"], indirect=True)
+async def test_shared_files_independent_of_execution_environment(cloud_db):
+    app, isolated, objects = cloud_db
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="https://lerny.example"
+    ) as first:
+        await login(first, "teacher1")
+        assert (await first.get("/api/v1/uploads/config")).json()["direct"] is True
+        course, _ = await setup_course(first)
+        uploaded = await direct_upload(first, objects, course["id"])
+        with Session(isolated) as session:
+            version = session.get(MaterialVersion, uploaded["version_id"])
+            with storage.source_file(version) as source:
+                assert source.read_text(encoding="utf-8") == SOURCE
+            assert not source.exists(), "Shared file scratch copy was not removed"
+        assert (await first.get("/api/v1/health/ready")).status_code == 200
+        local_upload = await first.post(
+            f"/api/v1/courses/{course['id']}/materials",
+            files={"file": ("local.txt", SOURCE.encode(), "text/plain")},
+            data={"kind": "lecture", "week": "1", "visibility": "public"},
+        )
+        assert local_upload.status_code == 409
+    # A second API instance has no local files or client cookies from the first instance.
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=main.create_app()), base_url="https://lerny.example"
+    ) as second:
+        await login(second, "teacher1")
+        listing = await second.get(f"/api/v1/courses/{course['id']}/materials")
+        assert listing.status_code == 200
+        assert uploaded["material_id"] in listing.text
+        download = await second.get(f"/api/v1/materials/{uploaded['material_id']}/file")
+        assert download.status_code == 303
+        await login(second, "student2")
+        assert (await second.get(f"/api/v1/materials/{uploaded['material_id']}/file")).status_code == 404
+
+
 async def test_inference_replay_generation_and_grading(cloud_db):
     app, isolated, objects = cloud_db
     async with httpx.AsyncClient(
@@ -231,11 +281,20 @@ async def test_inference_replay_generation_and_grading(cloud_db):
         await login(client, "teacher1")
         course, section = await setup_course(client)
         await direct_upload(client, objects, course["id"])
+        await drain(client, isolated, "embed")
+        listing=(await client.get(f"/api/v1/courses/{course['id']}/weekly-content")).json()["items"][0]
+        response=await client.post(f"/api/v1/courses/{course['id']}/weeks/1/content",headers={"Idempotency-Key":"weekly"},json={"source_hash":listing["source_hash"]})
+        assert response.status_code==202,response.text
         await drain(client, isolated, "questions")
         with Session(isolated) as session:
-            assert session.scalar(select(func.count()).select_from(Question)) == 3, (
+            assert session.scalar(select(func.count()).select_from(Question)) == 4, (
                 "Replays duplicated application writes"
             )
+        with Session(isolated) as session:
+            from lerny.models import ContentGeneration
+            from lerny.automatic import sync_progress
+            generation=session.scalar(select(ContentGeneration).where(ContentGeneration.course_id==course["id"]))
+            generation.status="published";session.flush();sync_progress(session,course["id"]);session.commit()
         code = (await client.post(f"/api/v1/sections/{section['id']}/join-code", json={})).json()[
             "join_code"
         ]
@@ -244,7 +303,7 @@ async def test_inference_replay_generation_and_grading(cloud_db):
             await client.post("/api/v1/enrollments", json={"join_code": code})
         ).status_code == 201
         daily = (await client.post(f"/api/v1/sections/{section['id']}/daily", json={})).json()
-        assert len(daily["items"]) == 3
+        assert len(daily["items"]) == 3  # Legacy non-personalized daily flow still selects two MCQs + one essay.
         for item in daily["items"]:
             submitted = await client.post(
                 f"/api/v1/learning-sessions/{daily['id']}/questions/{item['id']}/submit",
@@ -334,7 +393,7 @@ async def test_cloud_upload_checks_owner_size_format_and_origin(cloud_db):
         await login(client, "teacher1")
         course, _ = await setup_course(client)
         ticket = (await client.post(f"/api/v1/courses/{course['id']}/uploads", json={
-            "filename": "bad.pdf", "size": 3})).json()
+            "kind": "lecture", "filename": "bad.pdf", "size": 3})).json()
         objects[ticket["url"].removeprefix("https://storage.example/")] = b"bad"
         assert (await client.post(f"/api/v1/uploads/{ticket['upload_id']}/complete", json={})).status_code == 422
         await login(client, "student1")
@@ -343,5 +402,5 @@ async def test_cloud_upload_checks_owner_size_format_and_origin(cloud_db):
         objects[ticket["url"].removeprefix("https://storage.example/")] = b"size mismatch"
         assert (await client.post(f"/api/v1/uploads/{ticket['upload_id']}/complete", json={})).status_code == 422
         oversized = await client.post(f"/api/v1/courses/{course['id']}/uploads", json={
-            "filename": "huge.pdf", "size": 51 * 1024 * 1024})
+            "kind": "lecture", "filename": "huge.pdf", "size": 51 * 1024 * 1024})
         assert oversized.status_code == 413

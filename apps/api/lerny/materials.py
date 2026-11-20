@@ -11,12 +11,12 @@ from sqlalchemy import select
 from lerny.auth import Input
 from lerny.config import settings
 from lerny.courses import audit, view
+from lerny.material_policy import KINDS, internal_use_for, refresh_processing, student_source, visibility_for
 from lerny.models import Concept, Course, Job, Material, MaterialVersion, Section, uid
 from lerny.security import Actor, Db, course_access, deny, match_revision, staff_access
 
 router = APIRouter(prefix="/api/v1")
-KINDS = {"lecture", "example", "assignment", "transcript", "past_exam", "answer"}
-SUFFIXES = {".pdf", ".pptx", ".docx", ".txt", ".md", ".c", ".java", ".py"}
+SUFFIXES = {".pdf", ".pptx", ".docx", ".txt", ".md", ".c", ".java", ".py", ".mp4"}
 
 
 def source_path(version):
@@ -31,7 +31,7 @@ def material_access(session, actor, material_id, edit=False):
         staff_access(session, actor, material.course_id)
     else:
         course_access(session, actor, material.course_id)
-        if actor.role == "student" and material.visibility != "public":
+        if actor.role == "student" and not student_source(material):
             deny(404, "자료를 찾을 수 없습니다.")
     return material
 
@@ -40,6 +40,7 @@ def material_view(session, material):
     result = view(
         material, "id course_id title kind week visibility internal_use revision active_version_id"
     )
+    result["content_generation_mode"] = "weekly"
     version = session.scalar(
         select(MaterialVersion)
         .where(MaterialVersion.material_id == material.id)
@@ -55,19 +56,19 @@ def material_view(session, material):
             Job.payload["version_id"].as_string() == version.id
         ).order_by(Job.created_at.desc()).limit(1))
         result["processing_job_id"] = processing.id if processing else None
-        jobs = list(session.scalars(select(Job).where(Job.course_id == material.course_id, Job.kind.in_(["auto_concepts", "questions"]))))
-        jobs = [j for j in jobs if j.payload.get("source_version_id") == version.id]
-        result["learning_status"] = ("failed" if any(j.status == "failed" for j in jobs) else "waiting_ai" if any(j.status == "waiting_ai" for j in jobs) else "generating" if any(j.status in {"queued", "running"} for j in jobs) else "ready" if jobs else "not_started")
+        result["processing_status"] = processing.status if processing else None
+        result["processing_stage"] = processing.kind if processing else None
+        result["learning_status"] = "awaiting_generation" if version.status=="ready" else "not_started"
     return result
 
 
 def save_version(file, material, actor, session):
-    if settings().deployment == "cloud":
+    if settings().uses_supabase_storage:
         deny(409, "클라우드 업로드 주소를 먼저 발급받아 주세요.")
     filename = (file.filename or "unknown").replace("\\", "/").split("/")[-1][:200]
     suffix = Path(filename).suffix.lower()
     if suffix not in SUFFIXES:
-        deny(422, "현재 PDF·PPTX·DOCX·텍스트·예제 코드를 지원합니다. 다른 자료는 변환해 주세요.")
+        deny(422, "PDF·PPTX·DOCX·텍스트·예제 코드·MP4를 지원합니다.")
     root = settings().runtime_root / "data/files"
     root.mkdir(parents=True, exist_ok=True)
     key = uid() + suffix
@@ -104,6 +105,12 @@ def save_version(file, material, actor, session):
                     deny(422, "문서 구조 또는 압축 해제 크기 제한을 확인해 주세요.")
                 if any("vbaproject" in e.filename.lower() for e in entries):
                     deny(422, "매크로가 포함된 문서는 지원하지 않습니다.")
+        elif suffix == ".mp4":
+            from lerny.media_validation import validate_mp4
+            try:
+                validate_mp4(target.read_bytes())
+            except ValueError:
+                deny(422, "MP4 영상 형식을 확인해 주세요.")
         else:
             target.read_text(encoding="utf-8-sig")
         number = (
@@ -164,8 +171,8 @@ def upload(
         title=(file.filename or "자료")[:200],
         kind=kind,
         week=week,
-        visibility=visibility,
-        internal_use=internal_use,
+        visibility=visibility_for(kind, visibility),
+        internal_use=internal_use_for(kind),
     )
     session.add(material)
     session.flush()
@@ -185,7 +192,12 @@ def list_materials(course_id: str, session: Db, actor: Actor):
     course_access(session, actor, course_id)
     query = select(Material).where(Material.course_id == course_id, Material.deleted.is_(False))
     if actor.role == "student":
-        query = query.where(Material.visibility == "public")
+        query = query.where(Material.visibility == "public", Material.internal_use == "none",
+                            Material.kind == "lecture")
+        from lerny.material_previews import handout_version, student_view
+        return {"items": [student_view(m, version)
+                          for m in session.scalars(query.order_by(Material.created_at.desc()))
+                          if (version := handout_version(session, m))]}
     return {
         "items": [
             material_view(session, m)
@@ -197,22 +209,15 @@ def list_materials(course_id: str, session: Db, actor: Actor):
 @router.get("/materials/{material_id}/file")
 def file_download(material_id: str, session: Db, actor: Actor, version_id: str | None = None):
     material = material_access(session, actor, material_id)
+    if actor.role == "student":
+        deny(403, "원본 자료는 다운로드할 수 없습니다. 강의자료 열람 화면을 이용해 주세요.")
     query = select(MaterialVersion).where(MaterialVersion.material_id == material_id)
     if version_id:
         query = query.where(MaterialVersion.id == version_id)
     version = session.scalar(query.order_by(MaterialVersion.version_no.desc()).limit(1))
     if not version:
         deny(404)
-    if actor.role == "student" and version_id:
-        latest = session.scalar(
-            select(MaterialVersion.id)
-            .where(MaterialVersion.material_id == material_id)
-            .order_by(MaterialVersion.version_no.desc())
-            .limit(1)
-        )
-        if version.id not in {latest, material.active_version_id}:
-            deny(404, "교체된 자료는 더 이상 다운로드할 수 없습니다.")
-    if settings().deployment == "cloud":
+    if settings().uses_supabase_storage:
         from lerny.storage import signed_download
         return RedirectResponse(signed_download(version.object_key, version.filename), status_code=303)
     if not source_path(version).is_file():
@@ -227,7 +232,44 @@ def file_download(material_id: str, session: Db, actor: Actor, version_id: str |
 
 class AccessInput(Input):
     visibility: Literal["public", "private"]
-    internal_use: Literal["none", "validation_grading"]
+    internal_use: Literal["none", "validation_grading"] | None = Field(
+        default=None, deprecated=True, description="자료 종류로 자동 결정됩니다. 이전 클라이언트 값은 무시합니다."
+    )
+
+
+class MaterialUpdate(AccessInput):
+    title: str = Field(min_length=1, max_length=200)
+    week: int = Field(ge=1, le=52)
+    kind: Literal["lecture", "example", "assignment", "transcript", "past_exam", "answer"]
+
+
+@router.patch("/materials/{material_id}")
+def update_material(
+    material_id: str, body: MaterialUpdate, session: Db, actor: Actor,
+    if_match: str | None = Header(default=None),
+):
+    material_access(session, actor, material_id, edit=True)
+    material = session.scalar(select(Material).where(Material.id == material_id).with_for_update())
+    match_revision(material.revision, if_match)
+    was_student_source = student_source(material)
+    values = {**body.model_dump(exclude={"internal_use"}), "internal_use": internal_use_for(body.kind),
+              "visibility": visibility_for(body.kind, body.visibility)}
+    changes = {key: value for key, value in values.items() if getattr(material, key) != value}
+    if not changes:
+        return material_view(session, material)
+    for key, value in changes.items():
+        setattr(material, key, value)
+    material.revision += 1
+    course = session.scalar(select(Course).where(Course.id == material.course_id).with_for_update())
+    course.access_epoch += 1
+    if {"kind", "visibility", "internal_use"} & changes.keys():
+        refresh_processing(session, material, actor.id, was_student_source)
+    else:
+        from lerny.automatic import sync_progress
+        sync_progress(session, material.course_id)
+    audit(session, actor, "material_updated", material.id, changes)
+    session.commit()
+    return material_view(session, material)
 
 
 @router.patch("/materials/{material_id}/access")
@@ -241,15 +283,15 @@ def change_access(
     material_access(session, actor, material_id, edit=True)
     material = session.scalar(select(Material).where(Material.id == material_id).with_for_update())
     match_revision(material.revision, if_match)
-    material.visibility, material.internal_use = body.visibility, body.internal_use
+    was_student_source = student_source(material)
+    material.visibility = visibility_for(material.kind, body.visibility)
+    material.internal_use = internal_use_for(material.kind)
     material.revision += 1
     course = session.scalar(select(Course).where(Course.id == material.course_id).with_for_update())
     course.access_epoch += 1
-    from lerny.automatic import enqueue_concepts, sync_progress
-    if material.active_version_id:
-        enqueue_concepts(session, material, session.get(MaterialVersion, material.active_version_id), actor.id)
-    sync_progress(session, material.course_id)
-    audit(session, actor, "material_access_changed", material_id, body.model_dump())
+    refresh_processing(session, material, actor.id, was_student_source)
+    audit(session, actor, "material_access_changed", material_id,
+          {"visibility": material.visibility, "internal_use": material.internal_use})
     session.commit()
     return material_view(session, material)
 
@@ -356,6 +398,11 @@ class ConceptInput(Input):
 @router.get("/courses/{course_id}/concepts")
 def concepts(course_id: str, session: Db, actor: Actor):
     course_access(session, actor, course_id)
+    if actor.role == "student":
+        from lerny.weekly_content import published_generations
+        evidence={e["id"]:e for g in published_generations(session,course_id) for e in g.concept_evidence}
+        return {"items":[{"id":e["id"],"name":e["name"],"description":e["description"],"revision":1}
+                         for e in evidence.values()]}
     return {
         "items": [
             view(c, "id name description revision")
@@ -418,7 +465,8 @@ def progress(
             select(Concept.id).where(Concept.course_id == section.course_id, Concept.id.in_(ids))
         )
     )
-    if found != ids:
+    from lerny.weekly_content import published_concept_ids
+    if found != ids or not ids <= published_concept_ids(session, section.course_id):
         deny(422, "해당 과목의 개념만 진도에 지정할 수 있습니다.")
     section.progress_mode = body.mode
     section.progress_week = None
@@ -432,20 +480,8 @@ def progress(
 
 @router.post("/materials/{material_id}/learning", status_code=202)
 def retry_learning(material_id: str, session: Db, actor: Actor):
-    material = material_access(session, actor, material_id, edit=True)
-    material = session.scalar(select(Material).where(Material.id == material.id).with_for_update())
-    version = session.get(MaterialVersion, material.active_version_id) if material.active_version_id else None
-    from lerny.automatic import eligible, enqueue_concepts
-    if not version or not eligible(material, version):
-        deny(409, "처리가 완료된 공개 강의 자료에서만 생성할 수 있어요.")
-    jobs = [j for j in session.scalars(select(Job).where(Job.course_id == material.course_id, Job.kind.in_(["auto_concepts","questions"]))) if j.payload.get("source_version_id") == version.id]
-    for job in jobs:
-        if job.status == "failed":
-            job.status, job.error_code, job.result = "queued", None, None
-            job.payload = {**job.payload, "_ai_generation": job.payload.get("_ai_generation", 0) + 1}
-    enqueue_concepts(session, material, version, actor.id)
-    session.commit()
-    return {"status": "queued"}
+    material_access(session, actor, material_id, edit=True)
+    deny(409, "주차별 콘텐츠 생성에서 자료를 모아 생성해 주세요.")
 
 
 class WeekDate(Input):

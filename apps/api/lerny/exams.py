@@ -47,7 +47,7 @@ def access_plan(session,actor,plan_id):
     return plan
 
 def in_scope(session,plan,q):
-    if q.course_id!=plan.course_id or q.status!="active" or not valid_sources(session,q):return False
+    if q.student_id is not None or q.course_id!=plan.course_id or q.status!="active" or not valid_sources(session,q):return False
     for source in q.sources:
         chunk=session.get(Chunk,source["chunk_id"])
         version=session.get(MaterialVersion,chunk.version_id)
@@ -59,7 +59,14 @@ def practice(plan_id:str,session:Db,actor:Actor):
     plan=access_plan(session,actor,plan_id)
     questions=[q for q in session.scalars(select(Question).where(Question.course_id==plan.course_id,Question.status=="active").order_by(Question.created_at.desc())) if in_scope(session,plan,q)][:30]
     resources=session.scalars(select(Material).where(Material.course_id==plan.course_id,Material.visibility=="public",Material.deleted.is_(False),Material.kind.in_(["past_exam","assignment"]),Material.week.between(plan.start_week,plan.end_week)))
-    return {"plan":plan_view(plan),"questions":[question_view(q) for q in questions],"resources":[view(m,"id title kind week") for m in resources]}
+    if actor.role == "student":
+        from lerny.material_previews import handout_version, student_view
+        handouts = session.scalars(select(Material).where(Material.course_id == plan.course_id,
+            Material.kind == "lecture", Material.week.between(plan.start_week, plan.end_week)))
+        resources_view = [student_view(m, v) for m in handouts if (v := handout_version(session, m))]
+    else:
+        resources_view = [view(m,"id title kind week") for m in resources]
+    return {"plan":plan_view(plan),"questions":[question_view(q) for q in questions],"resources":resources_view}
 class PracticeAnswer(Input):
     answer:str=Field(max_length=5000)
 @router.post("/exam-plans/{plan_id}/questions/{question_id}/review")

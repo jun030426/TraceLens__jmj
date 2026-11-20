@@ -1,0 +1,54 @@
+{
+  "generation_input": {
+    "schema_version": "1.0",
+    "request_id": "req_stack_001",
+    "concept_id": "concept_stack",
+    "concept_revision": 1,
+    "source_snapshot_id": "snapshot_stack_001",
+    "language": "ko-KR",
+    "learning_objective": "스택에서 원소가 제거되는 순서를 설명한다.",
+    "target_duration_seconds": 40,
+    "allow_generated_examples": true,
+    "allowed_source_ids": [
+      "src_stack_01",
+      "src_stack_02"
+    ],
+    "allowed_concept_ids": [
+      "concept_stack"
+    ],
+    "presentation_profile": {
+      "profile_id": "lerny_seated_right_materials_v1",
+      "aspect_ratio": "16:9",
+      "layout": {
+        "scene_style": "seated_instructor_with_right_materials",
+        "instructor_position": "left",
+        "material_position": "right",
+        "preserve_look_background": true,
+        "camera": "fixed",
+        "materials_designed_by": "heygen_video_agent",
+        "ratio_scope": "approximate_visual_emphasis",
+        "instructor_width_ratio": 0.4,
+        "material_width_ratio": 0.6,
+        "split_screen": false,
+        "captions_position": "bottom",
+        "gesture_targeting": "natural"
+      }
+    }
+  },
+  "sources": [
+    {
+      "source_id": "src_stack_01",
+      "text": "스택은 후입선출 자료구조다. 마지막에 삽입한 원소를 먼저 제거한다.",
+      "locator": {
+        "page": 1
+      }
+    },
+    {
+      "source_id": "src_stack_02",
+      "text": "push는 스택에 원소를 추가하고, pop은 맨 위의 원소를 제거한다.",
+      "locator": {
+        "page": 2
+      }
+    }
+  ]
+}

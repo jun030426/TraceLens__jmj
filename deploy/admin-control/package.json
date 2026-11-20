@@ -1,0 +1,8 @@
+{
+  "name": "lerny-admin-control",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": { "test": "node --test handler.test.mjs" },
+  "dependencies": { "@aws-sdk/client-ec2": "3.1169.0", "jose": "6.2.17" }
+}

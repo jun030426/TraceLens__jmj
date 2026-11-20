@@ -25,7 +25,7 @@ async def test_generation_rejects_answer_key_that_disagrees_with_independent_sol
     question = SimpleNamespace(
         prompt="큐의 삭제 위치는?", options=["rear", "front", "middle", "random"], answer_index=0
     )
-    monkeypatch.setattr("lerny.worker.model_json", lambda *args: {"correct_option": "front"})
+    monkeypatch.setattr("lerny.worker.model_json", lambda *args: {"correct_options": ["front"]})
     with pytest.raises(ValueError, match="ANSWER_KEY_MISMATCH"):
         verify_choice(question, [{"text": "dequeue는 front의 원소를 꺼낸다."}])
     question.answer_index = 1
@@ -38,12 +38,6 @@ async def seed(client, session):
     concept = (
         await client.post(f"/api/v1/courses/{course['id']}/concepts", json={"name": "큐"})
     ).json()
-    response = await client.put(
-        f"/api/v1/sections/{section['id']}/progress",
-        headers={"If-Match": "1"},
-        json={"concept_ids": [concept["id"]]},
-    )
-    assert response.status_code == 200
     mat = Material(
         course_id=course["id"], title="lecture", kind="lecture", week=1, visibility="public"
     )
@@ -83,7 +77,12 @@ async def seed(client, session):
                 sources=[{"chunk_id": chunk.id, "quote": chunk.content}],
             )
         )
+    from publication_fixtures import published
+    published(session,course["id"],concept_ids=[concept["id"]])
     session.commit()
+    response = await client.put(f"/api/v1/sections/{section['id']}/progress",
+        headers={"If-Match":"1"},json={"concept_ids":[concept["id"]]})
+    assert response.status_code==200,response.text
     code = (await client.post(f"/api/v1/sections/{section['id']}/join-code", json={})).json()[
         "join_code"
     ]
@@ -116,6 +115,36 @@ async def test_daily_persistent_answer_hidden_and_submission_idempotent(app_db):
         assert review.due_on == today() + timedelta(days=1)
         await login(c, "student2")
         assert (await c.get(f"/api/v1/attempts/{first.json()['attempt_id']}")).status_code == 404
+
+
+async def test_hint_returns_only_the_requested_questions_verified_quote(app_db):
+    app, session = app_db
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+        _, section, material = await seed(c, session)
+        daily = (await c.post(f"/api/v1/sections/{section['id']}/daily")).json()
+        questions = [session.get(Question, item["id"]) for item in daily["items"][:2]]
+        chunk = session.get(Chunk, questions[0].sources[0]["chunk_id"])
+        quotes = ["if queue:\n    return queue.pop(0)", "먼저 넣은 원소를 먼저 꺼냅니다."]
+        chunk.content = "\n".join(quotes)
+        for question, quote in zip(questions, quotes, strict=True):
+            question.sources = [{"chunk_id": chunk.id, "quote": quote}]
+        session.commit()
+
+        for question, quote in zip(questions, quotes, strict=True):
+            route = f"/api/v1/learning-sessions/{daily['id']}/questions/{question.id}/help"
+            response = await c.post(route)
+            assert response.status_code == 200, response.text
+            assert response.json() == {"recorded": True, "hint": quote}
+
+        chunk.content = quotes[0]
+        session.commit()
+        assert (await c.post(route)).status_code == 409
+        chunk.content = "\n".join(quotes)
+        material.visibility = "private"
+        session.commit()
+        assert (await c.post(route)).status_code == 409
+        await login(c, "student2")
+        assert (await c.post(route)).status_code == 404
 
 
 async def test_source_revocation_blocks_question_and_statistics_access(app_db):
@@ -258,28 +287,32 @@ async def test_generated_rubric_uses_canonical_public_sentences(app_db, monkeypa
         version = session.get(MaterialVersion, chunk.version_id)
         existing = session.scalar(select(Question))
         monkeypatch.setattr(
-            "lerny.assessment.search_public", lambda *args: [(chunk, material, version)]
+            "lerny.assessment.search_public", lambda *args, **kwargs: [(chunk, material, version)]
         )
-        monkeypatch.setattr("lerny.assessment.internal_validation_context", lambda *args: [])
+        monkeypatch.setattr("lerny.assessment.internal_validation_context", lambda *args, **kwargs: [])
         questions = [
             {
                 "kind": kind,
-                "prompt": "큐의 동작을 설명하는 문항입니다.",
+                "prompt": prompt,
                 "options": ["a", "b", "c", "d"] if kind == "mcq" else [],
                 "answer_index": 0,
                 "explanation": "큐는 선입선출이다.",
                 "criteria": ["S1", "S2"] if kind == "essay" else [],
                 "sources": [{"chunk_id": "S1"}],
             }
-            for kind in ("mcq", "mcq", "essay")
+            for kind, prompt in (
+                ("mcq", "큐의 삽입 순서와 삭제 순서의 관계는?"),
+                ("mcq", "큐에 a, b를 넣은 뒤 처음 꺼내는 값은?"),
+                ("essay", "큐의 선입선출 동작을 두 문장으로 설명하세요."),
+            )
         ]
         monkeypatch.setattr(
             "lerny.worker.model_json",
             lambda prompt, schema: (
                 {"questions": questions}
                 if "questions" in schema.get("properties", {})
-                else {"correct_option": "a"}
-                if "correct_option" in schema.get("properties", {})
+                else {"correct_options": ["a"]}
+                if "correct_options" in schema.get("properties", {})
                 else {"supported": True, "unambiguous": True, "answer_correct": True}
             ),
         )

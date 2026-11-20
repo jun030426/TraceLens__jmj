@@ -1,0 +1,74 @@
+/* 오로라 배경 (AuroraBackground.tsx) — 원본 Tailwind 클래스를 같은 값의 CSS 로 옮겼어요 */
+.aur-box { position: relative; display: flex; height: 100vh; flex-direction: column; align-items: center; justify-content: center; background: #fafafa; color: #020617; }
+:root[data-theme="dark"] .aur-box { background: #18181b; }
+
+.aur-clip { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.aur-light {
+  --aurora: repeating-linear-gradient(100deg, var(--blue-500) 10%, var(--indigo-300) 15%, var(--blue-300) 20%, var(--violet-200) 25%, var(--blue-400) 30%);
+  --dark-gradient: repeating-linear-gradient(100deg, var(--black) 0%, var(--black) 7%, var(--transparent) 10%, var(--transparent) 12%, var(--black) 16%);
+  --white-gradient: repeating-linear-gradient(100deg, var(--white) 0%, var(--white) 7%, var(--transparent) 10%, var(--transparent) 12%, var(--white) 16%);
+  pointer-events: none;
+  position: absolute;
+  inset: -10px;
+  background-image: var(--white-gradient), var(--aurora);
+  background-size: 300%, 200%;
+  background-position: 50% 50%, 50% 50%;
+  opacity: 0.5;
+  filter: blur(10px) invert(100%);
+  will-change: transform;
+}
+.aur-light::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--white-gradient), var(--aurora);
+  background-size: 200%, 100%;
+  background-attachment: fixed;
+  mix-blend-mode: difference;
+  animation: aur-aurora 60s linear infinite;
+}
+.aur-light.is-radial {
+  -webkit-mask-image: radial-gradient(ellipse at 100% 0%, black 10%, var(--transparent) 70%);
+  mask-image: radial-gradient(ellipse at 100% 0%, black 10%, var(--transparent) 70%);
+}
+:root[data-theme="dark"] .aur-light { background-image: var(--dark-gradient), var(--aurora); filter: blur(10px) invert(0%); }
+:root[data-theme="dark"] .aur-light::after { background-image: var(--dark-gradient), var(--aurora); }
+
+@keyframes aur-aurora {
+  from { background-position: 50% 50%, 50% 50%; }
+  to { background-position: 350% 50%, 350% 50%; }
+}
+/* 원본에는 없지만, 움직임 줄이기를 켠 사람에게는 오로라를 멈춰 둬요 (랜딩의 다른 애니메이션과 같게) */
+@media (prefers-reduced-motion: reduce) {
+  .aur-light::after { animation: none; }
+}
+
+/* 맥북 장면에 깔 때: 원본 바탕색(zinc-50 · 다크 zinc-900) 위에 빛 층, 그 위에 네모 · 맥북 */
+.lm-sticky.has-aurora { background: #fafafa; }
+:root[data-theme="dark"] .lm-sticky.has-aurora { background: #18181b; }
+.lm-sticky.has-aurora > .aur-clip { z-index: 0; }
+
+/* 11/18 뒤: Lerny 색(보라 · 라일락 · 장밋빛)으로 바꾸고, 위아래 칸과 경계가 생기지 않게
+   - 바탕은 원본 zinc-50 대신 랜딩 바탕색(--d-ground)
+   - 빛 층은 위 · 아래 끝에서 투명해져 이웃 칸 바탕과 그대로 이어져요 */
+.lm-sticky.has-aurora { background: var(--d-ground, #f7f0f8); }
+.lm-sticky.has-aurora > .aur-clip {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+}
+.lm-sticky.has-aurora .aur-light {
+  --blue-500: #7b45f0;
+  --indigo-300: #c9b3ff;
+  --blue-300: #e3b8e6;
+  --violet-200: #f3dcef;
+  --blue-400: #a77bf3;
+}
+/* 11/18 뒤: 오로라를 더 연하고 투명하게 */
+.lm-sticky.has-aurora .aur-light {
+  opacity: 0.28;
+  --blue-500: #a98bf5;
+  --indigo-300: #ddd0ff;
+  --blue-300: #efd3f0;
+  --violet-200: #f8ebf6;
+  --blue-400: #c4a8f7;
+}

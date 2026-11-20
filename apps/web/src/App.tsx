@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useContext, useEffect, useRef, useState } from "react";
 import {
   BrowserRouter,
   Link,
@@ -30,9 +30,18 @@ import {
 import { api, post, type Classroom } from "./api";
 import { PracticeWorkspace, PracticeResults } from "./Practice";
 import { StudentExamPrep } from "./ExamPrep";
-import { Landing } from "./Landing";
 import { InstructorClass } from "./Instructor";
 import { StudentToday } from "./StudentToday";
+import { isTestUser, setTestRole } from "./testAccess";
+import { UserMenu } from "./UserMenu";
+import { ChatFab } from "./ChatFab";
+import { applyTheme, setTheme, useTheme } from "./theme";
+import { AdminPage } from "./AdminRoute";
+import { MaterialViewer } from "./MaterialViewer";
+import { ServiceBanner } from "./ServiceBanner";
+import { ServiceStatusProvider } from "./ServiceStatus";
+
+const Landing = lazy(() => import("./Landing").then(({ Landing }) => ({ default: Landing })));
 
 function useClassroomContext(userId?: string) {
   const location = useLocation();
@@ -77,7 +86,7 @@ function useClassroomContext(userId?: string) {
 }
 
 function Shell() {
-  const { user, refresh } = useContext(Auth);
+  const { user, loading, refresh } = useContext(Auth);
   const location = useLocation();
   const pathname = location.pathname;
   const menuKey = `${user?.id || "guest"}:${pathname}${location.search}`;
@@ -98,6 +107,15 @@ function Shell() {
     user?.role === "student" ? user.id : undefined,
   );
   const isLanding = pathname === "/";
+  const [theme] = useTheme();
+  // 로그인하지 않은 화면(로그아웃 뒤, 세션 만료 포함)은 항상 기본(밝은) 모드예요
+  const loggedOut = !loading && !user;
+  useEffect(() => applyTheme(loggedOut ? "light" : theme, pathname), [theme, pathname, loggedOut]);
+  // 학생 화면에만 버튼 색(student-buttons.css)을 입히려고 <html data-role> 에 역할을 적어 둬요
+  useEffect(() => {
+    if (user?.role) document.documentElement.dataset.role = user.role;
+    else delete document.documentElement.dataset.role;
+  }, [user?.role]);
   const isStudentHome =
     pathname === "/student" ||
     ((pathname === "/professor" || pathname === "/professor/notices" || pathname === "/professor/students" || pathname.startsWith("/professor/courses/")) && user?.role === "teacher") ||
@@ -105,6 +123,7 @@ function Shell() {
       pathname === "/ai" ||
       pathname === "/attendance" ||
       pathname === "/exam-prep" ||
+      /^\/materials\/[^/]+\/view$/.test(pathname) ||
       pathname === "/mypage" ||
       /^\/classrooms\/[^/]+\/lectures$/.test(pathname) ||
       /^\/classrooms\/[^/]+\/practice(?:\/results)?$/.test(pathname) ||
@@ -115,6 +134,27 @@ function Shell() {
   const isLogin = ["/login", "/signup", "/reset", "/change-password"].includes(
     pathname,
   );
+  // 스크롤을 내리면 상단 바를 숨기고, 올리면 다시 보여줘요 (11-16)
+  const [headerHidden, setHeaderHidden] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const delta = y - last;
+        if (y < 80) { setHeaderHidden(false); last = y; }
+        else if (delta > 6) { setHeaderHidden(true); last = y; }
+        else if (delta < -6) { setHeaderHidden(false); last = y; }
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => setHeaderHidden(false), [pathname]);
   return (
     <>
       <header
@@ -126,7 +166,7 @@ function Shell() {
           }
         }}
         className={
-          "app-header " + (classroom
+          "app-header " + (headerHidden && !menuOpen ? "is-scroll-hidden " : "") + (/^\/classrooms\/[^/]+\/practice$/.test(pathname) ? "is-autohide " : "") + (classroom
             ? "ln-header lesson-header"
             : isLanding || isStudentHome
               ? "ln-header"
@@ -136,9 +176,10 @@ function Shell() {
         }
       >
         <Link className="brand" to={user ? "/home" : "/"}>
-          Lerny<span>●</span>
+          <img className="app-logo" src="/lerny-logo.png" alt="Lerny" />
         </Link>
-        {classroom && (
+        {/* 강의실 첫 화면에서는 '내 강의로'를 강의명 위에 따로 보여줘요 (11-14) */}
+        {classroom && !/^\/classrooms\/[^/]+(\/lectures)?\/?$/.test(pathname) && pathname !== "/ai" && pathname !== "/quiz" && pathname !== "/attendance" && !/^\/classrooms\/[^/]+\/practice\/?$/.test(pathname) && !/^\/quiz\/results\//.test(pathname) && !/^\/classrooms\/[^/]+\/practice\/results\/?$/.test(pathname) && (
           <Link className="lesson-exit" to="/courses">
             <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
             <span>내 강의로</span>
@@ -147,7 +188,7 @@ function Shell() {
         <button ref={menuButton} type="button" className="mobile-menu-toggle" aria-expanded={menuOpen} aria-controls="app-navigation" onClick={() => setOpenMenu(menuOpen ? null : menuKey)}>
           <span aria-hidden="true">{menuOpen ? "×" : "☰"}</span> {menuOpen ? "메뉴 닫기" : "메뉴"}
         </button>
-        <nav id="app-navigation" data-open={menuOpen} aria-label={classroom ? "강의실 학습 메뉴" : "주 메뉴"} onClick={event => { if ((event.target as Element).closest("a, button")) setOpenMenu(null); }}>
+        <nav id="app-navigation" data-open={menuOpen} aria-label={classroom ? "강의실 학습 메뉴" : "주 메뉴"} onClick={event => { if ((event.target as Element).closest("a, button:not([data-keep-menu])")) setOpenMenu(null); }}>
           {user ? (
             <>
               {(user.role === "student"
@@ -172,7 +213,7 @@ function Shell() {
                       ["/professor/notices", "강의 자료"],
                       ["/professor/students", "수강생"],
                     ]
-                  : [["/classrooms", "운영 관리"]]
+                  : [["/admin", "운영 관리"]]
               ).map(([path, label]) => (
                 <NavLink
                   key={path}
@@ -193,10 +234,16 @@ function Shell() {
                   {label}
                 </NavLink>
               ))}
-              <NavLink to="/mypage">내 정보</NavLink>
-              {!classroom && <span>{user.display_name}</span>}
-              <button
-                onClick={async () => {
+              <UserMenu
+                user={user}
+                compact={!!classroom}
+                onLogout={async () => {
+                  setTheme("light"); // 로그아웃하면 다크 모드 설정을 지우고 기본으로 돌아가요
+                  if (isTestUser(user)) {
+                    setTestRole(null);
+                    await refresh();
+                    return;
+                  }
                   await api("/auth/logout", post({}));
                   try {
                     for (const key of Object.keys(sessionStorage))
@@ -207,9 +254,7 @@ function Shell() {
                   }
                   await refresh();
                 }}
-              >
-                로그아웃
-              </button>
+              />
             </>
           ) : (
             <>
@@ -220,6 +265,7 @@ function Shell() {
         </nav>
       </header>
 
+      <ServiceBanner />
       <main
         className={
           isLanding
@@ -232,10 +278,11 @@ function Shell() {
         }
       >
         <Routes>
+          <Route path="/materials/:materialId/view" element={<Guard><StudentOnly><MaterialViewer /></StudentOnly></Guard>} />
           <Route path="/classrooms/:sectionId/lectures" element={<Guard><StudentOnly><InstructorClass /></StudentOnly></Guard>} />
           <Route path="/classrooms/:sectionId/practice/results" element={<Guard><StudentOnly><PracticeResults /></StudentOnly></Guard>} />
           <Route path="/classrooms/:sectionId/practice" element={<Guard><StudentOnly><PracticeWorkspace /></StudentOnly></Guard>} />
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Suspense fallback={<p role="status">첫 화면을 불러오는 중이에요.</p>}><Landing /></Suspense>} />
           <Route
             path="/home"
             element={
@@ -355,6 +402,7 @@ function Shell() {
             }
           />
 
+          <Route path="/admin" element={<Guard><AdminPage /></Guard>} />
           <Route path="/exam-prep" element={<Guard><StudentOnly><StudentExamPrep /></StudentOnly></Guard>} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
@@ -402,6 +450,8 @@ function Shell() {
           />
         </Routes>
       </main>
+      {/* 학생이 강의실에 들어간 뒤 화면 오른쪽 아래 AI 질문 아이콘 (실습 퀴즈 아이콘과 같은 모양) — AI 질문·실습 화면에서는 숨겨요 */}
+      {classroom && pathname !== "/ai" && !/^\/classrooms\/[^/]+\/practice(?:\/results)?$/.test(pathname) && <ChatFab sectionId={classroom.section.id} />}
       <footer
         className={
           isLanding || isStudentHome
@@ -421,7 +471,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Shell />
+        <ServiceStatusProvider><Shell /></ServiceStatusProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -10,7 +10,7 @@
 .learning-view-tabs {
   display: flex;
   gap: 22px;
-  border-bottom: 1px solid #e7dfed;
+  border-bottom: 1px solid #e5e6e7;
   margin-bottom: 24px;
 }
 .learning-view-tabs button {
@@ -18,12 +18,12 @@
   border-radius: 0;
   padding: 10px 0 13px;
   background: transparent;
-  color: #756880;
+  color: #727476;
   font-size: 14px;
 }
 .learning-view-tabs button[aria-pressed="true"] {
-  color: #513368;
-  border-bottom: 2px solid #856298;
+  color: #494b52;
+  border-bottom: 2px solid #7a7c80;
   font-weight: 700;
 }
 .learning-progress .concept-section-heading {
@@ -36,26 +36,26 @@
 }
 .learning-progress .concept-section-heading h3 {
   margin: 0;
-  color: #352940;
+  color: #323437;
   font-size: 17px;
   letter-spacing: -0.4px;
 }
 .concept-section-heading > span,
 .concept-section-heading h3 > span {
   font-size: 12px;
-  color: #776485;
+  color: #727477;
   font-weight: 400;
 }
 .concept-kicker {
   display: block;
   font-size: 12px;
-  color: #785d8c;
+  color: #727477;
   margin-bottom: 7px;
 }
 .learning-progress .concept-recommendations {
   padding: 20px;
-  background: #f8f4fc;
-  border: 1px solid #e5d9ef;
+  background: #f8f8f8;
+  border: 1px solid #e2e3e6;
   border-radius: 13px;
   margin: 0 0 27px;
 }
@@ -65,7 +65,7 @@
   justify-content: space-between;
   gap: 20px;
   padding: 14px 0;
-  border-top: 1px solid #e8dfef;
+  border-top: 1px solid #e6e7e8;
 }
 .concept-suggestion:first-child {
   padding-top: 0;
@@ -78,9 +78,9 @@
   min-width: 0;
 }
 .concept-suggestion strong {
-  color: #432c53;
+  color: #3c3e43;
   font-size: 17px;
-  font-weight: 650;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 .concept-suggestion p {
@@ -96,14 +96,14 @@
   gap: 10px;
   min-height: 38px;
   padding: 8px 11px;
-  border: 1px solid #cebadd;
+  border: 1px solid #c4adeb;
   border-radius: 8px;
-  background: #fff;
+  background: #ffffff;
   font-size: 12px;
   font-weight: 600;
 }
 .concept-study-link:hover {
-  background: #f0e8fa;
+  background: #f0f1f2;
 }
 .concept-filters {
   display: grid;
@@ -123,9 +123,9 @@
   height: 39px;
   font: inherit;
   font-size: 13px;
-  background: #fff;
-  color: #4a3856;
-  border: 1px solid #dfd5e7;
+  background: #ffffff;
+  color: #44464a;
+  border: 1px solid #dddddf;
   border-radius: 7px;
   padding: 8px 10px;
   margin: 0;
@@ -136,14 +136,14 @@
   justify-content: space-between;
   gap: 12px;
   margin: 15px 0 10px;
-  color: #776485;
+  color: #727477;
   font-size: 12px;
 }
 .learning-progress .concept-text-button {
   border: 0;
   padding: 5px 0;
   background: transparent;
-  color: #735382;
+  color: #686a6d;
   font-size: 12px;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -152,11 +152,11 @@
   margin-top: 14px;
 }
 .concept-list {
-  border-top: 1px solid #e7dfed;
+  border-top: 1px solid #e5e6e7;
 }
 .concept-list-item {
   padding: 15px 0 11px;
-  border-bottom: 1px solid #ece6f1;
+  border-bottom: 1px solid #ebebec;
 }
 .concept-item-main {
   display: flex;
@@ -178,15 +178,15 @@
   display: block;
   font-size: 11px;
   line-height: 1.6;
-  color: #7d6d87;
+  color: #787a7c;
 }
 .concept-status {
   font-size: 11px;
   white-space: nowrap;
   padding: 4px 7px;
   border-radius: 5px;
-  background: #f4f1f7;
-  color: #76657f;
+  background: #f4f4f4;
+  color: #707274;
 }
 .concept-status.is-review {
   background: #f9f0e4;
@@ -206,14 +206,14 @@
   cursor: pointer;
   width: fit-content;
   font-size: 11px;
-  color: #7b6a86;
+  color: #76787a;
   padding: 3px 0;
 }
 .concept-detail > div {
   margin-top: 8px;
   padding: 10px 13px;
   border-radius: 7px;
-  background: #f8f6fa;
+  background: #f8f8f8;
 }
 .concept-detail p {
   margin: 0;
@@ -237,12 +237,12 @@
 }
 .learning-pager span {
   font-size: 12px;
-  color: #776485;
+  color: #727477;
 }
 .learning-pager button {
   font-size: 12px;
   min-height: 36px;
-  background: #fff;
+  background: #ffffff;
 }
 .learning-date-filter {
   display: flex;
@@ -266,11 +266,11 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  border-bottom: 1px solid #ece6f1;
+  border-bottom: 1px solid #ebebec;
   padding: 17px 0;
 }
 .learning-history-item time {
-  color: #574260;
+  color: #4f5153;
   font-size: 13px;
 }
 .learning-history-item > div {
@@ -284,7 +284,7 @@
 .learning-history-item > div > span {
   display: block;
   font-size: 12px;
-  color: #7b6a86;
+  color: #76787a;
   margin-top: 4px;
 }
 .learning-history-item > a {
@@ -333,3 +333,33 @@
     flex-basis: 100%;
   }
 }
+
+/* 개념별 학습 · 이 개념이 나온 퀴즈 (11-15): 하루 퀴즈 단위로 맞음/틀림과 결과·해설 링크 */
+.concept-detail .concept-quiz-note { margin-top: 10px !important; color: #76787a; }
+.concept-quizzes { margin-top: 12px; padding-top: 12px; border-top: 1px solid #ececed; }
+.concept-quizzes-title { display: block; margin-bottom: 8px; font-size: 13px; color: #494b52; }
+.concept-quizzes ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.concept-quiz > a { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "name score go" "meta score go"; align-items: center; column-gap: 16px; row-gap: 2px; padding: 11px 14px; border: 1px solid #ebebec; border-radius: 10px; background: #fff; color: inherit; text-decoration: none; transition: border-color .15s, background .15s; }
+.concept-quiz > a:hover { border-color: #c9b5d6; background: #fbf8fd; }
+.concept-quiz-name { grid-area: name; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; color: #3f4146; }
+.concept-quiz-meta { grid-area: meta; font-size: 11px; color: #8a8c8f; }
+.concept-quiz-score { grid-area: score; display: flex; gap: 6px; }
+.concept-quiz-score em { padding: 2px 9px; border-radius: 999px; font-style: normal; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.concept-quiz-score .right { background: #eef6f0; color: #2f6b43; }
+.concept-quiz-score .wrong { background: #fbe9e9; color: #a33b3b; }
+.concept-quiz-score .pending { background: #fdf5e6; color: #8a5a12; }
+.concept-quiz-go { grid-area: go; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: #5b2f63; white-space: nowrap; }
+.concept-quiz > a:hover .concept-quiz-go { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 600px) {
+  .concept-quiz > a { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name name" "meta meta" "score go"; row-gap: 6px; }
+}
+:root[data-theme="dark"] .concept-quizzes { border-color: #2c2832; }
+:root[data-theme="dark"] .concept-quizzes-title,
+:root[data-theme="dark"] .concept-quiz-name { color: #e4e1e8; }
+:root[data-theme="dark"] .concept-quiz > a { background: #1c1820; border-color: #34303a; }
+:root[data-theme="dark"] .concept-quiz > a:hover { background: #241c2b; border-color: #4a3d52; }
+:root[data-theme="dark"] .concept-quiz-go { color: #d3b8e6; }
+:root[data-theme="dark"] .concept-quiz-score .right { background: #1d2a21; color: #8fcca1; }
+:root[data-theme="dark"] .concept-quiz-score .wrong { background: #3a2124; color: #f0a3a3; }
+:root[data-theme="dark"] .concept-quiz-score .pending { background: #2f2717; color: #e0b56a; }
+.concept-quizzes .concept-quiz-more { display: block; margin: 0 0 8px; }

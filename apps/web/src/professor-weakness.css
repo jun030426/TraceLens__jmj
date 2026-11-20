@@ -1,0 +1,458 @@
+/* Keep the shared professor UI; scope all additions to the learning analysis. */
+#root .prof-analysis .prof-concept-evidence > summary::before { display:none; }
+#root main.app .prof-analysis .pw-period {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--pw-border);
+  border-radius: 10px;
+}
+#root main.app .prof-analysis .pw-period > summary {
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1.8;
+}
+#root main.app .prof-analysis .pw-period > summary span {
+  margin-left: 12px;
+  color: var(--pw-muted);
+}
+#root main.app .prof-analysis .pw-period[open] > summary {
+  margin-bottom: 12px;
+}
+#root main.app .prof-analysis .teacher-analysis-toolbar {
+  margin: 10px 0 !important;
+  padding: 0 !important;
+  border: 0;
+}
+#root main.app .prof-analysis .pw-student-filters {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.4fr) minmax(140px, 1fr) minmax(
+      140px,
+      1fr
+    ) minmax(190px, 1.25fr);
+  align-items: end;
+  gap: 12px !important;
+}
+#root main.app.student-main .teacher-analytics-panel .pw-student-filters label {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px !important;
+}
+#root main.app .prof-analysis .pw-student-filters input,
+#root main.app .prof-analysis .pw-student-filters select {
+  width: 100%;
+}
+#root main.app .prof-analysis .pw-student-filters > button {
+  justify-self: start;
+}
+@media (max-width: 1000px) {
+  #root main.app .prof-analysis .pw-student-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  #root main.app .prof-analysis .pw-student-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+#root .prof-analysis {
+  --pw-surface: #fff;
+  --pw-soft: #faf7fc;
+  --pw-border: #e5dce9;
+  --pw-text: #352c3b;
+  --pw-muted: #716679;
+  --pw-review: #a53b43;
+  --pw-review-bg: #fff1f0;
+  --pw-caution: #906118;
+  --pw-caution-bg: #fff6df;
+  --pw-good: #26745b;
+  --pw-good-bg: #eaf6ef;
+}
+#root .prof-analysis .pw-aggregate {
+  border: 1px solid var(--pw-border);
+  border-radius: 12px;
+  margin: 14px 0 20px;
+  padding: 13px 16px;
+}
+#root .prof-analysis .pw-aggregate > summary {
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#root .prof-analysis .pw-aggregate small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--pw-muted);
+}
+#root .prof-analysis .pw-aggregate .prof-domain-metrics {
+  margin: 18px 0 0;
+}
+#root .prof-analysis .pw-method {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--pw-muted);
+  margin: 0 0 16px;
+}
+#root .prof-analysis .pw-counts {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+#root .prof-analysis .pw-counts button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  padding: 14px;
+  min-height: 85px;
+  border: 1px solid var(--pw-border);
+  border-radius: 12px;
+  background: var(--pw-surface);
+  color: var(--pw-text);
+}
+#root .prof-analysis .pw-counts button span {
+  font-size: 12px;
+  line-height: 1.5;
+}
+#root .prof-analysis .pw-counts button strong {
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+}
+#root .prof-analysis .pw-counts button small {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 400;
+}
+#root .prof-analysis .pw-counts button[aria-pressed="true"] {
+  outline: 2px solid #9762ae;
+  outline-offset: -2px;
+  background: var(--pw-soft);
+}
+#root .prof-analysis .pw-counts .is-review strong {
+  color: var(--pw-review);
+}
+#root .prof-analysis .pw-counts .is-insufficient strong {
+  color: var(--pw-caution);
+}
+#root .prof-analysis .pw-students {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+  margin: 18px 0;
+}
+#root .prof-analysis .pw-student {
+  padding: 18px;
+  border: 1px solid var(--pw-border);
+  border-radius: 14px;
+  background: var(--pw-surface);
+}
+#root .prof-analysis .pw-student-main {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+#root .prof-analysis .pw-student-identity {
+  display: grid;
+  justify-items: start;
+  gap: 9px;
+}
+#root .prof-analysis .pw-student-identity .prof-student-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  color: var(--pw-text);
+}
+#root .prof-analysis .pw-student-identity .prof-student-link strong {
+  font-size: 17px;
+}
+#root .prof-analysis .pw-student-identity .prof-student-link span {
+  font-size: 12px;
+  color: var(--pw-muted);
+}
+#root .prof-analysis .pw-student-identity small {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--pw-muted);
+}
+#root .prof-analysis .pw-status {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 600;
+  background: var(--pw-soft);
+  color: var(--pw-muted);
+}
+#root .prof-analysis .pw-status.is-review {
+  color: var(--pw-review);
+  background: var(--pw-review-bg);
+}
+#root .prof-analysis .pw-status.is-insufficient,
+#root .prof-analysis .pw-status.is-learning {
+  color: var(--pw-caution);
+  background: var(--pw-caution-bg);
+}
+#root .prof-analysis .pw-status.is-mastered {
+  color: var(--pw-good);
+  background: var(--pw-good-bg);
+}
+#root .prof-analysis .pw-signals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+#root .prof-analysis .pw-signal {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid var(--pw-border);
+  border-radius: 10px;
+  text-align: left;
+  background: var(--pw-soft);
+  color: var(--pw-text);
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+}
+#root .prof-analysis button.pw-signal:hover {
+  border-color: #9762ae;
+}
+#root .prof-analysis .pw-signal-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+}
+#root .prof-analysis .pw-signal-heading strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+#root .prof-analysis .pw-signal-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px;
+}
+#root .prof-analysis .pw-signal-score b {
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+}
+#root .prof-analysis .pw-signal-score small {
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 2px;
+  color: var(--pw-muted);
+}
+#root .prof-analysis .pw-signal-score > span {
+  font-size: 10px;
+  color: var(--pw-muted);
+}
+#root .prof-analysis .pw-signal.is-review .pw-signal-score b {
+  color: var(--pw-review);
+}
+#root .prof-analysis .pw-meter {
+  height: 5px;
+  display: block;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--pw-border);
+}
+#root .prof-analysis .pw-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--pw-good);
+}
+#root .prof-analysis .is-review .pw-meter > span {
+  background: var(--pw-review);
+}
+#root .prof-analysis .is-learning .pw-meter > span {
+  background: var(--pw-caution);
+}
+#root .prof-analysis .pw-signal-note {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--pw-muted);
+}
+#root .prof-analysis .pw-signal-action {
+  font-size: 11px;
+  margin-top: auto;
+}
+#root .prof-analysis .pw-more {
+  grid-column: 1/-1;
+  justify-self: start;
+  background: transparent;
+  border: 0;
+  padding: 5px 0;
+  color: var(--pw-muted);
+  font-size: 12px;
+}
+#root .prof-analysis .pw-student-meta {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--pw-border);
+  color: var(--pw-muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+#root .prof-analysis .pw-empty {
+  grid-column: 1/-1;
+  background: var(--pw-soft);
+  padding: 18px;
+  border-radius: 10px;
+  margin: 0;
+  color: var(--pw-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+#root .prof-analysis .prof-concept-evidence > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0;
+  gap: 12px;
+  align-items: center;
+}
+#root .prof-analysis .prof-concept-evidence > summary .pw-signal {
+  border: 0;
+  border-radius: 10px;
+  padding: 16px;
+}
+#root .prof-analysis .pw-evidence-toggle {
+  padding-right: 16px;
+  font-size: 12px;
+  color: var(--pw-muted);
+}
+#root .prof-analysis .prof-concept-evidence[open] > summary {
+  border-bottom: 1px solid var(--pw-border);
+  margin-bottom: 15px;
+}
+#root .prof-analysis .pw-detail-summary {
+  background: var(--pw-soft);
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+#root .prof-analysis .pw-concept-students {
+  border-top: 1px solid var(--pw-border);
+  padding-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+#root .prof-analysis .pw-concept-students p {
+  width: 100%;
+  font-size: 12px;
+  margin: 0;
+}
+#root .prof-analysis .pw-concept-students small {
+  color: var(--pw-muted);
+}
+#root .prof-analysis .pw-concept-students button {
+  padding: 7px 9px;
+  border: 1px solid var(--pw-border);
+  background: var(--pw-review-bg);
+  color: var(--pw-review);
+  border-radius: 7px;
+  font-size: 12px;
+}
+#root .prof-analysis button:focus-visible,
+#root .prof-analysis summary:focus-visible {
+  outline: 2px solid #9762ae;
+  outline-offset: 3px;
+}
+:root[data-theme="dark"] #root .prof-analysis {
+  --pw-surface: #291f31;
+  --pw-soft: #241a2c;
+  --pw-border: #493951;
+  --pw-text: #eee4f2;
+  --pw-muted: #c0b1c8;
+  --pw-review: #ffa4a7;
+  --pw-review-bg: #44232f;
+  --pw-caution: #f0cb83;
+  --pw-caution-bg: #40331f;
+  --pw-good: #93d6b7;
+  --pw-good-bg: #203b32;
+}
+:root[data-theme="dark"][data-role="teacher"]
+  #root
+  main.app
+  .prof-analysis
+  .pw-counts
+  button,
+:root[data-theme="dark"][data-role="teacher"]
+  #root
+  main.app
+  .prof-analysis
+  .pw-student {
+  background: var(--pw-surface) !important;
+  color: var(--pw-text) !important;
+}
+:root[data-theme="dark"][data-role="teacher"]
+  #root
+  main.app
+  .prof-analysis
+  .pw-signal,
+:root[data-theme="dark"][data-role="teacher"]
+  #root
+  main.app
+  .prof-analysis
+  .pw-counts
+  button[aria-pressed="true"] {
+  background: var(--pw-soft) !important;
+  color: var(--pw-text) !important;
+}
+@media (max-width: 1100px) {
+  #root .prof-analysis .pw-student-main {
+    grid-template-columns: 145px minmax(0, 1fr);
+  }
+  #root .prof-analysis .pw-signals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  #root .prof-analysis .pw-counts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  #root .prof-analysis .pw-student-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #root .prof-analysis .pw-student-identity {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #root .prof-analysis .pw-student-identity small {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 480px) {
+  #root .prof-analysis .pw-counts {
+    gap: 7px;
+  }
+  #root .prof-analysis .pw-counts button {
+    padding: 10px;
+  }
+  #root .prof-analysis .pw-signals {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #root .prof-analysis .pw-student {
+    padding: 12px;
+  }
+  #root .prof-analysis .prof-concept-evidence > summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  #root .prof-analysis .pw-evidence-toggle {
+    padding: 0 16px 12px;
+  }
+}

@@ -1,15 +1,19 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, useRef, type ReactNode } from "react";
 import { api } from "./api";
 export const field = (f: FormData, k: string) => String(f.get(k) || "");
-export function useLoad<T>(path: string) {
+export function useLoad<T>(path: string, keepPrevious = false, enabled = true) {
   const [data, setData] = useState<T>();
   const [error, setError] = useState("");
   const [rev, setRev] = useState(0);
+  const previousPath = useRef(path);
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     setError("");
-    setData(undefined);
-    api<T>(path)
+    if (!keepPrevious || previousPath.current !== path) setData(undefined);
+    previousPath.current = path;
+    if (!enabled) return;
+    api<T>(path, { signal: controller.signal })
       .then((v) => {
         if (active) setData(v);
       })
@@ -18,9 +22,11 @@ export function useLoad<T>(path: string) {
       });
     return () => {
       active = false;
+      controller.abort();
     };
-  }, [path, rev]);
-  return { data, error, reload: () => setRev((v) => v + 1) };
+  }, [path, rev, keepPrevious, enabled]);
+  const reload = useCallback(() => setRev((v) => v + 1), []);
+  return { data, error, reload };
 }
 export function Notice({ children }: { children: ReactNode }) {
   return (
@@ -28,24 +34,6 @@ export function Notice({ children }: { children: ReactNode }) {
       {children}
     </p>
   );
-}
-export function AIAvailability({ compact = false }: { compact?: boolean }) {
-  const [offline, setOffline] = useState(false);
-  useEffect(() => {
-    let active = true;
-    const check = () => void api<{ status: string }>("/ai/status").then(value => {
-      if (active) setOffline(value.status === "offline");
-    }).catch(() => { /* The page handles its own connectivity errors. */ });
-    check();
-    const timer = setInterval(check, 30000);
-    return () => { active = false; clearInterval(timer); };
-  }, []);
-  if (!offline) return null;
-  if (compact) return <details className="chat-availability">
-    <summary><span className="chat-status-dot" aria-hidden="true" /><span role="status">AI 연결 대기 중</span><span className="chat-status-help">안내</span></summary>
-    <p>질문은 보관되며 AI 연결 후 처리됩니다. 기존 자료와 학습 기록은 계속 확인할 수 있어요.</p>
-  </details>;
-  return <Notice>AI 기능이 현재 대기 중이에요. 요청은 보관되며 연결 후 처리됩니다. 기존 자료와 학습 기록은 계속 확인할 수 있어요.</Notice>;
 }
 export function ErrorNotice({ text }: { text: string }) {
   return text ? (
@@ -86,8 +74,13 @@ export function Form({
   label = "저장",
   actionRole = "primary",
   onCancel,
+  beside,
+  disabled = false,
 }: {
   children: ReactNode;
+  disabled?: boolean;
+  /** 제출 버튼과 같은 줄 왼쪽에 둘 것 (예: 음성 질문 버튼) */
+  beside?: ReactNode;
   onSubmit: (f: FormData) => Promise<void>;
   label?: string;
   actionRole?: "primary" | "secondary" | "danger";
@@ -100,6 +93,7 @@ export function Form({
       className="form"
       onSubmit={async (e) => {
         e.preventDefault();
+        if (disabled || busy) return;
         const f = new FormData(e.currentTarget);
         setBusy(true);
         setError("");
@@ -112,7 +106,7 @@ export function Form({
         }
       }}
     >
-      <fieldset disabled={busy}>{children}</fieldset>
+      <fieldset disabled={busy || disabled}>{children}</fieldset>
       <ErrorNotice text={error} />
       {onCancel ? (
         <div className="form-actions">
@@ -120,7 +114,7 @@ export function Form({
             className={
               actionRole === "primary" ? "primary" : `action-${actionRole}`
             }
-            disabled={busy}
+            disabled={busy || disabled}
           >
             {busy ? "처리 중…" : label}
           </button>
@@ -133,12 +127,24 @@ export function Form({
             취소
           </button>
         </div>
+      ) : beside ? (
+        <div className="form-action-row">
+          {beside}
+          <button
+            className={
+              actionRole === "primary" ? "primary" : `action-${actionRole}`
+            }
+            disabled={busy || disabled}
+          >
+            {busy ? "처리 중…" : label}
+          </button>
+        </div>
       ) : (
         <button
           className={
             actionRole === "primary" ? "primary" : `action-${actionRole}`
           }
-          disabled={busy}
+          disabled={busy || disabled}
         >
           {busy ? "처리 중…" : label}
         </button>

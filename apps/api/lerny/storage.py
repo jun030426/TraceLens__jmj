@@ -50,6 +50,9 @@ def signed_upload(key):
 
 
 def signed_download(key, filename):
+    if key.startswith("s3media/"):
+        from lerny.media_storage import signed_download as media_download
+        return media_download(key, filename)
     result = request("POST", "/object/sign/" + object_path(key), json={"expiresIn": 60}).json()
     path = result["signedURL"]
     if not path.startswith("/object/sign/"):
@@ -108,7 +111,14 @@ def delete_object(key):
 
 @contextmanager
 def source_file(version):
-    if settings().deployment == "local":
+    if version.object_key.startswith("s3media/"):
+        from lerny.media_storage import download_to
+        with TemporaryDirectory(prefix="lerny-media-source-") as directory:
+            path = Path(directory) / "source.mp4"
+            download_to(version.object_key, path, settings().media_file_limit_mb * 1024 * 1024)
+            yield path
+        return
+    if not settings().uses_supabase_storage:
         yield settings().runtime_root / "data/files" / version.object_key
         return
     # Function scratch space only: durable sources always live in Storage.

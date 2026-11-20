@@ -1,6 +1,6 @@
 import { WeeklyProgress } from "./WeeklyProgress";
 import { useContext, useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { Auth } from "./Auth";
 import {
   api,
@@ -13,12 +13,15 @@ import {
   type Term,
 } from "./api";
 import { Form, Input, Notice, ErrorNotice, field, useLoad } from "./components";
+import { WEEKDAYS, scheduleName, submittedSlots, type Slot } from "./classSchedule";
 import { ExamPlans } from "./ExamPrep";
 import { Materials } from "./Learning";
 import { QuestionBank, Analytics } from "./Theory";
 
 import { PagedList } from "./StudentLists";
 import { matchesSearch } from "./listNavigation";
+import "./student-home-clean.css";
+import { AdminPage } from "./AdminRoute";
 
 export function Dashboard() {
   const { user } = useContext(Auth);
@@ -27,7 +30,7 @@ export function Dashboard() {
   ) : user?.role === "teacher" ? (
     <TeacherHome />
   ) : (
-    <Operator />
+    <AdminPage />
   );
 }
 function StudentHome() {
@@ -41,154 +44,198 @@ function StudentHome() {
   const matches = (c: Classroom) => (!term || c.term.id === term) && matchesSearch(search,c.course.title,c.section.title,c.teacher_name);
   const active = data?.items.filter((c) => c.status === "active" && matches(c)) || [];
   const waiting = data?.items.filter((c) => c.status !== "active" && matches(c)) || [];
+  /* 홈 화면과 같은 규칙: 제목 하나, 줄 목록, 화살표 하나, 눈에 띄는 버튼은 '수강 신청' 하나 */
   return (
-    <div className="student-home courses-page">
-      <div className="student-greeting">
-        <div>
-          <span className="student-eyebrow">YOUR CLASSROOMS</span>
-          <h1>내 강의</h1>
-          <p>우리 수업의 자료에서, 나만의 이해까지 이어가세요.</p>
-        </div>
-        <Link className="courses-back" to="/student">
-          학생 홈으로 ↗
-        </Link>
+    <div className="student-home sh-home sh-courses courses-page">
+      <div className="sh-greeting">
+        <h1>내 강의</h1>
+        <p className="sh-sub">우리 수업의 자료에서, 나만의 이해까지 이어가세요.</p>
       </div>
       <ErrorNotice text={error} />
-      <div className="courses-layout">
-        <div className="courses-list">
-          {!!data?.items.length && <div className="student-list-tools"><label>내 강의 검색<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="강의·분반·교수 이름" /></label><label>학기<select value={term} onChange={e => setTerm(e.target.value)}><option value="">전체 학기</option>{terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div>}
-          <div className="courses-list-heading">
-            <h2>수강 중인 강의</h2>
-            {data && <span>{active.length}개 강의</span>}
-          </div>
-          {!data ? (
-            <div className="student-empty" role="status">
-              {error
-                ? "강의를 불러오지 못했어요."
-                : "내 강의를 불러오는 중이에요…"}
-              {error && (
-                <button
-                  type="button"
-                  className="courses-retry"
-                  onClick={reload}
-                >
-                  다시 불러오기
-                </button>
-              )}
-            </div>
-          ) : active.length ? (
-            <PagedList items={active} label="강의" resetKey={`${search}:${term}`}>{visible => <div className="courses-card-grid">
-              {visible.map((c, i) => (
-                <Link
-                  to={`/classrooms/${c.section.id}`}
-                  key={c.enrollment_id}
-                  className={`student-course student-course-${i % 3}`}
-                >
-                  <div className="student-course-top">
-                    <span>{c.term.name}</span>
-                    <b>↗</b>
-                  </div>
-                  <div className="student-course-symbol" aria-hidden="true">
-                    {["▤", "◇", "⌘"][i % 3]}
-                  </div>
-                  <h3>{c.course.title}</h3>
-                  <p>{c.section.title}</p>
-                  <span className="student-course-bottom">
-                    강의실 들어가기 <i>→</i>
-                  </span>
-                </Link>
-              ))}
-            </div>}</PagedList>
-          ) : (
-            <div className="student-empty">
-              <strong>{search || term ? "조건에 맞는 수강 강의가 없어요." : "아직 수강 중인 강의가 없어요."}</strong>
-              <p>
-                {search || term ? "검색어 또는 학기를 바꿔 전체 강의를 확인해 보세요." : "교수님이 알려주신 수강 코드를 입력하고 첫 강의에 참여해 보세요."}
-              </p>
-            </div>
-          )}
-          {waiting.length > 0 && (
-            <section className="courses-waiting">
-              <div className="courses-list-heading">
-                <h2>승인 대기 중</h2>
-                <span>{waiting.length}개 강의</span>
-              </div>
-              <PagedList items={waiting} label="승인 대기 강의" resetKey={`${search}:${term}`}>{visible => visible.map((c) => (
-                <article key={c.enrollment_id} className="courses-waiting-card">
-                  <div>
-                    <span>
-                      {c.term.name} · {c.section.title}
-                    </span>
-                    <h3>{c.course.title}</h3>
-                  </div>
-                  <span className="courses-status">승인 대기</span>
-                </article>
-              ))}</PagedList>
-              <p>수강 승인이 완료되면 강의실에 들어갈 수 있어요.</p>
-            </section>
-          )}
+
+      <div className="sh-courses-layout">
+      <div className="sh-courses-main">
+      {!!data?.items.length && (
+        <div className="sh-tools student-list-tools">
+          <label>
+            내 강의 검색
+            <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="강의·분반·교수 이름" />
+          </label>
+          <label>
+            학기
+            <select value={term} onChange={e => setTerm(e.target.value)}>
+              <option value="">전체 학기</option>
+              {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </label>
         </div>
-        <aside className="courses-enroll" aria-labelledby="enroll-title">
-          <span className="student-eyebrow">MAKE A CONNECTION</span>
-          <div className="courses-enroll-icon" aria-hidden="true">
-            ＋
+      )}
+
+      <section className="sh-section" aria-labelledby="courses-active-title">
+        <div className="sh-heading">
+          <h2 id="courses-active-title">수강 중인 강의</h2>
+          {data && <span className="sh-count">{active.length}개 강의</span>}
+        </div>
+        {!data ? (
+          <p className="sh-note" role="status">
+            {error ? "강의를 불러오지 못했어요. " : "내 강의를 불러오는 중이에요…"}
+            {error && <button type="button" className="sh-text-btn" onClick={reload}>다시 불러오기</button>}
+          </p>
+        ) : active.length ? (
+          <PagedList items={active} label="강의" resetKey={`${search}:${term}`}>{visible => (
+            <ul className="sh-list">
+              {visible.map((c) => (
+                <li key={c.enrollment_id}>
+                  <Link className="sh-row" to={`/classrooms/${c.section.id}`}>
+                    <span className="sh-row-main">
+                      <strong>{c.course.title}</strong>
+                      <small>{c.teacher_name} · {c.section.title} · {c.term.name}</small>
+                    </span>
+                    <span className="sh-arrow" aria-hidden="true">→</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}</PagedList>
+        ) : (
+          <div className="sh-empty">
+            <strong>{search || term ? "조건에 맞는 수강 강의가 없어요." : "아직 수강 중인 강의가 없어요."}</strong>
+            <p>{search || term ? "검색어 또는 학기를 바꿔 전체 강의를 확인해 보세요." : "교수님이 알려주신 수강 코드를 입력하고 첫 강의에 참여해 보세요."}</p>
           </div>
-          <h2 id="enroll-title">새로운 수업에 참여하기</h2>
-          <p>교수님에게 받은 수강 코드를 입력해 주세요.</p>
-          <Form
-            label="수강 신청하기 →"
-            onSubmit={async (f) => {
-              setMessage("");
-              await api("/enrollments", post({ join_code: field(f, "code") }));
-              setMessage(
-                "수강 신청을 보냈어요. 강의 목록에서 참여 상태를 확인해 주세요.",
-              );
-              reload();
-            }}
-          >
-            <label>
-              수강 코드
-              <input
-                name="code"
-                placeholder="수강 코드를 입력해 주세요"
-                maxLength={200}
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                required
-              />
-            </label>
-          </Form>
-          {message && (
-            <p className="courses-success" role="status">
-              {message}
-            </p>
-          )}
-          <div className="courses-enroll-note">
-            <strong>수강 코드를 모르겠다면?</strong>
-            <p>
-              해당 수업의 교수님에게 문의해 주세요. 승인 대기 중인 강의는 승인
-              후 이용할 수 있어요.
-            </p>
+        )}
+      </section>
+
+      {waiting.length > 0 && (
+        <section className="sh-section" aria-labelledby="courses-waiting-title">
+          <div className="sh-heading">
+            <h2 id="courses-waiting-title">승인 대기 중</h2>
+            <span className="sh-count">{waiting.length}개 강의</span>
           </div>
-        </aside>
+          <PagedList items={waiting} label="승인 대기 강의" resetKey={`${search}:${term}`}>{visible => (
+            <ul className="sh-list sh-list-waiting">
+              {visible.map((c) => (
+                <li key={c.enrollment_id}>
+                  <div className="sh-row is-static">
+                    <span className="sh-row-main">
+                      <strong>{c.course.title}</strong>
+                      <small>{c.section.title} · {c.term.name} · 승인되면 강의실에 들어갈 수 있어요</small>
+                    </span>
+                    <span className="sh-row-state">승인 대기</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}</PagedList>
+          <p className="sh-note sh-waiting-note">수강 승인이 완료되면 강의실에 들어갈 수 있어요.</p>
+        </section>
+      )}
+
       </div>
-      <div className="courses-bottom-note">
-        <span aria-hidden="true">↗</span>
-        <p>강의실에서 자료 확인, AI 질문, 퀴즈와 복습을 이어갈 수 있어요.</p>
+      <aside className="courses-enroll" aria-labelledby="enroll-title">
+        <div className="courses-enroll-icon" aria-hidden="true">
+          ＋
+        </div>
+        <h2 id="enroll-title">새로운 수업에 참여하기</h2>
+        <p>교수님에게 받은 수강 코드를 입력해 주세요.</p>
+        <Form
+          label="수강 신청하기 →"
+          onSubmit={async (f) => {
+            setMessage("");
+            await api("/enrollments", post({ join_code: field(f, "code") }));
+            setMessage(
+              "수강 신청을 보냈어요. 강의 목록에서 참여 상태를 확인해 주세요.",
+            );
+            reload();
+          }}
+        >
+          <label>
+            수강 코드
+            <input
+              name="code"
+              placeholder="수강 코드를 입력해 주세요"
+              maxLength={200}
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+            />
+          </label>
+        </Form>
+        {message && (
+          <p className="courses-success" role="status">
+            {message}
+          </p>
+        )}
+        <div className="courses-enroll-note">
+          <strong>수강 코드를 모르겠다면?</strong>
+          <p>
+            해당 수업의 교수님에게 문의해 주세요. 승인 대기 중인 강의는 승인
+            후 이용할 수 있어요.
+          </p>
+        </div>
+      </aside>
       </div>
     </div>
   );
 }
+/* 수업 등록 — 기간과 함께 수업 요일·시간을 여러 개 골라요 */
+function ClassScheduleForm({ onSaved }: { onSaved: () => void }) {
+  const [days, setDays] = useState<string[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([{ start: "", end: "" }]);
+  const setSlot = (i: number, patch: Partial<Slot>) => setSlots(previous => previous.map((s, k) => (k === i ? { ...s, ...patch } : s)));
+  return (
+    <Form
+      label="수업 등록"
+      onSubmit={async (f) => {
+        const name = scheduleName(days, submittedSlots(f, slots.length));
+        await api("/terms", post({ name, starts_on: field(f, "start"), ends_on: field(f, "end") }));
+        setDays([]);
+        setSlots([{ start: "", end: "" }]);
+        onSaved();
+      }}
+    >
+      <div className="class-schedule-dates">
+        <Input label="시작일" name="start" type="date" />
+        <Input label="종료일" name="end" type="date" />
+      </div>
+      <fieldset className="class-schedule-days">
+        <legend>수업 요일 <span>여러 개 고를 수 있어요</span></legend>
+        <div>
+          {WEEKDAYS.map(d => (
+            <label key={d} className={days.includes(d) ? "is-on" : ""}>
+              <input type="checkbox" checked={days.includes(d)} onChange={e => { const checked=e.target.checked; setDays(previous => checked ? [...previous, d] : previous.filter(x => x !== d)); }} />
+              <span>{d}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset className="class-schedule-times">
+        <legend>수업 시간 <span>여러 개 추가할 수 있어요</span></legend>
+        {slots.map((s, i) => (
+          <div key={i} className="class-schedule-slot">
+            <input type="time" name={`slot-start-${i}`} aria-label={`${i + 1}번째 수업 시작 시간`} value={s.start} onChange={e => setSlot(i, { start: e.target.value })} />
+            <span aria-hidden="true">–</span>
+            <input type="time" name={`slot-end-${i}`} aria-label={`${i + 1}번째 수업 끝 시간`} value={s.end} onChange={e => setSlot(i, { end: e.target.value })} />
+            {slots.length > 1 && <button type="button" className="class-schedule-remove" aria-label={`${i + 1}번째 수업 시간 지우기`} onClick={() => setSlots(previous => previous.filter((_, k) => k !== i))}>×</button>}
+          </div>
+        ))}
+        <button type="button" className="class-schedule-add" onClick={() => setSlots(previous => [...previous, { start: "", end: "" }])}>＋ 시간 추가</button>
+      </fieldset>
+    </Form>
+  );
+}
 function TeacherHome() {
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date());
+  const { hash } = useLocation();
   const courses = useLoad<{ items: Course[] }>("/courses"),
     terms = useLoad<{ items: Term[] }>("/terms");
   const { user } = useContext(Auth);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(hash === "#create-course");
+  useEffect(() => { if (hash === "#create-course") setCreateOpen(true); }, [hash]);
   return (
     <section className="student-home teacher-home">
-      <div className="teacher-greeting"><div><span className="student-eyebrow">YOUR TEACHING SPACE</span><h1>{user?.display_name?.replace(/\s*교수(?:님)?$/, "")} 교수님, 안녕하세요.</h1><p>수업의 자료부터 학생의 이해까지, 한곳에서 연결하세요.</p></div><a href="#create-course" onClick={() => setCreateOpen(true)} className="ln-cta">새 강의 만들기 ＋</a></div>
-      <div className="teacher-list-heading"><h2>담당 강의 {courses.data && <span className="teacher-course-count">{courses.data.items.length}</span>}</h2><span>강의별 수업 운영 현황을 확인하세요.</span></div>
+      <div className="teacher-greeting"><div><p className="teacher-greeting-date">{new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "long" }).format(new Date())}</p><h1>{user?.display_name?.replace(/\s*교수(?:님)?$/, "")} 교수님, 안녕하세요.</h1></div><p className="teacher-current-term">{terms.data?.items.find(t => t.starts_on <= today && t.ends_on >= today && courses.data?.items.some(c => c.term_id === t.id))?.name}</p></div>
+      <div className="teacher-list-heading"><h2>담당 강의 {courses.data && <span className="teacher-course-count">{courses.data.items.length}</span>}</h2><a href="#create-course" onClick={() => setCreateOpen(true)} className="ln-cta"><span aria-hidden="true">+</span> 새 강의 만들기</a></div>
       {!courses.data && !courses.error && <Notice>강의를 불러오는 중이에요…</Notice>}
       {courses.data?.items.length === 0 && <Notice>아직 담당 강의가 없어요. 새 강의를 만들어 수업을 시작해 보세요.</Notice>}
       <ErrorNotice text={courses.error || terms.error} />
@@ -198,7 +245,7 @@ function TeacherHome() {
         ))}
       </div>
       <details className="create-course" id="create-course" open={createOpen} onToggle={e => setCreateOpen(e.currentTarget.open)}>
-        <summary>새로운 수업 준비하기 <span>강의 만들기 · 학기 등록</span></summary>
+        <summary>새로운 수업 준비하기 <span>강의 만들기 · 수업 등록</span></summary>
         <div className="columns">
           <section className="panel">
             <h2>과목 만들기</h2>
@@ -218,9 +265,9 @@ function TeacherHome() {
             >
               <Input label="과목명" name="title" />
               <label>
-                학기
+                수업 일정
                 <select name="term" required>
-                  <option value="">학기를 선택해 주세요</option>
+                  <option value="">수업 일정을 선택해 주세요</option>
                   {terms.data?.items.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
@@ -239,25 +286,8 @@ function TeacherHome() {
             </Form>
           </section>
           <section className="panel">
-            <h2>학기 등록</h2>
-            <Form
-              label="학기 등록"
-              onSubmit={async (f) => {
-                await api(
-                  "/terms",
-                  post({
-                    name: field(f, "name"),
-                    starts_on: field(f, "start"),
-                    ends_on: field(f, "end"),
-                  }),
-                );
-                terms.reload();
-              }}
-            >
-              <Input label="학기 이름" name="name" />
-              <Input label="시작일" name="start" type="date" />
-              <Input label="종료일" name="end" type="date" />
-            </Form>
+            <h2>수업 등록</h2>
+            <ClassScheduleForm onSaved={terms.reload} />
           </section>
         </div>
       </details>
@@ -271,53 +301,13 @@ function TeacherCourseCard({ course, term }: { course: Course; term?: string }) 
   const language = { python: "Python", java: "Java", c: "C" }[course.teaching_language] || course.teaching_language;
   return <article className="card teacher-course-card">
     <div className="teacher-card-meta"><span>{term || "학기 확인 중"}</span><span>{language}</span></div>
-    <Link className="teacher-course-title" to={base}><h2>{title}</h2><span aria-hidden="true">↗</span></Link>
+    <Link className="teacher-course-title" to={base}><h2>{title}</h2><span aria-hidden="true">→</span></Link>
     {subtitle.length > 0 && <p className="teacher-course-subtitle">{subtitle.join(" — ")}</p>}
-    <div className="teacher-section-list"><span>분반 {sections.data && <b>{sections.data.items.length}</b>}</span><p>{sections.error ? "분반 정보를 불러오지 못했어요." : sections.data ? sections.data.items.length ? sections.data.items.map(s => s.title).join(" · ") : "아직 분반이 없어요." : "분반 확인 중…"}</p></div>
+    <div className="teacher-section-list"><p>{sections.error ? "분반 정보를 불러오지 못했어요." : sections.data ? sections.data.items.length ? sections.data.items.map(s => s.title).join(" · ") : "아직 분반이 없어요." : "분반 확인 중…"}</p></div>
 
     <nav className="teacher-card-actions" aria-label={`${course.title} 관리`}><Link to={`${base}?tab=materials`}>자료 관리</Link><Link to={`${base}?tab=sections`}>분반·수강생</Link><Link to={`${base}?tab=analytics`}>학습 분석</Link></nav>
   </article>;
 }
-function Operator() {
-  const [token, setToken] = useState("");
-  return (
-    <section>
-      <span className="eyebrow">운영 담당자</span>
-      <h1>교수 계정 발급</h1>
-      <section className="panel narrow">
-        <Form
-          label="계정 발급"
-          onSubmit={async (f) => {
-            const r = await api<{ one_time_token: string }>(
-              "/ops/teachers",
-              post({
-                login_id: field(f, "login_id"),
-                display_name: field(f, "name"),
-              }),
-            );
-            setToken(r.one_time_token);
-          }}
-        >
-          <Input
-            label="교수 아이디"
-            name="login_id"
-            minLength={3}
-            maxLength={100}
-          />
-          <Input label="교수 이름" name="name" maxLength={100} />
-        </Form>
-        {token && (
-          <Notice>
-            24시간 안에 사용할 비밀번호 설정 토큰입니다. 교수님께 안전하게
-            전달해 주세요.<code className="token">{token}</code>
-            <Link to="/reset">비밀번호 설정 화면</Link>
-          </Notice>
-        )}
-      </section>
-    </section>
-  );
-}
-
 export function TeacherCourse() {
   const { courseId = "" } = useParams();
   const course = useLoad<Course>("/courses/" + courseId);
@@ -336,8 +326,16 @@ export function TeacherCourse() {
   return (
     <section className="student-home teacher-course-page">
       <Link className="teacher-course-back" to="/professor">← 담당 강의</Link>
-      <div className="teacher-course-heading"><div><span className="student-eyebrow">YOUR COURSE WORKSPACE</span><h1>{course.data?.title.split(/\s+[—–]\s+/)[0] || "강의 불러오는 중…"}</h1>{course.data && <p>{course.data.title.split(/\s+[—–]\s+/).slice(1).join(" — ") || "수업 운영과 학생의 학습을 한곳에서 관리하세요."}</p>}</div>{course.data && <span className="teacher-language-badge">수업 언어 · {({python: "Python", java: "Java", c: "C"}[course.data.teaching_language] || course.data.teaching_language)}</span>}</div>
-      <nav className="tabs teacher-course-tabs" aria-label="강의 관리 메뉴">{[["overview","강의 개요"],["materials","강의 자료"],["analytics","학생 학습 현황"],["exams","시험 대비"],["settings","수업 설정"]].map(([id,title]) => <button key={id} className={(tab===id || id==="settings" && ["concepts","questions","sections"].includes(tab))?"selected":""} aria-current={(tab===id || id==="settings" && ["concepts","questions","sections"].includes(tab))?"page":undefined} onClick={()=>setTab(id)}>{title}</button>)}</nav>
+      <div className="teacher-course-header">
+      <div className="teacher-course-heading teacher-page-heading">
+        <div className="teacher-page-titlebar">
+          <h1>{course.data?.title.split(/\s+[—–]\s+/)[0] || "강의 불러오는 중…"}</h1>
+          {(course.data || sections.data?.items.length) && <p className="cr-meta teacher-course-meta teacher-course-meta-inline"><span>{[(sections.data?.items || []).map(s => s.title).join(" · "), course.data ? `수업 언어 ${({python: "Python", java: "Java", c: "C"} as Record<string, string>)[course.data.teaching_language] || course.data.teaching_language}` : ""].filter(Boolean).join(" · ")}</span></p>}
+        </div>
+      </div>
+      {/* (11-17) 제목 줄: 제목 · 분반 · 수업 언어 · 현재 주차 / 구분선 위: 메뉴 */}
+      <nav className="tabs teacher-course-tabs" aria-label="강의 관리 메뉴"><button type="button" className={`teacher-course-home${tab === "overview" ? " selected" : ""}`} aria-label="강의실 홈" title="강의실 홈" aria-current={tab === "overview" ? "page" : undefined} onClick={() => setTab("overview")}><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></svg></button>{[["materials","강의 자료"],["analytics","학생 학습 현황"],["exams","시험 대비"],["settings","수업 설정"]].map(([id,title]) => <button key={id} className={(tab===id || id==="settings" && ["concepts","questions","sections"].includes(tab))?"selected":""} aria-current={(tab===id || id==="settings" && ["concepts","questions","sections"].includes(tab))?"page":undefined} onClick={()=>setTab(id)}>{title}</button>)}</nav>
+      </div>
       {["concepts","questions","sections"].includes(tab) && <button className="teacher-settings-back" onClick={()=>setTab("settings")}>← 수업 설정</button>}
       {tab === "exams" && <ExamPlans courseId={courseId} />}
       {tab === "settings" && <section className="teacher-settings-page"><div className="teacher-tab-heading"><div><h2>수업 설정</h2><p>분반 운영과 학습 콘텐츠 설정을 관리하세요.</p></div></div><div className="teacher-settings-note"><p>공개 자료를 기준으로 학습 콘텐츠가 자동 준비됩니다. 수업 운영에 필요한 항목만 변경하세요.</p><button onClick={()=>setTab("materials")}>강의 자료 관리 →</button></div><div className="teacher-settings-section"><h3>수업 운영</h3><button className="teacher-settings-row" onClick={()=>setTab("sections")}><span><strong>분반·수강생 관리</strong><small>분반 등록, 수강 코드 발급과 신청 승인을 관리하세요.</small></span><span aria-hidden="true">↗</span></button></div><div className="teacher-settings-section"><div className="teacher-settings-section-title"><h3>학습 콘텐츠 조정</h3><span>필요할 때만</span></div><p>자동으로 준비된 내용에 교수님의 수업 의도를 더하고 싶을 때 사용하세요.</p><button className="teacher-settings-row" onClick={()=>setTab("concepts")}><span><strong>분반 학습 범위</strong><small>자료 기준 자동 적용을 확인하거나, 다룬 개념을 직접 지정하세요.</small></span><span aria-hidden="true">↗</span></button><button className="teacher-settings-row" onClick={()=>setTab("questions")}><span><strong>생성 문항 관리</strong><small>준비된 문항을 확인하고, 추가 생성하거나 사용을 중지하세요.</small></span><span aria-hidden="true">↗</span></button></div></section>}
@@ -350,7 +348,7 @@ export function TeacherCourse() {
           concepts={concepts.data?.items || []}
         />
       )}
-      {tab === "analytics" && <div className="teacher-analytics-page"><div className="teacher-tab-heading"><div><h2>학생 학습 현황</h2><p>분반의 이론 퀴즈 참여와 개념별 이해도를 확인하세요.</p></div><label>분반 선택<select value={sections.data?.items.some(s => s.id === analysisSection) ? analysisSection : sections.data?.items[0]?.id || ""} onChange={e => setAnalysisSection(e.target.value)}>{sections.data?.items.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select></label></div><ErrorNotice text={sections.error} />{!sections.data && !sections.error && <Notice>분반을 불러오는 중이에요…</Notice>}{sections.data?.items.length === 0 && <Notice>분반을 만들면 학습 현황을 확인할 수 있어요.</Notice>}{sections.data?.items.length ? <Analytics key={analysisSection || sections.data.items[0].id} sectionId={sections.data.items.some(s => s.id === analysisSection) ? analysisSection : sections.data.items[0].id} /> : null}</div>}
+      {tab === "analytics" && <div className="teacher-analytics-page"><div className="teacher-tab-heading"><div><h2>학생 학습 현황</h2><p>분반 전체와 학생별 이론·실습·질문 기록을 확인하세요.</p></div><label>분반 선택<select value={sections.data?.items.some(s => s.id === analysisSection) ? analysisSection : sections.data?.items[0]?.id || ""} onChange={e => setAnalysisSection(e.target.value)}>{sections.data?.items.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select></label></div><ErrorNotice text={sections.error} />{!sections.data && !sections.error && <Notice>분반을 불러오는 중이에요…</Notice>}{sections.data?.items.length === 0 && <Notice>분반을 만들면 학습 현황을 확인할 수 있어요.</Notice>}{sections.data?.items.length ? <Analytics key={analysisSection || sections.data.items[0].id} sectionId={sections.data.items.some(s => s.id === analysisSection) ? analysisSection : sections.data.items[0].id} /> : null}</div>}
       {tab === "sections" && (
         <div className="teacher-sections-page">
           <div className="teacher-tab-heading"><div><h2>분반·수강생</h2><p>분반을 구성하고 수강 코드와 학생 참여 상태를 관리하세요.</p></div><span>{sections.data ? `${sections.data.items.length}개 분반` : ""}</span></div>
@@ -389,6 +387,9 @@ export function TeacherCourse() {
   );
 }
 function TeacherLearningScope({ courseId, sections, concepts, error, reloadSections, reloadConcepts }: { courseId: string; sections?: Section[]; concepts?: Concept[]; error: string; reloadSections: () => void; reloadConcepts: () => void }) {
+  const [librarySearch, setLibrarySearch] = useState("");
+  const library = (concepts || []).filter(c => matchesSearch(librarySearch, c.name, c.description || ""));
+
   const [selectedSection, setSelectedSection] = useState("");
   const section = sections?.find(s => s.id === selectedSection) || sections?.[0];
   return <div className="teacher-concepts-page teacher-scope-page">
@@ -401,7 +402,7 @@ function TeacherLearningScope({ courseId, sections, concepts, error, reloadSecti
         {section && <WeeklyProgress key={section.id} sectionId={section.id} reload={reloadSections} />}
         {section && <details key={section.id + ":" + section.revision} className="teacher-manual-scope"><summary><span>고급 설정 · 전체 개념 직접 지정</span><small>{section.progress_mode === "manual" ? "직접 지정한 범위 사용 중" : "필요할 때만 변경하세요"}</small></summary><p>저장하면 이 분반은 수동 설정으로 전환됩니다. 이후 공개되는 자료의 개념은 자동으로 추가되지 않아요.</p><ScopeEditor key={section.id + ":" + section.revision} section={section} concepts={concepts} reload={reloadSections} /></details>}
       </section><details className="teacher-scope-guide"><summary>학습 범위는 어떻게 적용되나요?</summary><p>자동 진행은 현재 주차까지 공개된 자료의 개념을 포함합니다.</p><p>진도가 달라졌다면 배운 주차와 마지막 개념을 지정하세요. 직접 지정한 범위는 자동 진행으로 복귀할 때까지 유지됩니다.</p><div>학생의 이론 퀴즈에 적용됩니다. 실습 범위와 실제 성적에는 적용되지 않습니다.</div></details></div>
-      <details className="teacher-concept-library" open={undefined}><summary><span>학습 개념 관리 <small>{concepts.length}개 등록</small></span><span>개념 확인·추가</span></summary><p className="teacher-panel-description">수업에 필요한 개념이 없을 때 추가하세요. 자료에서 추출한 개념도 이곳에 표시됩니다. 직접 등록한 개념은 분반 학습 범위에 지정해 사용할 수 있어요.</p><div className="teacher-concept-library-layout"><div>{concepts.length ? concepts.map(c => <div className="teacher-concept-item" key={c.id}><strong>{c.name}</strong><p>{c.description || "등록된 설명이 없어요."}</p></div>) : <Notice>첫 학습 개념을 추가해 주세요.</Notice>}</div><Form label="개념 추가" onSubmit={async f => { await api(`/courses/${courseId}/concepts`, post({name:field(f,"name"),description:field(f,"description")})); reloadConcepts(); }}><h3>새 개념 추가</h3><Input label="개념 이름" name="name" /><label>설명<textarea name="description" maxLength={2000} rows={3} /></label></Form></div></details>
+      <details className="teacher-concept-library" open={undefined}><summary><span>학습 개념 관리 <small>{concepts.length}개 등록</small></span><span>개념 확인·추가</span></summary><p className="teacher-panel-description">수업에 필요한 개념이 없을 때 추가하세요. 자료에서 추출한 개념도 이곳에 표시됩니다. 직접 등록한 개념은 분반 학습 범위에 지정해 사용할 수 있어요.</p><div className="teacher-concept-library-layout"><div><label className="teacher-concept-search">학습 개념 검색<input type="search" value={librarySearch} onChange={e => setLibrarySearch(e.target.value)} placeholder="개념 이름·설명" /></label>{librarySearch && !library.length && <p role="status">검색 결과가 없어요.</p>}{concepts.length ? library.map(c => <div className="teacher-concept-item" key={c.id}><strong>{c.name}</strong><p>{c.description || "등록된 설명이 없어요."}</p></div>) : <Notice>첫 학습 개념을 추가해 주세요.</Notice>}</div><Form label="개념 추가" onSubmit={async f => { await api(`/courses/${courseId}/concepts`, post({name:field(f,"name"),description:field(f,"description")})); reloadConcepts(); }}><h3>새 개념 추가</h3><Input label="개념 이름" name="name" /><label>설명<textarea name="description" maxLength={2000} rows={3} /></label></Form></div></details>
     </>}
   </div>;
 }
@@ -452,6 +453,8 @@ function TeacherSectionLearning({ section }: { section: Section }) {
   const review = stats.data?.concepts.filter(c => c.valid > 0 && c.accuracy !== null && c.accuracy < 70).sort((a,b) => a.accuracy! - b.accuracy!).slice(0,3) || [];
   return <article className="teacher-learning-card"><h3>{section.title}</h3><ErrorNotice text={stats.error} /><div className="teacher-learning-metrics"><div><span>제출 답안</span><strong>{stats.data ? stats.data.summary.participation : "—"}<small>건</small></strong></div><div><span>정답률</span><strong>{stats.data ? stats.data.summary.accuracy ?? "—" : "—"}<small>%</small></strong></div></div><div className="teacher-concept-review"><span>다시 살펴볼 개념 <small>정답률 70% 미만</small></span>{!stats.data ? <p>{stats.error ? "학습 데이터를 확인하지 못했어요." : "학습 현황 확인 중…"}</p> : review.length ? <ul>{review.map(c => <li key={c.id}><span>{c.name}</span><b>{c.accuracy}%</b></li>)}</ul> : <p>{stats.data.concepts.some(c => c.valid > 0) ? "현재 기준에 해당하는 개념이 없어요." : "학습 기록이 쌓이면 개념별 현황을 보여드려요."}</p>}</div></article>;
 }
+const statusLabel = (status: string) =>
+  status === "active" ? "수강 중" : status === "pending" ? "승인 대기" : status === "transferred" ? "분반 이동" : "수강 취소";
 function SectionPanel({
   section,
   sections,
@@ -464,6 +467,30 @@ function SectionPanel({
   const roster = useLoad<{ items: Enrollment[] }>(
     "/sections/" + section.id + "/enrollments",
   );
+  const [query, setQuery] = useState(""),
+    [target, setTarget] = useState(""),
+    [picked, setPicked] = useState<string[]>([]),
+    [open, setOpen] = useState(false),
+    [moving, setMoving] = useState(false);
+  const others = sections.filter((s) => s.id !== section.id);
+  const targetId = others.some((s) => s.id === target) ? target : others[0]?.id || "";
+  const items = roster.data?.items || [];
+  const shown = items.filter((e) => matchesSearch(query, e.display_name, e.student_number || undefined, e.major || undefined));
+  const movable = picked.filter((id) => items.some((e) => e.id === id && e.status === "active"));
+  const move = async () => {
+    if (!targetId || !movable.length) return;
+    setMoving(true);
+    setError("");
+    try {
+      for (const id of movable) await api("/enrollments/" + id + "/transfer", post({ target_section_id: targetId }));
+      setPicked([]);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setMoving(false);
+      roster.reload();
+    }
+  };
   const action = async (fn: () => Promise<unknown>) => {
     setError("");
     try {
@@ -499,63 +526,42 @@ function SectionPanel({
         </Notice>
       )}
       </details>
-      <div className="teacher-roster-heading"><h3>수강생</h3><button type="button" onClick={roster.reload}>새로고침</button></div>
+      <div className="teacher-roster-heading"><h3>수강생{roster.data && <small> · {items.filter(e => e.status === "active").length}명 수강 중</small>}</h3><button type="button" onClick={roster.reload}>새로고침</button></div>
+      <div className="teacher-roster-tools">
+        <label className="teacher-roster-search"><span className="sr-only">학생 이름 검색</span><input type="search" placeholder="이름·학번·학과 검색" value={query} onChange={e => { setQuery(e.target.value); if (e.target.value.trim()) setOpen(true); }} /></label>
+        <label className="teacher-roster-target"><span className="sr-only">이동할 분반</span><select value={targetId} disabled={!others.length} onChange={e => setTarget(e.target.value)}>{others.length ? others.map(s => <option key={s.id} value={s.id}>{s.title}</option>) : <option value="">다른 분반 없음</option>}</select></label>
+        <button type="button" className="primary" disabled={!targetId || !movable.length || moving} onClick={() => void move()}>{moving ? "이동 중…" : movable.length ? `분반 이동 (${movable.length}명)` : "분반 이동"}</button>
+      </div>
+      <p className="teacher-roster-hint">{!others.length ? "분반이 하나뿐이라 이동할 곳이 없어요." : movable.length ? `${movable.length}명을 선택했어요.` : "목록을 펼쳐 이동할 학생(수강 중)을 선택하세요."}</p>
       <ErrorNotice text={error || roster.error} />
       {!roster.data && !roster.error && <Notice>수강생을 불러오는 중이에요…</Notice>}
-      {roster.data?.items.length === 0 && <div className="teacher-roster-empty">아직 참여한 학생이 없어요. 수강 코드를 학생들에게 안내해 주세요.</div>}
-      {roster.data?.items.map((e) => (
-        <div className="roster" key={e.id}>
-          <strong>{e.display_name}</strong>
-          <span>
-            {e.status === "active"
-              ? "수강 중"
-              : e.status === "pending"
-                ? "승인 대기"
-                : e.status === "transferred"
-                  ? "분반 이동"
-                  : "수강 취소"}
-          </span>
-          {e.status === "pending" && (
-            <button
-              className="primary"
-              onClick={() =>
-                void action(() =>
-                  api("/enrollments/" + e.id + "/approve", post({})),
-                )
-              }
-            >
-              승인
-            </button>
-          )}
-          {e.status === "active" && sections.length > 1 && (
-            <Form
-              label="분반 이동"
-              actionRole="secondary"
-              onSubmit={async (f) => {
-                await action(() =>
-                  api(
-                    "/enrollments/" + e.id + "/transfer",
-                    post({ target_section_id: field(f, "target") }),
-                  ),
-                );
-              }}
-            >
-              <label>
-                이동할 분반
-                <select name="target">
-                  {sections
-                    .filter((s) => s.id !== section.id)
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.title}
-                      </option>
-                    ))}
-                </select>
-              </label>
-            </Form>
+      {roster.data && (
+        <div className={"teacher-roster-fold" + (open ? " is-open" : "")}>
+          <button type="button" className="teacher-roster-toggle" aria-expanded={open} aria-controls={"roster-" + section.id} onClick={() => setOpen(o => !o)}>
+            <span>수강생 목록 <small>{query.trim() ? `${shown.length} / ${items.length}명` : `${items.length}명`}</small></span>
+            <span aria-hidden="true" className="teacher-roster-chevron">▾</span>
+            <span className="sr-only">{open ? "접기" : "펼치기"}</span>
+          </button>
+          {open && (
+            <div id={"roster-" + section.id} className="teacher-roster-list">
+              {items.length === 0 ? <div className="teacher-roster-empty">아직 참여한 학생이 없어요. 수강 코드를 학생들에게 안내해 주세요.</div>
+                : shown.length === 0 ? <div className="teacher-roster-empty">검색한 이름의 학생이 없어요.</div>
+                : shown.map((e) => (
+                <div className="roster" key={e.id}>
+                  {e.status === "active" && others.length ? (
+                    <label className="teacher-roster-pick"><input type="checkbox" checked={picked.includes(e.id)} onChange={ev => setPicked(p => ev.target.checked ? [...p, e.id] : p.filter(x => x !== e.id))} /><strong>{e.display_name}</strong></label>
+                  ) : <strong>{e.display_name}</strong>}
+                  <span className="teacher-roster-profile"><span>{e.student_number || "학번 미등록"}</span><span>{e.major || "학과 미등록"}</span></span>
+                  <span className="teacher-roster-status">{statusLabel(e.status)}</span>
+                  {e.status === "pending" && (
+                    <button className="primary" onClick={() => void action(() => api("/enrollments/" + e.id + "/approve", post({})))}>승인</button>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
-      ))}
+      )}
     </section>
   );
 }
@@ -575,47 +581,45 @@ export function StudentClass() {
     );
   return (
     <div className="student-home classroom-page">
-      <Link to="/courses" className="classroom-back">
-        ← 내 강의
-      </Link>
       <section className="classroom-intro">
         <div>
-          <span className="student-eyebrow">YOUR CLASSROOM</span>
-          <p className="classroom-meta">
-            {room.term.name} · {room.teacher_name} · {room.section.title}
-          </p>
-          <h1>{room.course.title}</h1>
-          <p className="classroom-description">
-            자료에서 시작해 질문하고, 오늘 배운 내용을 나의 이해로 연결하세요.
-          </p>
+          <Link className="cr-back" to="/courses"><span aria-hidden="true">←</span> 내 강의로</Link>
+          <div className="cr-titlebar">
+            <h1>
+              {room.course.title}
+              <small className="cr-meta">{room.term.name} · {room.teacher_name} · {room.section.title}</small>
+            </h1>
+            <p className="classroom-description">
+              자료에서 시작해 질문하고, 오늘 배운 내용을 나의 이해로 연결하세요.
+            </p>
+          </div>
         </div>
         <div className="classroom-emblem" aria-hidden="true">
           ▤
         </div>
       </section>
-      <Link className="classroom-exam-link" to={`/exam-prep?course=${room.course.id}`}>시험 대비 · 공개된 시험 범위와 연습문제 확인 →</Link>
-      <Link className="instructor-classroom-entry" to={`/classrooms/${sectionId}/lectures`}><span><small>MEET YOUR AI INSTRUCTOR</small><strong>개념 하나씩, AI 강사와 함께.</strong><span>주차별 강의 자료와 연결된 짧은 강의를 만나보세요.</span></span><span>AI 강의 보기 ↗</span></Link>
+      <Link className="instructor-classroom-entry" to={`/classrooms/${sectionId}/lectures`}><span><strong>개념 하나씩, AI 강사와 함께.</strong><span>주차별 강의 자료와 연결된 짧은 강의를 만나보세요.</span></span><span className="cr-cta">AI 강의 보기 <i aria-hidden="true">→</i></span></Link>
       <section className="classroom-actions" aria-label="강의실 학습 바로가기">
         {[
           {
             url: `/ai?section=${sectionId}`,
             label: "AI 질문",
-            desc: "궁금했던 개념을 자료의 근거와 함께 확인해요.",
+            desc: "궁금한 개념을 자료 근거로 확인해요.",
             symbol: "?",
             tag: "ASK",
           },
           {
             url: `/quiz?section=${sectionId}`,
             label: "퀴즈와 복습",
-            desc: "오늘의 문항을 풀고, 지난 결과를 다시 살펴보세요.",
+            desc: "오늘 문항을 풀고 결과를 돌아봐요.",
             symbol: "✓",
             tag: "PRACTICE",
           },
           {
             url: `/attendance?section=${sectionId}`,
             label: "내 학습 기록",
-            desc: "개념별 학습 현황과 복습할 내용을 확인해요.",
-            symbol: "↗",
+            desc: "개념별 학습 현황을 확인해요.",
+            symbol: "→",
             tag: "REFLECT",
           },
         ].map((item, i) => (
@@ -625,10 +629,7 @@ export function StudentClass() {
             className={`classroom-action classroom-action-${i}`}
           >
             <div>
-              <span className="student-eyebrow">
-                0{i + 1} / {item.tag}
-              </span>
-              <span className="classroom-action-arrow">↗</span>
+              <span className="classroom-action-arrow">→</span>
             </div>
             <span className="classroom-action-icon" aria-hidden="true">
               {item.symbol}
@@ -637,17 +638,51 @@ export function StudentClass() {
             <p>{item.desc}</p>
           </Link>
         ))}
+        <ExamShortcut courseId={room.course.id} />
       </section>
       <section className="classroom-materials">
         <div className="classroom-materials-intro">
-          <span className="student-eyebrow">START WITH THE SOURCE</span>
           <p>교수님이 공유한 자료를 확인하고, 수업의 맥락 안에서 학습하세요.</p>
         </div>
-        <Materials key={room.section.id} courseId={room.course.id} currentWeek={room.current_week} />
+        <Materials key={room.section.id} courseId={room.course.id} currentWeek={room.current_week} totalWeeks={termWeeks(room.term.starts_on, room.term.ends_on)} />
       </section>
       <p className="classroom-bottom">
         하나의 수업, 이어지는 학습. 궁금한 순간에는 언제든 질문으로 돌아오세요.
       </p>
     </div>
   );
+}
+
+/* 강의실 '시험 대비' 바로가기 — 교수님이 시험 범위를 공개했을 때만 열려요.
+   학생에게는 공개된 시험 범위만 내려오므로, 하나도 없으면 '준비 중'으로 흐리게 보여줘요. */
+function ExamShortcut({ courseId }: { courseId: string }) {
+  const plans = useLoad<{ items: unknown[] }>(`/courses/${courseId}/exam-plans`);
+  const closed = plans.data?.items.length === 0;
+  if (closed)
+    return (
+      <div className="classroom-action classroom-action-3 is-locked" aria-disabled="true">
+        <div>
+          <span className="classroom-action-lock">준비 중</span>
+        </div>
+        <h2>시험 대비</h2>
+        <p>시험 범위가 공개되면 열려요.</p>
+      </div>
+    );
+  return (
+    <Link to={`/exam-prep?course=${courseId}`} className="classroom-action classroom-action-3">
+      <div>
+        <span className="classroom-action-arrow">→</span>
+      </div>
+      <h2>시험 대비</h2>
+      <p>시험 범위와 연습문제를 확인해요.</p>
+    </Link>
+  );
+}
+
+/* 학기 시작일~종료일로 전체 주차 수를 계산해요 (예: 9/1~12/21 → 16주). 날짜가 없거나 이상하면 16주로 봐요. */
+function termWeeks(startsOn?: string, endsOn?: string) {
+  const start = startsOn ? Date.parse(startsOn) : NaN;
+  const end = endsOn ? Date.parse(endsOn) : NaN;
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 16;
+  return Math.min(20, Math.max(1, Math.ceil((end - start + 86400000) / (7 * 86400000))));
 }

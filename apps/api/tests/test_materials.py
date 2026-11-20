@@ -1,11 +1,21 @@
 import httpx
 import pytest
+from sqlalchemy import select
 from lerny import worker
 from lerny.config import settings
 from lerny.models import Job, Material, MaterialVersion
 from test_identity_courses import login, setup_course
 
 pytestmark = pytest.mark.asyncio
+
+
+def process_uploaded(session, job):
+    worker.extract_job(session, job)
+    session.flush()
+    embedding = session.scalar(select(Job).where(Job.kind == "embed", Job.payload["version_id"].as_string() == job.payload["version_id"]))
+    if embedding:
+        worker.embed_job(session, embedding)
+        session.flush()
 
 
 async def upload(c, course_id, visibility="public", content="큐는 선입선출 자료구조입니다."):
@@ -39,10 +49,12 @@ async def test_public_private_and_revocation(app_db, files_root):
         await login(c, "student1")
         await c.post("/api/v1/enrollments", json={"join_code": code})
         items = (await c.get(f"/api/v1/courses/{course['id']}/materials")).json()["items"]
-        assert [m["id"] for m in items] == [pubid]
+        assert items == []  # Raw .txt sources are AI evidence, not student handouts.
+        assert (await c.get(f"/api/v1/materials/{pubid}/preview")).status_code == 404
         assert (await c.get(f"/api/v1/materials/{privid}/file")).status_code == 404
-        assert (await c.get(f"/api/v1/materials/{pubid}/file")).status_code == 200
+        assert (await c.get(f"/api/v1/materials/{pubid}/file")).status_code == 403
         await login(c, "teacher1")
+        assert (await c.get(f"/api/v1/materials/{pubid}/file")).status_code == 200
         assert (
             await c.patch(
                 f"/api/v1/materials/{pubid}/access",
@@ -63,7 +75,7 @@ async def test_replacement_preserves_old_version_and_manual_text(app_db, files_r
         course, _ = await setup_course(c)
         created = (await upload(c, course["id"])).json()
         job = session.get(Job, created["processing_job_id"])
-        worker.extract_job(session, job)
+        process_uploaded(session, job)
         session.commit()
         material = session.get(Material, created["material_id"])
         assert material.active_version_id == created["version_id"]
@@ -74,7 +86,7 @@ async def test_replacement_preserves_old_version_and_manual_text(app_db, files_r
         )
         assert edited.status_code == 200
         newjob = session.get(Job, edited.json()["job_id"])
-        worker.extract_job(session, newjob)
+        process_uploaded(session, newjob)
         session.commit()
         assert material.active_version_id != created["version_id"]
         assert (

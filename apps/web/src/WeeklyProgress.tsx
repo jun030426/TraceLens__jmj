@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { ErrorNotice, Notice, useLoad } from "./components";
 type Weekly = {mode:string;actual_week:number|null;calendar_week:number;revision:number;applied_ids:string[];schedule:{week:number;date:string}[];weeks:{week:number;concepts:{id:string;name:string;description:string}[]}[]};
@@ -12,5 +12,29 @@ function WeeklyEditor({sectionId,initial,reload}:{sectionId:string;initial:Weekl
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const concepts=initial.weeks.find(w=>w.week===week)?.concepts||[];
  const save=async(mode:"auto"|"manual")=>{setBusy(true);setError("");try{await api(`/sections/${sectionId}/weekly-progress`,{method:"PUT",headers:{"If-Match":String(initial.revision)},body:JSON.stringify({mode,week,concept_ids:ids})});reload();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
- return <div className="weekly-progress"><div className="weekly-status"><div><small>현재 일정</small><strong>{initial.calendar_week?`${initial.calendar_week}주차`:"수업 시작 전"}</strong></div><div><small>학습 범위 적용</small><strong>{initial.mode==="auto"?"일정대로 자동 진행":initial.actual_week!==null?`${initial.actual_week}주차 · 실제 진도 조정 중`:"기존 개념 직접 지정 중"}</strong></div></div><p className="weekly-description">학기 시작일부터 총 16주 기준으로 자동 진행합니다. 해당 주차 전체와 이전 주차의 개념을 포함합니다. 수업이 밀리거나 빨라졌다면 아래에서 실제 진도를 지정하세요.</p><ErrorNotice text={error}/><details className="teacher-manual-scope"><summary><span>실제 진도 조정</span><small>주차와 배운 지점 지정</small></summary><fieldset disabled={busy}><label className="weekly-select">배운 주차<select value={week} onChange={e=>{setWeek(Number(e.target.value));setIds([]);}}>{initial.schedule.map(w=><option key={w.week} value={w.week}>{w.week}주차 · {w.date}</option>)}</select></label><p className="weekly-description">아래 개념을 선택하면 앞의 개념도 함께 포함합니다. 이 주차 이전의 개념은 모두 포함돼요. 순서는 강의 자료의 등장 순서를 따릅니다.</p>{concepts.length?<div className="weekly-concepts">{concepts.map((c,i)=><button type="button" key={c.id} aria-pressed={ids.includes(c.id)} onClick={()=>setIds(concepts.slice(0,i+1).map(item=>item.id))}><span>{String(i+1).padStart(2,"0")}</span><div><strong>{c.name}</strong><small>{c.description}</small></div><span>{ids.includes(c.id)?"✓":""}</span></button>)}</div>:<Notice>이 주차에는 공개 자료에서 추출한 개념이 아직 없어요.</Notice>}{concepts.length > 0 && <details className="weekly-individual"><summary>개별 개념 조정</summary>{concepts.map(c=><label key={c.id}><input type="checkbox" checked={ids.includes(c.id)} onChange={e=>setIds(e.target.checked?[...ids,c.id]:ids.filter(id=>id!==c.id))}/>{c.name}</label>)}</details>}<div className="weekly-save"><span>이번 주차 {ids.length}개 선택</span><button type="button" onClick={()=>void save("manual")}>이 지점까지 적용</button></div><p className="weekly-description">직접 지정하면 다음 주에도 이 범위를 유지합니다. 일정대로 돌아가려면 자동 진행으로 복귀하세요.</p></fieldset></details>{initial.mode!=="auto"&&<button className="weekly-return" disabled={busy} onClick={()=>void save("auto")}>일정에 다시 맞추기 →</button>}</div>;
+ return <div className="weekly-progress"><div className="weekly-status"><div><small>현재 일정</small><strong>{initial.calendar_week?`${initial.calendar_week}주차`:"수업 시작 전"}</strong></div><div><small>학습 범위 적용</small><strong>{initial.mode==="auto"?"일정대로 자동 진행":initial.actual_week!==null?`${initial.actual_week}주차 · 실제 진도 조정 중`:"기존 개념 직접 지정 중"}</strong></div><div><small>적용 개념</small><strong>{initial.applied_ids.length}개 적용 중</strong></div></div><p className="weekly-description">학기 시작일부터 총 16주 기준으로 자동 진행합니다. 해당 주차 전체와 이전 주차의 개념을 포함합니다. 수업이 밀리거나 빨라졌다면 아래에서 실제 진도를 지정하세요.</p><ErrorNotice text={error}/><details className="teacher-manual-scope"><summary><span>실제 진도 조정</span><small>주차와 배운 지점 지정</small></summary><fieldset disabled={busy}><WeekField schedule={initial.schedule} week={week} onPick={w=>{if(w!==week){setWeek(w);setIds([]);}}}/><p className="weekly-description">아래 개념을 선택하면 앞의 개념도 함께 포함합니다. 이 주차 이전의 개념은 모두 포함돼요. 순서는 강의 자료의 등장 순서를 따릅니다.</p>{concepts.length?<div className="weekly-concepts">{concepts.map((c,i)=><button type="button" key={c.id} aria-pressed={ids.includes(c.id)} onClick={()=>setIds(concepts.slice(0,i+1).map(item=>item.id))}><span>{String(i+1).padStart(2,"0")}</span><div><strong>{c.name}</strong><small>{c.description}</small></div><span>{ids.includes(c.id)?"✓":""}</span></button>)}</div>:<Notice>이 주차에는 공개 자료에서 추출한 개념이 아직 없어요.</Notice>}{concepts.length > 0 && <details className="weekly-individual"><summary>개별 개념 조정</summary>{concepts.map(c=><label key={c.id}><input type="checkbox" checked={ids.includes(c.id)} onChange={e=>setIds(e.target.checked?[...ids,c.id]:ids.filter(id=>id!==c.id))}/>{c.name}</label>)}</details>}<div className="weekly-save"><span>이번 주차 {ids.length}개 선택</span><button type="button" onClick={()=>void save("manual")}>이 지점까지 적용</button></div><p className="weekly-description">직접 지정하면 다음 주에도 이 범위를 유지합니다. 일정대로 돌아가려면 자동 진행으로 복귀하세요.</p></fieldset></details>{initial.mode!=="auto"&&<button className="weekly-return" disabled={busy} onClick={()=>void save("auto")}>일정에 다시 맞추기 →</button>}</div>;
+}
+
+function weekLabel(w:{week:number;date:string}) { return `${w.week}주차 · ${w.date}`; }
+function WeekField({schedule,week,onPick}:{schedule:{week:number;date:string}[];week:number;onPick:(w:number)=>void}) {
+ const current=schedule.find(w=>w.week===week);
+ const [text,setText]=useState(current?weekLabel(current):"");
+ const [sel,setSel]=useState<[number,number]|null>(null);
+ const ref=useRef<HTMLInputElement>(null);
+ useEffect(()=>{if(sel&&ref.current&&document.activeElement===ref.current)ref.current.setSelectionRange(sel[0],sel[1]);},[sel,text]);
+ const parse=(v:string)=>{const m=v.trim().match(/^(\d{1,2})/);const n=m?Number(m[1]):NaN;return schedule.find(w=>w.week===n);};
+ const commit=()=>{const found=parse(text);if(found){onPick(found.week);setText(weekLabel(found));}else setText(current?weekLabel(current):"");};
+ return <label className="weekly-select">배운 주차<input ref={ref} className="weekly-week-input" list="weekly-week-options" inputMode="numeric" autoComplete="off" placeholder="고르거나 주차 숫자를 적어 주세요" value={text}
+  onFocus={e=>e.currentTarget.select()}
+  onChange={e=>{const typed=e.target.value;const type=(e.nativeEvent as InputEvent).inputType||"";const inserting=type.startsWith("insert")&&type!=="insertReplacementText";
+   const exact=schedule.find(w=>weekLabel(w)===typed);
+   if(exact){setText(typed);setSel(null);onPick(exact.week);return;}
+   const key=typed.trim();
+   const match=inserting&&/^\d{1,2}$/.test(key)?schedule.find(w=>String(w.week).startsWith(key)):undefined;
+   if(match){const label=weekLabel(match);setText(label);setSel([String(match.week).startsWith(key)&&label.startsWith(key)?key.length:0,label.length]);onPick(match.week);}
+   else{setText(typed);setSel(null);const found=parse(typed);if(found&&/^\d{1,2}(주차)?$/.test(key))onPick(found.week);}
+  }}
+  onBlur={commit}
+  onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();commit();ref.current?.setSelectionRange(ref.current.value.length,ref.current.value.length);}}}/>
+  <datalist id="weekly-week-options">{schedule.map(w=><option key={w.week} value={weekLabel(w)}/>)}</datalist></label>;
 }

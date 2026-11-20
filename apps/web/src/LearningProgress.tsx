@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { PeriodFilter } from "./LearningPeriodFilter";
+import { DropSelect } from "./DropSelect";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
-import type { Classroom } from "./api";
+import { api, type Classroom } from "./api";
 import { ErrorNotice, Notice, useLoad } from "./components";
 import {
   conceptStatus,
@@ -9,17 +11,20 @@ import {
   type LearningConcept,
 } from "./conceptProgress";
 import { weekLabel, type LearningRecord } from "./studentOverview";
+import type { Daily } from "./Theory";
 import "./learning-progress.css";
+import { initialPeriod, periodQuery, type Period } from "./learningPeriod";
 
 const statusLabels: Record<string, string> = {
-  review: "복습 권장",
-  learning: "학습 중",
-  new: "학습 기록 없음",
+  review: "복습 필요",
+  learning: "추가 확인",
+  insufficient: "표본 부족",
+  no_data: "이론 기록 없음",
   mastered: "기준 충족",
 };
 const PAGE_SIZE = 10;
 
-export function LearningProgress({ room }: { room: Classroom }) {
+export function LearningProgress({ room, period }: { room: Classroom; period: Period }) {
   const [tab, setTab] = useState("concepts");
   return (
     <div className="learning-progress">
@@ -38,9 +43,9 @@ export function LearningProgress({ room }: { room: Classroom }) {
         </button>
       </div>
       <div hidden={tab !== "concepts"}>
-        <ConceptProgress room={room} />
+        <ConceptProgress key={`${period.from}:${period.to}`} room={room} period={period} />
       </div>
-      {tab === "history" && <LearningHistory sectionId={room.section.id} />}
+      {tab === "history" && <LearningHistory key={`${period.from}:${period.to}`} sectionId={room.section.id} period={period} />}
     </div>
   );
 }
@@ -63,22 +68,23 @@ function ConceptAction({
       }
     >
       {review ? "답안·해설 보기" : "강의 자료 보기"}{" "}
-      <span aria-hidden="true">↗</span>
+      <span className="go-arrow" aria-hidden="true">→</span>
     </Link>
   );
 }
 
-function ConceptProgress({ room }: { room: Classroom }) {
+function ConceptProgress({ room, period }: { room: Classroom; period: Period }) {
   const result = useLoad<{
     items: LearningConcept[];
     today: string;
     current_week: number | null;
-  }>(`/sections/${room.section.id}/my-learning`);
+  }>(`/sections/${room.section.id}/my-learning?${periodQuery(period)}`);
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState("current");
   const [status, setStatus] = useState("all");
   const [week, setWeek] = useState("all");
   const [page, setPage] = useState(0);
+  const quizzes = useConceptQuizzes(room.section.id, period);
   const change = (setter: (value: string) => void, value: string) => {
     setter(value);
     setPage(0);
@@ -163,7 +169,7 @@ function ConceptProgress({ room }: { room: Classroom }) {
             {items.length
               ? "현재 진도에 연결된 개념이 아직 없어요. 전체 개념이나 공개된 주차 자료를 살펴볼 수 있어요."
               : "등록된 개념이 아직 없어요. 강의 자료부터 확인해 보세요."}{" "}
-            <Link to={`/classrooms/${room.section.id}`}>강의실로 ↗</Link>
+            <Link to={`/classrooms/${room.section.id}`}>강의실로 <span className="go-arrow" aria-hidden="true">→</span></Link>
           </p>
         )}
         {suggested.review && suggested.total > 3 && (
@@ -290,8 +296,8 @@ function ConceptProgress({ room }: { room: Classroom }) {
                 </span>
                 <ConceptAction concept={item} sectionId={room.section.id} />
               </div>
-              <details className="concept-detail">
-                <summary>{item.concept} 학습 상세</summary>
+              <details className="concept-detail" onToggle={(e) => { if (e.currentTarget.open) quizzes.load(); }}>
+                <summary>{item.concept} 학습 상세 · 풀었던 퀴즈</summary>
                 <div>
                   <p>
                     최근 독립 답안 {item.valid_recent}건 · 정답{" "}
@@ -300,9 +306,10 @@ function ConceptProgress({ room }: { room: Classroom }) {
                   </p>
                   <p>
                     {item.valid_recent
-                      ? "최근 독립 풀이 최대 5건을 기준으로 표시해요. 도움받은 풀이·재학습·채점 대기는 이 수치에 포함되지 않아요."
+                      ? "선택 기간의 최근 독립 풀이 5건을 기준으로 해요. 5건 미만은 표본 부족, 4건 이상 정답과 2일 이상 정답 기록이 있어야 기준 충족이에요. 도움받은 풀이·재학습·채점 대기는 이 수치에 포함되지 않아요."
                       : "집계할 독립 풀이 기록이 아직 없어요. 이해 수준을 판단한 결과는 아니에요."}
                   </p>
+                  <ConceptQuizzes conceptId={item.id} state={quizzes} />
                 </div>
               </details>
             </article>
@@ -347,15 +354,73 @@ function Pager({
   );
 }
 
-export function LearningHistory({ sectionId, classrooms = [] }: { sectionId?: string; classrooms?: Classroom[] }) {
+// A date without a year refers to its most recent occurrence in the Korean calendar.
+function archiveDay(text: string, today: string): string | null {
+  const day = text.trim();
+  if (day === "오늘") return today;
+  if (day === "어제") return new Date(Date.parse(today) - 86400000).toISOString().slice(0, 10);
+  const match = day.match(/^(?:(\d{4})[.\/년-]\s*)?(\d{1,2})[.\/월-]\s*(\d{1,2})일?$/);
+  if (!match) return null;
+  const monthDay = match[2].padStart(2, "0")+"-"+match[3].padStart(2, "0");
+  const year = match[1] || String(Number(today.slice(0, 4)) - Number(monthDay > today.slice(5)));
+  const value = year+"-"+monthDay;
+  const parsed = new Date(value+"T00:00:00Z");
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? value : null;
+}
+
+export function ArchivePeriodFilter({ value, onChange, children }: {
+  value: Period; onChange: (range: Period) => void; children: React.ReactNode;
+}) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const apply = (range: Period) => {
+    setText(range.from === range.to ? range.from : range.from+" ~ "+range.to);
+    setError(""); setCalendarOpen(false); onChange(range);
+  };
+  return <div className="learning-history archive-date-search">
+    <div className="history-toolbar history-toolbar-with-tabs">
+      {children}
+      <form className="history-search" role="search" aria-label="날짜로 기록 검색" onSubmit={e => {
+        e.preventDefault();
+        if (!text.trim()) { setError(""); onChange(initialPeriod()); return; }
+        const today = initialPeriod().to;
+        const days = text.split(/\s*[~～]\s*/).map(part => archiveDay(part, today));
+        const from = days[0], to = days.at(-1);
+        if (days.length > 2 || !from || !to || from > to || Date.parse(to) - Date.parse(from) > 365 * 86400000) {
+          setError("오늘, 11월 19일 또는 11.1~11.19처럼 최대 366일 범위를 입력해 주세요."); return;
+        }
+        apply({ from, to });
+      }}>
+        <input type="search" aria-label="날짜 검색" className="history-search-text" value={text}
+          placeholder="오늘, 11월 19일, 11.1~11.19" onChange={e => { setText(e.target.value); setError(""); }} />
+        <button type="button" className="history-search-cal" aria-label="달력에서 고르기" aria-expanded={calendarOpen}
+          onClick={() => setCalendarOpen(open => !open)}>
+          <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>
+          </svg>
+        </button>
+        <button type="submit" className="history-search-go">검색</button>
+      </form>
+    </div>
+    {calendarOpen && <PeriodFilter value={value} onChange={apply} />}
+    <ErrorNotice text={error} />
+    <small className="archive-range-note">조회 기간 {value.from} ~ {value.to}</small>
+  </div>;
+}
+
+export function LearningHistory({ sectionId, classrooms = [], period }: { sectionId?: string; classrooms?: Classroom[]; period?: Period }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [ownRange, setRange] = useState({ from: "", to: "" });
+  const [order, setOrder] = useState("desc");
+  const range = period || ownRange;
   const [page, setPage] = useState(0);
   const query = new URLSearchParams({
     limit: "10",
     offset: String(page * 10),
   });
+  query.set("order", order);
   if (sectionId) query.set("section_id", sectionId);
   if (range.from) query.set("date_from", range.from);
   if (range.to) query.set("date_to", range.to);
@@ -366,9 +431,10 @@ export function LearningHistory({ sectionId, classrooms = [] }: { sectionId?: st
     <section className="learning-history">
       <div className="concept-section-heading">
         <h3>날짜별 학습 기록</h3>
-        <span>최신 기록부터 확인해요.</span>
+        <DropSelect label="날짜 정렬" value={order} onChange={value => { setOrder(value); setPage(0); }}
+          options={[{ value: "desc", label: "최신순" }, { value: "asc", label: "오래된순" }]} />
       </div>
-      <form
+      {!period && <form
         className="learning-date-filter"
         onSubmit={(event) => {
           event.preventDefault();
@@ -406,7 +472,7 @@ export function LearningHistory({ sectionId, classrooms = [] }: { sectionId?: st
         >
           전체 기간
         </button>
-      </form>
+      </form>}
       <ErrorNotice text={records.error} />
       {records.error && <button onClick={records.reload}>다시 불러오기</button>}
       {!records.data && !records.error && (
@@ -439,7 +505,7 @@ export function LearningHistory({ sectionId, classrooms = [] }: { sectionId?: st
                 </span>
               </div>
               <Link to={`/quiz/results/${record.id}`}>
-                {record.submitted ? "답안·해설 보기 ↗" : "학습 내역 보기 ↗"}
+                {record.submitted ? "답안·해설 보기" : "학습 내역 보기"} <span className="go-arrow" aria-hidden="true">→</span>
               </Link>
             </article>
           ))}
@@ -454,5 +520,98 @@ export function LearningHistory({ sectionId, classrooms = [] }: { sectionId?: st
         </>
       )}
     </section>
+  );
+}
+
+/* 개념별 학습 안의 '풀었던 퀴즈와 해설' (11-15)
+   지난 이론 퀴즈를 한 번만 불러와 문항을 개념별로 모아 둬요. 상세를 처음 펼칠 때 불러와요. */
+type QuizItem = Daily["items"][number] & { concept_id?: string };
+type ConceptQuiz = { sessionId: string; day: string; title: string; total: number; right: number; wrong: number; pending: number };
+type QuizState = { status: "idle" | "loading" | "ready" | "error"; byConcept: Record<string, ConceptQuiz[]>; load: () => void };
+const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
+const quizDay = (day: string) => {
+  const [y, m, d] = day.split("-").map(Number);
+  return `${m}월 ${d}일 (${WEEKDAY[new Date(y, m - 1, d).getDay()]})`;
+};
+
+function useConceptQuizzes(sectionId: string, period: Period): QuizState {
+  const [status, setStatus] = useState<QuizState["status"]>("idle");
+  const [byConcept, setByConcept] = useState<Record<string, ConceptQuiz[]>>({});
+  const load = useCallback(() => {
+    if (status === "loading" || status === "ready") return;
+    setStatus("loading");
+    (async () => {
+      const list = await api<{ items: LearningRecord[] }>(
+        `/my/learning-sessions?section_id=${encodeURIComponent(sectionId)}&limit=100&${periodQuery(period)}`,
+      );
+      const sessions = list.items.filter((r) => r.submitted > 0);
+      const details: Daily[] = [];
+      for (let i = 0; i < sessions.length; i += 6) {
+        const part = await Promise.all(
+          sessions.slice(i, i + 6).map((r) => api<Daily>(`/learning-sessions/${r.id}`).catch(() => null)),
+        );
+        details.push(...part.filter((d): d is Daily => !!d));
+      }
+      const grouped: Record<string, ConceptQuiz[]> = {};
+      for (const d of details) {
+        const items = d.items as QuizItem[];
+        const done = items.filter((q) => q.attempt);
+        const graded = done.filter((q) => q.attempt!.status === "graded");
+        const entry: ConceptQuiz = {
+          sessionId: d.id,
+          day: d.day,
+          title: (d as Daily & { title?: string }).title || "",
+          total: items.length,
+          right: graded.filter((q) => q.attempt!.correct).length,
+          wrong: graded.filter((q) => !q.attempt!.correct).length,
+          pending: done.length - graded.length,
+        };
+        for (const cid of new Set(done.map((q) => q.concept_id).filter((c): c is string => !!c)))
+          (grouped[cid] ||= []).push(entry);
+      }
+      for (const k of Object.keys(grouped)) grouped[k].sort((a, b) => a.day.localeCompare(b.day));
+      setByConcept(grouped);
+      setStatus("ready");
+    })().catch(() => setStatus("error"));
+  }, [sectionId, status, period.from, period.to]);
+  return { status, byConcept, load };
+}
+
+function ConceptQuizzes({ conceptId, state }: { conceptId: string; state: QuizState }) {
+  const [all, setAll] = useState(false);
+  if (state.status === "idle" || state.status === "loading")
+    return <p className="concept-quiz-note">풀었던 퀴즈를 불러오는 중이에요…</p>;
+  if (state.status === "error")
+    return <p className="concept-quiz-note">풀었던 퀴즈를 불러오지 못했어요. 잠시 뒤 다시 펼쳐 보세요.</p>;
+  const list = state.byConcept[conceptId] || [];
+  if (!list.length) return <p className="concept-quiz-note">이 개념이 나온 퀴즈를 아직 풀지 않았어요.</p>;
+  const shown = all ? list : list.slice(-5);
+  return (
+    <div className="concept-quizzes">
+      <strong className="concept-quizzes-title">이 개념이 나온 퀴즈 {list.length}개</strong>
+      {list.length > 5 && (
+        <button type="button" className="concept-text-button concept-quiz-more" onClick={() => setAll(!all)}>
+          {all ? "최근 5개만 보기" : `이전 퀴즈 ${list.length - 5}개 더 보기 ↑`}
+        </button>
+      )}
+      <ol>
+        {shown.map((x) => (
+          <li key={x.sessionId} className="concept-quiz">
+            <Link to={`/quiz/results/${x.sessionId}`}>
+              <span className="concept-quiz-name">{x.title || quizDay(x.day)}</span>
+              <span className="concept-quiz-meta">
+                {x.title && <><time dateTime={x.day}>{quizDay(x.day)}</time> · </>}이론 퀴즈 · {x.total}문항
+              </span>
+              <span className="concept-quiz-score">
+                <em className="right">정답 {x.right}</em>
+                <em className="wrong">오답 {x.wrong}</em>
+                {x.pending > 0 && <em className="pending">채점 중 {x.pending}</em>}
+              </span>
+              <span className="concept-quiz-go">결과와 해설 보기 <span className="go-arrow" aria-hidden="true">→</span></span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }

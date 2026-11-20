@@ -1,0 +1,80 @@
+/* 왼쪽 스크롤 위치 점 (landing/ScrollDots.tsx) — 평소 흐릿, 마우스를 대면 또렷. 점 묶음과 구간 이름 모두 뒤 박스 없이 */
+#root .lerny-landing .ls-dots {
+  position: fixed;
+  left: clamp(4px, 0.7vw, 12px);
+  top: 50%;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 6px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  opacity: 0.2;
+  transition: opacity 0.3s ease;
+}
+
+#root .lerny-landing .ls-dots:hover,
+#root .lerny-landing .ls-dots:focus-within {
+  opacity: 0.9;
+}
+
+#root .lerny-landing .ls-dots button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+#root .lerny-landing .ls-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--d-ink-3, #8a76a8);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--d-surface, #fff) 60%, transparent);
+  transition: transform 0.25s ease, background-color 0.25s ease;
+}
+
+#root .lerny-landing .ls-dots button:hover i { transform: scale(1.3); background: var(--d-ink-2, #491ab1); }
+
+#root .lerny-landing .ls-dots button.on i {
+  background: var(--d-accent, #6631db);
+  transform: scale(1.4);
+}
+
+/* 구간 이름 — 마우스를 대면 점 오른쪽에 보여요 */
+#root .lerny-landing .ls-dots span {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--d-ink, #2b124c);
+  opacity: 0;
+  transform: translate(-4px, -50%);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#root .lerny-landing .ls-dots:hover span { opacity: 0.55; transform: translate(0, -50%); }
+#root .lerny-landing .ls-dots button:hover span,
+#root .lerny-landing .ls-dots button:focus-visible span,
+#root .lerny-landing .ls-dots:hover button.on span { opacity: 1; }
+
+#root .lerny-landing .ls-dots button:focus-visible { outline: 2px solid var(--d-accent, #6631db); outline-offset: 2px; border-radius: 50%; }
+
+/* 휴대폰에서는 숨겨요 */
+@media (max-width: 760px) {
+  #root .lerny-landing .ls-dots { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root .lerny-landing .ls-dots,
+  #root .lerny-landing .ls-dots * { transition: none !important; }
+}

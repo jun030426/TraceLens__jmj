@@ -15,6 +15,7 @@ from lerny.courses import audit
 from lerny.jobs import idempotent, section_student
 from lerny.models import (
     Attempt,
+    AuditEvent,
     Chunk,
     Concept,
     Enrollment,
@@ -77,6 +78,7 @@ def learning_streak(session: Db, actor: Actor):
 def learning_history(
     session: Db, actor: Actor, section_id: str | None = None,
     date_from: date | None = None, date_to: date | None = None,
+    order: Literal["asc", "desc"] = "desc",
     offset: int = Query(default=0, ge=0), limit: int = Query(default=100, ge=1, le=100),
 ):
     if actor.role != "student":
@@ -98,7 +100,8 @@ def learning_history(
     if date_to:
         query = query.where(LearningSession.day <= date_to)
     total = session.scalar(select(func.count()).select_from(query.subquery()))
-    records = session.scalars(query.order_by(LearningSession.day.desc(), LearningSession.id.desc())
+    ordering = (LearningSession.day, LearningSession.id) if order == "asc" else (LearningSession.day.desc(), LearningSession.id.desc())
+    records = session.scalars(query.order_by(*ordering)
                               .offset(offset).limit(limit))
     items = []
     for record in records:
@@ -143,7 +146,10 @@ def lock_student(session, student_id):
     )
 
 
-def valid_sources(session, question, max_week=None):
+def valid_sources(session, question, max_week=None, *, require_published=True):
+    from lerny.weekly_content import artifact_published, source_allowed
+    if not question or (require_published and not artifact_published(session, question)):
+        return False
     if not question.sources:
         return False
     for source in question.sources:
@@ -157,7 +163,10 @@ def valid_sources(session, question, max_week=None):
             or material.course_id != question.course_id
             or material.deleted
             or material.visibility != "public"
-            or material.active_version_id != version.id
+            or material.internal_use != "none"
+            or material.kind == "answer"
+            or version.status != "ready"
+            or not source_allowed(session, question, version)
             or source.get("quote", "") not in chunk.content
             or not source.get("quote")
         ):
@@ -193,32 +202,19 @@ def generate(
     idempotency_key: str | None = Header(default=None),
 ):
     staff_access(session, actor, course_id)
-    concept = session.get(Concept, body.concept_id)
-    if not concept or concept.course_id != course_id:
-        deny(404)
-
-    def make():
-        job = Job(
-            owner_id=actor.id, course_id=course_id, kind="questions", payload=body.model_dump()
-        )
-        session.add(job)
-        session.flush()
-        return {"job_id": job.id, "status": "queued"}
-
-    return idempotent(
-        session, actor, "question-generation:" + course_id, idempotency_key, body.model_dump(), make
-    )
+    deny(409, "주차별 콘텐츠 생성에서 자료를 함께 선택해 생성해 주세요.")
 
 
 @router.get("/courses/{course_id}/questions")
 def questions(course_id: str, session: Db, actor: Actor):
     staff_access(session, actor, course_id)
     rows = session.scalars(
-        select(Question).where(Question.course_id == course_id).order_by(Question.created_at.desc())
+        select(Question).where(Question.course_id == course_id, Question.student_id.is_(None)).order_by(Question.created_at.desc())
     )
     return {
         "items": [
-            {**question_view(q, True), "sources_current": valid_sources(session, q)} for q in rows
+            {**question_view(q, True), "sources_current": valid_sources(session, q, require_published=False),
+             "generation_id": q.generation_id} for q in rows
         ]
     }
 
@@ -240,7 +236,7 @@ def question_state(
         deny(404)
     staff_access(session, actor, q.course_id)
     match_revision(q.revision, if_match)
-    if body.status == "active" and not valid_sources(session, q):
+    if body.status == "active" and not valid_sources(session, q, require_published=False):
         deny(409, "현재 공개된 근거로 다시 생성해 주세요.")
     q.status, q.revision = body.status, q.revision + 1
     session.commit()
@@ -249,14 +245,18 @@ def question_state(
 
 def session_view(session, learning):
     items = []
+    from lerny.config import settings
+    target_count = 4 if settings().automatic_learning_enabled else 3
     for question_id in learning.question_ids:
         q = session.get(Question, question_id)
+        if q.purpose == "daily":
+            target_count = 4
         attempt = session.scalar(
             select(Attempt).where(
                 Attempt.learning_session_id == learning.id, Attempt.question_id == question_id
             )
         )
-        available = q.status == "active" and valid_sources(session, q)
+        available = q.student_id in (None, learning.student_id) and q.status == "active" and valid_sources(session, q)
         item = (
             question_view(q)
             if available
@@ -283,8 +283,9 @@ def session_view(session, learning):
         "section_id": learning.section_id,
         "day": learning.day,
         "items": items,
-        "target_count": 3,
-        "shortage": max(0, 3 - len(items)),
+        "target_count": target_count,
+        "status": "ready",
+        "shortage": max(0, target_count - len(items)),
     }
 
 
@@ -293,6 +294,10 @@ def daily(section_id: str, session: Db, actor: Actor):
     section = section_student(session, actor, section_id)
     from lerny.automatic import sync_progress
     sync_progress(session, section.course_id)
+    from lerny.config import settings
+    if settings().automatic_learning_enabled:
+        from lerny.personalized import daily as personalized_daily
+        return personalized_daily(session, actor, section, today())
     lock_student(session, actor.id)
     learning = session.scalar(
         select(LearningSession).where(
@@ -320,6 +325,7 @@ def daily(section_id: str, session: Db, actor: Actor):
             select(Question)
             .where(
                 Question.course_id == section.course_id,
+                Question.student_id.is_(None),
                 Question.status == "active",
                 Question.concept_id.in_(section.progress),
             )
@@ -393,6 +399,30 @@ class AnswerInput(Input):
     answer: str = Field(min_length=1, max_length=4000)
 
 
+@router.post("/learning-sessions/{learning_id}/questions/{question_id}/help")
+def record_theory_help(learning_id: str, question_id: str, session: Db, actor: Actor):
+    learning = session.get(LearningSession, learning_id)
+    if not learning or learning.student_id != actor.id or question_id not in learning.question_ids:
+        deny(404)
+    section = section_student(session, actor, learning.section_id)
+    lock_student(session, actor.id)
+    question = session.get(Question, question_id)
+    if not question or question.course_id != section.course_id or question.student_id not in (None, actor.id):
+        deny(404)
+    if question.status != "active" or not valid_sources(session, question):
+        deny(409, "자료 또는 문항이 변경되어 힌트를 열 수 없어요.")
+    quote = question.sources[0]["quote"]
+    if not quote.strip():
+        deny(409, "이 문항의 원문 인용을 확인할 수 없어요.")
+    audit(session, actor, "theory_help", learning.id, {"question_id":question_id})
+    attempt = session.scalar(select(Attempt).where(Attempt.learning_session_id == learning_id,
+                                                  Attempt.question_id == question_id))
+    if attempt and attempt.status != "graded":
+        attempt.independent = False
+    session.commit()
+    return {"recorded": True, "hint": quote}
+
+
 @router.post("/learning-sessions/{learning_id}/questions/{question_id}/submit", status_code=202)
 def submit(
     learning_id: str,
@@ -425,6 +455,9 @@ def submit(
             .where(Attempt.student_id == actor.id, Attempt.question_id == question_id)
             .limit(1)
         )
+        helped = session.scalar(select(AuditEvent.id).where(AuditEvent.actor_id == actor.id,
+            AuditEvent.action == "theory_help", AuditEvent.target_id == learning.id,
+            AuditEvent.detail["question_id"].as_string() == question_id).limit(1))
         attempt = Attempt(
             student_id=actor.id,
             section_id=learning.section_id,
@@ -432,7 +465,7 @@ def submit(
             question_id=q.id,
             concept_id=q.concept_id,
             answer=body.answer,
-            independent=prior is None,
+            independent=prior is None and helped is None,
         )
         session.add(attempt)
         session.flush()
@@ -558,11 +591,17 @@ def analytics(section_id: str, session: Db, actor: Actor):
 
 
 @router.get("/sections/{section_id}/my-learning")
-def my_learning(section_id: str, session: Db, actor: Actor):
+def my_learning(section_id: str, session: Db, actor: Actor, response: Response,
+                date_from: date | None = None, date_to: date | None = None):
     from lerny.automatic import calendar_week, weekly_content
+    from lerny import professor_analytics as metrics
 
     section = section_student(session, actor, section_id)
-    concepts = list(session.scalars(select(Concept).where(Concept.course_id == section.course_id)
+    first, last, start, end = metrics.window(date_from, date_to)
+    response.headers["Cache-Control"] = "private, no-store"
+    from lerny.weekly_content import published_concept_ids
+    visible = published_concept_ids(session,section.course_id)
+    concepts = list(session.scalars(select(Concept).where(Concept.course_id == section.course_id,Concept.id.in_(visible))
                                    .order_by(Concept.created_at, Concept.id)))
     current_week = calendar_week(session, section) if section.progress_mode == "auto" else section.progress_week
     weekly = weekly_content(session, section.course_id)
@@ -583,26 +622,26 @@ def my_learning(section_id: str, session: Db, actor: Actor):
                 for source in question.sources
             })
     ids = [concept.id for concept in concepts]
-    ranked = select(Attempt.id, func.row_number().over(
-        partition_by=Attempt.concept_id, order_by=(Attempt.created_at.desc(), Attempt.id.desc())
-    ).label("position")).where(
-        Attempt.student_id == actor.id, Attempt.concept_id.in_(ids),
-        Attempt.status == "graded", Attempt.independent.is_(True)
-    ).subquery()
     recent = {}
-    for attempt, day in session.execute(select(Attempt, LearningSession.day)
-        .join(ranked, ranked.c.id == Attempt.id)
-        .join(LearningSession, LearningSession.id == Attempt.learning_session_id)
-        .where(ranked.c.position <= 5).order_by(Attempt.created_at.desc(), Attempt.id.desc())):
-        recent.setdefault(attempt.concept_id, []).append((attempt, day))
+    # The professor and student views use the same section, KST window and evidence rules.
+    from sqlalchemy.orm import defer
+    query = select(Attempt, Question.solution["review"].as_boolean(), LearningSession.day).join(
+        Question, Attempt.question_id == Question.id).join(
+        LearningSession, LearningSession.id == Attempt.learning_session_id).where(
+            Attempt.student_id == actor.id, Attempt.section_id == section_id,
+            Question.course_id == section.course_id, Attempt.concept_id.in_(ids),
+            Attempt.created_at >= start, Attempt.created_at < end).options(
+                defer(Attempt.answer), defer(Attempt.feedback)).order_by(Attempt.created_at.desc(), Attempt.id.desc())
+    for row in metrics.bounded(session, query):
+        recent.setdefault(row[0].concept_id, []).append(row)
     reviews = {review.concept_id: review for review in session.scalars(select(Review).where(
         Review.student_id == actor.id, Review.concept_id.in_(ids)
     ))}
     items = []
     for concept in concepts:
         entries = recent.get(concept.id, [])
-        rows = [attempt for attempt, _ in entries]
-        success_days = {day for attempt, day in entries if attempt.correct}
+        learning = metrics.theory_state(entries)
+        rows = [attempt for attempt, _, _ in entries if metrics.measured(attempt) and attempt.independent][:5]
         review = reviews.get(concept.id)
         items.append(
             {
@@ -612,15 +651,15 @@ def my_learning(section_id: str, session: Db, actor: Actor):
                 "in_scope": concept.id in scope,
                 "valid_recent": len(rows),
                 "correct_recent": sum(bool(a.correct) for a in rows),
-                "mastered": len(rows) == 5
-                and sum(bool(a.correct) for a in rows) >= 4
-                and len(success_days) >= 2,
+                "mastered": learning["state"] == "mastered",
+                "learning": {key: learning[key] for key in
+                    ("state", "sample", "correct", "success_days", "weakness", "trend_points", "evidence")},
                 "review_due": review.due_on if review else None,
                 "review_session_id": rows[0].learning_session_id if rows else None,
                 "review_question_id": rows[0].question_id if rows else None,
             }
         )
-    return {"items": items, "current_week": current_week, "today": today()}
+    return {"items": items, "current_week": current_week, "today": today(), "date_from": first, "date_to": last}
 
 
 @router.get("/sections/{section_id}/analytics.csv")

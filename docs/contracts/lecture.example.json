@@ -1,0 +1,203 @@
+{
+  "schema_version": "1.0",
+  "request_id": "req_stack_001",
+  "concept_id": "concept_stack",
+  "concept_revision": 1,
+  "source_snapshot_id": "snapshot_stack_001",
+  "generation_status": "draft",
+  "title": "스택은 어떤 순서로 꺼낼까?",
+  "language": "ko-KR",
+  "learning_objective": "스택에서 원소가 제거되는 순서를 설명한다.",
+  "target_duration_seconds": 40,
+  "scenes": [
+    {
+      "scene_id": "scene_01",
+      "role": "introduction",
+      "utterances": [
+        {
+          "utterance_id": "u01",
+          "text": "마지막에 넣은 값이 가장 먼저 나온다면, 어떤 순서로 움직일까요? 스택을 보면서 확인해 볼게요.",
+          "content_origin": "connective",
+          "source_refs": []
+        }
+      ],
+      "visual": {
+        "type": "title_card",
+        "heading": "스택의 꺼내는 순서",
+        "key_points": []
+      },
+      "visual_events": [],
+      "gesture_cues": []
+    },
+    {
+      "scene_id": "scene_02",
+      "role": "worked_example",
+      "utterances": [
+        {
+          "utterance_id": "u02",
+          "text": "빈 스택에 먼저 십을 넣어요.",
+          "content_origin": "generated_example",
+          "source_refs": [
+            "src_stack_02"
+          ]
+        },
+        {
+          "utterance_id": "u03",
+          "text": "그 위에 이십을 넣고요.",
+          "content_origin": "generated_example",
+          "source_refs": [
+            "src_stack_02"
+          ]
+        },
+        {
+          "utterance_id": "u04",
+          "text": "마지막으로 삼십을 넣어 볼게요.",
+          "content_origin": "generated_example",
+          "source_refs": [
+            "src_stack_02"
+          ]
+        },
+        {
+          "utterance_id": "u05",
+          "text": "지금 맨 위에는 마지막에 넣은 삼십이 있어요.",
+          "content_origin": "generated_example",
+          "source_refs": [
+            "src_stack_01",
+            "src_stack_02"
+          ]
+        },
+        {
+          "utterance_id": "u06",
+          "text": "여기서 팝을 한 번 실행하면, 맨 위의 삼십이 빠져나와요.",
+          "content_origin": "generated_example",
+          "source_refs": [
+            "src_stack_01",
+            "src_stack_02"
+          ]
+        }
+      ],
+      "visual": {
+        "type": "stack_diagram",
+        "heading": "10 → 20 → 30 순서로 넣기",
+        "element_id": "stack_main",
+        "initial_state": {
+          "items_bottom_to_top": []
+        },
+        "elements": [
+          {
+            "element_id": "block_10",
+            "type": "number_block",
+            "value": 10
+          },
+          {
+            "element_id": "block_20",
+            "type": "number_block",
+            "value": 20
+          },
+          {
+            "element_id": "block_30",
+            "type": "number_block",
+            "value": 30
+          }
+        ]
+      },
+      "visual_events": [
+        {
+          "event_id": "ev01",
+          "trigger": {
+            "utterance_id": "u02",
+            "boundary": "start"
+          },
+          "action": "push",
+          "container_id": "stack_main",
+          "element_id": "block_10"
+        },
+        {
+          "event_id": "ev02",
+          "trigger": {
+            "utterance_id": "u03",
+            "boundary": "start"
+          },
+          "action": "push",
+          "container_id": "stack_main",
+          "element_id": "block_20"
+        },
+        {
+          "event_id": "ev03",
+          "trigger": {
+            "utterance_id": "u04",
+            "boundary": "start"
+          },
+          "action": "push",
+          "container_id": "stack_main",
+          "element_id": "block_30"
+        },
+        {
+          "event_id": "ev04",
+          "trigger": {
+            "utterance_id": "u06",
+            "boundary": "start"
+          },
+          "action": "pop",
+          "container_id": "stack_main",
+          "element_id": "block_30",
+          "expected_value": 30
+        }
+      ],
+      "gesture_cues": [
+        {
+          "cue_id": "gesture_01",
+          "utterance_id": "u05",
+          "action": "point_toward",
+          "target_element_id": "block_30",
+          "intent": "맨 위 원소의 위치를 손짓으로 안내한다.",
+          "intensity": "subtle"
+        }
+      ],
+      "example_provenance": {
+        "type": "generated_example",
+        "description": "공개 근거의 스택 규칙을 적용한 새 숫자 예시",
+        "source_refs": [
+          "src_stack_01",
+          "src_stack_02"
+        ]
+      }
+    },
+    {
+      "scene_id": "scene_03",
+      "role": "summary",
+      "utterances": [
+        {
+          "utterance_id": "u07",
+          "text": "이처럼 스택은 마지막에 넣은 원소를 먼저 꺼내요. 이 규칙을 후입선출이라고 해요.",
+          "content_origin": "source_based",
+          "source_refs": [
+            "src_stack_01"
+          ]
+        },
+        {
+          "utterance_id": "u08",
+          "text": "이제 다른 숫자를 넣었을 때도 같은 규칙이 적용되는지, 관련 문제에서 확인해 보세요.",
+          "content_origin": "connective",
+          "source_refs": []
+        }
+      ],
+      "visual": {
+        "type": "key_points",
+        "heading": "스택 = 후입선출",
+        "key_points": [
+          "마지막에 넣은 원소를 먼저 꺼낸다"
+        ]
+      },
+      "visual_events": [],
+      "gesture_cues": []
+    }
+  ],
+  "learning_links": {
+    "related_concept_ids": [
+      "concept_stack"
+    ],
+    "practice_objective": "주어진 삽입·제거 순서에서 꺼내지는 값을 판단한다."
+  },
+  "issues": []
+}

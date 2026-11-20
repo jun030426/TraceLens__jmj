@@ -1,0 +1,777 @@
+{
+  "purpose": "Offline regression using manually scoped text fixtures from previous held cases. NOT new audio judgements, NOT valid results for publication.",
+  "timings_and_primary_flags_in_tests": "synthetic; not inferred or verified from original audio",
+  "cases": [
+    {
+      "task": {
+        "id": "control-ed93d4370195ba17",
+        "role": "control",
+        "target_id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0001",
+        "interval": [
+          1263.1,
+          1264.28
+        ],
+        "before": "이 덩어리 하나가",
+        "after": "이 덩어리 하나가",
+        "review_protocol": 3,
+        "review_interval": [
+          1261.08,
+          1266.08
+        ],
+        "review_row_ids": [
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0000",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0001",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0002"
+        ],
+        "review_before": "튜플 구조, 바로 이 덩어리 하나가 이 덩어리 하나가 뚱 하고 튀어나와야 되는 거죠.",
+        "review_after": "튜플 구조, 바로 이 덩어리 하나가 이 덩어리 하나가 뚱 하고 튀어나와야 되는 거죠.",
+        "boundary_expanded": true,
+        "clip": "clips/control-ed93d4370195ba17.wav",
+        "clip_meta": {
+          "start_seconds": 1258.1,
+          "end_seconds": 1269.28,
+          "duration_seconds": 11.18,
+          "sha256": "3a22ebc74cbb1233be33dd5c34b7e78356b6279f4e496dc583552114eae78435"
+        },
+        "target_clip": "clips/control-ed93d4370195ba17-target.wav",
+        "target_clip_meta": {
+          "start_seconds": 1261.08,
+          "end_seconds": 1266.08,
+          "duration_seconds": 5.0,
+          "sha256": "1113bdd4694602063710355653065536c12915d0ce87c6fdea92c188f6474451"
+        },
+        "target_sample_check": {
+          "source_start_sample": 20177280,
+          "source_end_sample": 20257280,
+          "sample_rate": 16000,
+          "sample_count": 80000,
+          "pcm_matches_original": true
+        },
+        "neighbors": [
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0006-0049",
+            "start_seconds": 1256.06,
+            "end_seconds": 1258.92,
+            "text": "자 스튜던트로부터 데이터 값을 하나씩 끌어가지고 올 거예요."
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0000",
+            "start_seconds": 1261.08,
+            "end_seconds": 1263.1,
+            "text": "튜플 구조, 바로 이 덩어리 하나가"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0002",
+            "start_seconds": 1264.28,
+            "end_seconds": 1266.08,
+            "text": "뚱 하고 튀어나와야 되는 거죠."
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0003",
+            "start_seconds": 1266.56,
+            "end_seconds": 1268.98,
+            "text": "일단 첫 번째는 이름이고요 두 번째 세 번째"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0004",
+            "start_seconds": 1268.98,
+            "end_seconds": 1271.04,
+            "text": "네 번째는 국어, 영어, 수학이라고 하는"
+          }
+        ]
+      },
+      "scope_fixture": {
+        "blind_text": "이 덩어리 하나가",
+        "review_text": "이 덩어리 하나가"
+      },
+      "expected_gate_pass": true,
+      "case": "뒤 문장의 거죠/거잖아요",
+      "old_gate": {
+        "passed": false,
+        "reasons": [
+          "blind_reading_differs"
+        ],
+        "model_assisted_not_gold": true,
+        "differences": {
+          "blind": "content_or_reading_difference",
+          "review": "exact"
+        },
+        "classification": "content_or_reading_difference",
+        "warnings": []
+      },
+      "old_blind_full_unit": "튜플 구조 바로 이 덩어리 하나가 이 덩어리 하나가 뚱하고 튀어나와야 되는 거잖아요.",
+      "old_review_full_unit": "튜플 구조, 바로 이 덩어리 하나가 이 덩어리 하나가 뚱 하고 튀어나와야 되는 거죠.",
+      "source_result": "outputs/audio-finalize-v3/results/control-ed93d4370195ba17.json",
+      "source_result_sha256": "44772b000a90c1ee727a561e2436814862bdc093dc7add911c65d9d7872366e2"
+    },
+    {
+      "task": {
+        "id": "control-a305fbe13a83b15a",
+        "role": "control",
+        "target_id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0004-0038",
+        "interval": [
+          817.04,
+          817.4
+        ],
+        "before": "되겠죠.",
+        "after": "되겠죠.",
+        "review_protocol": 3,
+        "review_interval": [
+          815.22,
+          820.46
+        ],
+        "review_row_ids": [
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0004-0037",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0004-0038",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0004-0039"
+        ],
+        "review_before": "출력 결과물을 만들어내시면 되겠죠. 자 비교를 좀 하기 위해서 라인 선 하나 그려 넣고요.",
+        "review_after": "출력 결과물을 만들어내시면 되겠죠. 자 비교를 좀 하기 위해서 라인 선 하나 그려 넣고요.",
+        "boundary_expanded": true,
+        "clip": "clips/control-a305fbe13a83b15a.wav",
+        "clip_meta": {
+          "start_seconds": 812.04,
+          "end_seconds": 822.4,
+          "duration_seconds": 10.36,
+          "sha256": "6b4b8572d509384e8c24995f1fade0d8e045eaabb0ed6669cfaeba95ae69899e"
+        },
+        "target_clip": "clips/control-a305fbe13a83b15a-target.wav",
+        "target_clip_meta": {
+          "start_seconds": 815.22,
+          "end_seconds": 820.46,
+          "duration_seconds": 5.24,
+          "sha256": "ce457f63ab5ab64ae28534f21a336373de74b61832a55e6d9314a23503be6316"
+        },
+        "target_sample_check": {
+          "source_start_sample": 13043520,
+          "source_end_sample": 13127360,
+          "sample_rate": 16000,
+          "sample_count": 83840,
+          "pcm_matches_original": true
+        },
+        "neighbors": [
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0004-0035",
+            "start_seconds": 811.0,
+            "end_seconds": 812.98,
+            "text": "다음 전반적인 전체 해당되는"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0004-0036",
+            "start_seconds": 812.98,
+            "end_seconds": 815.22,
+            "text": "내용들만 포를 빠져 나와서"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0004-0037",
+            "start_seconds": 815.22,
+            "end_seconds": 817.04,
+            "text": "출력 결과물을 만들어내시면"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0004-0039",
+            "start_seconds": 818.16,
+            "end_seconds": 820.46,
+            "text": "자 비교를 좀 하기 위해서 라인 선 하나 그려 넣고요."
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0004-0040",
+            "start_seconds": 821.04,
+            "end_seconds": 822.88,
+            "text": "자 학생 수는 수련회를 기점으로"
+          }
+        ]
+      },
+      "scope_fixture": {
+        "blind_text": "되겠죠.",
+        "review_text": "되겠죠."
+      },
+      "expected_gate_pass": true,
+      "case": "이웃의 그래서 유무",
+      "old_gate": {
+        "passed": false,
+        "reasons": [
+          "blind_reading_differs"
+        ],
+        "model_assisted_not_gold": true,
+        "differences": {
+          "blind": "content_or_reading_difference",
+          "review": "exact"
+        },
+        "classification": "content_or_reading_difference",
+        "warnings": []
+      },
+      "old_blind_full_unit": "출력 결과물을 만들어 내시면 되겠죠 그래서 자 비교를 좀 하기 위해서 라인 선 하나 그려놓고요",
+      "old_review_full_unit": "출력 결과물을 만들어내시면 되겠죠. 자 비교를 좀 하기 위해서 라인 선 하나 그려 넣고요.",
+      "source_result": "outputs/audio-finalize-v3/results/control-a305fbe13a83b15a.json",
+      "source_result_sha256": "4fa003912eddb584269ec7d5390d18ecdd924ff3c269b127f8f3860239c6f968"
+    },
+    {
+      "task": {
+        "id": "control-94d84cfc5f60b99e",
+        "role": "control",
+        "target_id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0002",
+        "interval": [
+          1264.28,
+          1266.08
+        ],
+        "before": "뚱 하고 튀어나와야 되는 거죠.",
+        "after": "뚱 하고 튀어나와야 되는 거죠.",
+        "review_protocol": 3,
+        "review_interval": [
+          1263.1,
+          1268.98
+        ],
+        "review_row_ids": [
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0001",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0002",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0003"
+        ],
+        "review_before": "이 덩어리 하나가 뚱 하고 튀어나와야 되는 거죠. 일단 첫 번째는 이름이고요 두 번째 세 번째",
+        "review_after": "이 덩어리 하나가 뚱 하고 튀어나와야 되는 거죠. 일단 첫 번째는 이름이고요 두 번째 세 번째",
+        "boundary_expanded": true,
+        "clip": "clips/control-94d84cfc5f60b99e.wav",
+        "clip_meta": {
+          "start_seconds": 1259.28,
+          "end_seconds": 1271.08,
+          "duration_seconds": 11.8,
+          "sha256": "82f00719c1fb53a9cb3f1773fe1a46b5f0f1ac36cc263c475c191dbc19d66a3c"
+        },
+        "target_clip": "clips/control-94d84cfc5f60b99e-target.wav",
+        "target_clip_meta": {
+          "start_seconds": 1263.1,
+          "end_seconds": 1268.98,
+          "duration_seconds": 5.88,
+          "sha256": "1242e0fc9f098005fafd9276f1289504dbb74898874f218d450d61b93b4a9519"
+        },
+        "target_sample_check": {
+          "source_start_sample": 20209600,
+          "source_end_sample": 20303680,
+          "sample_rate": 16000,
+          "sample_count": 94080,
+          "pcm_matches_original": true
+        },
+        "neighbors": [
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0000",
+            "start_seconds": 1261.08,
+            "end_seconds": 1263.1,
+            "text": "튜플 구조, 바로 이 덩어리 하나가"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0001",
+            "start_seconds": 1263.1,
+            "end_seconds": 1264.28,
+            "text": "이 덩어리 하나가"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0003",
+            "start_seconds": 1266.56,
+            "end_seconds": 1268.98,
+            "text": "일단 첫 번째는 이름이고요 두 번째 세 번째"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0004",
+            "start_seconds": 1268.98,
+            "end_seconds": 1271.04,
+            "text": "네 번째는 국어, 영어, 수학이라고 하는"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0007-0005",
+            "start_seconds": 1271.04,
+            "end_seconds": 1271.86,
+            "text": "개념을 접근하겠습니다."
+          }
+        ]
+      },
+      "scope_fixture": {
+        "blind_text": "뚱 하고 튀어나와야 되는 거죠.",
+        "review_text": "뚱 하고 튀어나와야 되는 거죠."
+      },
+      "expected_gate_pass": true,
+      "case": "뒤 문장의 일단/그때/근데",
+      "old_gate": {
+        "passed": false,
+        "reasons": [
+          "blind_reading_differs",
+          "recheck_did_not_accept",
+          "content_supported_not_supported",
+          "no_new_error_not_supported",
+          "source_reading_differs"
+        ],
+        "model_assisted_not_gold": true,
+        "differences": {
+          "blind": "content_or_reading_difference",
+          "review": "content_or_reading_difference"
+        },
+        "classification": "content_or_reading_difference",
+        "warnings": []
+      },
+      "old_blind_full_unit": "이 덩어리 하나가 뚱 하고 튀어나와야 되는 거죠? 그때 첫 번째는 이름이고요. 두 번째, 세 번째",
+      "old_review_full_unit": "이 덩어리 하나가 뚱 하고 튀어나와야 되는 거죠. 근데 첫 번째는 이름이고요. 두 번째 세 번째",
+      "source_result": "outputs/audio-finalize-v3/results/control-94d84cfc5f60b99e.json",
+      "source_result_sha256": "c013594e4680aec87410dd8716a160089cc0d8316262f969ec0964f36f53f803"
+    },
+    {
+      "task": {
+        "id": "repair-f5a270ad6249d480cb90",
+        "role": "repair",
+        "candidate": {
+          "finding": {
+            "kind": "omitted_words",
+            "action": "replace",
+            "target_id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0001",
+            "related_id": "",
+            "before": "예제에서 집합은 이야기를 했어요.",
+            "after": "자, 예제에서 집합은 이야기를 했어요.",
+            "start": 6.22,
+            "end": 10.6,
+            "source_clear": true,
+            "same_acoustic_event": false,
+            "actual_repeated_speech": false,
+            "uncertain": false,
+            "reason": "문두의 '자,' 발화가 누락되어 추가함."
+          },
+          "candidate": true,
+          "reasons": [],
+          "status": "candidate_pending_approval",
+          "candidate_id": "f5a270ad6249d480cb90",
+          "batch_conflict": false
+        },
+        "target_id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0001",
+        "interval": [
+          6.22,
+          10.6
+        ],
+        "before": "예제에서 집합은 이야기를 했어요.",
+        "after": "자, 예제에서 집합은 이야기를 했어요.",
+        "owner": "W001",
+        "review_protocol": 3,
+        "review_interval": [
+          2.32,
+          13.56
+        ],
+        "review_row_ids": [
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0000",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0001",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0002"
+        ],
+        "review_before": "SET을 이용한 예제를 한번 보자고요. 예제에서 집합은 이야기를 했어요. 집합은 순서가 없는 자료형이에요.",
+        "review_after": "SET을 이용한 예제를 한번 보자고요. 자, 예제에서 집합은 이야기를 했어요. 집합은 순서가 없는 자료형이에요.",
+        "boundary_expanded": true,
+        "clip": "clips/repair-f5a270ad6249d480cb90.wav",
+        "clip_meta": {
+          "start_seconds": 1.22,
+          "end_seconds": 15.6,
+          "duration_seconds": 14.38,
+          "sha256": "5b5d6ad33ea8f570cfc3fbda7e5dead8ad00d396faa5cec317c94b7ab42adac8"
+        },
+        "target_clip": "clips/repair-f5a270ad6249d480cb90-target.wav",
+        "target_clip_meta": {
+          "start_seconds": 2.32,
+          "end_seconds": 13.56,
+          "duration_seconds": 11.24,
+          "sha256": "41e2586cf6fa145c043bdf15e1968ad63a0f7f3477855a67992dc0ee95d0e5ec"
+        },
+        "target_sample_check": {
+          "source_start_sample": 37120,
+          "source_end_sample": 216960,
+          "sample_rate": 16000,
+          "sample_count": 179840,
+          "pcm_matches_original": true
+        },
+        "neighbors": [
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0000",
+            "start_seconds": 2.32,
+            "end_seconds": 5.52,
+            "text": "SET을 이용한 예제를 한번 보자고요."
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0002",
+            "start_seconds": 10.96,
+            "end_seconds": 13.56,
+            "text": "집합은 순서가 없는 자료형이에요."
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0003",
+            "start_seconds": 14.02,
+            "end_seconds": 19.36,
+            "text": "더불어서 공통되어 있는 데이터들은 삭제를 해 준다라고 이야기를 했었어요."
+          }
+        ]
+      },
+      "scope_fixture": {
+        "blind_text": "자 예제에서 집합은 이야기를 했어요.",
+        "review_text": "자, 예제에서 집합은 이야기를 했어요."
+      },
+      "expected_gate_pass": true,
+      "case": "이웃 SET/set 대소문자",
+      "old_gate": {
+        "passed": false,
+        "reasons": [
+          "blind_reading_differs"
+        ],
+        "model_assisted_not_gold": true,
+        "differences": {
+          "blind": "content_or_reading_difference",
+          "review": "exact"
+        },
+        "classification": "content_or_reading_difference",
+        "warnings": []
+      },
+      "old_blind_full_unit": "set을 이용한 예제를 한번 보자고요. 자 예제에서 집합은 이야기를 했어요 집합은 순서가 없는 자료형이에요.",
+      "old_review_full_unit": "SET을 이용한 예제를 한번 보자고요. 자, 예제에서 집합은 이야기를 했어요. 집합은 순서가 없는 자료형이에요.",
+      "source_result": "outputs/audio-finalize-v3/results/repair-f5a270ad6249d480cb90.json",
+      "source_result_sha256": "16ae5fe5768ab8209697ae065d499511caed6a62f0612b8cae4eaf548ff28ed8"
+    },
+    {
+      "task": {
+        "id": "repair-6e0b976257e09a8a8f3f",
+        "role": "repair",
+        "candidate": {
+          "finding": {
+            "kind": "omitted_words",
+            "action": "replace",
+            "target_id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0039",
+            "related_id": "",
+            "before": "라고 하는 부분에 대해서 더 이상",
+            "after": "라고 하는 부분에 대해서 이제 더 이상",
+            "start": 1878.7,
+            "end": 1880.62,
+            "source_clear": true,
+            "same_acoustic_event": false,
+            "actual_repeated_speech": false,
+            "uncertain": false,
+            "reason": "오디오 1879.8초 부근에서 '이제 더 이상'이라고 발화하나 '이제'가 누락되어 있습니다."
+          },
+          "candidate": true,
+          "reasons": [],
+          "status": "candidate_pending_approval",
+          "candidate_id": "6e0b976257e09a8a8f3f",
+          "batch_conflict": false
+        },
+        "target_id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0039",
+        "interval": [
+          1878.7,
+          1880.62
+        ],
+        "before": "라고 하는 부분에 대해서 더 이상",
+        "after": "라고 하는 부분에 대해서 이제 더 이상",
+        "owner": "W063",
+        "review_protocol": 3,
+        "review_interval": [
+          1876.46,
+          1882.48
+        ],
+        "review_row_ids": [
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0038",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0039",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0040"
+        ],
+        "review_before": "자료형이 뭔지, 메소드가 뭔지 라고 하는 부분에 대해서 더 이상 설명하지 않아도 여러분이 이해할 수",
+        "review_after": "자료형이 뭔지, 메소드가 뭔지 라고 하는 부분에 대해서 이제 더 이상 설명하지 않아도 여러분이 이해할 수",
+        "boundary_expanded": true,
+        "clip": "clips/repair-6e0b976257e09a8a8f3f.wav",
+        "clip_meta": {
+          "start_seconds": 1873.7,
+          "end_seconds": 1885.62,
+          "duration_seconds": 11.92,
+          "sha256": "1c3a069d03b85d615b9a20fb2af68daf1e164d753c10e9a51b93f9b1ad43a70d"
+        },
+        "target_clip": "clips/repair-6e0b976257e09a8a8f3f-target.wav",
+        "target_clip_meta": {
+          "start_seconds": 1876.46,
+          "end_seconds": 1882.48,
+          "duration_seconds": 6.02,
+          "sha256": "a5015fff8998a15df3fc83875c8c4fc2159301cb4e700a2b60c672861151e41e"
+        },
+        "target_sample_check": {
+          "source_start_sample": 30023360,
+          "source_end_sample": 30119680,
+          "sample_rate": 16000,
+          "sample_count": 96320,
+          "pcm_matches_original": true
+        },
+        "neighbors": [
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0036",
+            "start_seconds": 1872.54,
+            "end_seconds": 1874.42,
+            "text": "단위라고 이야기를 했었어요."
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0037",
+            "start_seconds": 1874.76,
+            "end_seconds": 1876.04,
+            "text": "그래서 데이터가 뭔지,"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0038",
+            "start_seconds": 1876.46,
+            "end_seconds": 1878.7,
+            "text": "자료형이 뭔지, 메소드가 뭔지"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0040",
+            "start_seconds": 1880.62,
+            "end_seconds": 1882.48,
+            "text": "설명하지 않아도 여러분이 이해할 수"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0041",
+            "start_seconds": 1882.48,
+            "end_seconds": 1883.36,
+            "text": "있으리라고 봅니다."
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0010-0042",
+            "start_seconds": 1884.18,
+            "end_seconds": 1886.5,
+            "text": "자, 리스트에 대해서 우리가 반드시"
+          }
+        ]
+      },
+      "scope_fixture": {
+        "blind_text": "라고 하는 부분에 대해서 이제 더 이상",
+        "review_text": "라고 하는 부분에 대해서 이제 더 이상"
+      },
+      "expected_gate_pass": true,
+      "case": "이웃 메소드/메서드",
+      "old_gate": {
+        "passed": false,
+        "reasons": [
+          "blind_reading_differs"
+        ],
+        "model_assisted_not_gold": true,
+        "differences": {
+          "blind": "surface_variant",
+          "review": "exact"
+        },
+        "classification": "surface_warning",
+        "warnings": []
+      },
+      "old_blind_full_unit": "자료형이 뭔지 메서드가 뭔지라고 하는 부분에 대해서 이제 더 이상 설명하지 않아도 여러분이 이해할 수",
+      "old_review_full_unit": "자료형이 뭔지, 메소드가 뭔지 라고 하는 부분에 대해서 이제 더 이상 설명하지 않아도 여러분이 이해할 수",
+      "source_result": "outputs/audio-finalize-v3/results/repair-6e0b976257e09a8a8f3f.json",
+      "source_result_sha256": "79c2497221293e96f8cb3569ae2f62b82305b5234e382e35650ce9229b533e9c"
+    },
+    {
+      "task": {
+        "id": "control-4b918275e9ad4f4f",
+        "role": "control",
+        "target_id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0009-0029",
+        "interval": [
+          1716.3,
+          1725.62
+        ],
+        "before": "자 뭐라고 얘기를 해서 썼냐면 두 명의 고객이 구매한 상품은 집합으로 관리를 한번 해보겠다라고 얘기를 하는 거예요",
+        "after": "자 뭐라고 얘기를 해서 썼냐면 두 명의 고객이 구매한 상품은 집합으로 관리를 한번 해보겠다라고 얘기를 하는 거예요",
+        "review_protocol": 3,
+        "review_interval": [
+          1713.07,
+          1728.48
+        ],
+        "review_row_ids": [
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0009-0028",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0009-0029",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0009-0030"
+        ],
+        "review_before": "이때 고객 정보는 딕셔너리로 관리를 하겠습니다 자 뭐라고 얘기를 해서 썼냐면 두 명의 고객이 구매한 상품은 집합으로 관리를 한번 해보겠다라고 얘기를 하는 거예요 이때 고객 정보는 딕셔너리로 하겠다라고 하는 거.",
+        "review_after": "이때 고객 정보는 딕셔너리로 관리를 하겠습니다 자 뭐라고 얘기를 해서 썼냐면 두 명의 고객이 구매한 상품은 집합으로 관리를 한번 해보겠다라고 얘기를 하는 거예요 이때 고객 정보는 딕셔너리로 하겠다라고 하는 거.",
+        "boundary_expanded": true,
+        "clip": "clips/control-4b918275e9ad4f4f.wav",
+        "clip_meta": {
+          "start_seconds": 1711.3,
+          "end_seconds": 1730.62,
+          "duration_seconds": 19.32,
+          "sha256": "55329473229aa9a99dbea31ab08069a876e73b18bf05b2962c5dfa6dc160751c"
+        },
+        "target_clip": "clips/control-4b918275e9ad4f4f-target.wav",
+        "target_clip_meta": {
+          "start_seconds": 1713.07,
+          "end_seconds": 1728.48,
+          "duration_seconds": 15.41,
+          "sha256": "3b0edd4e8d9530d4927cc0d336665c02830304302d25cf237a9c0d01a9e10838"
+        },
+        "target_sample_check": {
+          "source_start_sample": 27409120,
+          "source_end_sample": 27655680,
+          "sample_rate": 16000,
+          "sample_count": 246560,
+          "pcm_matches_original": true
+        },
+        "neighbors": [
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0009-0027",
+            "start_seconds": 1704.18,
+            "end_seconds": 1712.34,
+            "text": "문제에 유대한 요구 조건은 두 명의 고객이 구매한 상품을 집합으로 저장을 한번 해보도록 하겠대요"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0009-0028",
+            "start_seconds": 1713.07,
+            "end_seconds": 1716.3,
+            "text": "이때 고객 정보는 딕셔너리로 관리를 하겠습니다"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0009-0030",
+            "start_seconds": 1725.62,
+            "end_seconds": 1728.48,
+            "text": "이때 고객 정보는 딕셔너리로 하겠다라고 하는 거."
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0009-0031",
+            "start_seconds": 1728.7,
+            "end_seconds": 1732.86,
+            "text": "자, 그래서 두 고객이 각각 구매한 상품을 먼저 한번 보고 싶고요."
+          }
+        ]
+      },
+      "scope_fixture": {
+        "blind_text": "자 뭐라고 얘기를 했었었냐면 두 명의 고객이 구매한 상품 상품은 집합으로 관리를 한번 해 보겠다라고 얘기를 하는 거예요",
+        "review_text": "자 뭐라고 얘기를 했었었냐면 두 명의 고객이 구매한 상품 상품은 집합으로 관리를 한번 해보겠다라고 얘기를 하는 거예요"
+      },
+      "expected_gate_pass": false,
+      "case": "대상 자체의 실제 반복 누락 후보",
+      "old_gate": {
+        "passed": false,
+        "reasons": [
+          "blind_reading_differs",
+          "recheck_did_not_accept",
+          "content_supported_not_supported",
+          "repetitions_preserved_not_supported",
+          "no_new_error_not_supported",
+          "source_reading_differs"
+        ],
+        "model_assisted_not_gold": true,
+        "differences": {
+          "blind": "content_or_reading_difference",
+          "review": "content_or_reading_difference"
+        },
+        "classification": "content_or_reading_difference",
+        "warnings": []
+      },
+      "old_blind_full_unit": "이때 고객 정보는 딕셔너리로 관리를 하겠습니다. 자 뭐라고 얘기를 했었었냐면 두 명의 고객이 구매한 상품 상품은 집합으로 관리를 한번 해 보겠다라고 얘기를 하는 거예요. 이때 고객 정보는 딕셔너리로 하겠다라고 하는 거",
+      "old_review_full_unit": "이때 고객 정보는 딕셔너리로 관리를 하겠습니다 자 뭐라고 얘기를 했었었냐면 두 명의 고객이 구매한 상품 상품은 집합으로 관리를 한번 해보겠다라고 얘기를 하는 거예요 이때 고객 정보는 딕셔너리로 하겠다라고 하는 거",
+      "source_result": "outputs/audio-finalize-v3/results/control-4b918275e9ad4f4f.json",
+      "source_result_sha256": "209d2fe592fe030c704f831c6348d1dc26362191d09dd030f38fd68327fcba4b"
+    },
+    {
+      "task": {
+        "id": "repair-9b1be7cab402c3ac5afc",
+        "role": "repair",
+        "candidate": {
+          "finding": {
+            "kind": "omitted_words",
+            "action": "replace",
+            "target_id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0026",
+            "related_id": "",
+            "before": "서 그 데이터를 프린트로 출력을 하면",
+            "after": "그래서 그 데이터를 프린트로 출력을 하면",
+            "start": 78.54,
+            "end": 80.3,
+            "source_clear": true,
+            "same_acoustic_event": false,
+            "actual_repeated_speech": false,
+            "uncertain": false,
+            "reason": "'서' 앞에 누락된 음절 '그'가 들려 '그래서'로 발화함."
+          },
+          "candidate": true,
+          "reasons": [],
+          "status": "candidate_pending_approval",
+          "candidate_id": "9b1be7cab402c3ac5afc",
+          "batch_conflict": false
+        },
+        "target_id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0026",
+        "interval": [
+          78.54,
+          80.3
+        ],
+        "before": "서 그 데이터를 프린트로 출력을 하면",
+        "after": "그래서 그 데이터를 프린트로 출력을 하면",
+        "owner": "W003",
+        "review_protocol": 3,
+        "review_interval": [
+          76.94,
+          85.5
+        ],
+        "review_row_ids": [
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0025",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0026",
+          "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0027"
+        ],
+        "review_before": "라고 보시면 되겠습니다. 서 그 데이터를 프린트로 출력을 하면 다음과 같은 중괄호를 통해서 데이터가 출력이 된 것을 볼 수가 있겠습니다.",
+        "review_after": "라고 보시면 되겠습니다. 그래서 그 데이터를 프린트로 출력을 하면 다음과 같은 중괄호를 통해서 데이터가 출력이 된 것을 볼 수가 있겠습니다.",
+        "boundary_expanded": true,
+        "clip": "clips/repair-9b1be7cab402c3ac5afc.wav",
+        "clip_meta": {
+          "start_seconds": 73.54,
+          "end_seconds": 85.3,
+          "duration_seconds": 11.76,
+          "sha256": "a48445dac5981d1d50a00a4bb8d2520d9d0e4db2eefd34b053377df479312659"
+        },
+        "target_clip": "clips/repair-9b1be7cab402c3ac5afc-target.wav",
+        "target_clip_meta": {
+          "start_seconds": 76.94,
+          "end_seconds": 85.5,
+          "duration_seconds": 8.56,
+          "sha256": "75828b78e2c10cbba4796fb3885c6f3e9eba63e3e1b43d4d4f8537beee6d1966"
+        },
+        "target_sample_check": {
+          "source_start_sample": 1231040,
+          "source_end_sample": 1368000,
+          "sample_rate": 16000,
+          "sample_count": 136960,
+          "pcm_matches_original": true
+        },
+        "neighbors": [
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0024",
+            "start_seconds": 71.68,
+            "end_seconds": 76.94,
+            "text": "하나씩 삭제하고 하나씩에 대한 데이터들만을 만들어 낸다"
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0025",
+            "start_seconds": 76.94,
+            "end_seconds": 78.0,
+            "text": "라고 보시면 되겠습니다."
+          },
+          {
+            "id": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6:audio-asr-0000-0027",
+            "start_seconds": 80.3,
+            "end_seconds": 85.5,
+            "text": "다음과 같은 중괄호를 통해서 데이터가 출력이 된 것을 볼 수가 있겠습니다."
+          }
+        ]
+      },
+      "scope_fixture": {
+        "blind_text": "그래서 그 데이터를 프린트로 출력을 하면",
+        "review_text": "서 그 데이터를 프린트로 출력을 하면"
+      },
+      "expected_gate_pass": false,
+      "case": "대상 자체의 판독 불일치",
+      "old_gate": {
+        "passed": false,
+        "reasons": [
+          "recheck_did_not_accept",
+          "no_new_error_not_supported",
+          "source_reading_differs",
+          "addition_not_confirmed"
+        ],
+        "model_assisted_not_gold": true,
+        "differences": {
+          "blind": "exact",
+          "review": "content_or_reading_difference"
+        },
+        "classification": "content_or_reading_difference",
+        "warnings": []
+      },
+      "old_blind_full_unit": "라고 보시면 되겠습니다. 그래서 그 데이터를 프린트로 출력을 하면 다음과 같은 중괄호를 통해서 데이터가 출력이 된 것을 볼 수가 있겠습니다.",
+      "old_review_full_unit": "라고 보시면 되겠습니다. 서 그 데이터를 프린트로 출력을 하면 다음과 같은 중괄호를 통해서 데이터가 출력이 된 것을 볼 수가 있겠습니다.",
+      "source_result": "outputs/audio-finalize-v3/results/repair-9b1be7cab402c3ac5afc.json",
+      "source_result_sha256": "7cfd379bd354422c7f858d988c2bb18ab1971888ff3f34ed4e60d36ad20e00f5"
+    }
+  ]
+}

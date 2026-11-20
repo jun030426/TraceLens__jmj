@@ -1,0 +1,102 @@
+.materials-upload fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.batch-week {
+  display: grid;
+  gap: 6px;
+  max-width: 220px;
+  margin: 16px 0;
+}
+.batch-help {
+  color: var(--d-ink-3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.batch-count {
+  font-weight: 650;
+}
+.batch-files {
+  max-height: 480px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px;
+}
+.batch-file {
+  border: 1px solid var(--d-hair);
+  border-radius: 12px;
+  background: var(--d-surface);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.batch-file-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+.batch-file-heading strong {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.batch-file-heading span {
+  color: var(--d-ink-3);
+  font-size: 13px;
+}
+.batch-file-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-top: 12px;
+}
+.batch-file-options label {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+}
+.batch-file-options select {
+  max-width: 100%;
+}
+.batch-file-status {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 12px 0 0;
+  overflow-wrap: anywhere;
+}
+.batch-file.is-done .batch-file-status {
+  color: var(--d-accent-deep);
+  font-weight: 650;
+}
+.batch-file.is-failed {
+  border-color: #bf6262;
+}
+.batch-file.is-failed .batch-file-status {
+  color: #a82c2c;
+}
+.batch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+.materials-upload .batch-file-options button,
+.materials-upload .batch-actions button:not(.primary) {
+  color: var(--d-ink) !important;
+  background: var(--d-pearl) !important;
+  border: 1px solid var(--d-hair) !important;
+}
+:root[data-theme="dark"] .batch-file.is-failed .batch-file-status {
+  color: #ffb5b5;
+}
+@media (max-width: 520px) {
+  .batch-file {
+    padding: 12px;
+  }
+  .batch-file-options label {
+    flex: 1;
+    min-width: 120px;
+  }
+}

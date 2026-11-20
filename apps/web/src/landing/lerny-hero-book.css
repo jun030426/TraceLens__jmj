@@ -1,0 +1,466 @@
+/* [랜딩 첫 화면] HeroBook.tsx — 강의 노트가 펼쳐지고 한 장씩 넘어가요 */
+
+#root .lerny-landing .bk-hero {
+  position: relative;
+  height: 320vh;
+  background: var(--d-ground);
+}
+
+#root .lerny-landing .bk-sticky {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  height: 100svh;
+  padding: 72px var(--lw-gutter, 20px) 24px;
+  overflow: hidden;
+}
+
+/* 위 문구 */
+#root .lerny-landing .bk-copy {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  word-break: keep-all;
+  will-change: transform, opacity;
+}
+
+#root .lerny-landing .bk-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 13px 5px 5px;
+  border-radius: 9999px;
+  background: var(--d-surface);
+  box-shadow: inset 0 0 0 1px var(--d-hair);
+  color: var(--d-ink-2);
+  font-size: 13px;
+  animation: bk-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+#root .lerny-landing .bk-eyebrow b {
+  padding: 2px 9px;
+  border-radius: 9999px;
+  background: var(--d-accent);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+#root .lerny-landing .bk-hero h1 {
+  margin: 16px 0 0;
+  color: var(--d-ink);
+  font-size: clamp(30px, 4vw, 58px);
+  line-height: 1.2;
+}
+
+#root .lerny-landing .bk-line {
+  display: block;
+  overflow: hidden;
+  padding: 0.02em 0.04em 0.12em;
+  margin-bottom: -0.1em;
+}
+
+#root .lerny-landing .bk-line > span {
+  display: inline-block;
+  animation: bk-line 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+#root .lerny-landing .bk-g {
+  background: linear-gradient(135deg, var(--d-accent-deep, #491ab1) 0%, var(--d-accent, #6631db) 55%, #b0789a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes bk-line { from { transform: translateY(105%); } }
+@keyframes bk-rise { from { opacity: 0; transform: translateY(20px); } }
+
+/* 무대 */
+#root .lerny-landing .bk-scene {
+  --pw: clamp(150px, min(27vw, 38vh), 340px);
+  --ph: calc(var(--pw) * 1.32);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: calc(var(--ph) + 60px);
+  margin-top: clamp(16px, 3vh, 36px);
+  perspective: 2200px;
+}
+
+#root .lerny-landing .bk-glow {
+  position: absolute;
+  width: calc(var(--pw) * 2.6);
+  aspect-ratio: 1.6;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(123, 69, 240, 0.22), rgba(251, 228, 219, 0.35) 55%, transparent 75%);
+  filter: blur(10px);
+}
+
+#root .lerny-landing .bk-book {
+  position: relative;
+  width: calc(var(--pw) * 2);
+  height: var(--ph);
+  perspective: 1800px;
+  transform:
+    translateY(calc(var(--bob, 0px) - var(--leave, 0) * 40px))
+    translateX(calc(var(--pw) * -0.5 * (1 - var(--open, 0))))
+    rotateX(calc(14deg * (1 - var(--flat, 0))));
+  opacity: calc(1 - var(--leave, 0) * 0.7);
+  animation: bk-in 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes bk-in { from { opacity: 0; translate: 0 50px; } }
+
+#root .lerny-landing .bk-base,
+#root .lerny-landing .bk-leaf {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--pw);
+  height: var(--ph);
+}
+
+#root .lerny-landing .bk-base-l {
+  left: 0;
+  border-radius: 14px 4px 4px 14px;
+  background: linear-gradient(to left, rgba(43, 18, 76, 0.08), transparent 14%), var(--d-surface);
+  box-shadow: 0 30px 50px -28px rgba(43, 18, 76, 0.35);
+  opacity: var(--open, 0);
+}
+
+#root .lerny-landing .bk-base-r {
+  border-radius: 4px 14px 14px 4px;
+  background: linear-gradient(to right, rgba(43, 18, 76, 0.08), transparent 14%), var(--d-surface);
+  box-shadow: 0 30px 50px -28px rgba(43, 18, 76, 0.35);
+}
+
+/* 넘기는 장 — 왼쪽 가장자리(책등)를 축으로 돌아요 */
+#root .lerny-landing .bk-leaf {
+  transform-origin: left center;
+  transform: rotateY(calc(var(--f, 0) * -180deg));
+}
+
+#root .lerny-landing .bk-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* 앞/뒷면은 넘긴 정도에 따라 하나만 보여요 (HeroBook.tsx 가 data-side 를 바꿔요) */
+#root .lerny-landing .bk-leaf:not([data-side='back']) .bk-back,
+#root .lerny-landing .bk-leaf[data-side='back'] .bk-front { visibility: hidden; }
+
+#root .lerny-landing .bk-front {
+  border-radius: 4px 14px 14px 4px;
+  background: linear-gradient(to right, rgba(43, 18, 76, 0.08), transparent 14%), var(--d-surface);
+}
+
+#root .lerny-landing .bk-back {
+  transform: rotateY(180deg);
+  border-radius: 14px 4px 4px 14px;
+  background: linear-gradient(to left, rgba(43, 18, 76, 0.08), transparent 14%), var(--d-surface);
+}
+
+/* 표지 */
+#root .lerny-landing .bk-cover-leaf .bk-front {
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(169, 129, 255, 0.55), transparent 60%),
+    radial-gradient(90% 70% at 0% 100%, rgba(223, 182, 178, 0.45), transparent 60%),
+    var(--d-night, #2b124c);
+  box-shadow: inset 6px 0 10px -6px rgba(0, 0, 0, 0.5);
+}
+
+#root .lerny-landing .bk-cover {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: calc(var(--pw) * 0.1);
+  color: var(--d-on-night, #fbe4db);
+}
+
+#root .lerny-landing .bk-cover-k { font-size: calc(var(--pw) * 0.042); opacity: 0.75; }
+#root .lerny-landing .bk-cover strong { margin-top: auto; font-size: calc(var(--pw) * 0.13); font-weight: 400; line-height: 1.1; }
+#root .lerny-landing .bk-cover-m { margin-top: calc(var(--pw) * 0.03); font-size: calc(var(--pw) * 0.05); opacity: 0.7; }
+
+/* 쪽 안 내용 — 크기는 쪽 너비에 맞춰 줄어요 */
+#root .lerny-landing .bk-page {
+  position: relative;
+  height: 100%;
+  padding: calc(var(--pw) * 0.09) calc(var(--pw) * 0.08);
+  color: var(--d-ink);
+  font-size: calc(var(--pw) * 0.042);
+  line-height: 1.5;
+  text-align: left;
+}
+
+#root .lerny-landing .bk-back .bk-page { padding-right: calc(var(--pw) * 0.1); }
+#root .lerny-landing .bk-front .bk-page { padding-left: calc(var(--pw) * 0.1); }
+
+#root .lerny-landing .bk-tab {
+  display: inline-block;
+  margin-bottom: calc(var(--pw) * 0.04);
+  padding: 0.2em 0.8em;
+  border-radius: 9999px;
+  background: var(--d-accent-wash);
+  color: var(--d-accent);
+  font-size: 0.85em;
+}
+
+#root .lerny-landing .bk-page small { display: block; color: var(--d-ink-3); font-size: 0.85em; }
+#root .lerny-landing .bk-page h4 { margin: 0.3em 0 0.8em; font-size: 1.3em; font-weight: 400; line-height: 1.35; }
+#root .lerny-landing .bk-page h4.big { font-size: 1.75em; }
+
+#root .lerny-landing .bk-line-t {
+  height: 0.42em;
+  margin: 0.62em 0 0;
+  border-radius: 9999px;
+  background: var(--d-step);
+}
+
+#root .lerny-landing .bk-line-t.mark { background: color-mix(in srgb, var(--d-accent) 30%, var(--d-step)); }
+
+#root .lerny-landing .bk-fig {
+  display: flex;
+  gap: 0.7em;
+  margin: 1.1em 0 0.4em;
+  padding: 0.9em;
+  border-radius: 0.8em;
+  background: var(--d-pearl);
+  box-shadow: inset 0 0 0 1px var(--d-hair);
+}
+
+#root .lerny-landing .bk-fig i { flex: 1; height: 1.8em; border-radius: 0.5em; background: var(--d-accent-wash); }
+#root .lerny-landing .bk-fig i:nth-child(2) { background: var(--d-lilac); }
+
+#root .lerny-landing .bk-pg { position: absolute; right: calc(var(--pw) * 0.08); bottom: calc(var(--pw) * 0.06); color: var(--d-ink-3); font-size: 0.8em; }
+#root .lerny-landing .bk-back .bk-pg { right: auto; left: calc(var(--pw) * 0.08); }
+
+#root .lerny-landing .bk-nodes { display: flex; align-items: center; margin: 0.6em 0 1.2em; }
+#root .lerny-landing .bk-nodes span { display: flex; align-items: center; }
+#root .lerny-landing .bk-nodes b {
+  display: grid;
+  place-items: center;
+  width: 2.3em;
+  height: 2.3em;
+  border-radius: 0.6em;
+  background: var(--d-accent-wash);
+  box-shadow: inset 0 0 0 1.5px var(--d-accent);
+  color: var(--d-accent);
+  font-weight: 400;
+}
+#root .lerny-landing .bk-nodes i { width: 2em; height: 1.5px; margin: 0 0.3em; background: var(--d-ink-3); position: relative; }
+#root .lerny-landing .bk-nodes i::after { content: ''; position: absolute; right: -1px; top: -3px; border: 3.5px solid transparent; border-left-color: var(--d-ink-3); }
+
+#root .lerny-landing .bk-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-top: 0.55em;
+  padding: 0.6em 0.75em;
+  border-radius: 0.7em;
+  box-shadow: inset 0 0 0 1.2px var(--d-hair);
+}
+
+#root .lerny-landing .bk-opt i {
+  display: grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  background: var(--d-accent-wash);
+  font-size: 0.85em;
+  font-style: normal;
+}
+
+#root .lerny-landing .bk-opt.sel { box-shadow: inset 0 0 0 1.5px var(--d-accent); }
+#root .lerny-landing .bk-opt.ok { background: var(--d-accent-wash); box-shadow: inset 0 0 0 1.5px var(--d-accent); }
+#root .lerny-landing .bk-opt:is(.sel, .ok) i { background: var(--d-accent); color: #ffffff; }
+
+#root .lerny-landing .bk-why { margin: 0.9em 0 0.8em; color: var(--d-ink-2); }
+
+#root .lerny-landing .bk-src {
+  display: inline-block;
+  padding: 0.25em 0.7em;
+  border-radius: 0.5em;
+  background: color-mix(in srgb, var(--lp-c, #fbe4db) 80%, var(--d-surface));
+  color: #854f6c;
+  font-size: 0.85em;
+}
+
+#root .lerny-landing .bk-code {
+  margin: 0;
+  padding: 0.9em 1em;
+  border-radius: 0.8em;
+  background: var(--d-night, #2b124c);
+  color: rgba(255, 255, 255, 0.82);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-size: 0.82em;
+  line-height: 1.65;
+  white-space: pre;
+}
+
+#root .lerny-landing .bk-code .k { color: #c9b2ff; }
+#root .lerny-landing .bk-code .n { color: #dfb6b2; }
+#root .lerny-landing .bk-code .h { padding: 0 0.2em; border-radius: 0.2em; background: rgba(169, 129, 255, 0.3); }
+
+#root .lerny-landing .bk-run p { margin: 0 0 0.5em; padding: 0.55em 0.7em; border-radius: 0.6em; background: var(--d-pearl); font-size: 0.92em; }
+#root .lerny-landing .bk-run b { margin-right: 0.5em; padding: 0.1em 0.5em; border-radius: 0.4em; font-weight: 400; font-size: 0.85em; }
+#root .lerny-landing .bk-run b.ok { background: #e3f3ea; color: #2f7a52; }
+#root .lerny-landing .bk-run b.no { background: #fbe4db; color: #a1503f; }
+
+#root .lerny-landing .bk-note { margin: 0.9em 0 0; color: var(--d-ink-3); font-size: 0.9em; }
+
+#root .lerny-landing .bk-chat { display: flex; flex-direction: column; gap: 0.6em; }
+#root .lerny-landing .bk-chat p { margin: 0; padding: 0.6em 0.8em; border-radius: 0.9em; line-height: 1.5; }
+#root .lerny-landing .bk-chat .me { align-self: flex-end; max-width: 80%; background: var(--d-accent); color: #ffffff; }
+#root .lerny-landing .bk-chat .ai { background: var(--d-accent-wash); }
+#root .lerny-landing .bk-chat .bk-src { align-self: flex-start; }
+
+#root .lerny-landing .bk-meter { display: grid; grid-template-columns: 5.5em 1fr 2.6em; align-items: center; gap: 0.6em; margin-bottom: 0.8em; }
+#root .lerny-landing .bk-meter i { height: 0.55em; border-radius: 9999px; background: var(--d-step); overflow: hidden; }
+#root .lerny-landing .bk-meter i b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--d-lilac), var(--d-accent)); }
+#root .lerny-landing .bk-meter em { color: var(--d-ink-3); font-size: 0.85em; font-style: normal; text-align: right; }
+
+#root .lerny-landing .bk-streak { margin-top: 1.2em; padding: 0.8em; border-radius: 0.8em; background: var(--d-pearl); }
+#root .lerny-landing .bk-streak p { display: flex; gap: 0.35em; margin: 0.5em 0 0; }
+#root .lerny-landing .bk-streak i { flex: 1; height: 0.9em; border-radius: 0.3em; background: var(--d-step); }
+#root .lerny-landing .bk-streak i.on { background: var(--d-accent); }
+
+/* 아래 단계 표시 */
+#root .lerny-landing .bk-steps {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: clamp(14px, 2.5vh, 28px) 0 0;
+  padding: 0;
+  list-style: none;
+  opacity: 0;
+}
+
+#root .lerny-landing .bk-steps li {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  color: var(--d-ink-3);
+  font-size: 13.5px;
+  transition: background-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease;
+}
+
+#root .lerny-landing .bk-steps li.done { color: var(--d-ink-2); }
+#root .lerny-landing .bk-steps li.on { background: var(--d-surface); color: var(--d-accent); box-shadow: 0 8px 20px -12px rgba(43, 18, 76, 0.35), inset 0 0 0 1px var(--d-hair); }
+
+/* 스크롤 안내 */
+#root .lerny-landing .bk-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  z-index: 3;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  translate: -50% 0;
+  opacity: 0;
+  color: var(--d-ink-3);
+  font-size: 12.5px;
+  pointer-events: none;
+}
+
+#root .lerny-landing .bk-hint i {
+  width: 1.5px;
+  height: 26px;
+  background: linear-gradient(var(--d-accent), transparent);
+  transform-origin: top;
+  animation: bk-drip 1.6s ease-in-out infinite;
+}
+
+@keyframes bk-drip {
+  0% { transform: scaleY(0); }
+  50% { transform: scaleY(1); }
+  100% { transform: scaleY(1); opacity: 0; }
+}
+
+@media (max-width: 760px) {
+  #root .lerny-landing .bk-scene { --pw: min(44vw, 30vh); }
+  #root .lerny-landing .bk-steps li { padding: 5px 10px; font-size: 12px; }
+  #root .lerny-landing .bk-hint { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root .lerny-landing :is(.bk-line > span, .bk-eyebrow, .bk-book, .bk-hint i) { animation: none !important; }
+}
+
+/* ===== 마지막 쪽(p.18) → 종이비행기 ===== */
+#root .lerny-landing .bk-slot { position: absolute; inset: 0; pointer-events: none; }
+#root .lerny-landing .bk-base-r > .bk-page { position: absolute; inset: 0; }
+#root .lerny-landing .bk-base-r .bk-under { visibility: hidden; }
+#root .lerny-landing .bk-book.is-lifted .bk-base-r .bk-last { visibility: hidden; }
+#root .lerny-landing .bk-book.is-lifted .bk-base-r .bk-under { visibility: visible; }
+
+#root .lerny-landing .bk-fly {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  opacity: 0;
+}
+
+#root .lerny-landing .bk-trail {
+  stroke: url(#bk-trail);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0;
+}
+
+#root .lerny-landing .bk-sheet {
+  fill: var(--d-surface, #fffafc);
+  stroke: var(--d-hair, #e4d6ee);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 24px 30px rgba(43, 18, 76, 0.18));
+}
+
+#root .lerny-landing .bk-right {
+  fill: color-mix(in srgb, var(--d-surface, #fffafc), var(--d-lilac, #d0bcfc) calc(var(--shade, 0) * 55%));
+}
+
+#root .lerny-landing .bk-flap {
+  fill: var(--d-accent-wash, #eadffc);
+  stroke: var(--d-hair, #e4d6ee);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  opacity: 0;
+}
+
+#root .lerny-landing .bk-keel { fill: var(--d-accent, #6631db); opacity: 0; }
+
+#root .lerny-landing .bk-doc rect { fill: var(--d-step, #ece0f6); }
+#root .lerny-landing .bk-doc rect.m { fill: color-mix(in srgb, var(--d-accent, #6631db) 30%, var(--d-step, #ece0f6)); }
+#root .lerny-landing .bk-doc rect.b { fill: var(--d-accent-wash, #eadffc); }
+#root .lerny-landing .bk-doc text { fill: var(--d-ink, #2b124c); }
+#root .lerny-landing .bk-doc text.k { font-size: 12px; fill: var(--d-ink-3, #8a76a8); }
+#root .lerny-landing .bk-doc text.h { font-size: 22px; }
+
+/* 강의 자료 쪽 꾸밈 */
+#root .lerny-landing .bk-goals { margin: 0 0 0.6em; padding-left: 1.2em; color: var(--d-ink-2); }
+#root .lerny-landing .bk-goals li { margin-bottom: 0.35em; }
+#root .lerny-landing .bk-goals li::marker { color: var(--d-accent); }
+
+#root .lerny-landing .bk-table { width: 100%; margin-bottom: 0.6em; border-collapse: collapse; font-size: 0.9em; }
+#root .lerny-landing .bk-table :is(th, td) { padding: 0.45em 0.3em; border-bottom: 1px solid var(--d-hair); text-align: left; font-weight: 400; }
+#root .lerny-landing .bk-table th { color: var(--d-ink-3); }
+#root .lerny-landing .bk-table td.hl { color: var(--d-accent); }
+
+#root .lerny-landing .bk-sum { display: flex; gap: 0.5em; margin: 1em 0 0.4em; }
+#root .lerny-landing .bk-sum span { flex: 1; padding: 0.6em; border-radius: 0.6em; background: var(--d-accent-wash); color: var(--d-accent); text-align: center; }
+
+#root .lerny-landing .bk-nodes.rev i::after { left: -1px; right: auto; border-left-color: transparent; border-right-color: var(--d-ink-3); }

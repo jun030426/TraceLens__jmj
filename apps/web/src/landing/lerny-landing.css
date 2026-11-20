@@ -1,0 +1,2483 @@
+/* [Lerny 랜딩 스타일] Algo(Lerny) 랜딩(styles/landing.css)에서 그대로 가져왔어요. 랜딩 화면(Landing.tsx)에서만 불러와요.
+   색 · 글꼴 토큰(--v-*)은 lerny-theme.css 에 있어요. */
+
+/* ================= 랜딩 공통 ================= */
+
+/* 랜딩은 주 색상을 보라로 — 남색 토큰을 보라 계열로 바꿔요 */
+.lerny-landing {
+  --v-deep: #4f3196;
+  --v-text-soft: #5d4f80;
+  --v-blue: #7b5cd6;
+  --v-violet: #b9a5ef;
+  /* 밤하늘 위 카드 바탕 — 비치지 않는 짙은 보라 (별이 카드 위로 비쳐 보이지 않게) */
+  --v-panel: #3a2475;
+  --v-panel-2: #2e1c5f;
+  --v-on-dark-soft: rgba(248, 244, 241, 0.88);
+}
+
+
+.v-landing {
+  background: var(--v-deep);
+  color: var(--v-paper);
+}
+
+.v-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.v-btn-row.center {
+  justify-content: center;
+}
+
+.v-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 1180px;
+  margin: 0 auto 56px;
+}
+
+.v-section-head h2,
+.v-bridge-head h2,
+.v-final h2 {
+  margin: 0;
+  font-size: clamp(34px, 4.4vw, 56px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+}
+
+/* ================= 0. 첫 화면 — 공부 책상 (components/landing/DeskScene.tsx) ================= */
+
+.v-desk {
+  position: relative;
+  height: 230vh;
+  background: var(--v-paper);
+}
+
+.v-desk-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: #ece7e0;
+}
+
+.v-desk-scene {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+/* 3D 방 (components/landing/Desk3D.tsx) — 다 그려지면 부드럽게 나타나요 */
+.v-desk-3d,
+.v-desk-3d canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.v-desk-scene-3d {
+  opacity: 0;
+  transition: opacity 1.1s var(--v-ease);
+}
+
+.v-desk-scene-3d.shown {
+  opacity: 1;
+}
+
+/* 실제 사진일 때는 가장자리 어둡게 효과를 쓰지 않아요 */
+.v-desk-photo::after {
+  display: none;
+}
+
+/* 사진처럼 가장자리를 살짝 어둡게 */
+.v-desk-scene-3d::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(53, 34, 85, 0.28) 100%);
+  pointer-events: none;
+  /* 모니터로 다 들어가면 사라져서 다음 섹션과 색이 똑같이 이어져요 */
+  opacity: var(--vig, 1);
+}
+
+.v-desk-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 처음 들어올 때: 장면이 살짝 다가오며 선명해짐 */
+.v-desk .v-desk-svg {
+  opacity: 0;
+  transform: scale(1.04);
+  transition: opacity 1.2s var(--v-ease), transform 1.6s var(--v-ease);
+}
+
+.v-desk.ready .v-desk-svg {
+  opacity: 1;
+  transform: none;
+}
+
+.v-desk-steam {
+  animation: v-steam 3.2s ease-in-out infinite;
+}
+
+@keyframes v-steam {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: translateY(6px);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: translateY(-4px);
+  }
+}
+
+.v-desk-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 28px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.v-desk-hint {
+  color: rgba(248, 244, 241, 0.85);
+  font-size: 13px;
+  animation: v-bob 2s ease-in-out infinite;
+}
+
+@keyframes v-bob {
+  50% {
+    transform: translateY(5px);
+  }
+}
+
+/* ================= 보라 밤하늘 섹션 공통 (보라 → 연보라 그라데이션) ================= */
+
+.v-dark {
+  position: relative;
+  background-color: var(--v-deep);
+  isolation: isolate;
+  /* 화면 기준으로 고정된 그라데이션 — 섹션이 바뀌어도 경계선이 생기지 않아요 */
+  background-image: linear-gradient(170deg, #45298a 0%, #6243b0 52%, #8a6dd3 100%);
+  background-attachment: fixed;
+}
+
+/* ---------- 반짝이는 별 + 별똥별 (components/landing/StarSky.tsx) ---------- */
+
+.v-sky {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.v-sky-star {
+  position: absolute;
+  fill: #fff6e6;
+  opacity: 0.25;
+  filter: drop-shadow(0 0 4px rgba(255, 236, 200, 0.7));
+  animation: v-twinkle ease-in-out infinite;
+}
+
+@keyframes v-twinkle {
+  0%,
+  100% {
+    opacity: 0.18;
+    transform: scale(0.7) rotate(0deg);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: scale(1) rotate(20deg);
+  }
+}
+
+.v-sky-meteor {
+  position: absolute;
+  width: 150px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(255, 246, 230, 0.95), rgba(255, 246, 230, 0));
+  opacity: 0;
+  transform: rotate(-30deg);
+  transform-origin: left center;
+  animation: v-meteor linear infinite;
+}
+
+.v-sky-meteor::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fffaf0;
+  box-shadow: 0 0 10px 3px rgba(255, 236, 200, 0.8);
+}
+
+/* 대부분은 쉬고, 한 번에 짧게 휙 지나가요 */
+@keyframes v-meteor {
+  0% {
+    opacity: 0;
+    transform: rotate(-30deg) translateX(0);
+  }
+
+  2% {
+    opacity: 1;
+  }
+
+  12% {
+    opacity: 0;
+    transform: rotate(-30deg) translateX(-420px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(-30deg) translateX(-420px);
+  }
+}
+
+/* ================= 3. 스크롤 스토리 ================= */
+
+.v-story-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 92px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  overflow: hidden;
+}
+
+.v-story-tabs {
+  display: flex;
+  gap: clamp(14px, 4vw, 48px);
+}
+
+.v-story-tab {
+  display: grid;
+  gap: 8px;
+  color: rgba(248, 244, 241, 0.5);
+  font-size: 15px;
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+.v-story-tab.on {
+  color: var(--v-paper);
+}
+
+.v-story-tab i {
+  display: block;
+  width: clamp(56px, 9vw, 96px);
+  height: 3px;
+  border-radius: 3px;
+}
+
+.v-story-copy {
+  text-align: center;
+  animation: v-up 0.7s var(--v-ease) both;
+}
+
+.v-story-copy h2 {
+  margin: 0 0 6px;
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.v-story-copy p {
+  margin: 0;
+  color: var(--v-on-dark-soft);
+}
+
+@keyframes v-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+.v-app {
+  flex: 1;
+  min-height: 0;
+  width: min(1180px, 100%);
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.v-app-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--v-panel);
+  font-size: 12px;
+}
+
+.v-app-canvas {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  border-radius: 12px;
+  background: rgba(255, 250, 245, 0.06);
+}
+
+/* --- '자료' 단계 자동 재생 데모 (MaterialDemo.tsx) --- */
+
+.v-app-canvas.wide {
+  padding: 0;
+  place-items: stretch;
+  overflow: hidden;
+  background: none;
+}
+
+.v-md {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  overflow: hidden;
+  border-radius: 12px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.v-md-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(520px, 78%);
+  display: grid;
+  gap: 14px;
+  padding: 26px;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--v-ink);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
+  transition: left 0.9s var(--v-ease), transform 0.9s var(--v-ease), opacity 0.7s ease, box-shadow 0.2s ease;
+}
+
+.v-md-card.press {
+  transform: translate(-50%, -50%) scale(0.97);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+  transition-duration: 0.9s, 0.18s, 0.2s;
+}
+
+/* 영상 목록이 나오면 주차 영상 카드는 왼쪽 밖으로 완전히 빠져서 사라져요 */
+.v-md.grid .v-md-card {
+  left: 0;
+  opacity: 0;
+  transform: translate(-130%, -50%);
+}
+
+.v-md-card-tag {
+  color: var(--v-deep);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.v-md-card strong {
+  font-size: clamp(20px, 2.4vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.v-md-card-board {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 9px;
+  min-height: clamp(130px, 24vh, 220px);
+  padding: 20px 110px 20px 20px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #352255, #51397a);
+}
+
+.v-md-card-board i {
+  display: block;
+  height: 7px;
+  border-radius: 7px;
+  background: rgba(248, 244, 241, 0.28);
+}
+
+.v-md-card-board i.hl {
+  background: var(--v-violet);
+}
+
+.v-md-card-board .w60 { width: 60%; }
+.v-md-card-board .w70 { width: 70%; }
+.v-md-card-board .w80 { width: 80%; }
+.v-md-card-board .w90 { width: 90%; }
+
+.v-md-card-prof {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  line-height: 0;
+}
+
+.v-md-card-foot {
+  color: rgba(25, 25, 25, 0.62);
+  font-size: 12.5px;
+}
+
+.v-md-card-foot b {
+  margin-right: 4px;
+  color: var(--v-deep);
+}
+
+.v-md-grid {
+  position: absolute;
+  inset: 0 0 0 30%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.v-md-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3a265d, #5e418f);
+  color: var(--v-paper);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(36px);
+  transition: opacity 0.5s ease, transform 0.6s var(--v-ease), filter 0.35s ease, box-shadow 0.3s ease;
+}
+
+.v-md.grid .v-md-cell {
+  opacity: 1;
+  transform: none;
+}
+
+.v-md-cell-no {
+  color: rgba(248, 244, 241, 0.55);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.v-md-cell-title {
+  font-size: clamp(12px, 1.25vw, 17px);
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: keep-all;
+}
+
+.v-md-cell-prof {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  line-height: 0;
+}
+
+.v-md-cell-time {
+  margin-top: auto;
+  color: rgba(248, 244, 241, 0.7);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ③ 커서를 올린 영상만 밝고 나머지는 흐려져요 */
+.v-md.hover .v-md-cell:not(.pick) {
+  opacity: 0.32;
+  filter: grayscale(1);
+}
+
+.v-md.hover .v-md-cell.pick {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 2px var(--v-violet), 0 16px 30px rgba(0, 0, 0, 0.4);
+  z-index: 1;
+}
+
+.v-md-cell-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  padding-left: 3px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--v-deep);
+  font-size: 13px;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.6);
+  transition: opacity 0.3s ease, transform 0.4s var(--v-ease);
+}
+
+.v-md.hover .v-md-cell-play,
+.v-md.picked .v-md-cell-play {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.v-md-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  width: 0;
+  height: 0;
+  line-height: 0;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
+  transition: transform 0.35s cubic-bezier(0.5, 0, 0.2, 1);
+}
+
+.v-md-cursor svg {
+  /* 오른쪽 위 꼭짓점이 실제 클릭 위치를 가리키도록 정렬 */
+  position: absolute;
+  display: block;
+  left: -30px;
+  top: -3px;
+  transform-box: view-box;
+  transform-origin: 30px 3px;
+  transition: transform 0.15s ease;
+}
+
+/* 클릭 단계에 들어오면 이동 지연 없이 버튼 위에서 클릭 효과를 보여줘요. */
+.v-md-cursor.press { transition: none; }
+
+.v-md-cursor.press svg {
+  transform: scale(0.82);
+}
+
+/* 누를 때 퍼지는 동그라미 */
+.v-md-cursor i {
+  position: absolute;
+  top: -14px;
+  left: -14px;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.v-md-cursor.press i {
+  animation: v-md-ring 0.5s ease-out;
+}
+
+@keyframes v-md-ring {
+  from {
+    opacity: 0.9;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+.v-md.still * {
+  transition: none !important;
+}
+
+@media (max-width: 720px) {
+  .v-md-grid {
+    inset: 0 0 0 22%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .v-md-cell-prof {
+    display: none;
+  }
+}
+
+.v-cv {
+  width: min(460px, 100%);
+  padding: 22px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--v-ink);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+  animation: v-up 0.6s var(--v-ease) both;
+}
+
+.v-cv > * {
+  animation: v-up 0.55s var(--v-ease) both;
+}
+
+.w60 {
+  width: 60%;
+}
+
+.w70 {
+  width: 70%;
+}
+
+.w80 {
+  width: 80%;
+}
+
+.w90 {
+  width: 90%;
+}
+
+.v-cv-quiz {
+  display: grid;
+  gap: 8px;
+}
+
+.v-cv-tag {
+  color: var(--v-violet);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.v-cv-quiz strong {
+  margin-bottom: 4px;
+  font-size: 17px;
+}
+
+.v-cv-choice {
+  padding: 9px 12px;
+  border: 1px solid #e3ddd5;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.v-cv-choice.on {
+  border-color: var(--v-violet);
+  background: #e9e7ff;
+  font-weight: 700;
+}
+
+.v-cv-hint {
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: #fff8e6;
+  color: #7a5600;
+  font-size: 13px;
+}
+
+/* ================= 4. 학습 도구 (떠 있는 카드) ================= */
+
+.v-tools {
+  padding: 140px 24px 160px;
+}
+
+.v-tools-grid {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.v-tool-wrap.c1 {
+  margin-top: 90px;
+}
+
+.v-tool-wrap.c2 {
+  margin-top: 30px;
+}
+
+.v-tool-wrap {
+  will-change: transform;
+}
+
+.v-tool {
+  overflow: hidden;
+  border: 1px solid rgba(248, 244, 241, 0.08);
+  border-radius: 14px;
+  background: var(--v-panel);
+  transition: transform 0.5s var(--v-ease), border-color 0.3s ease;
+}
+
+.v-tool:hover {
+  border-color: rgba(248, 244, 241, 0.24);
+}
+
+.v-tool-visual {
+  height: 220px;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.v-tool.paper .v-tool-visual {
+  background: var(--v-paper);
+}
+
+.v-tool.violet .v-tool-visual {
+  background: #e0d4f4;
+}
+
+.v-tool.dark .v-tool-visual {
+  background: var(--v-panel-2);
+}
+
+.v-tool-text {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px 18px;
+}
+
+.v-tool-text strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.v-tool-text span {
+  color: var(--v-on-dark-soft);
+  font-size: 14px;
+}
+
+.v-mock-daily {
+  display: grid;
+  gap: 8px;
+  width: 80%;
+}
+
+.v-mock-daily span {
+  padding: 10px 12px;
+  border: 1px solid #ddd5ca;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--v-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.v-mock-daily span.done {
+  border-color: #a88adb;
+  background: #ece5f9;
+}
+
+.v-mock-stairs {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  width: 80%;
+  height: 150px;
+}
+
+.v-mock-stairs i {
+  flex: 1;
+  border-radius: 4px 4px 0 0;
+  background: rgba(95, 90, 140, 0.35);
+}
+
+.v-mock-stairs span {
+  position: absolute;
+  right: -6px;
+  bottom: 74px;
+}
+
+.v-mock-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  width: 70%;
+  height: 150px;
+}
+
+.v-mock-bars i {
+  flex: 1;
+  border-radius: 6px 6px 0 0;
+}
+
+.v-mock-hint {
+  display: grid;
+  gap: 8px;
+  width: 80%;
+}
+
+.v-mock-hint span {
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: #fff8e6;
+  color: #7a5600;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.v-mock-chat {
+  display: grid;
+  gap: 8px;
+  width: 88%;
+  font-size: 13px;
+}
+
+.v-mock-chat span {
+  padding: 9px 12px;
+  border-radius: 12px 12px 12px 4px;
+  background: var(--v-panel);
+}
+
+.v-mock-chat span.me {
+  justify-self: end;
+  border-radius: 12px 12px 4px 12px;
+  background: var(--v-violet);
+}
+
+.v-mock-code {
+  display: grid;
+  gap: 8px;
+  width: 80%;
+  padding: 16px;
+  border-radius: 10px;
+  background: #231935;
+}
+
+.v-mock-code i {
+  height: 8px;
+  border-radius: 4px;
+  background: #9d8cff;
+}
+
+.v-mock-code i:nth-child(2) {
+  width: 70%;
+  margin-left: 16px;
+  background: #8fb4ff;
+}
+
+.v-mock-code i:nth-child(3) {
+  width: 50%;
+  background: #7ee0a8;
+}
+
+.v-mock-code span {
+  margin-top: 6px;
+  color: #7ee0a8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ================= 5. 교수자 ================= */
+
+.v-bridge {
+  padding: 120px 24px 140px;
+}
+
+.v-bridge-head {
+  max-width: 1180px;
+  margin: 0 auto 56px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  align-items: end;
+  gap: 40px;
+}
+
+.v-bridge-side p {
+  margin: 0 0 18px;
+  color: var(--v-on-dark-soft);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.v-bridge-row {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  list-style: none;
+}
+
+.v-bridge-card {
+  display: grid;
+  gap: 6px;
+}
+
+.v-bridge-img {
+  aspect-ratio: 4 / 5;
+  margin-bottom: 10px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--v-panel-2);
+}
+
+.v-bv {
+  width: 78%;
+  transition: transform 0.6s var(--v-ease);
+}
+
+.v-bv-bank {
+  position: relative;
+  height: 150px;
+}
+
+.v-bv-bank span {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 82%;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--v-paper);
+  box-shadow: 0 10px 24px rgba(40, 30, 70, 0.25);
+}
+
+.v-bv-bank b {
+  width: 60%;
+  height: 10px;
+  border-radius: 5px;
+  background: #a88adb;
+}
+
+.v-bv-bank i {
+  height: 7px;
+  border-radius: 4px;
+  background: #ddd5ca;
+}
+
+.v-bv-feedback {
+  display: grid;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.v-bv-feedback span {
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.v-bv-feedback .q {
+  border-radius: 12px 12px 12px 4px;
+  background: var(--v-paper);
+  color: var(--v-ink);
+}
+
+.v-bv-feedback .a {
+  justify-self: end;
+  border-radius: 12px 12px 4px 12px;
+  background: #a88adb;
+  color: #fff;
+}
+
+.v-bv-class {
+  display: grid;
+  gap: 10px;
+}
+
+.v-bv-class span {
+  height: 12px;
+  border-radius: 6px;
+  background: rgba(255, 250, 245, 0.15);
+  overflow: hidden;
+}
+
+.v-bv-class i {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+}
+
+.v-bv-code {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.v-bv-code code {
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: var(--v-paper);
+  color: var(--v-deep);
+  font-family: var(--v-mono);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+}
+
+.v-bridge-card strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.v-bridge-card span {
+  color: var(--v-on-dark-soft);
+  font-size: 14px;
+}
+
+/* ================= 6. 마무리 ================= */
+
+.v-final {
+  padding: 140px 24px 40px;
+  text-align: center;
+}
+
+.v-final > p {
+  max-width: 520px;
+  margin: 22px auto 30px;
+  color: rgba(248, 244, 241, 0.72);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.v-footer {
+  max-width: 1180px;
+  margin: 56px auto 0;
+  padding-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid rgba(248, 244, 241, 0.12);
+  color: rgba(248, 244, 241, 0.5);
+  font-size: 13px;
+}
+
+/* ================= 반응형 ================= */
+
+@media (max-width: 1000px) {
+  .study-landing-header-inner {
+    flex-wrap: wrap;
+  }
+
+  .study-landing-nav {
+    order: 3;
+    width: 100%;
+    gap: 20px;
+    padding: 2px 4px 4px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .study-landing-nav a {
+    flex-shrink: 0;
+  }
+
+  .v-app {
+    grid-template-columns: 1fr;
+  }
+
+  .v-app-panel {
+    display: none;
+  }
+
+  .v-tools-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .v-tool-wrap.c1,
+  .v-tool-wrap.c2 {
+    margin-top: 0;
+  }
+
+  .v-bridge-head {
+    grid-template-columns: 1fr;
+  }
+
+  .v-bridge-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .study-landing-header {
+    padding: 10px 10px 0;
+  }
+
+  .study-landing-header-inner {
+    padding-left: 14px;
+  }
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  .v-section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .v-tools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .v-tool-wrap {
+    transform: none !important;
+  }
+
+  .v-footer {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
+/* 사진 첫 화면: 밝은 러그 위에서도 안내 글자가 보이게 */
+.v-desk.has-photo .v-desk-hint {
+  color: rgba(25, 25, 25, 0.7);
+}
+
+/* 사진 첫 화면: 제목이 모니터를 너무 가리지 않게 조금 작게 · 위로 */
+
+/* 랜딩 오른쪽 위 '시작하기' — 첫 화면 사진(연보라 · 남색 서재)에 어울리는 짙은 남색 */
+.v-btn.hero-start {
+  background: #412b67;
+  color: #f4f1fa;
+  box-shadow: 0 6px 18px rgba(65, 43, 103, 0.28);
+}
+
+.v-btn.hero-start:hover {
+  background: #5a3e8a;
+}
+
+/* 강의자료 탐색: 자동 커서와 직접 펼칠 수 있는 과목/주차 목록 */
+.v-material-demo { position: relative; }
+.v-material-demo .v-material-panel { display: flex; min-height: 0; overflow-y: auto; }
+.v-app.v-material-demo { grid-template-columns: 220px minmax(0, 1fr); }
+.v-material-demo button { font: inherit; text-align: left; cursor: pointer; }
+.v-material-heading, .v-material-toggle, .v-material-week, .v-material-replay {
+  border: 0; color: var(--v-paper); background: transparent; border-radius: 7px;
+}
+.v-material-heading { display: flex; justify-content: space-between; align-items: center; padding: 9px 5px; font-weight: 600 !important; }
+.v-material-toggle { display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px 6px; }
+.v-material-toggle > span { display: inline-block; font-size: 20px; line-height: 1; transition: transform .2s; }
+.v-material-toggle > span.expanded { transform: rotate(90deg); }
+.v-material-weeks { display: grid; gap: 4px; margin: 2px 0 8px 12px; border-left: 1px solid #ffffff20; padding-left: 7px; }
+.v-material-week { display: flex; align-items: center; gap: 7px; padding: 10px 6px; width: 100%; font-size: 11px !important; }
+.v-material-heading:hover, .v-material-toggle:hover, .v-material-week:hover { background: #ffffff12; }
+.v-material-week.selected { background: #9d8cff30; color: #ded5ff; }
+.v-material-demo button:focus-visible { outline: 2px solid var(--v-violet); outline-offset: 2px; }
+.v-material-replay { margin-top: auto; padding: 10px 5px; opacity: .7; }
+.v-material-empty { height: 100%; min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; color: var(--v-paper); background: #ffffff06; }
+.v-material-empty > span { font-size: 40px; color: var(--v-violet); }
+.v-material-empty strong { font-size: clamp(16px, 2vw, 24px); }
+.v-material-empty p { margin: 0; font-size: 12px; opacity: .6; }
+.v-material-demo > .v-md-cursor { pointer-events: none; }
+@media (max-width: 720px) {
+  .v-app.v-material-demo { grid-template-columns: 140px minmax(0, 1fr); gap: 8px; }
+  .v-material-panel { display: flex; padding: 7px; }
+  .v-material-weeks { margin-left: 3px; padding-left: 3px; }
+  .v-material-week { padding: 9px 3px; gap: 4px; }
+}
+
+/* 영상 카드를 클릭한 뒤에는 자료 목록을 빼고 숏폼에 전체 너비를 사용해요. */
+.v-app.v-material-demo.shorts-open { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.v-material-demo .v-md-card { border: 0; pointer-events: auto; }
+.v-material-demo .v-md-card:disabled { cursor: default; pointer-events: none; }
+.v-material-demo .v-md-card:focus-visible { outline-offset: 5px; }
+.v-material-back {
+  position: absolute; top: 8px; left: 12px; z-index: 2;
+  border: 1px solid #ffffff30; border-radius: 8px; padding: 8px 12px;
+  background: #3a265d; color: var(--v-paper); font-size: 12px !important;
+}
+.v-material-demo.shorts-open .v-md-grid { top: 48px; }
+@media (prefers-reduced-motion: reduce) {
+  .v-material-demo .v-md-card, .v-material-demo .v-md-cell { transition: none; }
+}
+
+/* 영상 중앙 재생 버튼과 순차적으로 밀려오는 숏폼 카드 */
+.v-md-card-play {
+  position: absolute; top: 50%; left: 50%; z-index: 1;
+  display: grid; place-items: center; width: 52px; height: 52px;
+  padding-left: 3px; border-radius: 50%; background: #fff; color: var(--v-deep);
+  font-size: 17px; transform: translate(-50%, -50%);
+  box-shadow: 0 5px 20px #0003;
+}
+.v-md.grid .v-md-cell {
+  animation: v-md-wave-in 650ms cubic-bezier(.22, 1, .36, 1) var(--wave-delay, 0ms) backwards;
+}
+@keyframes v-md-wave-in {
+  from { opacity: 0; transform: translate(48px, 24px) scale(.94); }
+  70% { opacity: 1; transform: translate(0, -5px) scale(1.015); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v-md.grid .v-md-cell { animation: none; }
+}
+
+/* 퀴즈 미리보기: 넉넉한 문제 영역과 클릭해서 여는 단계별 힌트 */
+.v-app-canvas.quiz-demo-canvas { min-height: 0; overflow-y: auto; padding: clamp(12px, 2vw, 24px); align-items: safe center; }
+.v-cv.v-cv-quiz { width: min(720px, 100%); padding: clamp(20px, 3vw, 36px); gap: 16px; }
+.v-quiz-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.v-quiz-heading > span:last-child { color: #827c91; font-size: 11px; white-space: nowrap; }
+.v-cv-quiz > strong { font-size: clamp(20px, 2.2vw, 27px); line-height: 1.45; }
+.v-quiz-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.v-cv-quiz button { font-family: inherit; cursor: pointer; }
+.v-quiz-choices .v-cv-choice { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 14px 16px; font-size: 18px; text-align: left; color: var(--v-ink); background: #fff; }
+.v-quiz-choices .v-cv-choice.on { background: #e9e7ff; }
+.v-quiz-choices .v-cv-choice.correct { border-color: #3d8870; background: #eaf7ee; }
+.v-quiz-actions { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.v-quiz-actions button, .v-quiz-footer button { border: 0; border-radius: 8px; padding: 12px 16px; font-size: 14px; font-weight: 600; }
+.v-quiz-hint-button { background: #fff3d5; color: #7a5600; }
+.v-quiz-submit { background: #62529e; color: white; }
+.v-cv-quiz button:disabled { cursor: default; }
+.v-quiz-actions button:disabled { opacity: .5; }
+.v-cv-quiz button:focus-visible { outline: 2px solid #62529e; outline-offset: 3px; }
+.v-quiz-feedback:empty { display: none; }
+.v-cv-quiz .v-cv-hint { display: grid; gap: 7px; padding: 16px; font-size: 15px; line-height: 1.6; }
+.v-quiz-answer { padding: 16px; border-radius: 8px; background: #f4eeff; color: #422c67; font-size: 14px; line-height: 1.6; }
+.v-quiz-answer p { margin: 8px 0 0; }
+.v-quiz-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid #ebe6df; }
+.v-quiz-footer > span { color: #78717e; font-size: 12px; }
+.v-quiz-footer button { color: #62529e; background: #eeebf8; }
+@media (max-width: 480px) {
+  .v-quiz-choices { grid-template-columns: 1fr; }
+  .v-quiz-choices .v-cv-choice { min-height: 46px; font-size: 16px; }
+}
+
+/* 스크롤로 여는 힌트는 이전 단계를 유지하고 아래로 쌓아요. */
+.v-quiz-demo { position: relative; width: min(720px, 100%); }
+.v-quiz-demo .v-cv-quiz { width: 100%; gap: 12px; padding: clamp(16px, 2vw, 26px); }
+.v-quiz-demo .v-cv-quiz > * { animation: none; }
+.v-quiz-demo .v-quiz-feedback { display: grid; gap: 7px; }
+.v-quiz-demo .v-quiz-feedback:empty { display: none; }
+.v-quiz-demo .v-cv-hint { padding: 9px 12px; gap: 3px; font-size: 13px; line-height: 1.45; }
+.v-quiz-demo .v-quiz-hint-button { cursor: default; }
+.v-quiz-hint-button.press { transform: scale(.95); background: #ffe5a4; }
+.v-quiz-demo > .v-md-cursor { pointer-events: none; }
+.v-quiz-demo > .v-quiz-footer { border: 0; padding: 14px 4px 0; }
+.v-quiz-demo > .v-quiz-footer > span { color: var(--v-paper); font-size: 14px; }
+.v-app-canvas.quiz-demo-canvas { overflow: clip; align-items: start; }
+@media (max-height: 800px) {
+  .v-quiz-demo .v-cv-quiz { gap: 8px; padding: 14px 18px; }
+  .v-quiz-demo .v-cv-quiz > strong { font-size: 19px; }
+  .v-quiz-demo .v-cv-choice { min-height: 40px; padding: 8px 12px; font-size: 16px; }
+  .v-quiz-demo .v-quiz-actions button { padding: 8px 12px; }
+}
+
+/* 5주차 뒤에도 강의자료가 이어진다는 표시 */
+.v-material-more { display: block; padding: 2px 6px 5px; color: rgba(248, 244, 241, .55); font-size: 25px; line-height: 1; text-align: center; }
+
+/* 점은 패널 너비 대신 강의자료 글자 너비를 기준으로 가운데 정렬해요. */
+.v-material-more { display: grid; width: max-content; padding-inline: 0; }
+.v-material-more > span { grid-area: 1 / 1; align-self: center; }
+.v-material-more .v-material-more-width { visibility: hidden; font-size: 11px; }
+.v-material-weeks .v-material-more { margin-left: 24px; }
+@media (max-width: 720px) {
+  .v-material-weeks .v-material-more { margin-left: 18px; }
+}
+
+/* 모니터 → 밝은 자료 소개 → 남색의 퀴즈/실습/분석 흐름 */
+.v-feature-story { position: relative; }
+.v-material-light { background: var(--v-paper); color: var(--v-ink); }
+.v-feature-label { display: block; font-size: 13px; font-weight: 600; letter-spacing: .08em; color: rgba(248, 244, 241, .7); }
+.v-material-light .v-feature-label { color: var(--v-deep); }
+.v-material-light .v-story-copy p { color: var(--v-text-soft); }
+.v-material-light .v-material-panel { background: #e9e8ee; }
+.v-material-light .v-material-heading,
+.v-material-light .v-material-toggle,
+.v-material-light .v-material-week,
+.v-material-light .v-material-replay { color: #4a356e; }
+.v-material-light .v-material-week.selected { background: #dfd5f0; color: #392262; }
+.v-material-light .v-material-heading:hover,
+.v-material-light .v-material-toggle:hover,
+.v-material-light .v-material-week:hover { background: #e4deee; }
+.v-material-light .v-material-weeks { border-color: #39436a26; }
+.v-material-light .v-material-more { color: #756492; }
+.v-material-light .v-material-empty { color: #4a356e; background: #eeedf2; }
+.v-material-light .v-material-empty > span { color: #8e70c2; }
+.v-story-gradient {
+  height: 55vh;
+}
+/* 아래 섹션과 같은 고정 배경 위에서 밝은 색만 걷어내 경계의 색을 정확히 맞춰요. */
+.v-story-gradient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, var(--v-paper) 0%, rgba(248, 244, 241, .97) 12%, rgba(248, 244, 241, .8) 30%, rgba(248, 244, 241, .5) 50%, rgba(248, 244, 241, .2) 70%, rgba(248, 244, 241, .03) 88%, rgba(248, 244, 241, 0) 100%);
+}
+
+/* 자료 소개의 제목과 데모를 한 묶음으로 중앙보다 살짝 위에 배치해요. */
+.v-material-light .v-story-sticky {
+  justify-content: center;
+  padding: clamp(24px, 5vh, 48px) 24px clamp(48px, 10vh, 96px);
+  gap: 14px;
+}
+.v-material-light .v-material-demo {
+  flex: 0 1 auto;
+  height: min(60vh, 560px);
+  max-height: calc(100vh - 220px);
+}
+@media (max-width: 720px) {
+  .v-material-light .v-story-sticky { padding-inline: 16px; }
+}
+
+/* 퀴즈 · 실습 · 분석 단계 — 옆 목록 없이 가운데 화면만 */
+.v-app.solo {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(960px, 100%);
+}
+
+/* ================= 실습 · 챗봇 · 분석 데모 (PracticeDemo · ChatDemo · StatsDemo) ================= */
+
+.v-app.solo.big {
+  width: min(1180px, 100%);
+}
+
+.v-app-canvas.fit-canvas {
+  min-height: 0;
+  padding: 14px;
+  place-items: stretch;
+  overflow: hidden;
+}
+
+/* 정해진 너비로 그린 화면을 남은 자리에 맞춰 통째로 축소 (DemoFit.tsx) */
+.v-fit {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  overflow: hidden;
+}
+
+.v-fit-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  color: var(--v-ink);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* --- 실습 --- */
+
+.v-pd {
+  display: grid;
+  grid-template-columns: 5fr 6fr;
+  gap: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.v-pd-col {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.v-pd-box {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+.v-pd-box strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.v-pd-box p {
+  margin: 0;
+}
+
+.v-pd-tag {
+  color: var(--v-deep);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.v-pd-box code {
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #f3f0f9;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+}
+
+.v-pd-muted {
+  color: rgba(25, 25, 25, 0.5);
+}
+
+.v-pd-editor {
+  border-radius: 12px;
+  background: #2a1d42;
+  color: #ece6f6;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.v-pd-editor-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px 9px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(231, 233, 245, 0.7);
+  font-size: 12px;
+}
+
+.v-pd-run {
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--v-violet);
+  color: #fff;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.v-pd-run.press {
+  transform: scale(0.92);
+}
+
+.v-pd-editor pre {
+  display: grid;
+  margin: 0;
+  padding: 12px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  line-height: 1.75;
+  white-space: pre;
+}
+
+.v-pd-line {
+  padding-right: 14px;
+}
+
+.v-pd-line i {
+  display: inline-block;
+  width: 38px;
+  padding-right: 12px;
+  color: rgba(231, 233, 245, 0.35);
+  font-style: normal;
+  text-align: right;
+}
+
+.v-pd-line.todo {
+  color: rgba(231, 233, 245, 0.4);
+}
+
+.v-pd-line.mine {
+  background: rgba(143, 160, 214, 0.18);
+  color: #fff;
+}
+
+.v-pd-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  margin-left: 1px;
+  background: #fff;
+  vertical-align: text-bottom;
+  animation: v-pd-blink 0.9s steps(1) infinite;
+}
+
+@keyframes v-pd-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.v-pd-hints-head,
+.v-pd-viz-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.v-pd-hints-head span,
+.v-pd-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.v-pd-hints-head em,
+.v-pd-controls em {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f3f0f9;
+  color: rgba(25, 25, 25, 0.55);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.v-pd-hints-head em.on,
+.v-pd-controls em.on {
+  background: var(--v-deep);
+  color: #fff;
+}
+
+.v-pd-hint {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff7e6;
+  animation: v-up 0.4s var(--v-ease) both;
+}
+
+.v-pd-hint b {
+  margin-right: 8px;
+  color: #b7791f;
+}
+
+.v-pd-pic {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 18px 16px 14px;
+  border-radius: 10px;
+  background: #f6f3fc;
+  transition: opacity 0.3s ease;
+}
+
+.v-pd-pic.empty {
+  opacity: 0.55;
+}
+
+.v-pd-pic-step {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  color: rgba(25, 25, 25, 0.5);
+  font-size: 12px;
+}
+
+.v-pd-cells {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.v-pd-name {
+  width: 46px;
+  padding-bottom: 26px;
+  color: rgba(25, 25, 25, 0.55);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+}
+
+.v-pd-cell {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
+
+.v-pd-cell em {
+  height: 16px;
+  color: var(--v-deep);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.v-pd-cell b {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 44px;
+  border: 1.5px solid #ddd5eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 16px;
+  transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s var(--v-ease);
+}
+
+.v-pd-cell.on b {
+  border-color: var(--v-deep);
+  background: #ebe1fd;
+  transform: translateY(-4px);
+}
+
+.v-pd-cell small {
+  color: rgba(25, 25, 25, 0.4);
+  font-size: 11px;
+}
+
+.v-pd-vars {
+  display: flex;
+  gap: 8px;
+  padding-left: 54px;
+}
+
+.v-pd-var {
+  display: flex;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+}
+
+.v-pd-var span {
+  color: rgba(25, 25, 25, 0.5);
+}
+
+.v-pd-var.changed {
+  animation: v-pd-flash 0.9s ease both;
+}
+
+@keyframes v-pd-flash {
+  from {
+    background: #ffd98a;
+    transform: scale(1.12);
+  }
+}
+
+.v-pd-box h4 {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.v-pd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.v-pd-table th,
+.v-pd-table td {
+  height: 30px;
+  border-bottom: 1px solid #efebf7;
+}
+
+.v-pd-table th {
+  color: rgba(25, 25, 25, 0.5);
+  font-weight: 500;
+}
+
+.v-pd-table tr.wait td:first-child {
+  color: rgba(25, 25, 25, 0.25);
+}
+
+.v-pd-table tr.now td {
+  background: #f5f0fe;
+}
+
+.v-pd-table td.chg {
+  color: #b7791f;
+  font-weight: 700;
+}
+
+.v-pd-explain {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f6f3fc;
+}
+
+.v-pd-explain b {
+  font-weight: 600;
+}
+
+.v-pd-explain p {
+  min-height: 3em;
+  color: rgba(25, 25, 25, 0.72);
+}
+
+.v-pd-box.answer {
+  transition: background 0.4s ease;
+}
+
+.v-pd-box.answer.ok {
+  background: #e9f8ef;
+}
+
+.v-pd-box.answer.ok b {
+  margin-right: 8px;
+  color: #1f8a4c;
+}
+
+/* --- 챗봇 --- */
+
+.v-cd {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.v-cd-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #efebf7;
+}
+
+.v-cd-head span {
+  display: grid;
+}
+
+.v-cd-head b {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.v-cd-head em {
+  color: rgba(25, 25, 25, 0.55);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.v-cd-context {
+  display: grid;
+  gap: 3px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f6f3fc;
+}
+
+.v-cd-context span {
+  color: var(--v-deep);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.v-cd-context strong {
+  font-weight: 600;
+}
+
+.v-cd-context p {
+  margin: 0;
+  color: rgba(25, 25, 25, 0.6);
+  font-size: 13px;
+}
+
+.v-cd-context .bad {
+  color: #c2484f;
+}
+
+.v-cd-context .good {
+  color: #1f8a4c;
+}
+
+.v-cd-talk {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 330px;
+}
+
+.v-cd-msg {
+  max-width: 78%;
+  display: grid;
+  gap: 4px;
+  animation: v-up 0.45s var(--v-ease) both;
+}
+
+.v-cd-msg p {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+}
+
+.v-cd-msg.me {
+  align-self: flex-end;
+  justify-items: end;
+}
+
+.v-cd-msg.me p {
+  border-bottom-right-radius: 4px;
+  background: var(--v-deep);
+  color: #fff;
+}
+
+.v-cd-msg small {
+  color: rgba(25, 25, 25, 0.5);
+  font-size: 11.5px;
+}
+
+.v-cd-msg.ai {
+  align-self: flex-start;
+  justify-items: start;
+}
+
+.v-cd-msg.ai p {
+  border-bottom-left-radius: 4px;
+  background: #f3f0f9;
+}
+
+.v-cd-source {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #ebe1fd;
+  color: var(--v-deep);
+  font-size: 11.5px;
+}
+
+.v-cd-msg.dots {
+  display: flex;
+  gap: 5px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
+  background: #f3f0f9;
+}
+
+.v-cd-msg.dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(25, 25, 25, 0.4);
+  animation: v-cd-dot 1s ease-in-out infinite;
+}
+
+.v-cd-msg.dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.v-cd-msg.dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes v-cd-dot {
+  50% {
+    transform: translateY(-4px);
+    opacity: 0.5;
+  }
+}
+
+.v-cd-input {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 8px 8px 16px;
+  border: 1px solid #e5def1;
+  border-radius: 999px;
+  color: rgba(25, 25, 25, 0.45);
+}
+
+.v-cd-input b {
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: var(--v-deep);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* --- 분석 --- */
+
+.v-sd {
+  display: grid;
+  gap: 14px;
+  font-size: 13.5px;
+}
+
+.v-sd-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: var(--v-paper);
+}
+
+.v-sd-head strong {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.v-sd-head span,
+.v-sd-foot {
+  color: rgba(248, 244, 241, 0.65);
+  font-size: 12.5px;
+}
+
+.v-sd-foot {
+  margin: 0;
+  text-align: center;
+}
+
+.v-sd-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.v-sd-box {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+.v-sd-box-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.v-sd-box-head strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.v-sd-box-head span {
+  color: rgba(25, 25, 25, 0.5);
+  font-size: 12px;
+}
+
+.v-sd-row {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  gap: 6px 8px;
+  align-items: center;
+}
+
+.v-sd-row span {
+  grid-column: 1 / -1;
+}
+
+.v-sd-row i {
+  height: 12px;
+  border-radius: 12px;
+  background: #f1edf8;
+  overflow: hidden;
+}
+
+.v-sd-row b {
+  display: block;
+  height: 100%;
+  border-radius: 12px;
+  background: var(--v-blue);
+}
+
+.v-sd-box.bad b {
+  background: #e38b96;
+}
+
+.v-sd-box.mid b {
+  background: var(--v-violet);
+}
+
+.v-sd-box.good b {
+  background: #6fbf95;
+}
+
+.v-sd-row em {
+  font-style: normal;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ================= 첫 화면 글씨 — 사진 속 모니터 화면 위 (DeskScene.tsx 의 HeroTitle) ================= */
+
+/* 모니터 화면과 같은 자리 · 크기의 상자 (PhotoRoom 이 매 장면마다 맞춰 줘요). 안쪽 글씨 크기는 이 상자 너비 기준(cqw) */
+.v-desk-monitor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  container-type: size;
+  pointer-events: none;
+  will-change: transform, width, height;
+}
+
+/* 사진이 없을 때(3D · 그림) — 모니터를 따라가지 않고 화면 위쪽 가운데에 */
+.v-desk-monitor.loose {
+  top: clamp(84px, 14vh, 150px);
+  left: 50%;
+  width: min(720px, 86vw);
+  height: 320px;
+  transform: translateX(-50%);
+}
+
+.v-mon-copy {
+  display: grid;
+  justify-items: center;
+  gap: 4.2cqw;
+  padding-bottom: 6cqw;
+  color: #322050;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.v-mon-title {
+  margin: 0;
+  /* 스크롤 스토리 제목(.v-story-copy h2 — '매일 3문제의 퀴즈를 풀어요')과 같은 글씨체 · 굵기 · 자간 */
+  font-family: var(--v-sans);
+  font-size: 10cqw; /* 두 줄 문구라 한 줄일 때(12.5cqw)보다 조금 작게 */
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.v-mon-sub {
+  margin: 0;
+  font-family: var(--v-sans);
+  font-size: 3.2cqw;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.55;
+  opacity: 0.82;
+}
+
+/* 제목 · 부제목의 한 줄 */
+.v-mon-line {
+  display: block;
+}
+
+/* 글자 하나: 바깥 span 은 물결, 안쪽 span 은 써지는 동작 */
+.v-mon-ch {
+  display: inline-block;
+}
+
+.v-mon-ch > span {
+  display: inline-block;
+  padding: 0.12em 0.02em;
+  margin: -0.12em -0.02em;
+  clip-path: inset(0 100% 0 0);
+  opacity: 0;
+  transform: translateY(0.06em) rotate(-3deg);
+}
+
+/* 제목은 글자당 0.16초, 부제목은 제목이 끝난 뒤 글자당 0.05초 간격으로 (두 줄 문구라 한 줄일 때보다 빠르게) */
+.v-desk-monitor.write .v-mon-title .v-mon-ch > span {
+  animation: v-mon-write 0.55s cubic-bezier(0.3, 0.1, 0.3, 1) both;
+  animation-delay: calc(0.5s + var(--i) * 0.16s);
+}
+
+.v-desk-monitor.write .v-mon-sub .v-mon-ch > span {
+  animation: v-mon-write 0.34s cubic-bezier(0.3, 0.1, 0.3, 1) both;
+  animation-delay: calc(3.3s + var(--i) * 0.05s);
+}
+
+@keyframes v-mon-write {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.2;
+    transform: translateY(0.06em) rotate(-3deg);
+  }
+  70% {
+    opacity: 1;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 다 쓴 뒤 — 글자가 차례로 살짝 오르내려 물결처럼 */
+.v-desk-monitor.write .v-mon-title .v-mon-ch {
+  animation: v-mon-wave 3.2s ease-in-out infinite;
+  animation-delay: calc(6.4s + var(--i) * 0.16s);
+}
+
+.v-desk-monitor.write .v-mon-sub .v-mon-ch {
+  animation: v-mon-wave-soft 3.2s ease-in-out infinite;
+  animation-delay: calc(6.4s + var(--i) * 0.07s);
+}
+
+@keyframes v-mon-wave {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translateY(-0.07em);
+  }
+}
+
+@keyframes v-mon-wave-soft {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translateY(-0.12em);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-mon-ch,
+  .v-mon-ch > span {
+    animation: none !important;
+    clip-path: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- 이론: 힌트 3개가 다 열렸을 때 높이를 재는 숨은 복사본 (QuizDemo.tsx) --- */
+.v-quiz-feedback-wrap {
+  position: relative;
+}
+
+.v-quiz-feedback.measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* --- 실습: 실행 전 빈 시각화 · 접힌 시각화 설명 (PracticeDemo.tsx) --- */
+.v-pd-box.viz {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 478px;
+}
+
+.v-pd-viz-body {
+  flex: 1;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.v-pd-viz-body.empty {
+  place-content: center;
+  border: 1.5px dashed #e5def1;
+  border-radius: 10px;
+  color: rgba(25, 25, 25, 0.45);
+  font-size: 15px;
+}
+
+.v-pd-explain b {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.v-pd-explain b i {
+  display: inline-block;
+  font-style: normal;
+  transition: transform 0.3s var(--v-ease);
+}
+
+.v-pd-explain.open b i {
+  transform: rotate(90deg);
+}
+
+.v-pd-explain b span {
+  margin-left: 6px;
+  color: rgba(25, 25, 25, 0.5);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+.v-pd-explain p {
+  min-height: 0;
+  animation: v-up 0.4s var(--v-ease) both;
+}
+
+/* 힌트가 아직 없을 때는 빈 줄 간격이 생기지 않게 */
+.v-quiz-feedback-wrap:has(> .v-quiz-feedback:not(.measure):empty) {
+  margin-top: -12px;
+}
+
+/* --- AI 교수님 프로필 사진 (ProfessorPhoto.tsx) --- */
+.v-prof-photo {
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #f3eeee;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  line-height: 0;
+}
+
+.v-prof-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 사진 가장자리의 고르지 않은 부분이 안 보이게 살짝 확대 */
+  transform: scale(1.1);
+}
+
+/* --- 챗봇: 대화 칸 높이 고정 + 답변이 적히는 커서 (ChatDemo.tsx) --- */
+.v-cd-talk {
+  height: 372px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.v-cd-msg {
+  flex-shrink: 0;
+}
+
+.v-cd-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  background: var(--v-deep);
+  vertical-align: text-bottom;
+  animation: v-pd-blink 0.9s steps(1) infinite;
+}
+
+/* ================= 마무리 문구 — 물결처럼 흐르며 은은하게 반짝임 (LandingContent.tsx 의 WaveText) ================= */
+
+.v-wave {
+  display: inline-block;
+}
+
+.v-wave-ch {
+  display: inline-block;
+  color: rgba(248, 244, 241, 0.86);
+  animation: v-wave-flow 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.13s);
+}
+
+/* 부제목은 글자가 많아서 간격을 좁게, 움직임도 작게 */
+.v-wave.soft .v-wave-ch {
+  color: inherit;
+  animation-name: v-wave-flow-soft;
+  animation-delay: calc(var(--i) * 0.06s);
+}
+
+@keyframes v-wave-flow {
+  0%,
+  100% {
+    transform: none;
+    color: rgba(248, 244, 241, 0.86);
+    text-shadow: none;
+  }
+  50% {
+    transform: translateY(-0.09em);
+    color: #fff;
+    text-shadow: 0 0 0.3em rgba(190, 208, 255, 0.75), 0 0 0.9em rgba(143, 160, 214, 0.45);
+  }
+}
+
+@keyframes v-wave-flow-soft {
+  0%,
+  100% {
+    transform: none;
+    text-shadow: none;
+  }
+  50% {
+    transform: translateY(-0.14em);
+    color: #fff;
+    text-shadow: 0 0 0.5em rgba(190, 208, 255, 0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-wave-ch {
+    animation: none !important;
+  }
+}
+
+/* ================= 버튼 · 글자 굴러가기 · 떠오르기 (Algo viz-theme.css 에서 가져옴) ================= */
+
+/* ---------- Vizcom 버튼 (.v-btn) — 마우스를 올리면 글자가 위로 굴러가요 (RollText) ---------- */
+
+.v-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.33s var(--v-ease), border-color 0.33s ease, color 0.33s ease;
+}
+
+.v-btn.small {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+
+.v-btn.primary {
+  background: var(--v-blue);
+  color: #fff;
+}
+
+.v-btn.primary:hover {
+  background: #7b54bd;
+}
+
+.v-btn.outline {
+  border-color: var(--v-deep);
+  background: transparent;
+  color: var(--v-deep);
+}
+
+.v-btn.outline:hover {
+  background: var(--v-deep);
+  color: var(--v-paper);
+}
+
+.v-btn.outline.light {
+  border-color: rgba(248, 244, 241, 0.7);
+  color: var(--v-paper);
+}
+
+.v-btn.outline.light:hover {
+  background: var(--v-paper);
+  color: var(--v-deep);
+}
+
+.v-btn:focus-visible {
+  outline: 3px solid var(--v-blue);
+  outline-offset: 2px;
+}
+
+.v-roll {
+  display: inline-block;
+  height: 1.25em;
+  overflow: hidden;
+  line-height: 1.25em;
+}
+
+.v-roll-inner {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.45s var(--v-ease);
+}
+
+.v-btn:hover .v-roll-inner {
+  transform: translateY(-50%);
+}
+
+/* ---------- 떠오르며 나타나기 ---------- */
+
+.v-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.9s var(--v-ease) var(--delay, 0ms), transform 0.9s var(--v-ease) var(--delay, 0ms);
+}
+
+.v-reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .v-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .v-sky-meteor {
+    display: none;
+  }
+}
+
+/* ================= 보라 테마 마무리 손질 ================= */
+
+/* 보라 배경 위 주요 버튼은 흰 바탕 + 보라 글자로 또렷하게 */
+.lerny-landing .v-dark .v-btn.primary {
+  background: #fff !important;
+  color: #4f3196 !important;
+  border-color: #fff !important;
+  box-shadow: none;
+}
+
+.lerny-landing .v-dark .v-btn.primary:hover {
+  background: #efe9fb !important;
+  border-color: #efe9fb !important;
+}
+
+/* 랜딩 위쪽 메뉴도 보라 */
+#root:has(.lerny-landing) header.app-header {
+  --v-deep: #4f3196;
+  --v-text-soft: #5d4f80;
+  --v-violet: #b9a5ef;
+}
+
+/* 보라 섹션 끝을 아래 연보라 마무리(Lerny)로 부드럽게 이어요 — 글자와 겹치지 않게 아래 여백을 늘려요 */
+.lerny-landing .v-bridge {
+  padding-bottom: 300px;
+}
+
+.lerny-landing .v-bridge::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 220px;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(248, 248, 252, 0), #f8f8fc);
+  pointer-events: none;
+}
+
+/* --- 챗봇: 말풍선 안 여백이 다른 규칙에 지워져 글씨가 칸에 꽉 차 보이던 것 → 여백을 되살리고 글씨를 한 단계 작게 --- */
+#root .v-cd .v-cd-msg p {
+  margin: 0;
+  padding: 10px 15px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+#root .v-cd .v-cd-context strong { font-size: 13px; }
+#root .v-cd .v-cd-input { font-size: 13px; }
+#root .v-cd .v-cd-input b { font-size: 12px; }
+
+/* 숏폼 6개: 주차 영상이 빠진 자리까지 넓게 3열 × 2행으로 보여줘요 */
+.v-md-grid { inset: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 720px) {
+  .v-md-grid { inset: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* 주차 영상 카드는 숏폼이 열리면 비활성(disabled) 버튼이 되는데,
+   공통 '#root button:disabled' 규칙이 위치·투명도를 되돌리지 않게 한 번 더 지정해요 */
+#root .v-md.grid .v-md-card,
+#root .v-md.grid .v-md-card:disabled {
+  left: 0;
+  opacity: 0;
+  transform: translate(-130%, -50%);
+}

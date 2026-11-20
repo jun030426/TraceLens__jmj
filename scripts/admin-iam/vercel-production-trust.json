@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::604472166923:oidc-provider/oidc.vercel.com/kigkig495-2084s-projects"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "oidc.vercel.com/kigkig495-2084s-projects:sub": "owner:kigkig495-2084s-projects:project:lerny:environment:production",
+          "oidc.vercel.com/kigkig495-2084s-projects:aud": "https://vercel.com/kigkig495-2084s-projects"
+        }
+      }
+    }
+  ]
+}

@@ -56,6 +56,8 @@ def tick():
     if settings().deployment != "cloud":
         deny(409)
     from lerny.worker import run_once
+    from lerny.admin_control import tick as control_tick
+    control_tick()
 
     cleanup()
 
@@ -71,6 +73,13 @@ def tick():
 class WorkerInput(Input):
     worker_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_.-]+$")
     models_ready: bool = True
+
+
+@router.post("/ops/tick", dependencies=[Depends(scheduler_auth)])
+def operations_tick():
+    from lerny.admin_control import tick as control_tick
+    control_tick()
+    return {"status": "ok"}
 
 
 def touch_worker(session, body):
@@ -97,6 +106,8 @@ def ai_status(session):
 
 @router.post("/ai/claim", dependencies=[Depends(worker_auth)])
 def claim(body: WorkerInput, session: Db):
+    from lerny.operations import state, allowed_job_kinds
+    allowed = allowed_job_kinds(state(session, lock=True))
     touch_worker(session, body)
     if not body.models_ready:
         session.commit()
@@ -106,6 +117,7 @@ def claim(body: WorkerInput, session: Db):
         .join(Job, ModelCall.job_id == Job.id)
         .where(
             Job.status.in_(["waiting_ai", "queued", "running"]),
+            Job.kind.in_(allowed),
             or_(
                 ModelCall.status == "queued",
                 (ModelCall.status == "running") & (ModelCall.lease_until < now()),

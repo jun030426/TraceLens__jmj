@@ -1,0 +1,967 @@
+{
+  "source_result": "outputs/ink-continuation-v1/results/frame-00006-ink-000.json",
+  "package": {
+    "task": {
+      "id": "frame-00006-ink-000",
+      "source_sha256": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6",
+      "frame_id": "frame-00006",
+      "time_seconds": 100.0,
+      "onset_interval_seconds": [
+        80.0,
+        100.0
+      ],
+      "bbox": [
+        765,
+        415,
+        820,
+        490
+      ],
+      "current_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00006.png",
+      "audio_interval": [
+        77.0,
+        105.0
+      ],
+      "asr_context": [
+        {
+          "id": "asr-0000-0025",
+          "start_seconds": 76.94,
+          "end_seconds": 78.0,
+          "text": "라고 보시면 되겠습니다."
+        },
+        {
+          "id": "asr-0000-0026",
+          "start_seconds": 78.54,
+          "end_seconds": 80.3,
+          "text": "그래서 그 데이터를 프린트로 출력을 하면"
+        },
+        {
+          "id": "asr-0000-0027",
+          "start_seconds": 80.3,
+          "end_seconds": 85.5,
+          "text": "다음과 같은 중괄호를 통해서 데이터가 출력이 된 것을 볼 수가 있겠습니다."
+        },
+        {
+          "id": "asr-0000-0028",
+          "start_seconds": 85.88,
+          "end_seconds": 90.08,
+          "text": "바로 여러분은 셋의 결과를 지금 보고 계시는 거예요."
+        },
+        {
+          "id": "asr-0000-0029",
+          "start_seconds": 91.34,
+          "end_seconds": 92.82,
+          "text": "자, 다른 예제를 한번 볼게요."
+        },
+        {
+          "id": "asr-0000-0030",
+          "start_seconds": 93.06,
+          "end_seconds": 97.32,
+          "text": "다음과 같이 지금 보니까 애플, 바나나, 오렌지라고 지정이 되어 있죠?"
+        },
+        {
+          "id": "asr-0000-0031",
+          "start_seconds": 97.48,
+          "end_seconds": 99.8,
+          "text": "지금 보니까 중괄호로 만들어져 있어요."
+        },
+        {
+          "id": "asr-0000-0032",
+          "start_seconds": 100.24,
+          "end_seconds": 103.28,
+          "text": "근데 여기에 키와 밸류라고 하는 쌍으로 만들어져 있어요."
+        },
+        {
+          "id": "asr-0000-0033",
+          "start_seconds": 103.46,
+          "end_seconds": 104.7,
+          "text": "그러면 딕셔넬이 아니죠?"
+        }
+      ],
+      "speech_cue_hits": [
+        "다음",
+        "여기"
+      ],
+      "priority_score": 4.748,
+      "before_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00006.png",
+      "after_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00006.png",
+      "asr_status": "machine_transcription_not_verified",
+      "previous_context_only": false,
+      "evidence": {
+        "selected_frame": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00006.png",
+        "frame_candidates": [
+          {
+            "path": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00006.png",
+            "eligible": true,
+            "local_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "global_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "sharpness": 5668.137284732556,
+            "contrast": 168.0
+          }
+        ],
+        "source_size": [
+          1280,
+          720
+        ],
+        "views": {
+          "original": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-000/original.png",
+            "crop_in_source": [
+              0.75078125,
+              0.3958333333333333,
+              0.834375,
+              0.5097222222222222
+            ],
+            "size": [
+              107,
+              82
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          },
+          "contrast": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-000/contrast.png",
+            "crop_in_source": [
+              0.75078125,
+              0.3958333333333333,
+              0.834375,
+              0.5097222222222222
+            ],
+            "size": [
+              107,
+              82
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "contrast",
+            "never_replaces_original": true
+          },
+          "denoise": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-000/denoise.png",
+            "crop_in_source": [
+              0.75078125,
+              0.3958333333333333,
+              0.834375,
+              0.5097222222222222
+            ],
+            "size": [
+              107,
+              82
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "denoise",
+            "never_replaces_original": true
+          },
+          "binary": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-000/binary.png",
+            "crop_in_source": [
+              0.75078125,
+              0.3958333333333333,
+              0.834375,
+              0.5097222222222222
+            ],
+            "size": [
+              107,
+              82
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "binary",
+            "never_replaces_original": true
+          },
+          "expanded": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-000/expanded.png",
+            "crop_in_source": [
+              0.72890625,
+              0.36527777777777776,
+              0.85625,
+              0.5388888888888889
+            ],
+            "size": [
+              163,
+              125
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          }
+        },
+        "selected_frame_seconds": 100.0
+      }
+    },
+    "view": {
+      "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-000/review/source-context.png",
+      "size": [
+        215,
+        164
+      ],
+      "crop_in_source": [
+        0.70859375,
+        0.3388888888888889,
+        0.8765625,
+        0.5666666666666667
+      ],
+      "operation": "source_crop_only",
+      "eligible": true,
+      "core_unchanged": true
+    },
+    "ocr": {
+      "state": "candidate",
+      "words": [
+        {
+          "text": "ange'",
+          "score": 0.9942458271980286,
+          "bbox_pixels": [
+            53.99999999999991,
+            64.99999999999997,
+            105.99999999999994,
+            91.99999999999997
+          ]
+        },
+        {
+          "text": "}",
+          "score": 0.3718891143798828,
+          "bbox_pixels": [
+            103.99999999999991,
+            66.99999999999997,
+            118.9999999999999,
+            81.99999999999996
+          ]
+        }
+      ],
+      "raw": {
+        "res": {
+          "input_path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-000/original.png",
+          "page_index": null,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_textline_orientation": false
+          },
+          "dt_polys": [
+            [
+              [
+                0,
+                24
+              ],
+              [
+                52,
+                24
+              ],
+              [
+                52,
+                51
+              ],
+              [
+                0,
+                51
+              ]
+            ],
+            [
+              [
+                50,
+                26
+              ],
+              [
+                65,
+                26
+              ],
+              [
+                65,
+                41
+              ],
+              [
+                50,
+                41
+              ]
+            ]
+          ],
+          "text_det_params": {
+            "limit_side_len": 64,
+            "limit_type": "min",
+            "thresh": 0.3,
+            "max_side_limit": 4000,
+            "box_thresh": 0.6,
+            "unclip_ratio": 1.5
+          },
+          "text_type": "general",
+          "textline_orientation_angles": [
+            -1,
+            -1
+          ],
+          "text_rec_score_thresh": 0.0,
+          "return_word_box": false,
+          "rec_texts": [
+            "ange'",
+            "}"
+          ],
+          "rec_scores": [
+            0.9942458271980286,
+            0.3718891143798828
+          ],
+          "rec_polys": [
+            [
+              [
+                0,
+                24
+              ],
+              [
+                52,
+                24
+              ],
+              [
+                52,
+                51
+              ],
+              [
+                0,
+                51
+              ]
+            ],
+            [
+              [
+                50,
+                26
+              ],
+              [
+                65,
+                26
+              ],
+              [
+                65,
+                41
+              ],
+              [
+                50,
+                41
+              ]
+            ]
+          ],
+          "rec_boxes": [
+            [
+              0,
+              24,
+              52,
+              51
+            ],
+            [
+              50,
+              26,
+              65,
+              41
+            ]
+          ]
+        }
+      },
+      "provider": "PaddleOCR",
+      "model_hashes": {
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/config.json": "7ac1c33f377ba58561f4b89d3180b6add2b7c5c60a4edac90fa4e0ceccdc6665",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.json": "05feef1acb00aa4cd7362b15f7f501fc4f99d7b1fa73c1c871e0c7b1504b0f5c",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.pdiparams": "afa1820cb16c1fd0dad589d0f8b389139061c1ef6d68019685fd07be997dda5b",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.yml": "98069072e1b6b37d727fd9d9f11725faa46d6ea0de012f2ed26caea011c37699",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/config.json": "c86a49d6301e6c4ff3398a87a2a1926b3521a46e90042833e18bbfa8ba6165c2",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.json": "562404e3c590c50c93778d5f0a94df21b47b5ab8f3ea6d47c7f8a7930c3bc844",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.pdiparams": "cac3e5f12cf04aaa77f6a5bc704e4e736ef2908476551891d84b41b4e9090462",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.yml": "f757fa1c40e99edcf27e9cce879b93eb2a51fa46f5ef39095689b8c37dd75998"
+      },
+      "id": "frame-00006-ink-000-original",
+      "task_id": "frame-00006-ink-000",
+      "view": "original",
+      "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-000/original.png",
+      "image_sha256": "9d95f4f6486285978e8a5117896b2fbb86863f71c9ee8afb0cde78096424ef53",
+      "alternative_words": [
+        {
+          "text": "ange'",
+          "score": 0.9909669160842896,
+          "bbox_pixels": [
+            53.99999999999991,
+            64.99999999999997,
+            105.99999999999994,
+            91.99999999999997
+          ]
+        },
+        {
+          "text": "}",
+          "score": 0.26028433442115784,
+          "bbox_pixels": [
+            103.99999999999991,
+            66.99999999999997,
+            118.9999999999999,
+            81.99999999999996
+          ]
+        }
+      ]
+    },
+    "ocr_coverage": {
+      "left": 251.162790697674,
+      "top": 249.9999999999999,
+      "right": 748.8372093023254,
+      "bottom": 749.9999999999999
+    },
+    "base": {
+      "items": [
+        {
+          "id": "item-1",
+          "kind": "printed_text",
+          "box": {
+            "left": 0,
+            "top": 412,
+            "right": 77,
+            "bottom": 528
+          },
+          "text": "a\",",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-2",
+          "kind": "printed_text",
+          "box": {
+            "left": 126,
+            "top": 414,
+            "right": 491,
+            "bottom": 536
+          },
+          "text": "\"orange\"",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-3",
+          "kind": "printed_text",
+          "box": {
+            "left": 500,
+            "top": 415,
+            "right": 546,
+            "bottom": 537
+          },
+          "text": "}",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-4",
+          "kind": "underline",
+          "box": {
+            "left": 0,
+            "top": 569,
+            "right": 142,
+            "bottom": 614
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-5",
+          "kind": "circle",
+          "box": {
+            "left": 482,
+            "top": 361,
+            "right": 641,
+            "bottom": 637
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-6",
+          "kind": "underline",
+          "box": {
+            "left": 352,
+            "top": 566,
+            "right": 549,
+            "bottom": 622
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-7",
+          "kind": "handwriting",
+          "box": {
+            "left": 451,
+            "top": 354,
+            "right": 479,
+            "bottom": 387
+          },
+          "text": "*",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "link-1",
+          "from_ids": [
+            "item-5"
+          ],
+          "to_ids": [
+            "item-3"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "item-5 encircles the closing brace item-3"
+        },
+        {
+          "id": "link-2",
+          "from_ids": [
+            "item-6"
+          ],
+          "to_ids": [
+            "item-2"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "item-6 underlines the end of item-2"
+        }
+      ],
+      "complete": false,
+      "notes": []
+    },
+    "candidate": {
+      "items": [
+        {
+          "id": "item-1",
+          "kind": "printed_text",
+          "box": {
+            "left": 0,
+            "top": 412,
+            "right": 77,
+            "bottom": 528
+          },
+          "text": "a\",",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-2",
+          "kind": "printed_text",
+          "box": {
+            "left": 126,
+            "top": 414,
+            "right": 491,
+            "bottom": 536
+          },
+          "text": "\"orange\"",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-3",
+          "kind": "printed_text",
+          "box": {
+            "left": 500,
+            "top": 415,
+            "right": 546,
+            "bottom": 537
+          },
+          "text": "}",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-4",
+          "kind": "underline",
+          "box": {
+            "left": 0,
+            "top": 569,
+            "right": 142,
+            "bottom": 614
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-5",
+          "kind": "circle",
+          "box": {
+            "left": 482,
+            "top": 361,
+            "right": 641,
+            "bottom": 637
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-6",
+          "kind": "underline",
+          "box": {
+            "left": 352,
+            "top": 566,
+            "right": 549,
+            "bottom": 622
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-7",
+          "kind": "handwriting",
+          "box": {
+            "left": 451,
+            "top": 354,
+            "right": 479,
+            "bottom": 387
+          },
+          "text": "*",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "link-1",
+          "from_ids": [
+            "item-5"
+          ],
+          "to_ids": [
+            "item-3"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "item-5 encircles the closing brace item-3"
+        },
+        {
+          "id": "link-2",
+          "from_ids": [
+            "item-6"
+          ],
+          "to_ids": [
+            "item-2"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "item-6 underlines the end of item-2"
+        },
+        {
+          "id": "link-3",
+          "from_ids": [
+            "item-7"
+          ],
+          "to_ids": [
+            "item-2"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "item-7 asterisk mark above the quote of item-2"
+        }
+      ],
+      "complete": true,
+      "notes": []
+    },
+    "audio_context": {
+      "bindings": [],
+      "concepts": [],
+      "word_candidates": [],
+      "notes": [
+        "ASR-derived context, not independently listened speech."
+      ],
+      "rejected_bindings": [
+        {
+          "item_ids": [
+            "item-1",
+            "item-2"
+          ],
+          "quote": "다음과 같이 지금 보니까 애플, 바나나, 오렌지라고 지정이 되어 있죠?",
+          "start_seconds": 93.06,
+          "end_seconds": 97.32,
+          "relevance": "supports",
+          "reason": "The spoken text directly refers to the items '바나나' (partial visible as a\",) and '오렌지' (\"orange\")."
+        },
+        {
+          "item_ids": [
+            "item-3",
+            "item-5"
+          ],
+          "quote": "지금 보니까 중괄호로 만들어져 있어요.",
+          "start_seconds": 97.48,
+          "end_seconds": 99.8,
+          "relevance": "supports",
+          "reason": "The speaker mentions the curly brace ('중괄호'), which corresponds to the closing curly brace item-3 circled by item-5."
+        }
+      ]
+    },
+    "failed_ids": [
+      "item-2",
+      "link-1",
+      "link-2",
+      "link-3"
+    ]
+  },
+  "audit": {
+    "checks": [
+      {
+        "id": "item-2",
+        "content": "partial",
+        "geometry": "supported",
+        "meaning": "partial",
+        "reason": "The text in the source code actually has a single quote at the end: \"orange' instead of \"orange\". This mismatch was likely an intentional typo in the slide code marked with an asterisk.",
+        "full_text": "\"orange'",
+        "lexical_complete": true,
+        "meaning_preserved": false,
+        "role_risk": true,
+        "role": "text",
+        "split_required": false,
+        "critical": true,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-3",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Closing brace '}' correctly identified and bounded.",
+        "full_text": "}",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-5",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Red drawn loop/circle enclosing the brace '}'.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-6",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Red wavy underline mark beneath 'orange''.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-7",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Handwritten/printed small asterisk mark above the single quote of \"orange'.",
+        "full_text": "*",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link-1",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Circling mark links to closing brace '}'.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link-2",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Underline emphasis links to the literal item.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link-3",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Asterisk emphasis links to the quote error in the literal item.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      }
+    ],
+    "missing": [],
+    "complete": true
+  },
+  "previous_decisions": [
+    {
+      "id": "item-1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "context_crop_boundary",
+        "adjacent_glyph_requires_word_review",
+        "text_stroke_crosses_box"
+      ],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-2",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "source_content_partial",
+        "source_meaning_partial",
+        "partial_word_or_expression_omission"
+      ],
+      "warnings": [
+        "adjacent_glyph_requires_word_review",
+        "text_stroke_crosses_box"
+      ],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-3",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_partial_word_coverage"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-4",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "context_crop_boundary"
+      ],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-5",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-6",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-7",
+      "status": "model_source_checked",
+      "applied": true,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_no_detection"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link-1",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link-2",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link-3",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+/* 움직이는 그라데이션 배경 (landing/BackgroundGradientAnimation.tsx)
+   원본 Tailwind 클래스와 animate-first~fifth 애니메이션을 같은 값의 CSS 로 옮겼어요 */
+.bga-container {
+  position: relative;
+  overflow: hidden;
+  top: 0;
+  left: 0;
+  background: linear-gradient(40deg, var(--gradient-background-start), var(--gradient-background-end));
+}
+.bga-hidden { display: none; }
+/* 원본은 내용이 덩어리 아래에 깔려요(z-50 으로 따로 올림). 여기선 내용이 위에 오도록 */
+.bga-content { position: relative; z-index: 2; }
+
+.bga-gradients {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  filter: url(#blurMe) blur(40px); /* 원본: blur-lg + [filter:url(#blurMe)_blur(40px)] → 뒤의 것이 이겨요 */
+}
+.bga-gradients.is-safari { filter: blur(40px); } /* 사파리: blur-2xl */
+
+.bga-blob {
+  position: absolute;
+  width: var(--size);
+  height: var(--size);
+  top: calc(50% - var(--size) / 2);
+  left: calc(50% - var(--size) / 2);
+  mix-blend-mode: var(--blending-value);
+  opacity: 1;
+}
+.bga-first {
+  /* 원본 그대로: 색이 'r, g, b' 숫자라 rgb() 없이는 무효 → 실제로는 이 덩어리가 그려지지 않아요 (원본 화면과 같게 둬요) */
+  background: radial-gradient(circle at center, var(--first-color) 0, var(--first-color) 50%) no-repeat;
+  transform-origin: center center;
+  animation: bga-vertical 30s ease infinite;
+}
+.bga-second {
+  background: radial-gradient(circle at center, rgba(var(--second-color), 0.8) 0, rgba(var(--second-color), 0) 50%) no-repeat;
+  transform-origin: calc(50% - 400px);
+  animation: bga-circle 20s reverse infinite;
+}
+.bga-third {
+  background: radial-gradient(circle at center, rgba(var(--third-color), 0.8) 0, rgba(var(--third-color), 0) 50%) no-repeat;
+  transform-origin: calc(50% + 400px);
+  animation: bga-circle 40s linear infinite;
+}
+.bga-fourth {
+  background: radial-gradient(circle at center, rgba(var(--fourth-color), 0.8) 0, rgba(var(--fourth-color), 0) 50%) no-repeat;
+  transform-origin: calc(50% - 200px);
+  animation: bga-horizontal 40s ease infinite;
+  opacity: 0.7;
+}
+.bga-fifth {
+  background: radial-gradient(circle at center, rgba(var(--fifth-color), 0.8) 0, rgba(var(--fifth-color), 0) 50%) no-repeat;
+  transform-origin: calc(50% - 800px) calc(50% + 800px);
+  animation: bga-circle 20s ease infinite;
+}
+.bga-pointer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: -50%;
+  left: -50%;
+  background: radial-gradient(circle at center, rgba(var(--pointer-color), 0.8) 0, rgba(var(--pointer-color), 0) 50%) no-repeat;
+  mix-blend-mode: var(--blending-value);
+  opacity: 0.7;
+}
+
+@keyframes bga-horizontal {
+  0% { transform: translateX(-50%) translateY(-10%); }
+  50% { transform: translateX(50%) translateY(10%); }
+  100% { transform: translateX(-50%) translateY(-10%); }
+}
+@keyframes bga-circle {
+  0% { transform: rotate(0deg); }
+  50% { transform: rotate(180deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes bga-vertical {
+  0% { transform: translateY(-50%); }
+  50% { transform: translateY(50%); }
+  100% { transform: translateY(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bga-blob { animation: none; }
+}
+
+/* ===== 랜딩 하단(.ln-page)에 쓸 때 ===== */
+#root .study-landing.lerny-landing .ln-page.bga-container {
+  /* 원래 .ln-page 처럼 최소 한 화면 높이, 세로로 쌓기 */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+#root .lerny-landing .ln-page > .ln-grad-content {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+#root .lerny-landing .ln-page > .ln-grad-content > .ln-closing {
+  flex: 1 0 auto;
+  display: grid;
+  align-content: center;
+}
+:root[data-theme="dark"] #root .lerny-landing .ln-page.bga-container .ln-finale { background: transparent; }
+/* 다크 모드: 바탕은 어두운 보라, 덩어리는 조금 진하게 (색은 Landing.tsx 에서 넘기지만 여기서 덮어써요) */
+:root[data-theme="dark"] #root .lerny-landing .ln-page.bga-container {
+  --gradient-background-start: #211a28 !important;
+  --gradient-background-end: #2c2040 !important;
+  --first-color: 74, 46, 140 !important;
+  --second-color: 123, 69, 240 !important;
+  --third-color: 120, 70, 110 !important;
+  --fourth-color: 90, 60, 120 !important;
+  --fifth-color: 102, 49, 219 !important;
+}
+
+/* ===== 하단 다듬기 (11/18) =====
+   1) 위쪽 경계: 바로 위 칸과 같은 바탕색에서 투명으로 서서히 이어지는 막을 덩어리 위에 덮어 경계가 안 보이게 해요 */
+#root .study-landing.lerny-landing .ln-page.bga-container::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 45vh;
+  z-index: 1; /* 색 덩어리(0) 위, 글(2) 아래 */
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--d-ground, #f7f0f8) 0%, var(--d-ground, #f7f0f8) 20%, rgba(247, 240, 248, 0) 100%);
+}
+:root[data-theme="dark"] #root .study-landing.lerny-landing .ln-page.bga-container::before {
+  background: linear-gradient(180deg, #211a28 0%, #211a28 20%, rgba(33, 26, 40, 0) 100%);
+}
+/* 2) 색 덩어리를 한결 연하게 (글씨가 묻히지 않게) */
+#root .lerny-landing .ln-page.bga-container .bga-gradients { opacity: 0.55; }
+/* 3) 큰 Lerny. 글씨: 연한 파스텔 (라벤더 → 핑크) */
+#root .lerny-landing .ln-page.bga-container #ln-band-grad stop:first-child { stop-color: #b9a4f6; } /* 11/18: 연한 파스텔 라벤더 → 핑크 */
+#root .lerny-landing .ln-page.bga-container #ln-band-grad stop:last-child { stop-color: #f2cfe0; }
+:root[data-theme="dark"] #root .lerny-landing .ln-page.bga-container #ln-band-grad stop:first-child { stop-color: #c6b0ff; }
+:root[data-theme="dark"] #root .lerny-landing .ln-page.bga-container #ln-band-grad stop:last-child { stop-color: #7d5ae0; }
+
+/* ===== 맨 아래 한 화면 (11/18) =====
+   페이지를 끝까지 내리면 "오늘의 물음표가," 문장 · 버튼 · 저작권 줄 · 큰 Lerny 가 한 화면에 모두 보여요.
+   마무리 칸 + 아래 띠를 화면 높이에 맞추고, 큰 Lerny 는 남은 높이만큼만 보여 주고 아래쪽을 잘라요 */
+#root .lerny-landing .ln-page > .ln-grad-content {
+  flex: 0 0 auto;
+  height: 100vh;
+  height: 100svh;
+}
+#root .lerny-landing .ln-page section.ln-finale.ln-closing {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: clamp(24px, 4vh, 56px) var(--lw-gutter) clamp(20px, 3vh, 40px) !important;
+}
+#root .lerny-landing .ln-page .ln-closing-head { gap: clamp(20px, 3.4vh, 40px); }
+#root .lerny-landing .ln-page .ln-closing-head h2 { font-size: clamp(34px, min(5.4vw, 9vh), 84px); }
+#root .lerny-landing .ln-page > .ln-grad-content > section.ln-band {
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#root .lerny-landing section.ln-band .ln-band-bar { flex: none; padding-top: clamp(14px, 2.4vh, 28px); padding-bottom: clamp(14px, 2.4vh, 26px); }
+#root .lerny-landing .ln-page section.ln-band .ln-band-word {
+  flex: 0 1 auto;
+  min-height: clamp(90px, 22vh, 200px);
+  padding-top: clamp(14px, 3vh, 40px);
+}
+/* 11/18 뒤: 여백을 조금 더 (한 화면 안에서) */
+#root .lerny-landing .ln-page section.ln-finale.ln-closing { padding: clamp(40px, 8vh, 96px) var(--lw-gutter) clamp(32px, 6vh, 72px) !important; }
+#root .lerny-landing .ln-page .ln-closing-head { gap: clamp(28px, 4.6vh, 52px); }
+#root .lerny-landing section.ln-band .ln-band-bar { padding-top: clamp(18px, 3.2vh, 34px); padding-bottom: clamp(18px, 3.2vh, 32px); }
+#root .lerny-landing .ln-page section.ln-band .ln-band-word { padding-top: clamp(20px, 4vh, 52px); }

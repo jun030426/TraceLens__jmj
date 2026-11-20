@@ -1,0 +1,195 @@
+/* [랜딩 전체 색] 바이올렛 블러시 (두 팔레트 섞음: 보라 #34117E·#6631DB·#A981FF·#D0BCFC + 플럼 #2B124C·#DFB6B2·#FBE4DB) — 랜딩(.lerny-landing) 안에서만 --d-* 색을 바꿔요. 앱 화면 색은 그대로예요.
+   바탕 #F7F0F8 · 제목/글자 #2B124C · 포인트 #6631DB (+ 블러시 #DFB6B2 · #FBE4DB). 예전 라일락 미스트는 _첫화면교체전_백업_1102/lerny-landing-lilac.css.lilac.bak 에 있어요.
+   되돌리려면 Landing.tsx 의 import "./landing/lerny-landing-lilac.css" 한 줄만 지우면 돼요. */
+
+#root .lerny-landing {
+  --d-ground: #f7f0f8;
+  --d-surface: #fffafc;
+  --d-pearl: #faf4fa;
+  --d-step: #ece0f6;
+  --d-hair: #e4d6ee;
+  --d-ink: #2b124c;
+  --d-ink-2: #491ab1;
+  --d-ink-3: #8a76a8;
+  --d-accent: #6631db;
+  --d-accent-deep: #491ab1;
+  --d-accent-wash: #eadffc;
+  --d-night: #2b124c;
+  --d-night-2: #34117e;
+  --d-on-night: #fbe4db;
+  --d-on-night-2: rgba(255,255,255,0.78);
+  --d-accent-on-night: #dfb6b2;
+  --d-mauve: #a981ff;
+  --d-lilac: #d0bcfc;
+  --d-mist: #ece1fb;
+  --d-rose: #fbe4db;
+  --d-beige: #f7f0f8;
+  background: var(--d-ground);
+}
+
+/* 제목은 새 첫 화면처럼 굵게 */
+#root .lerny-landing :is(.lw-flow, .lw-tools, .lw-bridge) h2,
+#root .lerny-landing .ln-page .ln-closing-head h2 {
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+
+#root .lerny-landing .ln-page .ln-closing-head h2 span {
+  background: linear-gradient(135deg, #491ab1 0%, #7b45f0 55%, #b0789a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+#root .lerny-landing .lw-bridge li strong,
+#root .lerny-landing .lw-tools li strong {
+  font-weight: 700;
+}
+
+/* 버튼 hover 바탕 */
+@media (hover: hover) and (pointer: fine) {
+  #root .lerny-landing .lw-btn:hover {
+    background: rgba(102,49,219, 0.08);
+  }
+}
+
+/* ② 하루의 학습 — 데모 판 */
+#root .lerny-landing .lw-flow {
+  --v-panel: #34117e;
+  --v-panel-2: #2b124c;
+  --v-violet: #d0bcfc;
+  --v-strong: #6631db;
+  --v-strong-soft: #d0bcfc;
+  --v-weak: #dfb6b2;
+  --v-step-material: #6631db;
+  --v-step-2: #6631db;
+  --v-step-3: #6631db;
+  --v-step-4: #6631db;
+  --v-step-5: #6631db;
+  --v-deep: #6631db;
+}
+
+#root .lerny-landing .lw-flow-stage,
+#root .lerny-landing .lw-flow-stage.v-material-light {
+  background:
+    radial-gradient(70% 80% at 100% 0%, rgba(102,49,219, 0.32) 0%, transparent 70%),
+    radial-gradient(60% 70% at 0% 100%, rgba(223,182,178, 0.75) 0%, transparent 70%),
+    var(--d-mist);
+}
+
+#root .lerny-landing .v-material-light :is(.v-material-panel, .v-material-empty) {
+  background: rgba(255,255,255,0.88);
+}
+
+/* ③ 학습 도구 — 남보라 띠 */
+#root .lerny-landing .lw-tools {
+  background:
+    radial-gradient(50% 60% at 100% 0%, rgba(102,49,219, 0.45) 0%, transparent 70%),
+    radial-gradient(40% 50% at 0% 100%, rgba(223,182,178, 0.16) 0%, transparent 70%),
+    var(--d-night);
+}
+
+#root .lerny-landing .lw-tools li {
+  background: var(--d-surface);
+  box-shadow: 0 24px 48px -30px rgba(10, 5, 40, 0.6);
+}
+
+/* 첫 화면 글 그림자도 라일락 바탕에 맞게 */
+#root .lerny-landing .lh-hero h1 {
+  text-shadow: 0 1px 18px rgba(255,255,255,0.6);
+}
+
+/* ⑤ 마지막 맥북 장면 */
+#root .lerny-landing .lm-hero {
+  --lm-bg: #f7f0f8; /* 위아래 칸과 같은 바탕색이라 경계선이 안 보여요 */
+  --lm-bg-2: #f7f0f8;
+  --lm-ink-2: #491ab1;
+  --lm-ink-3: #8a76a8;
+  --lm-line: #d9c6ef;
+  --lm-plum: #6631db;
+  --lm-screen: #fffafc;
+  --lm-c1: #6631db;
+  --lm-c2: #dfb6b2;
+}
+
+/* 마무리 바탕: 라일락 → 핑크빛 → 라일락 */
+#root .study-landing.lerny-landing .ln-page {
+  /* 마무리 ~ 하단: 진한 보라와 블러시가 크게 번지는 그라데이션 */
+  background:
+    radial-gradient(70% 40% at 50% 66%, rgba(123, 69, 240, 0.2) 0%, transparent 72%),
+    radial-gradient(50% 40% at 10% 90%, rgba(223, 182, 178, 0.5) 0%, transparent 70%),
+    radial-gradient(50% 45% at 92% 86%, rgba(169, 129, 255, 0.32) 0%, transparent 70%),
+    linear-gradient(180deg, var(--d-ground) 0%, var(--d-ground) 18%, #f1e7fb 50%, #ebdffa 100%);
+}
+
+/* 첫 화면 보라 원과 큰 제목 색 */
+#root .lerny-landing section.lh-hero {
+  --lh-orb-a: #7b45f0; --lh-orb-b: #a981ff; --lh-orb-c: #fbe4db; --lh-orb-d: #6631db;
+  --lh-glow: rgba(123,69,240,0.3);
+}
+#root .lerny-landing .lh-hero .lh-g {
+  background: linear-gradient(135deg, #491ab1 0%, #7b45f0 55%, #b0789a 100%);
+  -webkit-background-clip: text; background-clip: text;
+}
+
+/* 하단 큰 Lerny 글자 색 */
+#root .lerny-landing #ln-band-grad stop:first-child { stop-color: #a981ff; }
+#root .lerny-landing #ln-band-grad stop:last-child { stop-color: #e2d4fd; }
+
+/* 하단 큰 Lerny 글자만 두껍게 (고운돋움은 굵기가 하나라 이 글자만 Pretendard 굵은 글씨로) */
+#root .lerny-landing section.ln-band .ln-band-word text {
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  font-weight: 800 !important;
+}
+
+/* ===== 글꼴: 둥글고 차분한 고운돋움(Gowun Dodum) — index.html 에서 구글 폰트로 불러와요 =====
+   딱딱한 느낌을 줄이려고 랜딩 전체 글꼴을 바꾸고, 큰 제목 크기를 10~15% 줄였어요.
+   예전 글꼴로 돌리려면 이 블록을 지우면 돼요. */
+#root .lerny-landing {
+  --lf: "Gowun Dodum", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Malgun Gothic", sans-serif;
+  --d-serif: var(--lf);
+  --v-sans: var(--lf);
+}
+
+#root .lerny-landing,
+#root .lerny-landing *:not(code, pre, kbd, samp, code *, pre *) {
+  font-family: var(--lf) !important;
+}
+
+#root .lerny-landing :is(h1, h2, h3) {
+  letter-spacing: -0.02em !important;
+}
+
+#root .lerny-landing .lp-hero h1 { font-size: clamp(34px, 4.6vw, 74px); line-height: 1.14; }
+#root .lerny-landing .lw-flow-side h2 { font-size: clamp(34px, 4vw, 58px); }
+#root .lerny-landing .lw-flow-copy h3 { font-size: clamp(22px, 2.1vw, 30px); }
+#root .lerny-landing .lw-tools h2 { font-size: clamp(36px, 4.6vw, 70px); }
+#root .lerny-landing .lw-bridge h2 { font-size: clamp(34px, 4.3vw, 62px); }
+#root .lerny-landing .ln-page .ln-closing-head h2 { font-size: clamp(34px, 4.6vw, 70px); line-height: 1.2; }
+#root .lerny-landing .lp-lead,
+#root .lerny-landing .lw-flow-copy p { font-size: 16.5px; }
+#root .lerny-landing .lm-first :is(h1, h2) { letter-spacing: -0.01em !important; }
+
+/* ===== ③ 학습 도구 — 진한 띠 대신 위아래 칸과 이어지는 연한 라일락 바탕 ===== */
+#root .lerny-landing .lw-tools {
+  background:
+    radial-gradient(40% 45% at 82% 45%, rgba(169, 129, 255, 0.26) 0%, transparent 70%),
+    radial-gradient(35% 40% at 14% 62%, rgba(223, 182, 178, 0.38) 0%, transparent 70%),
+    linear-gradient(180deg, var(--d-ground) 0%, #efe4fb 22%, #ece0fa 78%, var(--d-ground) 100%);
+  color: var(--d-ink);
+}
+
+#root .lerny-landing .lw-tools h2 { color: var(--d-ink); }
+
+#root .lerny-landing .lw-tools .lw-btn.on-dark {
+  border-color: var(--d-accent);
+  background: var(--d-accent);
+  color: #ffffff;
+}
+
+#root .lerny-landing .lw-tools li {
+  background: var(--d-surface);
+  box-shadow: 0 18px 40px -26px rgba(43, 18, 76, 0.35), inset 0 0 0 1px var(--d-hair);
+}
+
+#root .lerny-landing .lw-tools li strong { color: var(--d-ink); }

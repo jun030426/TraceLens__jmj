@@ -1,0 +1,90 @@
+{
+  "frame-00028-ink-002": {
+    "result_signature": "a83f25e57e4cb05f3aa022c5b2e017650be3a3ab5c57fe1d16f7a72915070301",
+    "source_sha256": "0c99e47e9cc83747c7b22152c4e0531a69eb21bee031019db89e5e204a12a122",
+    "approval": "user_authorized_direct_source_review",
+    "classification": {
+      "category": "actual_coordinate_error",
+      "summary": "튜플(Tuple) 글자는 원본에 있지만 후보 상자는 빈 행 쪽에 있습니다. 관련 밑줄도 위치 재검토가 필요해 자동 보류 해제를 하지 않습니다.",
+      "next_step": "원본 좌표를 다시 지정하고 연결 표시의 좌표까지 함께 검증",
+      "source_text_roi_pixels": [
+        188,
+        620,
+        242,
+        636
+      ],
+      "automatic_relocation": false
+    },
+    "entries": []
+  },
+  "frame-00058-ink-001": {
+    "result_signature": "df50a79521aae0ce2e25f212afbfc3745238a3fa4d553c9570f98edfe37891bb",
+    "source_sha256": "b22ec51718f6de04f4901a75d84434c82418f6f77d7ac6638534a0cd4dc87784",
+    "approval": "user_authorized_direct_source_review",
+    "classification": {
+      "category": "ocr_false_positive",
+      "summary": "원본에는 for product in products:가 보입니다. OCR의 productin / prdducts 판독을 정답으로 사용하지 않고 기존 추출을 유지합니다."
+    },
+    "entries": [
+      {
+        "id": "c-1",
+        "item_signature": "628860db496272153b8d615cd0097c01170c0017aa727be62f260567311c8c27",
+        "action": "release_ocr_false_positive",
+        "observed_text": "for product in products:",
+        "direct_observation": "원본 전체 화면 및 동일 시점 원본 크롭에서 for product in products:를 직접 확인. 붉은 필기와 겹친 o를 OCR이 d로, 공백을 생략하여 읽은 사례. 문자열과 좌표는 변경하지 않음."
+      }
+    ]
+  },
+  "frame-00059-ink-001": {
+    "result_signature": "caadcd6d59cc8f89502b283482570b26ffcb93b24799d7df893bbd26cea05a8a",
+    "source_sha256": "e8ffbb9c08aece44f191b3aec27307705a59fd796d5ae23f4108be8c22326399",
+    "approval": "user_authorized_direct_source_review",
+    "classification": {
+      "category": "partially_resolved_reading",
+      "summary": "원본에서 max_product와 등호는 확인됩니다. products[0]의 0/o는 확정하지 않고 문맥 후보 0을 별도로 둡니다. 노트북 행의 겹친 강조 동그라미는 추출 목록에 빠져 있어 별도 누락 건으로 유지합니다.",
+      "item_id": "it-8",
+      "confirmed_fragments": [
+        "max_product",
+        " = ",
+        "products[",
+        "]"
+      ],
+      "unresolved_spans": [
+        {
+          "start": 23,
+          "end": 24,
+          "observed": "0",
+          "alternatives": [
+            "0",
+            "o"
+          ],
+          "contextual_candidate": "0",
+          "status": "unconfirmed"
+        }
+      ],
+      "next_step": "0/o 부분만 원본의 더 선명한 프레임과 대조; 코드 전체를 OCR로 교체하지 않음"
+    },
+    "entries": []
+  },
+  "frame-00079-ink-000": {
+    "result_signature": "426f42bfcaba3cd394d858d7b5763fba1445ff0c83a37b7321920b98971aa930",
+    "source_sha256": "4cac7aa3abbf25a4600d67557944d628baa5906cb782c0e4f3160750bee2899d",
+    "approval": "user_authorized_direct_source_review",
+    "classification": {
+      "category": "overlapping_structural_symbol",
+      "summary": "괄호 안에 여러 타원과 가로선이 겹쳐 있습니다. [, , ]를 확정 문자로 취급할 수 없고 가로선이 연결선인지 취소 표시인지도 단정하지 않습니다.",
+      "next_step": "기호 모양을 보존하고 의미만 보류; 단순 강조 경고로 강등하지 않음"
+    },
+    "entries": []
+  },
+  "frame-00005-ink-000": {
+    "result_signature": "0349a1dc08de9ee651f6bc5022ab8f83bb79d72f1c7dc296f66ce7bd3114a7f5",
+    "source_sha256": "9c0a28543fb83df72e56e927a459b68d30b5ef1c0326bda786dcdacffa888e66",
+    "approval": "user_authorized_direct_source_review",
+    "classification": {
+      "category": "imprecise_simple_emphasis",
+      "summary": "숫자 배열을 둘러싼 동그라미가 이웃 표시와 겹칩니다. 검사상 강조 의미와 대상 코드 행은 지지되므로 엄격한 조건을 충족하면 범위 정밀도 경고로 처리합니다. 정확한 원 개수나 숫자별 대응은 확정하지 않습니다."
+    },
+    "entries": []
+  }
+}
