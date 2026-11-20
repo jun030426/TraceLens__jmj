@@ -1,0 +1,44 @@
+{
+  "Policies": [
+    {
+      "Policy": {
+        "Id": "IamPolicyAutopilot",
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "ec2:DescribeInstances"
+            ],
+            "Resource": [
+              "*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "ec2:StartInstances",
+              "ec2:StopInstances"
+            ],
+            "Resource": [
+              "arn:aws:ec2:ap-southeast-2:604472166923:instance/*",
+              "arn:aws:license-manager:ap-southeast-2:604472166923:license-configuration:*",
+              "arn:aws:resource-groups:ap-southeast-2:604472166923:group/*"
+            ]
+          }
+        ]
+      },
+      "PolicyType": "Identity"
+    }
+  ],
+  "Warnings": [
+    {
+      "WarningType": "WildcardResource",
+      "Location": {
+        "PolicyIndex": 0,
+        "StatementIndex": 0
+      },
+      "Message": "Statement could not be scoped to specific resources and uses Resource \"*\". Review whether broad resource access is intended."
+    }
+  ]
+}

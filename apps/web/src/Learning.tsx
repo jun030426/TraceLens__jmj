@@ -1,68 +1,101 @@
+import { DropSelect } from "./DropSelect";
+import { VanishPlaceholder } from "./VanishPlaceholder";
+import { useAutosizeTextarea } from "./useAutosizeTextarea";
+import { isComposingInput } from "./inputKeyboard";
+import { MaterialUpload, MATERIAL_ACCEPT } from "./MaterialUpload";
+import { WeeklyContent } from "./WeeklyContent";
+import { HeldMaterialReview } from "./HeldMaterialReview";
+import { TutorFeedback } from "./TutorFeedback";
+import { theoryChatBody } from "./learningRequests";
+import type { FeedbackValue } from "./ChatFeedback";
+import { MaterialProcessingDetails, MediaProcessingProgress, useCourseProcessing } from "./AutomaticLearning";
+import { materialProgress, type Tone } from "./materialProcessing";
+import { featureBlock, useServiceStatus } from "./ServiceStatus";
+import "./teacher-processing.css";
 import { PagedList } from "./StudentLists";
 import { matchesSearch } from "./listNavigation";
-import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
-import { api, post, uploadMaterial, type Material } from "./api";
-import { AIAvailability, ErrorNotice, Form, Notice, field, useLoad } from "./components";
-import { materialWeeks, weekLabel } from "./studentOverview";
+import { QuestionArchive } from "./QuestionArchive";
+import { TypedAnswer } from "./TypedAnswer";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Link, useLocation } from "react-router-dom";
+import { api, post, uploadMaterial, type Answer, type Job, type Material } from "./api";
+import { RagTools } from "./RagTools";
+import { ErrorNotice, Form, Notice, field, useLoad } from "./components";
+import { materialWeeks } from "./studentOverview";
+import { sourceLabel } from "./sourceLabels";
+import { useSpeechOutput } from "./useSpeechOutput";
+import { useSpeechInput } from "./useSpeechInput";
 
 const labels: Record<string, string> = {
   queued: "처리 대기",
   running: "처리 중",
-  extracted: "원문 추출 완료 · AI 처리 대기",
   ready: "자료 원문 준비 완료",
+  extracted: "원문 분석 완료 · 검색 준비 대기",
   failed: "원문 처리 실패",
   needs_review: "텍스트 확인 필요",
 };
-function materialState(m: Material) {
-  if (m.version?.status === "failed") return { text: "자료 처리 실패", tone: "failed", hint: "원문 또는 AI 처리 중 문제가 발생했어요. 원본은 보관되어 있으며 다시 시도하거나 텍스트를 확인할 수 있어요." };
-  if (m.version?.status === "needs_review") return { text: "텍스트 확인 필요", tone: "failed", hint: "추출한 내용을 확인해야 준비를 이어갈 수 있어요." };
-  if (m.version?.status === "extracted") return { text: "원문 추출 완료 · AI 대기", tone: "pending", hint: "파일 저장과 텍스트 추출은 완료됐어요. AI 연결 후 임베딩과 학습 준비가 이어집니다." };
-  if (m.version?.status !== "ready") return { text: "자료 준비 중", tone: "pending", hint: "" };
-  if (m.visibility !== "public") return { text: "비공개 보관", tone: "neutral", hint: "" };
-  if (["past_exam", "answer", "transcript"].includes(m.kind)) return { text: "참고 자료", tone: "neutral", hint: "" };
-  if (m.learning_status === "ready") return { text: "개념·문항 준비 완료", tone: "ready", hint: "자료 원문과 자동 생성 작업이 준비됐어요." };
-  if (m.learning_status === "failed") return { text: "개념·문항 생성 실패", tone: "failed", hint: "자료 원문은 준비됐지만 개념 추출 또는 문항 생성 중 실패한 작업이 있어요. 다시 시도할 수 있어요." };
-  if (m.learning_status === "waiting_ai") return { text: "AI 처리 대기", tone: "pending", hint: "요청이 보관되어 있어요. AI 연결 후 개념·문항 생성을 이어갑니다." };
-  return { text: "개념·문항 준비 중", tone: "pending", hint: "자료 원문은 준비됐어요. 개념 추출과 문항 생성 상태를 확인하고 있어요." };
-}
+/* 한 학기 16주 — 숫자를 직접 적거나 목록에서 골라요 */
+
+const progressFilters = [
+  ["", "전체"], ["working", "진행·대기"], ["held", "보류·확인"],
+  ["failed", "실패"], ["ready", "사용 가능"], ["neutral", "비공개·참고"],
+] as const;
+const progressGroup = (tone: Tone) => ["running", "pending"].includes(tone) ? "working" : tone === "unknown" ? "held" : tone;
 export function Materials({
   courseId,
   teacher = false,
   currentWeek = null,
+  totalWeeks = null,
 }: {
   courseId: string;
   teacher?: boolean;
   currentWeek?: number | null;
+  /* 학기 전체 주차 수 — 자료가 없는 주차도 칸을 보여주려고 써요 (학생 강의실) */
+  totalWeeks?: number | null;
 }) {
   const list = useLoad<{ items: Material[] }>(
-    "/courses/" + courseId + "/materials",
+    "/courses/" + courseId + "/materials", true,
   );
-  const [message, setMessage] = useState(""),
-    [error, setError] = useState("");
+  const [error, setError] = useState("");
   const [editing, setEditing] = useState<{
     id: string;
     text: string;
     revision: number;
   } | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [spinning, setSpinning] = useState(false);
   const [search, setSearch] = useState("");
   const [week, setWeek] = useState("");
   const [status, setStatus] = useState("");
-  const filtered = (list.data?.items || []).filter(m => matchesSearch(search, m.title) && (!week || m.week === Number(week)) && (!status || materialState(m).tone === status));
+  const service = useServiceStatus();
+  const uploadBlock = featureBlock(service.data, "uploads", service.error);
+  const contentBlock = featureBlock(service.data, "content", service.error);
+  const processing = useCourseProcessing(courseId, teacher);
+  const processingById = new Map((processing.items || []).map(item => [item.material_id, item]));
+  const states = new Map((list.data?.items || []).map(material => [material.id, materialProgress(material, processingById.get(material.id), {
+    error: processing.error, uploadsBlocked: !service.error && !!service.data && !!uploadBlock, contentBlocked: !service.error && !!service.data && !!contentBlock,
+  })]));
+  const searched = (list.data?.items || []).filter(m => matchesSearch(search, m.title) && (!week || m.week === Number(week)));
+  const filtered = searched.filter(m => !status || progressGroup(states.get(m.id)!.tone) === status);
+  const reload = () => { list.reload(); processing.reload(); service.reload(); };
+
   const weeks = [...new Set((list.data?.items || []).map(m => m.week))].sort((a,b) => a-b);
-  const [kind, setKind] = useState("lecture"),
-    [visibility, setVisibility] = useState("public");
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const needsPoll = teacher || !!list.data?.items.some(m => ["queued", "running", "extracted"].includes(m.version?.status || "") || ["generating", "waiting_ai"].includes(m.learning_status || ""));
   useEffect(() => {
-    if (!list.data?.items.some(m => ["queued","running","extracted"].includes(m.version?.status || "") || ["generating", "waiting_ai"].includes(m.learning_status || ""))) return;
-    const timer = setInterval(list.reload, 5000);
+    if (!needsPoll) return;
+    const timer = window.setInterval(() => { if (!document.hidden) list.reload(); }, teacher ? 15000 : 5000);
     return () => clearInterval(timer);
-  }, [list.data]);
+  }, [needsPoll, teacher, list.reload]);
+  useEffect(() => {
+    if (uploadOpen) document.getElementById("material-upload")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [uploadOpen]);
   const run = async (fn: () => Promise<void>) => {
     setError("");
     try {
       await fn();
-      list.reload();
+      reload();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -70,23 +103,31 @@ export function Materials({
   return (
     <div className={teacher ? "materials-manager teacher-materials" : "materials-manager"}>
       <div className="row materials-heading">
-        <div><h2>강의 자료 {list.data && <span className="materials-count">{list.data.items.length}</span>}</h2><p>{teacher ? "자료를 올리면 개념과 이론 문항을 자동으로 준비해요." : "우리 수업의 자료를 확인하세요."}</p></div>
-        {teacher ? <button className="materials-add" aria-expanded={uploadOpen} aria-controls="material-upload" onClick={() => setUploadOpen(!uploadOpen)}>{uploadOpen ? "업로드 닫기" : "+ 자료 올리기"}</button> : <button onClick={list.reload}>상태 새로고침</button>}
+        <div><h2>강의 자료 {!teacher && <button type="button" className={`materials-refresh${spinning ? " is-spinning" : ""}`} aria-label="강의 자료 새로고침" title="새로고침" onClick={() => { setSpinning(true); list.reload(); }} onAnimationEnd={() => setSpinning(false)}><span aria-hidden="true">↻</span></button>}{list.data && <span className="materials-count">{list.data.items.length}</span>}</h2><p>{teacher ? "자료별 준비 단계와 필요한 조치를 확인하세요. 상태는 15초마다 갱신돼요." : "우리 수업의 자료를 확인하세요."}</p></div>
+        {teacher ? <button className="materials-add" disabled={uploadBusy || (!!uploadBlock && !uploadOpen)} aria-describedby={uploadBlock ? "teacher-upload-block" : undefined} aria-expanded={uploadOpen} aria-controls="material-upload" onClick={() => setUploadOpen(!uploadOpen)}>{uploadOpen ? "업로드 닫기" : "+ 자료 올리기"}</button> : null}
       </div>
       <ErrorNotice text={error || list.error} />
-      {teacher && <AIAvailability />}
-      {message && <Notice>{message}</Notice>}
+      {teacher && uploadOpen && <MaterialUpload key={courseId} courseId={courseId} blocked={uploadBlock} onChange={reload} onBusy={setUploadBusy} />}
+      {teacher && <WeeklyContent courseId={courseId} refreshKey={JSON.stringify(list.data?.items.map(m => [m.id,m.revision,m.version?.id,m.version?.status])) || ""} />}
+      {teacher && <>
+        {uploadBlock && <div className="teacher-upload-block" id="teacher-upload-block" role="status"><strong>자료 업로드·새 버전 저장 일시중지</strong><p>{uploadBlock}</p><button type="button" onClick={service.reload}>상태 다시 확인</button></div>}
+        <ErrorNotice text={processing.error || processing.videoError} />
+        <div className="teacher-processing-toolbar"><span>상태를 누르면 해당 자료만 볼 수 있어요.</span><button type="button" onClick={reload}>상태 새로고침</button></div>
+        <div className="teacher-processing-counts" role="group" aria-label="자료 처리 상태 필터">{progressFilters.map(([key, label]) => <button type="button" key={key} className={"material-status-card status-"+(key || "all")} aria-pressed={status === key} onClick={() => setStatus(key)}><span>{label}</span><strong>{list.data && processing.items ? searched.filter(m => !key || progressGroup(states.get(m.id)!.tone) === key).length : "—"}</strong></button>)}</div>
+      </>}
       {teacher && !!list.data?.items.length && <div className="material-list-tools student-list-tools">
         <label>자료 검색<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="자료 이름" /></label>
-        <label>주차<select value={week} onChange={e => setWeek(e.target.value)}><option value="">전체 주차</option>{weeks.map(w => <option key={w} value={w}>{w}주차</option>)}</select></label>
-        <label>준비 상태<select value={status} onChange={e => setStatus(e.target.value)}><option value="">전체 상태</option><option value="failed">확인·재시도 필요</option><option value="pending">준비 중</option><option value="ready">개념·문항 준비 완료</option><option value="neutral">비공개·참고 자료</option></select></label>
+        <DropSelect label="주차" value={week} onChange={setWeek}
+          options={[{ value: "", label: "전체 주차" }, ...weeks.map(w => ({ value: String(w), label: w+"주차" }))]} />
+        <DropSelect label="준비 상태" value={status} onChange={setStatus}
+          options={progressFilters.map(([value, label]) => ({ value, label }))} />
         {(search || week || status) && <button onClick={() => { setSearch(""); setWeek(""); setStatus(""); }}>필터 초기화</button>}
         <p className="material-filter-count" role="status">전체 {list.data.items.length}개 중 {filtered.length}개</p>
       </div>}
       <div className="materials">
         {!list.data && !list.error && <Notice>자료를 불러오는 중이에요…</Notice>}
-        {list.data?.items.length === 0 && <div className="materials-empty"><span aria-hidden="true">▤</span><h3>아직 등록된 자료가 없어요.</h3><p>{teacher ? "수업 자료를 올리면 이곳에서 공개 여부와 처리 상태를 확인할 수 있어요." : "공개된 수업 자료가 이곳에 표시돼요."}</p></div>}
-        {!teacher && list.data && list.data.items.length > 0 && <StudentMaterials items={list.data.items} currentWeek={currentWeek} />}
+        {list.data?.items.length === 0 && (teacher || !totalWeeks) && <div className="materials-empty"><span aria-hidden="true">▤</span><h3>아직 등록된 자료가 없어요.</h3><p>{teacher ? "수업 자료를 올리면 이곳에서 공개 여부와 처리 상태를 확인할 수 있어요." : "공개된 수업 자료가 이곳에 표시돼요."}</p></div>}
+        {!teacher && list.data && (list.data.items.length > 0 || !!totalWeeks) && <StudentMaterials items={list.data.items} currentWeek={currentWeek} totalWeeks={totalWeeks} />}
         {teacher && list.data && <PagedList key={`${courseId}:${search}:${week}:${status}`} items={filtered} label="강의 자료" size={8}>
           {visible => <>{!visible.length && !!list.data?.items.length && <p className="student-list-empty">조건에 맞는 자료가 없어요. 검색어나 필터를 바꿔보세요.</p>}{visible.map((m) => (
           <article className="material" key={m.id}>
@@ -98,14 +139,14 @@ export function Materials({
               <h3>{m.title}</h3>
               {!teacher && <span className={`material-processing material-processing-${m.version?.status || "unknown"}`}>{labels[m.version?.status || ""] || "처리 중"}</span>}
             </div>
-            <div className="material-state"><span className={`material-processing material-state-${materialState(m).tone}`}>{materialState(m).text}</span></div>
+            <div className="material-state"><span className={`teacher-progress-badge tone-${states.get(m.id)!.tone}`}>{states.get(m.id)!.text}</span><p className="teacher-progress-reason">{states.get(m.id)!.hint}</p><MediaProcessingProgress progress={states.get(m.id)!} /></div>
             <details className={teacher ? "material-more" : "material-student-download"} open={teacher ? undefined : true}>
-              {teacher && <summary aria-label={`${m.title} 상세·관리`}>상세·관리 <span aria-hidden="true">⌄</span></summary>}
+              {teacher && <summary aria-label={`${m.title} 상세·관리`}>처리·자료 관리 <span aria-hidden="true">⌄</span></summary>}
+            <MaterialProcessingDetails courseId={courseId} progress={states.get(m.id)!} videos={processing.videos.filter(v => v.material_id === m.id)} videoError={processing.videoError} onChange={reload} />
+            {m.version && <HeldMaterialReview materialId={m.id} versionId={m.version.id} heldCount={processingById.get(m.id)?.held_count} />}
             <div className="material-detail-state">
               <p>원문: {labels[m.version?.status || ""] || "자료 준비 중"}</p>
-              {materialState(m).hint && <p>{materialState(m).hint}</p>}
-              {m.version?.status === "failed" && m.processing_job_id && <button onClick={() => void run(async () => { await api(`/jobs/${m.processing_job_id}/retry`, post({})); })}>자료 처리 다시 시도</button>}
-              {m.learning_status === "failed" && m.version?.status === "ready" && m.visibility === "public" && ["lecture", "example", "assignment"].includes(m.kind) && <button onClick={() => void run(async () => { await api(`/materials/${m.id}/learning`, post({})); })}>개념·문항 생성 다시 시도</button>}
+              {m.content_generation_mode !== "weekly" && m.learning_status === "failed" && m.version?.status === "ready" && m.visibility === "public" && ["lecture", "example", "assignment"].includes(m.kind) && <button disabled={!!contentBlock} title={contentBlock || undefined} onClick={() => void run(async () => { if (contentBlock) throw new Error(contentBlock); await api(`/materials/${m.id}/learning`, post({})); })}>개념·문항 생성 다시 시도</button>}
             </div>
             <div className="actions">
               <a href={"/api/v1/materials/" + m.id + "/file"}>원본 받기</a>
@@ -120,7 +161,6 @@ export function Materials({
                           body: JSON.stringify({
                             visibility:
                               m.visibility === "public" ? "private" : "public",
-                            internal_use: m.internal_use,
                           }),
                         });
                       })
@@ -144,11 +184,14 @@ export function Materials({
                     수정본 업로드
                     <input
                       type="file"
-                      accept=".pdf,.pptx,.docx,.txt,.md,.c,.java,.py"
+                      disabled={!!uploadBlock}
+                      title={uploadBlock || undefined}
+                      accept={MATERIAL_ACCEPT}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file)
                           void run(async () => {
+                            if (uploadBlock) throw new Error(uploadBlock);
                             const f = new FormData();
                             f.append("file", file);
                             await uploadMaterial(courseId, f, { id: m.id, revision: m.revision });
@@ -164,19 +207,22 @@ export function Materials({
         ))}</>}
         </PagedList>}
       </div>
+      {teacher && <details className="teacher-search-tools"><summary>자료 검색 설정 · 필요할 때만</summary><p>자료별 준비 상태는 위 목록에서 확인하세요. 검색 준비를 다시 요청해야 할 때 사용해요.</p><RagTools key={courseId} courseId={courseId} blockedReason={uploadBlock} /></details>}
       {editing && (
         <section className="panel materials-editor">
           <h2>추출 텍스트 수정</h2>
           <Form
             label="새 버전으로 저장"
+            disabled={!!uploadBlock}
             onSubmit={async (f) => {
+              if (uploadBlock) throw new Error(uploadBlock);
               await api("/materials/" + editing.id + "/transcript", {
                 method: "PUT",
                 headers: { "If-Match": String(editing.revision) },
                 body: JSON.stringify({ text: field(f, "text") }),
               });
               setEditing(null);
-              list.reload();
+              reload();
             }}
           >
             <label>
@@ -192,122 +238,58 @@ export function Materials({
           <button onClick={() => setEditing(null)}>닫기</button>
         </section>
       )}
-      {teacher && uploadOpen && (
-        <section id="material-upload" className="panel materials-upload">
-          <h2>강의 자료 올리기</h2><p className="materials-upload-intro">파일과 주차만 확인하세요. 기본 설정은 수강생 공개입니다.</p>
-          <Form
-            label="자료 올리기"
-            onSubmit={async (f) => {
-              await uploadMaterial(courseId, f);
-              setMessage(
-                "자료를 저장했어요. 공개된 강의 자료는 개념 추출과 학습 문항 생성이 자동으로 이어집니다.",
-              );
-              setUploadOpen(false);
-              list.reload();
-            }}
-          >
-            <label>
-              파일
-              <input
-                type="file"
-                name="file"
-                accept=".pdf,.pptx,.docx,.txt,.md,.c,.java,.py"
-                required
-              />
-            </label>
-              <label>
-                주차
-                <input
-                  type="number"
-                  name="week"
-                  min="1"
-                  max="52"
-                  defaultValue="1"
-                  required
-                />
-              </label>
-            <details className="material-upload-options"><summary>자료 종류·공개 범위 설정</summary>
-            <div className="columns">
-              <label>
-                자료 종류
-                <select
-                  name="kind"
-                  value={kind}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setKind(v);
-                    setVisibility(
-                      ["answer", "transcript", "past_exam"].includes(v)
-                        ? "private"
-                        : "public",
-                    );
-                  }}
-                >
-                  {[
-                    ["lecture", "강의 자료"],
-                    ["example", "예제 코드"],
-                    ["assignment", "과제 안내"],
-                    ["transcript", "녹취록"],
-                    ["past_exam", "기출"],
-                    ["answer", "정답·해설"],
-                  ].map(([id, t]) => (
-                    <option key={id} value={id}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                학생 공개
-                <select
-                  name="visibility"
-                  value={visibility}
-                  onChange={(e) => setVisibility(e.target.value)}
-                >
-                  <option value="public">수강생에게 공개</option>
-                  <option value="private">비공개</option>
-                </select>
-              </label>
-              <label>
-                내부 AI 활용
-                <select name="internal_use">
-                  <option value="none">사용하지 않음</option>
-                  <option value="validation_grading">
-                    검증·채점 기준 전용
-                  </option>
-                </select>
-              </label>
-            </div>
-            </details>
-            <p className="muted">
-              음성·스캔 문서는 전사/OCR 연결 전입니다. 텍스트 문서로 변환해
-              주세요. 정답·해설은 공개 범위를 확인해 주세요.
-            </p>
-          </Form>
-        </section>
-      )}
     </div>
   );
 }
-function StudentMaterials({ items, currentWeek }: { items: Material[]; currentWeek: number | null }) {
+/* 주차 안에서는 이미 주차가 보이니까 자료 이름 앞의 'N주차 ·'는 빼고 보여줘요 */
+function materialName(title: string) {
+  return title.replace(/^\s*\d{1,2}\s*주차\s*[·:\-–]\s*/, "") || title;
+}
+
+function StudentMaterials({ items, currentWeek, totalWeeks }: { items: Material[]; currentWeek: number | null; totalWeeks?: number | null }) {
   const location = useLocation();
   const [search, setSearch] = useState("");
-  const filtered = items.filter(item => matchesSearch(search,item.title));
-  const weeks = materialWeeks(items.map(item => item.week), currentWeek);
+  /* 검색창에 '3', '3주차'처럼 주차를 적으면 그 주차로 바로 가요. 그 밖에는 자료 이름으로 찾아요. */
+  const query = search.trim();
+  const weekQuery = Number(query.match(/^(\d{1,2})\s*(주차|주)?$/)?.[1]) || null;
+  const filtered = weekQuery ? items.filter(item => item.week === weekQuery) : items.filter(item => matchesSearch(search,item.title));
+  /* 자료가 아직 없는 주차도 학기 전체 주차만큼 칸을 보여줘요 */
+  const allWeeks = totalWeeks && totalWeeks > 0 ? Array.from({ length: totalWeeks }, (_, i) => i + 1) : [];
+  const weeks = materialWeeks([...allWeeks, ...items.map(item => item.week)], currentWeek);
   const requestedWeek = Number(location.hash.match(/^#material-week-(\d+)$/)?.[1]);
   const targetWeek = weeks.includes(requestedWeek) ? requestedWeek : null;
   const [expanded, setExpanded] = useState(() => new Set([currentWeek && currentWeek > 0 ? currentWeek : weeks[0]]));
+  /* 주차가 10주 이상이면 '전체 주차 / 1–9주차 / 10주차~마지막' 탭으로 나눠 보여줘요.
+     처음에는 현재 진도가 있는 묶음을 열어요. 검색할 때는 전체 주차에서 찾아요. */
+  const SPLIT = 9;
+  const lastWeek = weeks.length ? weeks[weeks.length - 1] : 0;
+  const splitWeeks = lastWeek > SPLIT;
+  const [half, setHalf] = useState(() => (currentWeek && currentWeek > SPLIT ? 1 : 0));
+  /* 검색하면 결과가 있는 주차 묶음으로 탭이 저절로 바뀌어요 (양쪽에 다 있으면 전체 주차) */
+  const hitWeeks = weekQuery ? [weekQuery] : query ? [...new Set(filtered.map(item => item.week))] : [];
+  const hitGroup = !hitWeeks.length ? null : hitWeeks.every(week => week <= SPLIT) ? 0 : hitWeeks.every(week => week > SPLIT) ? 1 : 2;
+  useEffect(() => {
+    if (hitGroup != null) setHalf(hitGroup);
+  }, [hitGroup, query]);
   useEffect(() => {
     if (targetWeek == null) return;
+    setHalf(previous => (previous === 2 ? 2 : targetWeek > SPLIT ? 1 : 0));
     setExpanded(previous => new Set([...previous, targetWeek]));
     const frame = requestAnimationFrame(() => document.getElementById(`material-week-${targetWeek}`)?.scrollIntoView({ block: "start" }));
     return () => cancelAnimationFrame(frame);
   }, [targetWeek]);
   return <div className="student-material-weeks">
-    <p className="material-week-guide">{weekLabel(currentWeek)} · 주차를 열어 자료를 확인하세요.</p>
-    <div className="student-list-tools"><label>강의 자료 검색<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="전체 주차에서 자료 이름 검색" /></label></div>
-    {!!search.trim() && !filtered.length && <p className="student-list-empty">검색한 자료가 없어요. 다른 이름으로 찾아보세요.</p>}
-    {weeks.filter(week => !search.trim() || filtered.some(item => item.week === week)).map(week => {
+    <div className="material-week-toolbar">
+    {splitWeeks && <div className="material-week-split" role="tablist" aria-label="주차 묶음">
+      {[[2, "전체 주차"], [0, `1–${SPLIT}주차`], [1, `${SPLIT + 1}–${lastWeek}주차`]].map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={half === id} className={half === id ? "is-active" : ""} onClick={() => { setHalf(id as number); setSearch(""); }}>
+        {label}{currentWeek != null && id !== 2 && (id === 0 ? currentWeek <= SPLIT : currentWeek > SPLIT) && currentWeek > 0 && <span className="material-week-split-dot" aria-label="현재 진도 포함" />}
+      </button>)}
+    </div>}
+    <label className="material-week-search"><span aria-hidden="true">⌕</span><input type="search" aria-label="강의 자료 검색" value={search} onChange={e => setSearch(e.target.value)} placeholder="주차 또는 자료 이름 검색" /></label>
+    </div>
+    {!!query && !weekQuery && !filtered.length && <p className="student-list-empty">검색한 자료가 없어요. 다른 이름으로 찾아보세요.</p>}
+    {!!weekQuery && !weeks.includes(weekQuery) && <p className="student-list-empty">{weekQuery}주차는 이 학기에 없어요.</p>}
+    {weeks.filter(week => !query || (weekQuery ? week === weekQuery : filtered.some(item => item.week === week))).filter(week => search.trim() || !splitWeeks || half === 2 || (half === 0 ? week <= SPLIT : week > SPLIT)).map(week => {
       const materials = filtered.filter(item => item.week === week);
       const current = week === currentWeek;
       return <details id={`material-week-${week}`} key={week} className={`material-week ${current ? "is-current" : ""}`} open={!!search.trim() || expanded.has(week)} onToggle={event => {
@@ -321,13 +303,318 @@ function StudentMaterials({ items, currentWeek }: { items: Material[]; currentWe
         });
       }}>
         <summary><span><strong>{week}주차</strong>{current && <span className="material-week-current">현재 진도</span>}</span><span className="material-week-count">자료 {materials.length}개 <span className="material-week-chevron" aria-hidden="true">⌄</span></span></summary>
-        <div className="material-week-content">{materials.length ? <PagedList items={materials} label={`${week}주차 자료`} resetKey={search}>{visible => visible.map(item => <article className="student-material" key={item.id}>
-          <span className="student-material-icon" aria-hidden="true">▤</span><div><h3>{item.title}</h3><span className={`material-processing material-processing-${item.version?.status || "unknown"}`}>{labels[item.version?.status || ""] || "자료 준비 중"}</span></div>
-          {item.version && <a href={`/api/v1/materials/${item.id}/file`} aria-label={`${item.title} 원본 받기`}>원본 받기 <span aria-hidden="true">↓</span></a>}
+        <div className="material-week-content">{materials.length ? <PagedList items={materials} label={`${week}주차 자료`} resetKey={search} className="material-week-list">{visible => visible.map(item => <article className="student-material" key={item.id}>
+          <span className="student-material-icon" aria-hidden="true">▤</span><div><h3>{materialName(item.title)}</h3></div>
+          {item.view_url && <Link to={item.view_url} aria-label={`${item.title} 자료 열기`}>자료 열기 <span aria-hidden="true">↗</span></Link>}
         </article>)}</PagedList> : <p>이 주차에 공개된 자료가 아직 없어요. 다른 주차의 자료도 확인할 수 있어요.</p>}</div>
       </details>;
     })}
   </div>;
 }
 
-export { Chat } from "./Chat";
+/* 문자 메시지처럼 내 질문은 오른쪽, AI 강사 답변은 왼쪽 말풍선으로 나뉘어요. */
+const VOICE_ANSWER_KEY = "lerny-voice-answer";
+
+/** 개념 퀴즈 해설 아래 바로가기가 넘겨주는 문항 정보 (Flow.tsx QuizAskLink) */
+export type QuizAsk = { title: string; question: string; context: string; conceptId?: string };
+
+export function Chat({ sectionId, speaker = "AI 강사" }: { sectionId: string; speaker?: string }) {
+  const concepts = useLoad<{items: {id: string; concept: string; in_scope: boolean}[]}>(`/sections/${sectionId}/my-learning`);
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const sendBusy = useRef(false);
+  const [conceptId, setConceptId] = useState("");
+  useEffect(() => { setConceptId(""); }, [sectionId]);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  // 개념 퀴즈 해설에서 넘어왔으면 그 문항을 함께 보낼 준비를 하고, 질문 칸에 질문 예시를 적어 둬요.
+  // 새로고침해도 다시 채워지지 않게 넘겨받은 기록은 바로 지워요.
+  const chatLocation = useLocation();
+  const [quizAsk, setQuizAsk] = useState<QuizAsk | null>(() => (chatLocation.state as { quizAsk?: QuizAsk } | null)?.quizAsk || null);
+  useEffect(() => {
+    if (!quizAsk) return;
+    try { window.history.replaceState({ ...window.history.state, usr: null }, ""); } catch { /* 기록을 못 바꿔도 동작에는 문제없어요 */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [archiveSlot, setArchiveSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => { setArchiveSlot(document.getElementById("chat-archive-slot")); }, []);
+  const [draft, setDraft] = useState(() => quizAsk?.question || "");
+  // 질문 칸은 손으로 크기를 바꾸지 않고, 글이 길어지면 저절로 커져요 (최대 높이를 넘으면 칸 안에서 스크롤)
+  const draftRef = useRef<HTMLTextAreaElement>(null);
+  useAutosizeTextarea(draftRef, draft);
+  const voice = useSpeechInput(setDraft);
+  /* 음성 답변: 켜 두면 새 답변이 도착할 때 소리 내어 읽어요. 선택은 이 브라우저에 기억해요. */
+  const reader = useSpeechOutput();
+  const [voiceAnswer, setVoiceAnswer] = useState(() => { try { return localStorage.getItem(VOICE_ANSWER_KEY) === "on"; } catch { return false; } });
+  const voiceAnswerRef = useRef(voiceAnswer);
+  voiceAnswerRef.current = voiceAnswer;
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [archiveRevision, setArchiveRevision] = useState(0);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [thread, setThread] = useState<string>(),
+    [job, setJob] = useState<string>();
+  const [items, setItems] = useState<
+    { id?: string; feedback?: FeedbackValue; question: string; answer?: Answer; error?: string; fresh?: boolean; pending?: string }[]
+  >([]);
+  useEffect(() => {
+    let active = true;
+    setHistoryLoading(true);
+    setItems([]);
+    setArchiveOpen(false);
+    setThread(undefined);
+    setJob(undefined);
+    api<{
+      thread_id: string | null;
+      job_id: string | null;
+      items: { question: string; answer?: Answer; error?: string }[];
+    }>(`/sections/${sectionId}/chat/history?limit=3`)
+      .then((r) => {
+        if (active) {
+          setItems(r.items);
+          setThread(r.thread_id || undefined);
+          setJob(r.job_id || undefined);
+        }
+      })
+      .finally(() => {
+        if (active) setHistoryLoading(false);
+      })
+      .catch((e) => {
+        if (active)
+          setItems([{ question: "대화 기록 불러오기", error: e.message }]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [sectionId]);
+  useEffect(() => {
+    if (!job) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const r = await api<Job>("/jobs/" + job);
+        if (stopped) return;
+        if (["succeeded", "failed", "cancelled"].includes(r.status)) {
+          if (r.status === "succeeded" && r.result?.answer && voiceAnswerRef.current) reader.speak(r.result.answer);
+          setItems((old) =>
+            old.map((x, i) =>
+              i === old.length - 1
+                ? {
+                    ...x,
+                    fresh: !!r.result,
+                    answer: r.result || undefined,
+                    error: r.error
+                      ? "답변 처리에 실패했어요. 다시 질문해 주세요."
+                      : r.status === "cancelled"
+                        ? "취소됐어요."
+                        : undefined,
+                  }
+                : x,
+            ),
+          );
+          setJob(undefined);
+          setArchiveRevision(value => value + 1);
+        } else {
+          setItems(old => old.map((item, i) => i === old.length - 1 ? {
+            ...item,
+            pending: r.status === "waiting_ai"
+              ? "AI 연결을 기다리고 있어요. 연결이 준비되면 답변을 이어서 처리해요."
+              : undefined,
+          } : item));
+          timer = setTimeout(poll, 2000);
+        }
+      } catch (e) {
+        if (!stopped) {
+          setItems((old) =>
+            old.map((x, i) =>
+              i === old.length - 1 ? { ...x, error: (e as Error).message } : x,
+            ),
+          );
+          setJob(undefined);
+        }
+      }
+    };
+    void poll();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [job]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggleVoiceAnswer = () => {
+    const next = !voiceAnswer;
+    setVoiceAnswer(next);
+    try { localStorage.setItem(VOICE_ANSWER_KEY, next ? "on" : "off"); } catch { /* 저장 불가 환경 */ }
+    if (!next) { reader.stop(); return; }
+    const latest = [...items].reverse().find(x => x.answer?.answer)?.answer?.answer;
+    if (latest) reader.speak(latest);
+  };
+  useEffect(() => {
+    const container = messagesRef.current;
+    // 메신저처럼 아래로 쌓여요 — 새 질문·답변이 오면 맨 아래로 내려가요
+    if (container && !historyLoading) container.scrollTop = container.scrollHeight;
+  }, [items, historyLoading]);
+  // 퀴즈 해설에서 넘어왔으면 대화를 불러온 뒤 질문 칸에 커서를 놓아요 (적어 둔 질문을 고쳐 쓰거나 바로 보낼 수 있게)
+  useEffect(() => {
+    if (!quizAsk || historyLoading) return;
+    const el = draftRef.current;
+    if (el) { el.focus({ preventScroll: true }); el.setSelectionRange(el.value.length, el.value.length); el.scrollIntoView({ block: "center" }); }
+  }, [historyLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sendQuestion = async (question: string) => {
+    if (job || historyLoading || sendBusy.current) throw new Error("이전 답변을 기다려 주세요.");
+    sendBusy.current = true;
+    try {
+      const r = await api<{ job_id: string; thread_id: string; resource_id: string }>(
+        `/sections/${sectionId}/chat/messages`, {
+          ...post(theoryChatBody(question, thread, quizAsk?.conceptId || conceptId, quizAsk?.context)),
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+        });
+      setThread(r.thread_id); setQuizAsk(null); setArchiveOpen(false);
+      setItems(v => [...v, { id: r.resource_id, question }]);
+      setJob(r.job_id); setArchiveRevision(value => value + 1);
+    } finally { sendBusy.current = false; }
+  };
+  const lastAnswer = items.at(-1);
+  // 이전 질문 내역 — AI 질문 화면에서는 왼쪽 '내 강의' 아래 자리(#chat-archive-slot)에 그려요. 자리가 없으면 대화 창 안에 그대로 둬요.
+  const archive = <QuestionArchive sectionId={sectionId} revision={archiveRevision} open={archiveOpen} onOpenChange={setArchiveOpen} />;
+  return (
+    <section className="panel chat chat-messenger">
+      <div className="chat-heading">
+      <h2>어떤 부분이 궁금한가요?</h2>
+      <div className="chat-heading-actions">
+      <button
+        type="button"
+        disabled={!!job || feedbackBusy}
+        onClick={() => {
+          reader.stop();
+          setItems([]);
+          setThread(undefined);
+          setArchiveOpen(false);
+        }}
+      >
+        새 대화
+      </button>
+      </div>
+      </div>
+      <p className="muted">
+        공개된 수업 자료의 원문에서 답변과 출처를 찾아요.
+      </p>
+      <label>질문할 개념
+        <select value={conceptId} disabled={!!job} onChange={e => setConceptId(e.target.value)}>
+          <option value="">강의 전체</option>
+          {concepts.data?.items.filter(c => c.in_scope).map(c => <option key={c.id} value={c.id}>{c.concept}</option>)}
+        </select>
+      </label>
+      {archiveSlot ? createPortal(archive, archiveSlot) : archive}
+      <div className="chat-messages" ref={messagesRef} aria-live="polite" tabIndex={0} aria-label="최근 질문과 답변">
+        {items.length > 0 && <p className="student-list-count">최근 대화 {Math.min(3,items.length)}개 · 전체 대화는 이전 질문에서 확인하세요.</p>}
+        {historyLoading && (
+          <p className="chat-loading" role="status">
+            이전 대화를 불러오는 중이에요…
+          </p>
+        )}
+        {!historyLoading && items.length === 0 && (
+          <div className="chat-welcome">
+            <span className="chat-welcome-icon" aria-hidden="true">
+              ?
+            </span>
+            <h3>이해는 질문에서 시작돼요.</h3>
+            <p>
+              궁금한 개념이나 이해되지 않는 부분을 적어 주세요.
+              <br />
+              공개된 강의 자료에서 답변의 근거를 찾아볼게요.
+            </p>
+            <span className="chat-source-note">
+              강의 자료 기반 답변 · 출처 함께 확인
+            </span>
+          </div>
+        )}
+        {/* 메신저처럼 오래된 대화가 위, 가장 최근 질문과 답변이 맨 아래(질문 칸 바로 위)에 와요 */}
+        {items.slice(-3).map((item, n) => ({ item, i: Math.max(0, items.length - 3) + n })).map(({ item, i }) => (
+          <article key={i} className="chat-pair">
+            <div className="chat-row is-me"><p className="chat-bubble">{item.question}</p></div>
+            <div className="chat-row is-ai">
+              <span className="chat-speaker">{speaker}</span>
+              <div className="chat-bubble">
+                {item.answer ? <TypedAnswer text={item.answer.answer} animate={!!item.fresh}>
+                  {item.answer.citations?.map((c, n) => <span className="source-reference" key={n}>{c.title} · {sourceLabel(c.locator)}</span>)}
+                </TypedAnswer> : item.error ? <ErrorNotice text={item.error} /> : item.pending ? <p role="status">{item.pending}</p> : <p className="chat-typing" role="status"><span className="chat-dots" aria-hidden="true"><i /><i /><i /></span><span>{speaker}가 답변을 적고 있어요</span></p>}
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+      {items.length > 0 && <TutorFeedback sectionId={sectionId} jobId={job}
+        messageId={lastAnswer?.answer ? lastAnswer.id || lastAnswer.answer.message_id : undefined}
+        disabled={historyLoading} onBusyChange={setFeedbackBusy}
+        onConfused={() => sendQuestion("방금 설명이 헷갈려요. 더 쉬운 예로, 한 단계씩 다시 설명해 주세요.")}
+        onStop={() => {
+          reader.stop(); setJob(undefined); setThread(undefined);
+          setItems(old => old.map((item, i) => i === old.length - 1 && !item.answer ? { ...item, pending: undefined, error: "요청을 취소했어요." } : item));
+          setArchiveRevision(v => v + 1);
+        }} />}
+      <div className="chat-composer">
+        {quizAsk && <div className="chat-quiz-context" role="note"><span className="chat-quiz-context__label">함께 보내는 퀴즈 문제</span><strong>{quizAsk.title}</strong><button type="button" onClick={() => setQuizAsk(null)} aria-label="함께 보내는 퀴즈 문제 빼기">빼기 ✕</button></div>}
+      <Form
+        label="질문하기"
+        beside={
+        <div className="chat-voice">
+          <div className="voice-tools" role="group" aria-label="음성 기능">
+          <button type="button" className={`chat-mic ${voice.listening ? "is-listening" : ""}`} aria-pressed={voice.listening}
+            disabled={!!job || historyLoading || !voice.supported}
+            title={voice.supported ? (voice.listening ? "말하기 끝내기" : "음성으로 질문하기") : "이 브라우저는 음성 입력을 지원하지 않아요."}
+            onClick={() => voice.listening ? voice.stop() : voice.start(draft)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            {voice.listening ? "말하기 끝내기" : "음성 질문"}
+          </button>
+          <button type="button" role="switch" aria-checked={voiceAnswer} className={`voice-answer-switch ${voiceAnswer ? "is-on" : ""}`}
+            disabled={!reader.supported}
+            title={reader.supported ? (voiceAnswer ? "음성 답변 끄기" : "답변을 음성으로 듣기") : "이 브라우저는 음성 답변을 지원하지 않아요."}
+            onClick={toggleVoiceAnswer}>
+            <svg className="voice-answer-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" fill="currentColor" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+              {voiceAnswer
+                ? <path className="voice-answer-waves" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                : <path d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />}
+            </svg>
+            <span className="voice-answer-label">음성 답변</span>
+            <span className="voice-answer-dot" aria-hidden="true" />
+            {reader.speaking && <span className="voice-answer-state">읽는 중</span>}
+          </button>
+          </div>
+          <span className="chat-voice-status" role="status">{voice.error || (voice.listening ? "듣고 있어요. 말한 내용이 질문 칸에 적혀요." : voice.supported ? "" : "이 브라우저는 음성 입력을 지원하지 않아요.")}</span>
+        </div>
+        }
+        onSubmit={async (f) => {
+          if (feedbackBusy) throw new Error("피드백 처리를 기다려 주세요.");
+          await sendQuestion(field(f, "message"));
+          setDraft("");
+        }}
+      >
+        <label className="chat-input-label">
+          질문
+          <textarea
+            ref={draftRef}
+            name="message"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={1}
+            maxLength={4000}
+            required
+            disabled={!!job || historyLoading || feedbackBusy}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !isComposingInput(e.nativeEvent)
+              ) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+          <VanishPlaceholder textarea={draftRef} examples={voice.listening ? ["듣고 있어요…"] : ["궁금한 점을 적거나 마이크를 눌러 말해 보세요.", "이 개념을 예시로 설명해 주세요."]} hidden={!!draft} />
+        </label>
+      </Form></div>
+    </section>
+  );
+}
+
+/* 새로 도착한 답변은 한 글자씩 적히듯 보여 줘요. 예전 대화나 '동작 줄이기' 설정에서는 바로 다 보여요.
+   글이 길어도 2.5초 안에 다 나오도록 한 번에 나오는 글자 수를 늘려요. 다 나온 뒤에 출처 링크가 붙어요. */

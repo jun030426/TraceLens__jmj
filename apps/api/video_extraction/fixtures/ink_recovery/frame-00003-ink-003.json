@@ -1,0 +1,818 @@
+{
+  "source_result": "outputs/ink-continuation-v1/results/frame-00003-ink-003.json",
+  "package": {
+    "task": {
+      "id": "frame-00003-ink-003",
+      "source_sha256": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6",
+      "frame_id": "frame-00003",
+      "time_seconds": 40.0,
+      "onset_interval_seconds": [
+        20.0,
+        40.0
+      ],
+      "bbox": [
+        541,
+        329,
+        709,
+        360
+      ],
+      "current_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00003.png",
+      "audio_interval": [
+        17.0,
+        45.0
+      ],
+      "asr_context": [
+        {
+          "id": "asr-0000-0003",
+          "start_seconds": 14.02,
+          "end_seconds": 19.36,
+          "text": "더불어서 공통되어 있는 데이터들은 삭제를 해준다고 이야기를 했었어요."
+        },
+        {
+          "id": "asr-0000-0004",
+          "start_seconds": 20.08,
+          "end_seconds": 22.12,
+          "text": "이러한 응용에 대한 문제들,"
+        },
+        {
+          "id": "asr-0000-0005",
+          "start_seconds": 22.26,
+          "end_seconds": 25.78,
+          "text": "집합은 순서가 없다고 하는 자료형이라는 것,"
+        },
+        {
+          "id": "asr-0000-0006",
+          "start_seconds": 27.06,
+          "end_seconds": 27.86,
+          "text": "더불어서"
+        },
+        {
+          "id": "asr-0000-0007",
+          "start_seconds": 27.86,
+          "end_seconds": 29.74,
+          "text": "출력되는 순서는"
+        },
+        {
+          "id": "asr-0000-0008",
+          "start_seconds": 29.74,
+          "end_seconds": 31.98,
+          "text": "실행 환경에 따라 달라질 수 있다"
+        },
+        {
+          "id": "asr-0000-0009",
+          "start_seconds": 31.98,
+          "end_seconds": 34.02,
+          "text": "라고 하는거 이거 얘기냐면 얘네들은"
+        },
+        {
+          "id": "asr-0000-0010",
+          "start_seconds": 34.02,
+          "end_seconds": 35.9,
+          "text": "순서가 없어서 그래요 그래서 프로그램 따라서"
+        },
+        {
+          "id": "asr-0000-0011",
+          "start_seconds": 35.9,
+          "end_seconds": 37.84,
+          "text": "내가 매번 돌리잖아요 그러면"
+        },
+        {
+          "id": "asr-0000-0012",
+          "start_seconds": 37.84,
+          "end_seconds": 40.32,
+          "text": "그 데이터값들이 순서가 막 바뀌는게"
+        },
+        {
+          "id": "asr-0000-0013",
+          "start_seconds": 40.32,
+          "end_seconds": 42.36,
+          "text": "매번 바뀌어요 그러니까 요런 것들을"
+        },
+        {
+          "id": "asr-0000-0014",
+          "start_seconds": 42.36,
+          "end_seconds": 44.32,
+          "text": "여러분이 착각하시면 안되겠다"
+        },
+        {
+          "id": "asr-0000-0015",
+          "start_seconds": 44.32,
+          "end_seconds": 46.62,
+          "text": "뭔가 잘못된거 아니야 라고 생각하지 마시고"
+        }
+      ],
+      "speech_cue_hits": [
+        "따라서",
+        "순서"
+      ],
+      "priority_score": 4.944,
+      "before_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00003.png",
+      "after_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00003.png",
+      "asr_status": "machine_transcription_not_verified",
+      "previous_context_only": false,
+      "evidence": {
+        "selected_frame": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00003.png",
+        "frame_candidates": [
+          {
+            "path": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00003.png",
+            "eligible": true,
+            "local_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "global_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "sharpness": 9005.39299246822,
+            "contrast": 187.0
+          }
+        ],
+        "source_size": [
+          1280,
+          720
+        ],
+        "views": {
+          "original": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00003-ink-003/original.png",
+            "crop_in_source": [
+              0.4984375,
+              0.3111111111111111,
+              0.7515625,
+              0.37777777777777777
+            ],
+            "size": [
+              324,
+              48
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          },
+          "contrast": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00003-ink-003/contrast.png",
+            "crop_in_source": [
+              0.4984375,
+              0.3111111111111111,
+              0.7515625,
+              0.37777777777777777
+            ],
+            "size": [
+              324,
+              48
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "contrast",
+            "never_replaces_original": true
+          },
+          "denoise": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00003-ink-003/denoise.png",
+            "crop_in_source": [
+              0.4984375,
+              0.3111111111111111,
+              0.7515625,
+              0.37777777777777777
+            ],
+            "size": [
+              324,
+              48
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "denoise",
+            "never_replaces_original": true
+          },
+          "binary": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00003-ink-003/binary.png",
+            "crop_in_source": [
+              0.4984375,
+              0.3111111111111111,
+              0.7515625,
+              0.37777777777777777
+            ],
+            "size": [
+              324,
+              48
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "binary",
+            "never_replaces_original": true
+          },
+          "expanded": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00003-ink-003/expanded.png",
+            "crop_in_source": [
+              0.43125,
+              0.30833333333333335,
+              0.81875,
+              0.38055555555555554
+            ],
+            "size": [
+              496,
+              52
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          }
+        },
+        "selected_frame_seconds": 40.0
+      }
+    },
+    "view": {
+      "path": "outputs/ink-continuation-v1/evidence/frame-00003-ink-003/review/source-context.png",
+      "size": [
+        649,
+        96
+      ],
+      "crop_in_source": [
+        0.37109375,
+        0.2777777777777778,
+        0.878125,
+        0.4111111111111111
+      ],
+      "operation": "source_crop_only",
+      "eligible": true,
+      "core_unchanged": true
+    },
+    "ocr": {
+      "state": "candidate",
+      "words": [
+        {
+          "text": "따라 달라질 수 있음",
+          "score": 0.9807952642440796,
+          "bbox_pixels": [
+            165.99999999999994,
+            24.0,
+            397.0,
+            51.999999999999986
+          ]
+        }
+      ],
+      "raw": {
+        "res": {
+          "input_path": "outputs/ink-continuation-v1/evidence/frame-00003-ink-003/original.png",
+          "page_index": null,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_textline_orientation": false
+          },
+          "dt_polys": [
+            [
+              [
+                3,
+                0
+              ],
+              [
+                234,
+                0
+              ],
+              [
+                234,
+                28
+              ],
+              [
+                3,
+                28
+              ]
+            ]
+          ],
+          "text_det_params": {
+            "limit_side_len": 64,
+            "limit_type": "min",
+            "thresh": 0.3,
+            "max_side_limit": 4000,
+            "box_thresh": 0.6,
+            "unclip_ratio": 1.5
+          },
+          "text_type": "general",
+          "textline_orientation_angles": [
+            -1
+          ],
+          "text_rec_score_thresh": 0.0,
+          "return_word_box": false,
+          "rec_texts": [
+            "따라 달라질 수 있음"
+          ],
+          "rec_scores": [
+            0.9807952642440796
+          ],
+          "rec_polys": [
+            [
+              [
+                3,
+                0
+              ],
+              [
+                234,
+                0
+              ],
+              [
+                234,
+                28
+              ],
+              [
+                3,
+                28
+              ]
+            ]
+          ],
+          "rec_boxes": [
+            [
+              3,
+              0,
+              234,
+              28
+            ]
+          ]
+        }
+      },
+      "provider": "PaddleOCR",
+      "model_hashes": {
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/config.json": "7ac1c33f377ba58561f4b89d3180b6add2b7c5c60a4edac90fa4e0ceccdc6665",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.json": "05feef1acb00aa4cd7362b15f7f501fc4f99d7b1fa73c1c871e0c7b1504b0f5c",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.pdiparams": "afa1820cb16c1fd0dad589d0f8b389139061c1ef6d68019685fd07be997dda5b",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.yml": "98069072e1b6b37d727fd9d9f11725faa46d6ea0de012f2ed26caea011c37699",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/config.json": "c86a49d6301e6c4ff3398a87a2a1926b3521a46e90042833e18bbfa8ba6165c2",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.json": "562404e3c590c50c93778d5f0a94df21b47b5ab8f3ea6d47c7f8a7930c3bc844",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.pdiparams": "cac3e5f12cf04aaa77f6a5bc704e4e736ef2908476551891d84b41b4e9090462",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.yml": "f757fa1c40e99edcf27e9cce879b93eb2a51fa46f5ef39095689b8c37dd75998"
+      },
+      "id": "frame-00003-ink-003-original",
+      "task_id": "frame-00003-ink-003",
+      "view": "original",
+      "path": "outputs/ink-continuation-v1/evidence/frame-00003-ink-003/original.png",
+      "image_sha256": "19b161168f7a6adf9401d7de077a566da9ee0a13579a71d35663e8ac36f9a4de",
+      "alternative_words": [
+        {
+          "text": "따라 달라질 수 있음",
+          "score": 0.9789255261421204,
+          "bbox_pixels": [
+            165.99999999999994,
+            24.0,
+            397.0,
+            51.999999999999986
+          ]
+        }
+      ]
+    },
+    "ocr_coverage": {
+      "left": 251.15562403697987,
+      "top": 250.0,
+      "right": 750.3852080123266,
+      "bottom": 750.0
+    },
+    "base": {
+      "items": [
+        {
+          "id": "t1",
+          "kind": "printed_text",
+          "box": {
+            "left": 97,
+            "top": -15,
+            "right": 218,
+            "bottom": 84
+          },
+          "text": "자료형이",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "u1",
+          "kind": "underline",
+          "box": {
+            "left": 96,
+            "top": 110,
+            "right": 222,
+            "bottom": 169
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "t2",
+          "kind": "printed_text",
+          "box": {
+            "left": 30,
+            "top": 242,
+            "right": 230,
+            "bottom": 483
+          },
+          "text": "실행 환경에",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "u2",
+          "kind": "underline",
+          "box": {
+            "left": 19,
+            "top": 454,
+            "right": 218,
+            "bottom": 558
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "t3",
+          "kind": "printed_text",
+          "box": {
+            "left": 339,
+            "top": 241,
+            "right": 595,
+            "bottom": 482
+          },
+          "text": "달라질 수 있음",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "u3",
+          "kind": "underline",
+          "box": {
+            "left": 339,
+            "top": 490,
+            "right": 655,
+            "bottom": 578
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "l1",
+          "from_ids": [
+            "u1"
+          ],
+          "to_ids": [
+            "t1"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "underline"
+        },
+        {
+          "id": "l2",
+          "from_ids": [
+            "u2"
+          ],
+          "to_ids": [
+            "t2"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "underline"
+        },
+        {
+          "id": "l3",
+          "from_ids": [
+            "u3"
+          ],
+          "to_ids": [
+            "t3"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "underline"
+        }
+      ],
+      "complete": false,
+      "notes": []
+    },
+    "candidate": {
+      "items": [
+        {
+          "id": "t1",
+          "kind": "printed_text",
+          "box": {
+            "left": 97,
+            "top": -15,
+            "right": 218,
+            "bottom": 84
+          },
+          "text": "자료형이",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "u1",
+          "kind": "underline",
+          "box": {
+            "left": 96,
+            "top": 110,
+            "right": 222,
+            "bottom": 169
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "t2",
+          "kind": "printed_text",
+          "box": {
+            "left": 30,
+            "top": 242,
+            "right": 230,
+            "bottom": 483
+          },
+          "text": "실행 환경에",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "u2",
+          "kind": "underline",
+          "box": {
+            "left": 19,
+            "top": 454,
+            "right": 218,
+            "bottom": 558
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "t3",
+          "kind": "printed_text",
+          "box": {
+            "left": 339,
+            "top": 241,
+            "right": 595,
+            "bottom": 482
+          },
+          "text": "달라질 수 있음",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "u3",
+          "kind": "underline",
+          "box": {
+            "left": 339,
+            "top": 490,
+            "right": 655,
+            "bottom": 578
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "l1",
+          "from_ids": [
+            "u1"
+          ],
+          "to_ids": [
+            "t1"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "underline"
+        },
+        {
+          "id": "l2",
+          "from_ids": [
+            "u2"
+          ],
+          "to_ids": [
+            "t2"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "underline"
+        },
+        {
+          "id": "l3",
+          "from_ids": [
+            "u3"
+          ],
+          "to_ids": [
+            "t3"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "underline"
+        }
+      ],
+      "complete": true,
+      "notes": []
+    },
+    "audio_context": {
+      "bindings": [
+        {
+          "item_ids": [
+            "t1",
+            "u1"
+          ],
+          "quote": "집합은 순서가 없다고 하는 자료형이라는 것,",
+          "start_seconds": 22.26,
+          "end_seconds": 25.78,
+          "relevance": "aligned",
+          "reason": "The emphasized text '자료형이' corresponds to '자료형' in the spoken segment."
+        },
+        {
+          "item_ids": [
+            "t2",
+            "u2",
+            "t3",
+            "u3"
+          ],
+          "quote": "실행 환경에 따라 달라질 수 있다",
+          "start_seconds": 29.74,
+          "end_seconds": 31.98,
+          "relevance": "aligned",
+          "reason": "The emphasized phrases '실행 환경에' and '달라질 수 있음' correspond directly to '실행 환경에 따라 달라질 수 있다'."
+        }
+      ],
+      "concepts": [],
+      "word_candidates": [],
+      "notes": [
+        "ASR-derived context, not independently listened speech."
+      ],
+      "rejected_bindings": []
+    },
+    "failed_ids": [
+      "l3"
+    ]
+  },
+  "audit": {
+    "checks": [
+      {
+        "id": "t3",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Text '달라질 수 있음' matches the printed text accurately.",
+        "full_text": "달라질 수 있음",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "u3",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Wavy underline beneath '달라질 수 있음' is correctly bounded and identified.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "l3",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Emphasis relation between underline u3 and text t3 is valid.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      }
+    ],
+    "missing": [],
+    "complete": true
+  },
+  "previous_decisions": [
+    {
+      "id": "t1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [
+        "invalid_crop_box"
+      ],
+      "warnings": [
+        "context_crop_boundary",
+        "adjacent_glyph_requires_word_review",
+        "text_stroke_crosses_box"
+      ],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "u1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "t2",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "adjacent_glyph_requires_word_review"
+      ],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "u2",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "t3",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "u3",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "l1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "l2",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "l3",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    }
+  ]
+}

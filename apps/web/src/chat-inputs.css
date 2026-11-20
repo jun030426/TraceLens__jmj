@@ -1,0 +1,17 @@
+/* Both chat composers share growth limits; existing font, color and padding stay in their themes. */
+#root :is(.chat-page .chat-composer, .practice-chat .practice-chat__form) textarea[rows] {
+  width: 100%;
+  height: 52px;
+  min-height: 52px;
+  max-height: 180px;
+  resize: none;
+  overflow-y: auto;
+}
+/* The practice panel has an existing compact-control override. Preserve its 52px minimum. */
+#root .practice-chat .practice-chat__form textarea { min-height: 52px !important; resize: none !important; }
+@supports (field-sizing: content) {
+  #root :is(.chat-page .chat-composer, .practice-chat .practice-chat__form) textarea[rows] {
+    field-sizing: content;
+    height: auto;
+  }
+}

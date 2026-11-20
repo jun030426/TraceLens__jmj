@@ -1,0 +1,867 @@
+{
+  "review_basis": "outputs/other-data-source-audit-20261029/audit-findings.json",
+  "reviewed": [
+    {
+      "field": "indentation",
+      "before": {
+        "id": "blk_10",
+        "kind": "code",
+        "bbox": [
+          546,
+          471,
+          714,
+          777
+        ],
+        "text": "  print(name)\n  print(\" 국어:\", korean)\n  print(\" 영어:\", english)\n  print(\" 수학:\", math)\n  print(\" 총점:\", total)\n  print(\" 평균:\", average)\n  print()\n  if average > best_average:\n    best_average = average\n    best_student = name",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "blk_10",
+        "bbox": [
+          546,
+          471,
+          714,
+          777
+        ],
+        "kind": "code",
+        "text": "print(name)\nprint(\" 국어:\", korean)\nprint(\" 영어:\", english)\nprint(\" 수학:\", math)\nprint(\" 총점:\", total)\nprint(\" 평균:\", average)\nprint()\nif average > best_average:\n  best_average = average\n  best_student = name",
+        "uncertainties": []
+      },
+      "image_sha256": "1ab205d44fbb36d0e10ce8ed2418d8c2ca6f5327c0560afc80ac0b0276cd6fc3"
+    },
+    {
+      "field": "indentation",
+      "before": {
+        "id": "b5",
+        "kind": "code",
+        "bbox": [
+          547,
+          469,
+          712,
+          775
+        ],
+        "text": "  print(name)\n  print(\" 국어:\", korean)\n  print(\" 영어:\", english)\n  print(\" 수학:\", math)\n  print(\" 총점:\", total)\n  print(\" 평균:\", average)\n  print()\n  if average > best_average:\n    best_average = average\n    best_student = name",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "b5",
+        "bbox": [
+          547,
+          469,
+          712,
+          775
+        ],
+        "kind": "code",
+        "text": "print(name)\nprint(\" 국어:\", korean)\nprint(\" 영어:\", english)\nprint(\" 수학:\", math)\nprint(\" 총점:\", total)\nprint(\" 평균:\", average)\nprint()\nif average > best_average:\n    best_average = average\n    best_student = name",
+        "uncertainties": []
+      },
+      "image_sha256": "7184e1792117a20ce45d507856a179a6fceb28264f79e5150fcbcffbe3ee00a0"
+    },
+    {
+      "field": "indentation",
+      "before": {
+        "id": "b10",
+        "kind": "code",
+        "bbox": [
+          547,
+          471,
+          715,
+          776
+        ],
+        "text": "    print(name)\n    print(\" 국어:\", korean)\n    print(\" 영어:\", english)\n    print(\" 수학:\", math)\n    print(\" 총점:\", total)\n    print(\" 평균:\", average)\n    print()\n    if average > best_average:\n        best_average = average\n        best_student = name",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "b10",
+        "bbox": [
+          471,
+          471,
+          776,
+          776
+        ],
+        "kind": "code",
+        "text": "print(name)\nprint(\" 국어:\", korean)\nprint(\" 영어:\", english)\nprint(\" 수학:\", math)\nprint(\" 총점:\", total)\nprint(\" 평균:\", average)\nprint()\nif average > best_average:\n    best_average = average\n    best_student = name",
+        "uncertainties": []
+      },
+      "image_sha256": "b79e1695f13abde7ca94d76ed79e915a38d1f62aefe8c1f80e6ebc963fa23eaa"
+    },
+    {
+      "field": "separator_count",
+      "before": {
+        "id": "b9",
+        "kind": "code",
+        "bbox": [
+          609,
+          192,
+          804,
+          874
+        ],
+        "text": "students = [\n    (\"김민수\", 85),\n    (\"이영희\", 92),\n    (\"박철수\", 78),\n    (\"최수진\", 88)\n]\ntotal = 0\n\nfor student in students:\n    name = student[0]\n    score = student[1]\n\n    print(name, \":\", score, \"점\")\n\n    total += score\n\naverage = total / len(students)\n\nprint(\"----------------\")\nprint(\"학생 수:\", len(students))\nprint(\"평균 점수:\", average)",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "b9",
+        "bbox": [
+          192,
+          192,
+          876,
+          874
+        ],
+        "kind": "code",
+        "text": "students = [\n    (\"김민수\", 85),\n    (\"이영희\", 92),\n    (\"박철수\", 78),\n    (\"최수진\", 88)\n]\n\ntotal = 0\n\nfor student in students:\n    name = student[o]\n    score = student[1]\n\n    print(name, \":\", score, \"점\")\n\n    total += score\n\naverage = total / len(students)\n\nprint(\"--------------\")\nprint(\"학생 수:\", len(students))\nprint(\"평균 점수:\", average)",
+        "uncertainties": []
+      },
+      "image_sha256": "9b65a6e373add8e862f4d8643fd8f0e30605594ded8e372fbce48d58d6c66af7"
+    },
+    {
+      "field": "separator_count",
+      "before": {
+        "id": "b8",
+        "kind": "text",
+        "bbox": [
+          378,
+          538,
+          482,
+          783
+        ],
+        "text": "[출력 결과]\n김민수 : 85 점\n이영희 : 92 점\n박철수 : 78 점\n최수진 : 88 점\n----------------\n학생 수 : 4\n평균 점수 : 85.75",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "b8",
+        "bbox": [
+          378,
+          378,
+          783,
+          783
+        ],
+        "kind": "text",
+        "text": "[출력 결과]\n김민수 : 85 점\n이영희 : 92 점\n박철수 : 78 점\n최수진 : 88 점\n-------------\n학생 수 : 4\n평균 점수 : 85.75",
+        "uncertainties": []
+      },
+      "image_sha256": "9b65a6e373add8e862f4d8643fd8f0e30605594ded8e372fbce48d58d6c66af7"
+    },
+    {
+      "field": "table_columns",
+      "before": {
+        "id": "b-s8-trans-table",
+        "kind": "table",
+        "bbox": [
+          253,
+          927,
+          387,
+          980
+        ],
+        "text": "| 토큰 | ( | A | + | B | ) | × | C |\n| 출력 | | A | B | + | | C | × |",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "b-s8-trans-table",
+        "bbox": [
+          253,
+          253,
+          980,
+          980
+        ],
+        "kind": "table",
+        "text": "| 토큰 | ( | A | + | B | ) | × | C |\n| 출력 | | A | | B | + | | C | × |",
+        "uncertainties": []
+      },
+      "image_sha256": "7d01aec85362abf7aed7fe72186e1f56e3f7f57c2b50d9e3a8ec14b89ccd512d"
+    },
+    {
+      "field": "bbox",
+      "before": {
+        "id": "b9",
+        "kind": "code",
+        "bbox": [
+          609,
+          192,
+          804,
+          874
+        ],
+        "text": "students = [\n    (\"김민수\", 85),\n    (\"이영희\", 92),\n    (\"박철수\", 78),\n    (\"최수진\", 88)\n]\ntotal = 0\n\nfor student in students:\n    name = student[0]\n    score = student[1]\n\n    print(name, \":\", score, \"점\")\n\n    total += score\n\naverage = total / len(students)\n\nprint(\"----------------\")\nprint(\"학생 수:\", len(students))\nprint(\"평균 점수:\", average)",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "b9",
+        "bbox": [
+          192,
+          192,
+          876,
+          874
+        ],
+        "kind": "code",
+        "text": "students = [\n    (\"김민수\", 85),\n    (\"이영희\", 92),\n    (\"박철수\", 78),\n    (\"최수진\", 88)\n]\n\ntotal = 0\n\nfor student in students:\n    name = student[o]\n    score = student[1]\n\n    print(name, \":\", score, \"점\")\n\n    total += score\n\naverage = total / len(students)\n\nprint(\"--------------\")\nprint(\"학생 수:\", len(students))\nprint(\"평균 점수:\", average)",
+        "uncertainties": []
+      },
+      "image_sha256": "9b65a6e373add8e862f4d8643fd8f0e30605594ded8e372fbce48d58d6c66af7"
+    },
+    {
+      "field": "bbox",
+      "before": {
+        "id": "b8",
+        "kind": "text",
+        "bbox": [
+          378,
+          538,
+          482,
+          783
+        ],
+        "text": "[출력 결과]\n김민수 : 85 점\n이영희 : 92 점\n박철수 : 78 점\n최수진 : 88 점\n----------------\n학생 수 : 4\n평균 점수 : 85.75",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "b8",
+        "bbox": [
+          378,
+          378,
+          783,
+          783
+        ],
+        "kind": "text",
+        "text": "[출력 결과]\n김민수 : 85 점\n이영희 : 92 점\n박철수 : 78 점\n최수진 : 88 점\n-------------\n학생 수 : 4\n평균 점수 : 85.75",
+        "uncertainties": []
+      },
+      "image_sha256": "9b65a6e373add8e862f4d8643fd8f0e30605594ded8e372fbce48d58d6c66af7"
+    },
+    {
+      "field": "bbox",
+      "before": {
+        "id": "block-7",
+        "kind": "code",
+        "bbox": [
+          570,
+          391,
+          740,
+          447
+        ],
+        "text": "total = 0\nmax_product = products[0]",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "block-7",
+        "bbox": [
+          421,
+          391,
+          740,
+          742
+        ],
+        "kind": "code",
+        "text": "total = o\nmax_product = products[o]",
+        "uncertainties": []
+      },
+      "image_sha256": "156333119598bd444dc0647d6d372d1e0bd093c2f2be440826c2977712037307"
+    },
+    {
+      "field": "bbox",
+      "before": {
+        "id": "block-8",
+        "kind": "code",
+        "bbox": [
+          570,
+          484,
+          754,
+          634
+        ],
+        "text": "for product in products:\n  name = product[0]\n  price = product[1]\n\n  print(name, \":\", price, \"원\")\n\n  total += price",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "block-8",
+        "bbox": [
+          517,
+          484,
+          754,
+          700
+        ],
+        "kind": "code",
+        "text": "for product in products:\n  name = product[o]\n  price = product[1]\n\n  print(name, \":\", price, \"원\")\n\n  total += price",
+        "uncertainties": []
+      },
+      "image_sha256": "156333119598bd444dc0647d6d372d1e0bd093c2f2be440826c2977712037307"
+    },
+    {
+      "field": "bbox",
+      "before": {
+        "id": "block-10",
+        "kind": "code",
+        "bbox": [
+          570,
+          827,
+          829,
+          946
+        ],
+        "text": "print(\"--------------------\")\nprint(\"전체 상품 가격:\", total, \"원\")\nprint(\"가장 비싼 상품:\", max_product[0])\nprint(\"가격:\", max_product[1], \"원\")",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "block-10",
+        "bbox": [
+          570,
+          569,
+          917,
+          946
+        ],
+        "kind": "code",
+        "text": "print(\"--------------------\")\nprint(\"전체 상품 가격:\", total, \"원\")\nprint(\"가장 비싼 상품:\", max_product[o])\nprint(\"가격:\", max_product[1], \"원\")",
+        "uncertainties": []
+      },
+      "image_sha256": "156333119598bd444dc0647d6d372d1e0bd093c2f2be440826c2977712037307"
+    },
+    {
+      "field": "bbox",
+      "before": {
+        "id": "b-s7-cstack",
+        "kind": "table",
+        "bbox": [
+          223,
+          706,
+          255,
+          784
+        ],
+        "text": "| A |\n| B |\n| main() |",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "b-s7-cstack",
+        "bbox": [
+          223,
+          223,
+          785,
+          784
+        ],
+        "kind": "table",
+        "text": "| A |\n| A |\n| main() |",
+        "uncertainties": []
+      },
+      "image_sha256": "7d01aec85362abf7aed7fe72186e1f56e3f7f57c2b50d9e3a8ec14b89ccd512d"
+    },
+    {
+      "field": "bbox",
+      "before": {
+        "id": "b-s8-trans-table",
+        "kind": "table",
+        "bbox": [
+          253,
+          927,
+          387,
+          980
+        ],
+        "text": "| 토큰 | ( | A | + | B | ) | × | C |\n| 출력 | | A | B | + | | C | × |",
+        "uncertainties": []
+      },
+      "after": {
+        "id": "b-s8-trans-table",
+        "bbox": [
+          253,
+          253,
+          980,
+          980
+        ],
+        "kind": "table",
+        "text": "| 토큰 | ( | A | + | B | ) | × | C |\n| 출력 | | A | | B | + | | C | × |",
+        "uncertainties": []
+      },
+      "image_sha256": "7d01aec85362abf7aed7fe72186e1f56e3f7f57c2b50d9e3a8ec14b89ccd512d"
+    }
+  ],
+  "pixels": [
+    {
+      "image_sha256": "58a9916a9999f7a17f46daee54657aa8111be7151d7077b21b18c5b36a6a7186",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "58a9916a9999f7a17f46daee54657aa8111be7151d7077b21b18c5b36a6a7186",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "7d687ac98a118432b9e4679f847e951fab91218f71c4de3920395546b1e4c687",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "7d687ac98a118432b9e4679f847e951fab91218f71c4de3920395546b1e4c687",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "9b65a6e373add8e862f4d8643fd8f0e30605594ded8e372fbce48d58d6c66af7",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "9b65a6e373add8e862f4d8643fd8f0e30605594ded8e372fbce48d58d6c66af7",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "498be327197d170ca822adeef06f54dafb2b725d160c5935dfcc20e1822256a2",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "498be327197d170ca822adeef06f54dafb2b725d160c5935dfcc20e1822256a2",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "d27bc7234c400a9b4490af19408bf8a566a9921208bea0f5f19a600a788e5386",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "d27bc7234c400a9b4490af19408bf8a566a9921208bea0f5f19a600a788e5386",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "4b20f9810656034285f1554e03359d730ac0fa67dd456fcbbbe823023cc981d4",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "4b20f9810656034285f1554e03359d730ac0fa67dd456fcbbbe823023cc981d4",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "912d605a5788870315c6280c949c582d00d322fa232da79d5ec8f0caa3c01032",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "912d605a5788870315c6280c949c582d00d322fa232da79d5ec8f0caa3c01032",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "f41ef292910ab93771fcd4caef2e1386d8ae5eb6def1604e92224e2100efa77b",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "f41ef292910ab93771fcd4caef2e1386d8ae5eb6def1604e92224e2100efa77b",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "8f2f52685a9390c88779212a97315e865014d3d48b00b03ec90b4ae1cdf070f3",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "8f2f52685a9390c88779212a97315e865014d3d48b00b03ec90b4ae1cdf070f3",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "bb6525d76cd93d4dec60067fac19a9b87ed5a3f5baa0048f4565f8bf7fa9dd8c",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "bb6525d76cd93d4dec60067fac19a9b87ed5a3f5baa0048f4565f8bf7fa9dd8c",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "631b006f3f18e14781136b6451360df32bce9d51bc0b5a750f0a8234cb31ed47",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "631b006f3f18e14781136b6451360df32bce9d51bc0b5a750f0a8234cb31ed47",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "f9f08a2a4c284bebe8ec690372af3ff226c35beedfc834217395ad4b98d92c9b",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "f9f08a2a4c284bebe8ec690372af3ff226c35beedfc834217395ad4b98d92c9b",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "dcac818a638d06146b31c92c8a23ac5e7c4914e613f86e3ef56e916cdfe0aa1e",
+      "bbox_pixels": [
+        831,
+        571,
+        909,
+        577
+      ],
+      "thresholds": [
+        100,
+        110,
+        120,
+        130,
+        140
+      ]
+    },
+    {
+      "image_sha256": "dcac818a638d06146b31c92c8a23ac5e7c4914e613f86e3ef56e916cdfe0aa1e",
+      "bbox_pixels": [
+        486,
+        506,
+        564,
+        513
+      ],
+      "thresholds": [
+        85,
+        90,
+        100,
+        105,
+        110
+      ]
+    },
+    {
+      "image_sha256": "3d50c0f4c2059b029129d8a94e97724a55b26120682c9fc62137b438bd2cc192",
+      "bbox_pixels": [
+        782,
+        602,
+        892,
+        607
+      ],
+      "thresholds": [
+        75,
+        80,
+        85,
+        90,
+        95
+      ]
+    },
+    {
+      "image_sha256": "3d50c0f4c2059b029129d8a94e97724a55b26120682c9fc62137b438bd2cc192",
+      "bbox_pixels": [
+        341,
+        453,
+        451,
+        461
+      ],
+      "thresholds": [
+        75,
+        80,
+        85,
+        90,
+        95
+      ]
+    },
+    {
+      "image_sha256": "c26fba6b0ec5dd3dfe1445c61f20d4b7d5d570864433ac38254d152e4f2df7ce",
+      "bbox_pixels": [
+        782,
+        602,
+        892,
+        607
+      ],
+      "thresholds": [
+        75,
+        80,
+        85,
+        90,
+        95
+      ]
+    },
+    {
+      "image_sha256": "c26fba6b0ec5dd3dfe1445c61f20d4b7d5d570864433ac38254d152e4f2df7ce",
+      "bbox_pixels": [
+        341,
+        453,
+        451,
+        461
+      ],
+      "thresholds": [
+        75,
+        80,
+        85,
+        90,
+        95
+      ]
+    },
+    {
+      "image_sha256": "c919c8f509591157bc88cb9411a5c15683649892fdfceab2cd9d0e8a10091424",
+      "bbox_pixels": [
+        341,
+        453,
+        451,
+        461
+      ],
+      "thresholds": [
+        75,
+        80,
+        85,
+        90,
+        95
+      ]
+    }
+  ]
+}

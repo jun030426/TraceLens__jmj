@@ -1,5 +1,6 @@
 import json
 import secrets
+from typing import Literal
 
 from fastapi import APIRouter, Header, Query
 from pydantic import Field
@@ -57,6 +58,10 @@ def section_student(session, actor, section_id):
 class ChatInput(Input):
     thread_id: str | None = None
     message: str = Field(min_length=1, max_length=4000)
+    mode: Literal["theory", "practice"] = "theory"
+    concept_id: str | None = None
+    exercise_id: str | None = None
+    practice_context: str = Field(default="", max_length=3000)
 
 
 @router.post("/sections/{section_id}/chat/messages", status_code=202)
@@ -68,6 +73,22 @@ def ask(
     idempotency_key: str | None = Header(default=None),
 ):
     section = section_student(session, actor, section_id)
+    context = {"mode": body.mode}
+    if body.mode == "practice":
+        from lerny.practice import assigned
+        _, plan, exercise = assigned(session, actor, section_id, body.exercise_id)
+        context.update(exercise_id=exercise.id, concept_id=exercise.concept_id,
+                       practice_session_id=plan.id, student_context=body.practice_context,
+                       practice_title=exercise.title, practice_week=plan.week)
+    elif body.exercise_id or body.practice_context:
+        deny(422, "실습 질문에는 현재 배정된 실습 문제가 필요합니다.")
+    elif body.concept_id:
+        from lerny.models import Concept
+        from lerny.weekly_content import published_concept_ids
+        concept = session.get(Concept, body.concept_id)
+        if not concept or concept.course_id != section.course_id or concept.id not in section.progress or concept.id not in published_concept_ids(session,section.course_id):
+            deny(404)
+        context["concept_id"] = concept.id
     if body.thread_id:
         thread = session.scalar(
             select(ChatMessage).where(
@@ -99,9 +120,14 @@ def ask(
             section_id=section_id,
             thread_id=body.thread_id or uid(),
             question=body.message,
+            learning_context=context,
             access_epoch=course.access_epoch,
         )
         session.add(message)
+        if body.mode == "practice":
+            from lerny.courses import audit
+            audit(session, actor, "practice_help", context["practice_session_id"],
+                  {"exercise_id": context["exercise_id"], "kind": "chat"})
         session.flush()
         job = Job(
             owner_id=actor.id,
@@ -128,6 +154,11 @@ def ask(
 def get_job(job_id: str, session: Db, actor: Actor):
     job = session.get(Job, job_id)
     if not job:
+        deny(404)
+    if job.kind == "material_preview":
+        deny(404)  # Internal storage keys are available only through authorized preview routes.
+    if job.kind in {"lecture_spec", "lecture_grounding", "narration_lesson", "lecture_slides"}:
+        # This route cannot revalidate lecture source snapshots. Use dedicated staff-only intake.
         deny(404)
     course_access(session, actor, job.course_id)
     if job.owner_id != actor.id:
@@ -168,6 +199,11 @@ def cancel(job_id: str, session: Db, actor: Actor):
         attempt = session.get(Attempt, job.payload["attempt_id"])
         attempt.status = "held"
         attempt.feedback = {"message": "채점 요청이 취소되어 검토 보류했어요."}
+    if job.kind == "practice_grade":
+        from lerny.models import PracticeAttempt
+        attempt = session.get(PracticeAttempt, job.payload["attempt_id"])
+        attempt.status = "held"
+        attempt.feedback = {"message": "검증 요청이 취소되어 보류했어요."}
     session.commit()
     return {"status": "cancelled"}
 
@@ -177,11 +213,14 @@ def retry(job_id: str, session: Db, actor: Actor):
     job = session.scalar(select(Job).where(Job.id == job_id).with_for_update())
     if not job or job.owner_id != actor.id:
         deny(404)
+    if job.kind in {"lecture_spec", "lecture_grounding", "narration_lesson", "lecture_slides"}:
+        deny(409, "강의 명세는 전용 검증 경로로 다시 제출해 주세요.")
     course_access(session, actor, job.course_id)
     if job.status != "failed":
         deny(409)
+    from lerny.gemini_failures import prepare_retry
+    prepare_retry(job)
     job.status, job.error_code = "queued", None
-    job.payload = {**job.payload, "_ai_generation": job.payload.get("_ai_generation", 0) + 1}
     if job.kind in {"extract", "embed"}:
         from lerny.models import MaterialVersion
         version = session.get(MaterialVersion, job.payload["version_id"])
@@ -191,6 +230,12 @@ def retry(job_id: str, session: Db, actor: Actor):
         attempt = session.get(Attempt, job.payload["attempt_id"])
         if attempt.status != "held":
             deny(409, "이미 처리된 답안은 다시 채점할 수 없습니다.")
+        attempt.status = "pending"
+    if job.kind == "practice_grade":
+        from lerny.models import PracticeAttempt
+        attempt = session.get(PracticeAttempt, job.payload["attempt_id"])
+        if attempt.status != "held":
+            deny(409, "이미 처리된 답안은 다시 검증할 수 없습니다.")
         attempt.status = "pending"
     session.commit()
     return {"job_id": job.id, "status": job.status}
@@ -214,6 +259,9 @@ def chat_thread(thread_id: str, session: Db, actor: Actor):
             {
                 "id": m.id,
                 "question": m.question,
+                "feedback": (m.feedback or {}).get("value"),
+                "context": {key: (m.learning_context or {}).get(key) for key in
+                            ("mode", "exercise_id", "practice_title", "practice_week")},
                 "answer": m.answer if m.access_epoch == course.access_epoch else None,
             }
             for m in messages
@@ -228,12 +276,15 @@ def chat_history(
     q: str = Query(default="", max_length=200),
     thread_id: str | None = Query(default=None, max_length=36),
     latest_thread: bool = False,
+    mode: Literal["theory", "practice"] | None = None,
 ):
     section = section_student(session, actor, section_id)
     epoch = session.get(Course, section.course_id).access_epoch
     query = select(ChatMessage).where(
         ChatMessage.student_id == actor.id, ChatMessage.section_id == section_id
     )
+    if mode:
+        query = query.where(ChatMessage.learning_context["mode"].as_string() == mode)
     if latest_thread and not thread_id:
         thread_id = session.scalar(
             select(ChatMessage.thread_id)
@@ -274,6 +325,9 @@ def chat_history(
                 "id": m.id,
                 "created_at": m.created_at,
                 "question": m.question,
+                "feedback": (m.feedback or {}).get("value"),
+                "context": {key: (m.learning_context or {}).get(key) for key in
+                            ("mode", "exercise_id", "practice_title", "practice_week")},
                 "answer": m.answer if m.access_epoch == epoch else None,
                 "error": None
                 if (m.answer and m.access_epoch == epoch)
@@ -283,3 +337,23 @@ def chat_history(
             for m in reversed(messages)
         ],
     }
+
+
+class ChatFeedback(Input):
+    value: Literal["understood", "confused", "aborted"]
+
+
+@router.put("/sections/{section_id}/chat/messages/{message_id}/feedback")
+def chat_feedback(section_id: str, message_id: str, body: ChatFeedback, session: Db, actor: Actor):
+    section = section_student(session, actor, section_id)
+    message = session.scalar(select(ChatMessage).where(ChatMessage.id == message_id,
+        ChatMessage.student_id == actor.id, ChatMessage.section_id == section_id).with_for_update())
+    if not message:
+        deny(404)
+    if not message.answer or message.access_epoch != session.get(Course, section.course_id).access_epoch:
+        deny(409, "현재 자료로 작성된 답변이 도착한 뒤 평가해 주세요.")
+    if (message.feedback or {}).get("value") != body.value:
+        from lerny.models import now
+        message.feedback = {"value": body.value, "updated_at": now().isoformat()}
+        session.commit()
+    return {"message_id": message.id, "value": body.value}

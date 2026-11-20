@@ -1,0 +1,924 @@
+/* [디자인 테마] 글꼴 · 색 · 버튼 · 카드 · 헤더 모양을 화면 전체에 입혀요. 포인트 색은 보라 하나예요.
+   - 기능 · 배치 · 데이터는 그대로 두고 겉모습만 바꿔요.
+   - main.tsx 에서 맨 마지막에 불러와서 다른 CSS보다 우선해요. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Geist:wght@600&family=JetBrains+Mono:wght@400;600&display=swap');
+
+@font-face {
+  font-family: Pretendard;
+  src: url("/fonts/PretendardVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* 색 토큰 — 무채색 바탕 + 보라 단일 포인트 */
+  --v-ink: #1d1d1f;
+  --v-deep: #6941c6;
+  --v-text-soft: #333333;
+  --v-paper: #f5f5f7;
+  --v-paper-2: #e0e0e0;
+  --v-grey: #7a7a7a;
+  --v-blue: #5b34b3;
+  --v-violet: #b9a5ef;
+  --v-brand: #6941c6;
+  --v-brand-soft: #f3effc;
+  --v-muted: #7a7a7a;
+  --v-faint: #8e8e93;
+  --v-text: #333333;
+  --v-line: rgba(0, 0, 0, 0.08);
+  --v-hairline: #e0e0e0;
+  --v-accent: #6941c6;
+  --v-accent-hover: #5b34b3;
+  --v-accent-focus: #7c4ddb;
+  --v-accent-on-dark: #c4a8ff;
+  --v-pearl: #fafafc;
+  --v-sans: -apple-system, BlinkMacSystemFont, 'Inter', Pretendard, system-ui, 'Malgun Gothic', sans-serif;
+  --v-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --v-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* 버튼 역할 색 */
+  --lerny-action: var(--v-accent);
+  --lerny-action-hover: var(--v-accent-hover);
+  --lerny-action-active: #4c2a99;
+  --lerny-secondary: var(--v-pearl);
+  --lerny-secondary-hover: #fff;
+  --lerny-secondary-ink: var(--v-text);
+  --lerny-secondary-border: #f0f0f0;
+  --action-primary-bg: var(--v-accent);
+  --action-primary-ink: #fff;
+  --action-primary-border: var(--v-accent);
+  --action-primary-hover: var(--v-accent-hover);
+  --action-secondary-bg: var(--v-pearl);
+  --action-secondary-ink: var(--v-text);
+  --action-secondary-border: #f0f0f0;
+
+  font-family: var(--v-sans);
+  color: var(--v-ink);
+  background: var(--v-paper);
+}
+
+/* ---------- 글꼴: 시스템 글꼴 + Pretendard, 코드는 JetBrains Mono ---------- */
+
+html,
+body {
+  background: var(--v-paper);
+  color: var(--v-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root *:not(code, pre, kbd, samp, code *, pre *, .lerny-landing *),
+#root .lerny-landing,
+#root .lerny-landing .ln-page * {
+  font-family: var(--v-sans);
+}
+
+#root :is(code, pre, kbd, samp, .practice-code-label textarea, textarea[class*="code"]) {
+  font-family: var(--v-mono) !important;
+}
+
+#root :is(h1, h2, h3):not(.lerny-landing main *) {
+  letter-spacing: -0.022em;
+  font-weight: 600;
+}
+
+/* ---------- 종이 배경 ---------- */
+
+#root :is(.ln-page, main.app.student-main, main.app.login-main) {
+  background: var(--v-paper);
+}
+
+#root .ln-footer {
+  background: var(--v-paper);
+  border-top-color: var(--v-paper-2);
+}
+
+/* ---------- 헤더: 배경 바 없이 로고 · 메뉴만 ---------- */
+
+#root header.app-header {
+  background: var(--v-paper);
+  border-bottom: 0;
+}
+
+#root header.app-header .brand {
+  display: inline-flex;
+  align-items: center;
+}
+
+#root header.app-header .brand .app-logo {
+  width: 104px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+#root header.app-header .lesson-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--v-line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--v-text-soft);
+  font-size: 12px;
+}
+
+@media (min-width: 761px) {
+  #root header.app-header nav {
+    gap: 26px;
+  }
+
+  #root header.app-header nav a {
+    position: relative;
+    padding: 6px 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--v-text-soft);
+    font-size: 15px;
+    font-weight: 400;
+    text-decoration: none;
+    transition: color 0.25s ease;
+  }
+
+  #root header.app-header nav a::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--v-violet);
+    transform: scaleX(0);
+    transform-origin: right center;
+    transition: transform 0.4s var(--v-ease);
+  }
+
+  #root header.app-header nav a:hover {
+    color: var(--v-deep);
+  }
+
+  #root header.app-header nav a:hover::after,
+  #root header.app-header nav a.active::after {
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+
+  #root header.app-header nav a.active {
+    color: var(--v-deep);
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  #root header.app-header nav > span {
+    color: var(--v-faint);
+    font-size: 14px;
+  }
+
+  /* 로그아웃 · (로그인 전) 학생 가입: 작은 외곽선 버튼 */
+  #root header.app-header nav > button,
+  #root header.ln-header nav > a[href="/signup"] {
+    height: 36px;
+    padding: 0 14px !important;
+    border: 1px solid var(--v-deep) !important;
+    border-radius: 7px !important;
+    background: transparent !important;
+    color: var(--v-deep) !important;
+    font-size: 14px;
+    font-weight: 400;
+    transition: background-color 0.33s var(--v-ease), color 0.33s ease;
+  }
+
+  #root header.ln-header nav > a[href="/signup"] {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  #root header.app-header nav > button:hover,
+  #root header.ln-header nav > a[href="/signup"]:hover {
+    background: var(--v-deep) !important;
+    color: var(--v-paper) !important;
+  }
+
+  #root header.ln-header nav > a[href="/signup"]::after {
+    display: none;
+  }
+}
+
+/* ---------- 버튼: 모서리 7px, 주요 버튼은 남색 단색 ---------- */
+
+#root :is(.primary, .ln-cta, .exam-study-cta, .materials-add, .exam-add, .action-secondary, .link-button):not(.v-btn) {
+  border-radius: 7px;
+}
+
+#root :is(.primary, .ln-cta, .exam-study-cta, .materials-add, .exam-add, .weekly-save button):not(.v-btn):not(:disabled) {
+  background: var(--v-deep) !important;
+  color: #fff !important;
+  border: 1px solid var(--v-deep) !important;
+  box-shadow: none !important;
+  font-weight: 600;
+  transition: background-color 0.33s var(--v-ease), border-color 0.33s ease, color 0.33s ease;
+}
+
+#root :is(.primary, .ln-cta, .exam-study-cta, .materials-add, .exam-add, .weekly-save button):not(.v-btn):hover:not(:disabled) {
+  background: var(--v-blue) !important;
+  border-color: var(--v-blue) !important;
+  color: #fff !important;
+}
+
+#root :is(.primary, .ln-cta, .exam-study-cta, .materials-add, .exam-add, .weekly-save button):not(.v-btn):active:not(:disabled) {
+  background: #2f3a63 !important;
+  border-color: #2f3a63 !important;
+}
+
+/* 열린 상태(자료 올리기 · 시험 추가 펼침)는 보조 버튼 모양 */
+#root :is(.materials-add, .exam-add)[aria-expanded="true"]:not(:disabled) {
+  background: #fff !important;
+  color: var(--v-text) !important;
+  border-color: var(--v-line) !important;
+}
+
+/* 보조 버튼: 흰 바탕 + 연한 테두리, 올리면 남색 테두리 */
+#root :is(.action-secondary, .chat > button, .profile-card-heading button:not(.primary), .profile-photo-control,
+  .materials-heading > button:not(.materials-add), .material-more .actions button, .material-state button,
+  .materials-manager > button, .teacher-tab-heading > button:not(.exam-add), .teacher-roster-heading button,
+  .teacher-question-list-heading button, .teacher-analysis-toolbar button, .teacher-analysis-toolbar .link-button,
+  .result-overview-title button, .result-question > button, .student-hub-roster-heading button, .courses-retry,
+  .exam-range-actions button, .weekly-return, .flow-actions > button:not(.primary),
+  .practice-editor-actions button:not(.primary), .exam-question-pager button):hover:not(:disabled) {
+  background: #fff !important;
+  border-color: var(--v-deep) !important;
+  color: var(--v-deep) !important;
+}
+
+#root :is(.teacher-text-action, .teacher-settings-back, .teacher-scope-refresh) {
+  color: var(--v-deep) !important;
+}
+
+/* ---------- 입력칸 ---------- */
+
+#root :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--v-accent-focus);
+  outline-offset: 1px;
+  border-color: var(--v-blue);
+}
+
+/* ---------- 포커스 · 링크 ---------- */
+
+#root :focus-visible {
+  outline-color: var(--v-blue);
+}
+
+#root :is(.student-eyebrow, .eyebrow, .section-label) {
+  color: var(--v-brand);
+  letter-spacing: 0.12em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root header.app-header nav a::after,
+  #root :is(button, .primary, .ln-cta) {
+    transition: none;
+  }
+}
+
+/* 랜딩 첫 화면 바탕 */
+#root .ln-page .ln-hero {
+  background: var(--v-paper);
+}
+
+/* ---------- 랜딩(/): 헤더는 첫 화면 사진 위에 겹쳐 둬요 ---------- */
+
+#root:has(.lerny-landing) header.app-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: transparent;
+  border: 0;
+}
+
+/* 랜딩 맨 아래 보라색 마무리 — 원래 색 그대로 */
+#root .lerny-landing .ln-page {
+  background: transparent;
+}
+
+#root .lerny-landing .ln-page .ln-finale {
+  margin: 0;
+  background:
+    radial-gradient(ellipse at 50% 35%, #e5dcf7 0, transparent 65%),
+    linear-gradient(#f8f8fc, #f0ebf8);
+}
+
+#root .lerny-landing .ln-finale h2 {
+  color: #242038;
+}
+
+#root .lerny-landing .ln-finale h2 span {
+  color: #8b71bb;
+}
+
+#root .lerny-landing .ln-finale-word {
+  color: #b09ad229;
+}
+
+#root:has(.lerny-landing) footer.ln-footer {
+  background: #f0ebf8;
+  border: 0;
+  color: #756b84;
+}
+
+/* 앱 기본 main · 버튼 규칙이 랜딩 본문에 섞이지 않게 되돌려요 */
+#root .lerny-landing main.v-landing {
+  display: block;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+
+/* ======================================================================
+   디자인 규칙 — 무채색 바탕, 보라 단일 포인트, 그림자·장식 없음
+   ====================================================================== */
+
+/* 본문 리듬 */
+#root :is(p, li) {
+  line-height: 1.47;
+}
+
+#root :is(h1, h2):not(.lerny-landing *) {
+  color: var(--v-ink);
+}
+
+/* ---------- 헤더: 반투명 회백색 + 흐림, 아래 가는 선 ---------- */
+
+#root header:is(.app-header, .ln-header) {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  min-height: 52px;
+  background: rgba(245, 245, 247, 0.8);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--v-line);
+  box-shadow: none;
+}
+
+@media (min-width: 761px) {
+  #root header.app-header nav a {
+    color: var(--v-text);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  #root header.app-header nav a::after {
+    background: var(--v-accent);
+  }
+
+  #root header.app-header nav a:hover,
+  #root header.app-header nav a.active {
+    color: var(--v-accent);
+  }
+
+  #root header.app-header nav a.active {
+    font-weight: 600;
+  }
+
+  #root header.app-header nav > button,
+  #root header.ln-header nav > a[href="/signup"] {
+    height: 32px;
+    padding: 0 16px !important;
+    border: 1px solid var(--v-accent) !important;
+    border-radius: 9999px !important;
+    color: var(--v-accent) !important;
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  #root header.app-header nav > button:hover,
+  #root header.ln-header nav > a[href="/signup"]:hover {
+    background: var(--v-accent) !important;
+    color: #fff !important;
+  }
+}
+
+/* ---------- 주요 버튼: 보라 알약 모양 ---------- */
+
+#root :is(.primary, .ln-cta, .exam-study-cta, .materials-add, .exam-add):not(.v-btn) {
+  border-radius: 9999px;
+}
+
+#root :is(.primary, .ln-cta, .exam-study-cta, .materials-add, .exam-add, .weekly-save button):not(.v-btn):not(:disabled) {
+  background: var(--v-accent) !important;
+  border-color: var(--v-accent) !important;
+  color: #fff !important;
+  font-weight: 400;
+  box-shadow: none !important;
+  transition: background-color 0.2s ease, transform 0.12s ease;
+}
+
+#root :is(.primary, .ln-cta, .exam-study-cta, .materials-add, .exam-add, .weekly-save button):not(.v-btn):hover:not(:disabled) {
+  background: var(--v-accent-hover) !important;
+  border-color: var(--v-accent-hover) !important;
+}
+
+#root :is(.primary, .ln-cta, .exam-study-cta, .materials-add, .exam-add, .weekly-save button):not(.v-btn):active:not(:disabled) {
+  background: var(--v-accent-hover) !important;
+  border-color: var(--v-accent-hover) !important;
+}
+
+/* 누르면 살짝 작아져요 */
+#root button:not(.v-btn):active:not(:disabled),
+#root :is(.ln-cta, .link-button):active {
+  transform: scale(0.95);
+}
+
+#root :is(.materials-add, .exam-add)[aria-expanded="true"]:not(:disabled) {
+  background: transparent !important;
+  color: var(--v-accent) !important;
+  border-color: var(--v-accent) !important;
+}
+
+/* ---------- 보조 버튼: 진주색 캡슐 ---------- */
+
+#root :is(.action-secondary, .profile-card-heading button:not(.primary), .profile-photo-control,
+  .materials-heading > button:not(.materials-add), .material-more .actions button, .material-state button,
+  .materials-manager > button, .teacher-tab-heading > button:not(.exam-add), .teacher-roster-heading button,
+  .teacher-question-list-heading button, .teacher-analysis-toolbar button, .teacher-analysis-toolbar .link-button,
+  .result-overview-title button, .result-question > button, .student-hub-roster-heading button, .courses-retry,
+  .exam-range-actions button, .weekly-return, .flow-actions > button:not(.primary),
+  .practice-editor-actions button:not(.primary), .exam-question-pager button):not(:disabled) {
+  background: var(--v-pearl) !important;
+  border-color: #e0e0e0 !important;
+  color: var(--v-text) !important;
+  border-radius: 11px;
+  box-shadow: none !important;
+}
+
+#root :is(.action-secondary, .profile-card-heading button:not(.primary), .profile-photo-control,
+  .materials-heading > button:not(.materials-add), .material-more .actions button, .material-state button,
+  .materials-manager > button, .teacher-tab-heading > button:not(.exam-add), .teacher-roster-heading button,
+  .teacher-question-list-heading button, .teacher-analysis-toolbar button, .teacher-analysis-toolbar .link-button,
+  .result-overview-title button, .result-question > button, .student-hub-roster-heading button, .courses-retry,
+  .exam-range-actions button, .weekly-return, .flow-actions > button:not(.primary),
+  .practice-editor-actions button:not(.primary), .exam-question-pager button):hover:not(:disabled) {
+  background: #fff !important;
+  border-color: var(--v-accent) !important;
+  color: var(--v-accent) !important;
+}
+
+#root :is(.teacher-text-action, .teacher-settings-back, .teacher-scope-refresh, a.text-link) {
+  color: var(--v-accent) !important;
+}
+
+/* ---------- 포커스: 보라 2px 테두리 ---------- */
+
+#root :focus-visible {
+  outline: 2px solid var(--v-accent-focus);
+  outline-offset: 2px;
+}
+
+#root :is(input, select, textarea):focus-visible {
+  border-color: var(--v-accent);
+  outline-offset: 0;
+}
+
+#root :is(.student-eyebrow, .eyebrow, .section-label) {
+  color: var(--v-accent);
+  font-weight: 600;
+}
+
+/* ---------- 카드: 18px 모서리, 가는 선 하나, 그림자 없음 ---------- */
+
+#root :is(.profile-card, .quiz-card, .quiz-mode-card, .exam-plan-card, .courses-waiting-card, .today-recent-card,
+  .teacher-learning-card, .quiz-practice-card, .practice-result-card, .auth-card, .teacher-course-card,
+  .student-card-link, .today-next, .student-focus, .courses-enroll) {
+  border-radius: 18px;
+  border: 1px solid var(--v-line);
+  box-shadow: none;
+}
+
+/* ---------- 바닥글: 회백색, 작은 글씨 ---------- */
+
+#root .ln-footer {
+  background: var(--v-paper);
+  border-top: 1px solid var(--v-line);
+  color: var(--v-muted);
+  font-size: 12px;
+}
+
+/* ---------- 랜딩은 사진 위에 겹친 투명 헤더 그대로 ---------- */
+
+#root:has(.lerny-landing) header.app-header {
+  position: absolute;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 0;
+}
+
+#root:has(.lerny-landing) footer.ln-footer {
+  background: #f0ebf8;
+  border: 0;
+  color: #756b84;
+}
+
+/* ---------- 로그인 화면: 테스트용 역할별 화면 바로가기 ---------- */
+
+#root .login-test-roles {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--v-line);
+}
+
+#root .login-test-title {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--v-accent);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+#root .login-test-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#root .login-test-buttons button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 10px 8px;
+  border: 1px solid var(--v-accent);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--v-accent);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.12s ease;
+}
+
+#root .login-test-buttons button strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#root .login-test-buttons button small {
+  font-size: 11px;
+  color: inherit;
+  opacity: 0.75;
+}
+
+#root .login-test-buttons button:hover {
+  background: var(--v-accent);
+  color: #fff;
+}
+
+#root .login-test-roles p {
+  margin: 10px 0 0;
+  color: var(--v-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 480px) {
+  #root .login-test-buttons {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ======================================================================
+   글자 크기 · 여백 · 표 규칙 — 세 가지 결을 섞었어요
+   - 미니멀: 무채색 바탕, 넉넉한 여백, 반투명 헤더 (위쪽 규칙)
+   - 스포티: 쪽 제목은 크고 굵게, 버튼과 칩은 알약 모양, 고른 칩은 꽉 찬 보라
+   - 정보형: 숫자는 고정폭, 표는 가는 선과 작은 대문자 머리글, 입력칸은 8px 모서리
+   ====================================================================== */
+
+:root {
+  --t-display: clamp(32px, 3.6vw, 44px);
+  --t-h2: 22px;
+  --t-h3: 17px;
+  --t-body: 15px;
+  --t-label: 11px;
+  --r-card: 16px;
+  --r-input: 8px;
+}
+
+/* 본문 기본 크기와 줄간격 */
+#root main:not(.v-landing) {
+  font-size: var(--t-body);
+  line-height: 1.55;
+}
+
+/* 쪽 제목: 크고 굵게, 줄간격은 촘촘하게 */
+#root main h1:not(.lerny-landing *) {
+  font-size: var(--t-display);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+
+/* 구역 제목 · 작은 제목 */
+#root main h2:not(.lerny-landing *, .login-layout *) {
+  font-size: var(--t-h2);
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+#root main h3:not(.lerny-landing *) {
+  font-size: var(--t-h3);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+/* 작은 영문 라벨: 11px 대문자, 자간 넓게 */
+#root :is(.student-eyebrow, .eyebrow, .section-label, .login-kicker):not(.lerny-landing *) {
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* 숫자는 고정폭으로 맞춰 줄이 흔들리지 않게 */
+#root :is(table, [class*="metric"], [class*="count"], [class*="stats"], [class*="score"], .teacher-section-table, .result-stats) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 카드 · 입력칸 모서리 ---------- */
+
+#root :is(.profile-card, .quiz-card, .quiz-mode-card, .exam-plan-card, .courses-waiting-card, .today-recent-card,
+  .teacher-learning-card, .quiz-practice-card, .practice-result-card, .auth-card, .teacher-course-card,
+  .student-card-link, .today-next, .student-focus, .courses-enroll) {
+  border-radius: var(--r-card);
+}
+
+#root main :is(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea):not(.lerny-landing *) {
+  border-radius: var(--r-input);
+  border-color: #e0e0e0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#root main :is(input, select, textarea):not(.lerny-landing *):hover:not(:focus) {
+  border-color: #c8c8cc;
+}
+
+#root main :is(input, select, textarea):not(.lerny-landing *):focus-visible {
+  border-color: var(--v-accent);
+  box-shadow: 0 0 0 3px rgba(105, 65, 198, 0.15);
+  outline: 0;
+}
+
+/* ---------- 탭: 정보형은 밑줄, 고르는 칩은 알약 ---------- */
+
+/* 화면 위쪽 탭 — 글자 + 보라 밑줄 */
+#root .tabs button,
+#root .progress-domain-tabs button {
+  font-size: 14px;
+}
+
+#root .tabs button.selected,
+#root .progress-domain-tabs button[aria-pressed="true"],
+#root .student-home .progress-domain-tabs button[aria-pressed="true"] {
+  color: var(--v-ink);
+  font-weight: 600;
+  border-bottom-color: var(--v-accent);
+}
+
+/* 고르는 칩 — 알약 모양, 고르면 꽉 찬 보라 */
+#root :is(.learning-view-tabs, .instructor-info-tabs) button {
+  border: 1px solid #e0e0e0;
+  border-radius: 9999px;
+  background: #fff;
+  color: var(--v-text);
+  font-size: 13px;
+  padding: 6px 14px;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+#root :is(.learning-view-tabs, .instructor-info-tabs) button:hover {
+  border-color: var(--v-accent);
+  color: var(--v-accent);
+}
+
+#root :is(.learning-view-tabs, .instructor-info-tabs) button:is([aria-pressed="true"], [aria-selected="true"]) {
+  background: var(--v-accent);
+  border-color: var(--v-accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ---------- 표: 가는 선, 작은 대문자 머리글, 줄에 올리면 옅은 회색 ---------- */
+
+#root .teacher-section-table {
+  border: 1px solid var(--v-line);
+  border-radius: 12px;
+}
+
+#root .teacher-section-labels {
+  background: var(--v-pearl);
+  color: var(--v-muted);
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#root .teacher-section-row:not(.teacher-section-labels) {
+  color: var(--v-text);
+  font-size: 14px;
+  transition: background-color 0.15s ease;
+}
+
+#root .teacher-section-row:not(.teacher-section-labels):hover {
+  background: #fafafa;
+}
+
+#root .teacher-section-row strong {
+  color: var(--v-ink);
+  font-weight: 600;
+}
+
+/* ---------- 랜딩 맨 아래: 밝은 회색 띠 + 화면을 채운 큰 대문자 + 검은 바닥줄 ----------
+   미니멀: 무채색 띠, 가는 선, 장식 없음.
+   큰 글자는 연보라 한 단어로, 단순하지만 한눈에 남게 해요. */
+
+#root:has(.lerny-landing) footer.ln-footer {
+  display: none;
+}
+
+#root .lerny-landing .ln-page .ln-closing {
+  padding: 120px 0 140px !important;
+}
+
+#root .lerny-landing .ln-closing-head {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 6%;
+}
+
+#root .lerny-landing .ln-closing-head h2 {
+  margin: 0 0 36px;
+}
+
+#root .lerny-landing .ln-band {
+  --band: #f5f5f7;
+  --band-ink: #111111;
+  --band-line: #e0e0e0;
+  position: relative;
+  overflow: hidden;
+  background: var(--band);
+  color: var(--band-ink);
+  border-top: 1px solid var(--band-line);
+  text-align: left;
+}
+
+/* 위쪽 가는 선 칸 */
+#root .lerny-landing .ln-band-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--band-line);
+}
+
+#root .lerny-landing .ln-band-grid > * {
+  padding: 32px 5.5% 36px;
+  border-right: 1px solid var(--band-line);
+}
+
+#root .lerny-landing .ln-band-grid > :last-child {
+  border-right: 0;
+}
+
+#root .lerny-landing .ln-band-grid nav {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+#root .lerny-landing .ln-band-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #707072;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#root .lerny-landing .ln-band-grid nav a {
+  display: inline;
+  padding: 0;
+  color: var(--band-ink);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+#root .lerny-landing .ln-band-grid nav a:hover {
+  color: #6941c6;
+}
+
+/* 큰 글자: 반듯한 한 단어, 연보라 그라데이션. 가운데 정렬, 글자 아래쪽이 바닥줄에 걸쳐 잘려요 */
+#root .lerny-landing .ln-band-word {
+  margin: 3vw 0 -4.9vw;
+  padding: 0;
+  color: #cdbff3;
+  background: linear-gradient(180deg, #b9a5ef 0%, #e6dffa 85%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-family: var(--v-sans);
+  font-size: 30vw;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.055em;
+  text-align: center;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* 마침표도 'Lerny' 글자와 같은 색(같은 그라데이션)으로 */
+#root .lerny-landing .ln-band-dot {
+  -webkit-text-fill-color: transparent;
+  color: inherit;
+}
+
+/* 검은 바닥줄 */
+#root .lerny-landing .ln-band-bar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 5.5%;
+  background: #2a2438;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  #root .lerny-landing .ln-band-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #root .lerny-landing .ln-band-grid > nav:nth-of-type(2) {
+    border-right: 0;
+  }
+
+  #root .lerny-landing .ln-band-grid > nav:nth-of-type(3) {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--band-line);
+  }
+
+  #root .lerny-landing .ln-band-bar {
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+  }
+}
+
+/* ── 랜딩 점검 반영 (2026-10-15) ──────────────────────────────── */
+
+/* 랜딩에서 쓰는 강조색을 한 곳에 모아요 (화면 색은 그대로) */
+#root .lerny-landing {
+  --v-weak: #d09aa8;
+  --v-strong: #a58ce0;
+  --v-strong-soft: #c3b2ef;
+  --v-step-material: #8fb4ff;
+  --v-step-2: #ffb36b;
+  --v-step-3: #9d8cff;
+  --v-step-4: #7fd0e6;
+  --v-step-5: #7ee0a8;
+}
+
+/* 이모지·기호 대신 쓰는 선 아이콘: 글자 줄에 맞춰 앉혀요 */
+#root .lerny-landing .ln-icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: -0.14em;
+}
+
+/* 글자를 드래그했을 때 색 */
+#root .lerny-landing ::selection {
+  background: #e6dffa;
+  color: #242038;
+}
+
+#root .lerny-landing .v-dark ::selection {
+  background: #8a6dd3;
+  color: #fff;
+}
+
+/* 숫자가 세로로 줄 맞게 */
+#root .lerny-landing .v-pd-table,
+#root .lerny-landing .v-sd {
+  font-variant-numeric: tabular-nums;
+}

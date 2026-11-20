@@ -1,0 +1,41 @@
+/* 질문 칸 예시 문구 — 돌아가며 바뀌고, 적기 시작하면 흐려지며 사라져요 (VanishPlaceholder.tsx, 11-16) */
+.vanish-ph {
+  position: absolute; z-index: 1; pointer-events: none; overflow: hidden; box-sizing: border-box;
+  padding: var(--vp-pt, 12px) var(--vp-pr, 52px) 0 var(--vp-pl, 14px);
+  font: var(--vp-font, inherit); line-height: var(--vp-lh, 1.5);
+}
+.vanish-ph__line {
+  display: block; color: #8a8a90;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  animation: vanish-ph-in .5s cubic-bezier(.2, .8, .2, 1) backwards;
+  transition: opacity .28s ease, transform .28s ease, filter .28s ease;
+}
+/* 글을 적기 시작하면: 위로 살짝 떠오르며 흐려져 사라져요 */
+.vanish-ph.is-typing .vanish-ph__line { opacity: 0; transform: translateY(-8px); filter: blur(4px); }
+
+@keyframes vanish-ph-in {
+  from { opacity: 0; transform: translateY(10px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+/* 보낸 질문이 한 글자씩 흩어지며 사라져요 */
+.vanish-ph__burst {
+  position: absolute; inset: var(--vp-pt, 12px) var(--vp-pr, 52px) auto var(--vp-pl, 14px);
+  color: var(--vp-text, currentColor); white-space: pre-wrap; word-break: break-all;
+}
+.vanish-ph__burst > span { display: inline-block; white-space: pre; animation: vanish-ph-out .7s ease-in both; }
+@keyframes vanish-ph-out {
+  from { opacity: 1; transform: none; filter: none; }
+  to { opacity: 0; transform: translate(var(--vp-dx, 0), var(--vp-dy, -12px)) scale(.6); filter: blur(4px); }
+}
+
+/* 다크 모드 예시 글자색 — 다른 입력 칸과 같아요 */
+:root[data-theme="dark"] .vanish-ph__line { color: #6e6874; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vanish-ph__line, .vanish-ph__burst > span { animation: none; transition: none; }
+  .vanish-ph__burst { display: none; }
+}
+
+/* 질문 칸 위에 예시 문구를 겹쳐 그리기 위한 기준 위치 */
+#root .chat-page .chat-composer .chat-input-label { position: relative; }

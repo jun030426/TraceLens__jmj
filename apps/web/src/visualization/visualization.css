@@ -1,0 +1,141 @@
+/* 시각화 화면 전용 스타일 — 모두 .vz-host / .vz-screen 안으로 범위를 제한한다 */
+.vz-host {
+  --vz-ink: #2f2a36;
+  --vz-ink-2: #5a5563;
+  --vz-ink-3: #8a8594;
+  --vz-line: #e4e0ea;
+  --vz-panel: #ffffff;
+  --vz-wash: #f6f3f8;
+  --vz-accent: #7b4a80;
+  --vz-accent-wash: #f2e6ef;
+  --vz-ok: #2e9b5b;
+  --vz-stop: #c2413b;
+  display: grid;
+  gap: 10px;
+  color: var(--vz-ink);
+  container: vz / inline-size;
+}
+.vz-host__notice { margin: 0; padding: 9px 12px; border-radius: 10px; background: var(--vz-wash); color: var(--vz-ink-2); font-size: 13px; line-height: 1.5; }
+.vz-host__notice.is-stale { background: #fff6e5; color: #8a5a00; }
+.vz-host__notice.is-error { background: #fdecea; color: #a1281f; }
+
+.vz-screen { display: grid; gap: 10px; outline: none; }
+.vz-screen:focus-visible { outline: 2px solid var(--vz-accent); outline-offset: 4px; border-radius: 12px; }
+/* 좁은 자리(실습 페이지 오른쪽 칸)에서는 무대 + 지금 줄 한 줄, 넓으면 무대 옆에 코드 전체 */
+.vz-screen__main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.vz-screen__code { display: none; }
+.vz-screen__line { display: flex; gap: 8px; align-items: baseline; margin: 0; padding: 6px 10px; border-radius: 10px; background: var(--vz-accent-wash); font-size: 12.5px; color: var(--vz-ink-2); min-width: 0; }
+.vz-screen__line b { flex: 0 0 auto; color: var(--vz-accent); }
+.vz-screen__line code { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: none; padding: 0; color: var(--vz-ink); }
+@container vz (min-width: 760px) {
+  .vz-screen__main { grid-template-columns: minmax(0, 1fr) minmax(220px, 34%); }
+  .vz-screen__code { display: block; }
+  .vz-screen__line { display: none; }
+}
+.vz-screen__stage { position: relative; width: 100%; aspect-ratio: 16 / 10; min-height: 220px; border-radius: 14px; overflow: hidden; background: #efedf8; }
+.vz-stage { position: absolute; inset: 0; }
+.vz-stage canvas { display: block; width: 100%; height: 100%; }
+.vz-stage__fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; color: var(--vz-ink-2); font-size: 13px; }
+.vz-screen__stack { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; pointer-events: none; }
+.vz-screen__stack li { padding: 3px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: var(--vz-ink-2); font-size: 12px; }
+.vz-screen__stack li:last-child { background: var(--vz-accent); color: #fff; font-weight: 600; }
+.vz-screen__stack li + li::before { content: "› "; opacity: 0.6; }
+.vz-screen__badge { position: absolute; right: 10px; top: 10px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #fff; }
+.vz-screen__badge.is-stop { color: var(--vz-stop); }
+/* 지금 시각화가 보여 주는 코드 줄 — 무대 왼쪽 아래에 늘 보인다 */
+.vz-screen__where { position: absolute; left: 10px; bottom: 10px; display: flex; align-items: center; gap: 6px; max-width: calc(100% - 20px); padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, 0.94); box-shadow: 0 2px 8px rgba(60, 40, 80, 0.12); color: var(--vz-ink-2); font-size: 12.5px; pointer-events: none; }
+.vz-screen__where b { color: var(--vz-accent); font-weight: 800; }
+.vz-screen__where.is-ran b { color: #2f8a57; }
+.vz-screen__where.is-error b { color: var(--vz-stop); }
+.vz-screen__where.is-blank b { color: #7b4a80; }
+.vz-screen__where-step { padding-left: 6px; border-left: 1px solid rgba(0, 0, 0, 0.12); color: var(--vz-ink-3, #8a8594); font-size: 11.5px; }
+:root[data-theme="dark"] .vz-screen__where { background: rgba(32, 26, 36, 0.92); color: #cfc8d8; }
+:root[data-theme="dark"] .vz-screen__where-step { border-left-color: rgba(255, 255, 255, 0.15); color: #a29bad; }
+.vz-screen__legend { margin: 0; padding: 6px 10px; border-radius: 12px; background: var(--vz-panel, #fff); border: 1px solid var(--vz-line, #e6e0ea); color: var(--vz-ink-2); font-size: 12px; line-height: 1.5; pointer-events: none; }
+.vz-screen__legend b { color: #8a3fd1; }
+.vz-screen__arrow { display: inline-block; margin-right: 6px; color: #8a3fd1; font-weight: 800; }
+
+.vz-screen__code { margin: 0; padding: 8px 0; list-style: none; max-height: 420px; overflow: auto; border: 1px solid var(--vz-line); border-radius: 14px; background: var(--vz-panel); font-size: 12.5px; line-height: 1.7; }
+.vz-screen__code li { display: grid; grid-template-columns: 2.4em 1.4em minmax(0, 1fr); align-items: baseline; padding: 0 10px 0 0; }
+.vz-screen__code li.is-next { background: var(--vz-accent-wash); }
+.vz-screen__code li.is-ran:not(.is-next) { background: #eaf6ee; }
+.vz-screen__ln { text-align: right; padding-right: 6px; color: var(--vz-ink-3); font-variant-numeric: tabular-nums; }
+.vz-screen__mark { text-align: center; font-size: 11px; color: var(--vz-accent); }
+.vz-screen__code li.is-ran:not(.is-next) .vz-screen__mark { color: var(--vz-ok); }
+.vz-screen__code code { white-space: pre; overflow: hidden; text-overflow: ellipsis; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: none; padding: 0; color: var(--vz-ink); }
+
+.vz-screen__caption { display: grid; gap: 4px; margin: 0; min-height: 1.6em; font-size: 14px; line-height: 1.55; color: var(--vz-ink); overflow-wrap: anywhere; }
+.vz-screen__caption p { margin: 0; }
+.vz-screen__sayline { margin-right: 6px; color: var(--vz-accent); font-weight: 700; }
+.vz-screen__detail { font-size: 12.5px; color: var(--vz-ink-2); }
+.vz-screen__detail code { padding: 1px 6px; border-radius: 6px; background: var(--vz-accent-wash); color: var(--vz-ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.vz-screen__detail.is-cond-true, .vz-screen__detail.is-loop-in { color: #2f8a57; }
+.vz-screen__detail.is-cond-false, .vz-screen__detail.is-loop-out { color: #b0562f; }
+.vz-screen__facts { font-size: 12.5px; color: var(--vz-ink-2); }
+.vz-screen__step { display: inline-block; margin-right: 8px; padding: 1px 8px; border-radius: 999px; background: var(--vz-accent-wash); color: var(--vz-accent); font-size: 12px; font-weight: 700; }
+
+.vz-screen__controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.vz-screen__controls > button,
+.vz-screen__speed > button { min-width: 36px; min-height: 34px; margin: 0; padding: 0 12px; border: 1px solid var(--vz-line); border-radius: 999px; background: var(--vz-panel); color: var(--vz-ink); font-size: 14px; box-shadow: none; cursor: pointer; }
+.vz-screen__controls > button:disabled { opacity: 0.4; cursor: not-allowed; }
+.vz-screen__controls > button.is-primary { background: var(--vz-accent); border-color: var(--vz-accent); color: #fff; }
+.vz-screen__controls > button:focus-visible,
+.vz-screen__speed > button:focus-visible { outline: 2px solid var(--vz-accent); outline-offset: 2px; }
+.vz-screen__controls input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--vz-accent); }
+.vz-screen__count { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--vz-ink-3); }
+.vz-screen__speed { display: flex; gap: 4px; }
+.vz-screen__speed > button { font-size: 12px; }
+.vz-screen__speed > button[aria-pressed="true"] { border-color: var(--vz-accent); background: var(--vz-accent-wash); color: var(--vz-accent); font-weight: 700; }
+
+.vz-screen__state { border: 1px solid var(--vz-line); border-radius: 12px; padding: 8px 12px; background: var(--vz-panel); font-size: 13px; }
+.vz-screen__state summary { cursor: pointer; color: var(--vz-ink-2); font-weight: 600; }
+.vz-screen__state table { width: 100%; margin-top: 8px; border-collapse: collapse; }
+.vz-screen__state caption { text-align: left; font-weight: 700; color: var(--vz-accent); padding: 4px 0; }
+.vz-screen__state th,
+.vz-screen__state td { padding: 4px 6px; border-top: 1px solid var(--vz-line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.vz-screen__state th { width: 30%; color: var(--vz-ink-2); font-weight: 600; }
+.vz-screen__stdout { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: #23202a; color: #f3f0f7; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vz-screen * { transition: none !important; animation: none !important; }
+}
+
+/* ── 오류 장면 ── */
+.vz-screen__code li.is-error { background: #fdecec; color: #8f2219; font-weight: 600; box-shadow: inset 3px 0 0 var(--vz-stop, #d2402e); }
+.vz-screen__code li.is-error .vz-screen__mark { color: var(--vz-stop, #d2402e); font-weight: 800; }
+.vz-screen__code li.is-error { grid-template-columns: 2.4em 1.4em minmax(0, 1fr) auto; }
+.vz-screen__errtag { padding: 0 8px; border-radius: 999px; background: var(--vz-stop, #d2402e); color: #fff; font-size: 11px; font-weight: 700; white-space: nowrap; align-self: center; }
+.vz-screen__error { display: grid; gap: 4px; padding: 10px 14px; border: 1px solid #f1c3bf; border-left: 4px solid var(--vz-stop, #d2402e); border-radius: 12px; background: #fff6f5; color: var(--vz-ink, #2b2530); font-size: 13px; line-height: 1.55; }
+.vz-screen__error p { margin: 0; }
+.vz-screen__error b { color: #8f2219; margin-right: 4px; }
+.vz-screen__error-title { font-size: 14.5px; font-weight: 800; color: #8f2219; }
+.vz-screen__error-code { justify-self: start; padding: 2px 8px; border-radius: 6px; background: #fde3e1; color: #8f2219; font-size: 12.5px; overflow-wrap: anywhere; }
+.vz-screen__error-raw { color: var(--vz-ink-2, #5a5563); font-size: 11.5px; overflow-wrap: anywhere; }
+.vz-screen__controls .vz-screen__tojump { min-height: 34px; padding: 0 12px; border: 1px solid #f1c3bf; border-radius: 999px; background: #fff6f5; color: #8f2219; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+:root[data-theme="dark"] .vz-screen__code li.is-error { background: #3a1d1f; color: #f0b3ad; }
+:root[data-theme="dark"] .vz-screen__error { background: #2b1a1d; border-color: #5a2a2a; color: var(--vz-ink); }
+:root[data-theme="dark"] .vz-screen__error b, :root[data-theme="dark"] .vz-screen__error-title { color: #f0b3ad; }
+:root[data-theme="dark"] .vz-screen__error-code { background: #3a1d1f; color: #f0b3ad; }
+:root[data-theme="dark"] .vz-screen__controls .vz-screen__tojump { background: #2b1a1d; border-color: #5a2a2a; color: #f0b3ad; }
+
+/* ── 빈칸 채우기: 안 채운 빈칸 앞에서 멈춘 장면 ── */
+.vz-screen__code li.is-blank { grid-template-columns: 2.4em 1.4em minmax(0, 1fr) auto; background: #f3e9f6; color: #5b2f63; font-weight: 600; box-shadow: inset 3px 0 0 #7b4a80; }
+.vz-screen__code li.is-blank .vz-screen__mark { color: #7b4a80; font-weight: 800; }
+.vz-screen__blanktag { padding: 0 8px; border-radius: 999px; background: #7b4a80; color: #fff; font-size: 11px; font-weight: 700; white-space: nowrap; align-self: center; }
+.vz-screen__blank { display: grid; gap: 4px; padding: 10px 14px; border: 1px solid #e2cfe6; border-left: 4px solid #7b4a80; border-radius: 12px; background: #faf5fb; color: var(--vz-ink, #2b2530); font-size: 13px; line-height: 1.55; }
+.vz-screen__blank p { margin: 0; }
+.vz-screen__blank b { color: #5b2f63; }
+.vz-screen__blank-title { font-size: 14.5px; font-weight: 800; color: #5b2f63; }
+.vz-screen__blank-code { justify-self: start; padding: 2px 8px; border-radius: 6px; background: #f0e3f3; color: #5b2f63; font-size: 12.5px; overflow-wrap: anywhere; }
+:root[data-theme="dark"] .vz-screen__code li.is-blank { background: #33213a; color: #e3c6ea; }
+:root[data-theme="dark"] .vz-screen__blank { background: #2a1f2d; border-color: #4a3350; color: var(--vz-ink); }
+:root[data-theme="dark"] .vz-screen__blank b, :root[data-theme="dark"] .vz-screen__blank-title { color: #e3c6ea; }
+:root[data-theme="dark"] .vz-screen__blank-code { background: #33213a; color: #e3c6ea; }
+/* 보라색 화살표 설명 — 화살표에 마우스를 댈 때만 커서 위에 뜨는 말풍선 */
+.vz-screen__legend.is-tip { position: absolute; z-index: 5; width: max-content; max-width: 290px; transform: translate(-50%, calc(-100% - 14px)); padding: 8px 12px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 6px 18px rgba(43, 32, 41, .16); pointer-events: none; }
+.vz-screen__legend.is-tip.is-below { transform: translate(-50%, 18px); }
+/* 실행 줄 주석 — 코드 주석처럼 "# …" 모양으로, 길면 다음 줄로 */
+.vz-screen__line { flex-wrap: wrap; }
+.vz-screen__comment { flex: 1 1 100%; min-width: 0; padding-left: 1.6em; color: #4f7d5a; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.vz-screen__comment::before { content: "# "; opacity: .7; }
+:root[data-theme="dark"] .vz-screen__comment { color: #8fc79c; }

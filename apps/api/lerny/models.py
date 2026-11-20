@@ -1,8 +1,9 @@
 import uuid
 from datetime import UTC, date, datetime
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import event
 
 
 def now():
@@ -149,6 +150,7 @@ class MaterialVersion(Identity, Base):
     extracted_text: Mapped[str | None] = mapped_column(Text)
     concept_ids: Mapped[list] = mapped_column(JSON, default=list)
     error_code: Mapped[str | None] = mapped_column(String(50))
+    extraction_report: Mapped[dict | None] = mapped_column(JSON)
 
 
 class Chunk(Identity, Base):
@@ -197,11 +199,46 @@ class ModelCall(Identity, Base):
     error_code: Mapped[str | None] = mapped_column(String(50))
 
 
+class GeminiQuota(Base):
+    """Server-only shared pacing; no credentials, prompts or student data."""
+    __tablename__ = "gemini_quotas"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    next_at: Mapped[float] = mapped_column(Float, default=0)
+    active_until: Mapped[float] = mapped_column(Float, default=0)
+    active_token: Mapped[str | None] = mapped_column(String(36))
+    blocked_until: Mapped[float] = mapped_column(Float, default=0)
+    blocked_code: Mapped[str | None] = mapped_column(String(50))
+    recent: Mapped[list] = mapped_column(JSON, default=list)
+    day: Mapped[str] = mapped_column(String(10), default="")
+    day_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class AIWorker(Base):
     __tablename__ = "ai_workers"
     id: Mapped[str] = mapped_column(String(100), primary_key=True)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     models_ready: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class CodeRun(Identity, Base):
+    __tablename__ = "code_runs"
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    section_id: Mapped[str] = mapped_column(ForeignKey("sections.id"), index=True)
+    language: Mapped[str] = mapped_column(String(10))
+    source: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="queued", index=True)
+    result: Mapped[dict | None] = mapped_column(JSON)
+    error_code: Mapped[str | None] = mapped_column(String(40))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    lease_token: Mapped[str | None] = mapped_column(String(36))
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CodeWorker(Base):
+    __tablename__ = "code_workers"
+    id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ready: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class UploadIntent(Identity, Base):
@@ -223,6 +260,8 @@ class ChatMessage(Identity, Base):
     section_id: Mapped[str] = mapped_column(ForeignKey("sections.id"))
     thread_id: Mapped[str] = mapped_column(String(36), index=True)
     question: Mapped[str] = mapped_column(Text)
+    learning_context: Mapped[dict] = mapped_column(JSON, default=dict)
+    feedback: Mapped[dict | None] = mapped_column(JSON)
     answer: Mapped[dict | None] = mapped_column(JSON)
     access_epoch: Mapped[int] = mapped_column(Integer)
 
@@ -237,6 +276,28 @@ class Idempotency(Identity, Base):
     response: Mapped[dict] = mapped_column(JSON)
 
 
+class ContentGeneration(Identity, Base):
+    __tablename__ = "content_generations"
+    __table_args__ = (
+        Index("uq_week_content_draft", "course_id", "week", unique=True,
+              postgresql_where=text("status = 'draft'"), sqlite_where=text("status = 'draft'")),
+        Index("uq_week_content_published", "course_id", "week", unique=True,
+              postgresql_where=text("status = 'published'"), sqlite_where=text("status = 'published'")),
+    )
+    course_id: Mapped[str] = mapped_column(ForeignKey("courses.id"), index=True)
+    week: Mapped[int] = mapped_column(Integer)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    source_hash: Mapped[str] = mapped_column(String(64))
+    sources: Mapped[list] = mapped_column(JSON)
+    concept_ids: Mapped[list] = mapped_column(JSON, default=list)
+    concept_evidence: Mapped[list] = mapped_column(JSON, default=list)
+    options: Mapped[dict] = mapped_column(JSON, default=dict)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    published_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Question(Identity, Base):
     __tablename__ = "questions"
     course_id: Mapped[str] = mapped_column(ForeignKey("courses.id"), index=True)
@@ -248,6 +309,91 @@ class Question(Identity, Base):
     sources: Mapped[list] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(20), default="active")
     revision: Mapped[int] = mapped_column(Integer, default=1)
+    student_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), index=True)
+    source_version_id: Mapped[str | None] = mapped_column(ForeignKey("material_versions.id"), index=True)
+    purpose: Mapped[str] = mapped_column(String(20), default="bank")
+    generation_id: Mapped[str | None] = mapped_column(ForeignKey("content_generations.id"), index=True)
+
+
+class DailyPlan(Identity, Base):
+    __tablename__ = "daily_plans"
+    __table_args__ = (Index("uq_plan_student_section_day", "student_id", "section_id", "day", unique=True),)
+    student_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    section_id: Mapped[str] = mapped_column(ForeignKey("sections.id"), index=True)
+    day: Mapped[date] = mapped_column(Date)
+    week: Mapped[int] = mapped_column(Integer)
+    day_index: Mapped[int] = mapped_column(Integer)
+    job_id: Mapped[str | None] = mapped_column(ForeignKey("jobs.id"))
+    context: Mapped[dict] = mapped_column(JSON)
+
+
+class ConceptVideo(Identity, Base):
+    __tablename__ = "concept_videos"
+    __table_args__ = (Index("uq_video_generation_concept", "generation_id", "concept_id", unique=True),)
+    generation_id: Mapped[str | None] = mapped_column(ForeignKey("content_generations.id"), index=True)
+    course_id: Mapped[str] = mapped_column(ForeignKey("courses.id"), index=True)
+    version_id: Mapped[str] = mapped_column(ForeignKey("material_versions.id"), index=True)
+    concept_id: Mapped[str] = mapped_column(ForeignKey("concepts.id"), index=True)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    position: Mapped[int] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(30), default="script_pending", index=True)
+    script_job_id: Mapped[str | None] = mapped_column(ForeignKey("jobs.id"))
+    script: Mapped[dict | None] = mapped_column(JSON)
+    request: Mapped[dict | None] = mapped_column(JSON)
+    provider_session_id: Mapped[str | None] = mapped_column(String(150))
+    provider_video_id: Mapped[str | None] = mapped_column(String(150))
+    object_key: Mapped[str | None] = mapped_column(String(300))
+    duration_seconds: Mapped[float | None] = mapped_column(Float)
+    error_code: Mapped[str | None] = mapped_column(String(80))
+    next_poll_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_token: Mapped[str | None] = mapped_column(String(36))
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PracticeExercise(Identity, Base):
+    __tablename__ = "practice_exercises"
+    __table_args__ = (Index("uq_exercise_generation_key", "generation_id", "source_key", "kind", unique=True),)
+    generation_id: Mapped[str | None] = mapped_column(ForeignKey("content_generations.id"), index=True)
+    course_id: Mapped[str] = mapped_column(ForeignKey("courses.id"), index=True)
+    version_id: Mapped[str] = mapped_column(ForeignKey("material_versions.id"), index=True)
+    concept_id: Mapped[str | None] = mapped_column(ForeignKey("concepts.id"), index=True)
+    source_key: Mapped[str] = mapped_column(String(64))
+    position: Mapped[int] = mapped_column(Integer)
+    kind: Mapped[str] = mapped_column(String(10))
+    language: Mapped[str] = mapped_column(String(10))
+    title: Mapped[str] = mapped_column(String(200))
+    prompt: Mapped[str] = mapped_column(Text)
+    template: Mapped[str] = mapped_column(Text)
+    reference: Mapped[str] = mapped_column(Text)
+    blanks: Mapped[dict] = mapped_column(JSON, default=dict)
+    tests: Mapped[list] = mapped_column(JSON, default=list)
+    sources: Mapped[list] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+
+
+class PracticeSession(Identity, Base):
+    __tablename__ = "practice_sessions"
+    __table_args__ = (Index("uq_practice_student_section_day", "student_id", "section_id", "day", unique=True),)
+    student_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    section_id: Mapped[str] = mapped_column(ForeignKey("sections.id"), index=True)
+    day: Mapped[date] = mapped_column(Date)
+    week: Mapped[int] = mapped_column(Integer)
+    exercise_ids: Mapped[list] = mapped_column(JSON)
+
+
+class PracticeAttempt(Identity, Base):
+    __tablename__ = "practice_attempts"
+    student_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    section_id: Mapped[str] = mapped_column(ForeignKey("sections.id"), index=True)
+    exercise_id: Mapped[str] = mapped_column(ForeignKey("practice_exercises.id"), index=True)
+    practice_session_id: Mapped[str] = mapped_column(ForeignKey("practice_sessions.id"), index=True)
+    source: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    correct: Mapped[bool | None] = mapped_column(Boolean)
+    independent: Mapped[bool] = mapped_column(Boolean, default=True)
+    feedback: Mapped[dict | None] = mapped_column(JSON)
+    job_id: Mapped[str | None] = mapped_column(ForeignKey("jobs.id"))
 
 
 class LearningSession(Identity, Base):
@@ -309,3 +455,38 @@ class ExamPlan(Identity, Base):
     end_week: Mapped[int] = mapped_column(Integer)
     published: Mapped[bool] = mapped_column(Boolean, default=False)
     revision: Mapped[int] = mapped_column(Integer, default=1)
+
+
+@event.listens_for(Job, "before_insert")
+def stamp_job_provider(_mapper, _connection, job):
+    """Freeze the selected provider at enqueue time; legacy pending jobs stay on Ollama."""
+    from lerny.config import settings
+
+    if job.kind in {"extract", "embed", "chat", "questions", "grade", "auto_concepts", "weekly_content",
+                    "lecture_grounding", "rag_reindex", "narration_lesson", "daily_theory",
+                    "practice_prepare", "practice_grade"}:
+        job.payload = {**(job.payload or {}), "_ai_provider": settings().ai_provider}
+
+
+class GoogleSlidesConnection(Base):
+    __tablename__ = "google_slides_connections"
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    refresh_token: Mapped[str] = mapped_column(Text)
+    scopes: Mapped[str] = mapped_column(Text)
+    connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class GoogleSlidesServiceConnection(Base):
+    __tablename__ = "google_slides_service_connections"
+    id: Mapped[str] = mapped_column(String(30), primary_key=True)
+    refresh_token: Mapped[str] = mapped_column(Text)
+    scopes: Mapped[str] = mapped_column(Text)
+    connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class GoogleSlidesOAuthState(Base):
+    __tablename__ = "google_slides_oauth_states"
+    state_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), index=True)
+    verifier: Mapped[str] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

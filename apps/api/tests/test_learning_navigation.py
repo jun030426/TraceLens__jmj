@@ -32,6 +32,8 @@ async def test_concept_navigation_keeps_weeks_scope_and_recent_evidence_separate
             db.add(version)
             db.flush()
             source.active_version_id = version.id
+        from publication_fixtures import published
+        published(db,course["id"],12,[future.id])
         student = db.scalar(select(User).where(User.login_id == "student1"))
         for index in range(7):
             learning = LearningSession(student_id=student.id, section_id=section["id"],
@@ -107,6 +109,8 @@ async def test_history_pages_past_100_records_without_mixing_students_or_section
         bounded = (await client.get(path, params={**filters,
             "date_from": (today() - timedelta(days=2)).isoformat(), "date_to": today().isoformat()})).json()
         assert bounded["total"] == 3
+        oldest = (await client.get(path, params={**filters, "order": "asc", "limit": 1})).json()
+        assert oldest["items"][0]["id"] == last["items"][-1]["id"]
         assert (await client.get(path, params={"date_from": "2026-10-13", "date_to": "2026-10-12"})).status_code == 422
         assert (await client.get(path, params={"offset": -1})).status_code == 422
         assert (await client.get(path, params={"limit": 101})).status_code == 422

@@ -5,7 +5,7 @@ from lerny import worker
 from lerny.automatic import concepts_job, sync_progress
 from lerny.models import Job, Material, MaterialVersion, Section
 from test_identity_courses import login, setup_course
-from test_materials import upload, files_root
+from test_materials import upload, files_root, process_uploaded
 pytestmark=pytest.mark.asyncio
 
 async def test_upload_pipeline_and_manual_override(app_db,files_root,monkeypatch):
@@ -13,12 +13,18 @@ async def test_upload_pipeline_and_manual_override(app_db,files_root,monkeypatch
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url="http://test") as c:
         await login(c,"teacher1");course,section=await setup_course(c)
         created=(await upload(c,course["id"])).json()
-        worker.extract_job(session,session.get(Job,created["processing_job_id"]));session.flush()
-        job=session.scalar(select(Job).where(Job.kind=="auto_concepts"))
-        assert job
-        monkeypatch.setattr(worker,"model_json",lambda *args:{"concepts":[{"name":"큐","quote":"큐는 선입선출 자료구조입니다."}]})
-        result=concepts_job(session,job);session.flush()
+        process_uploaded(session,session.get(Job,created["processing_job_id"]));session.flush()
+        assert session.scalar(select(Job).where(Job.kind=="auto_concepts")) is None
+        listing=(await c.get(f"/api/v1/courses/{course['id']}/weekly-content")).json()["items"][0]
+        created_generation=(await c.post(f"/api/v1/courses/{course['id']}/weeks/1/content",headers={"Idempotency-Key":"weekly"},json={"source_hash":listing["source_hash"]})).json()["generation_id"]
+        job=session.scalar(select(Job).where(Job.kind=="weekly_content"))
+        monkeypatch.setattr(worker,"model_json",lambda *args:{"concepts":[{"name":"큐","quote":"큐는 선입선출 자료구조입니다.","version_id":created["version_id"]}]})
+        from lerny.weekly_content import generate_job
+        result=generate_job(session,job);session.flush()
         sec=session.get(Section,section["id"])
+        assert sec.progress==[]  # Draft generation is not student publication.
+        from lerny.models import ContentGeneration
+        session.get(ContentGeneration,created_generation).status="published";session.flush();sync_progress(session,course["id"])
         assert set(sec.progress)==set(result["concept_ids"])
         assert session.scalar(select(Job).where(Job.kind=="questions")).payload["source_version_id"]==created["version_id"]
         sec.progress_mode="manual";sec.progress=[];sync_progress(session,course["id"])
@@ -33,7 +39,7 @@ async def test_private_sources_never_enqueue(app_db,files_root):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url="http://test") as c:
         await login(c,"teacher1");course,_=await setup_course(c)
         result=(await upload(c,course["id"],"private")).json()
-        worker.extract_job(session,session.get(Job,result["processing_job_id"]));session.flush()
+        process_uploaded(session,session.get(Job,result["processing_job_id"]));session.flush()
         assert session.scalar(select(Job).where(Job.kind=="auto_concepts")) is None
 
 async def test_exam_plan_permissions_and_weeks(app_db):
@@ -56,11 +62,13 @@ async def test_exam_questions_scope_and_answer_disclosure(app_db,files_root):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url="http://test") as c:
         await login(c,"teacher1");course,section=await setup_course(c)
         result=(await upload(c,course["id"])).json()
-        worker.extract_job(session,session.get(Job,result["processing_job_id"]));session.flush()
+        process_uploaded(session,session.get(Job,result["processing_job_id"]));session.flush()
         chunk=session.scalar(select(Chunk).where(Chunk.version_id==result["version_id"]))
         q=Question(course_id=course["id"],concept_id=None,kind="mcq",prompt="큐의 순서는?",options=["FIFO","LIFO","랜덤","없음"],solution={"answer_index":0,"explanation":"선입선출입니다.","criteria":[]},sources=[{"chunk_id":chunk.id,"quote":chunk.content}])
         from lerny.models import Concept
         concept=Concept(course_id=course["id"],name="큐");session.add(concept);session.flush();q.concept_id=concept.id;session.add(q)
+        from publication_fixtures import published
+        published(session,course["id"],concept_ids=[concept.id])
         plan=ExamPlan(course_id=course["id"],title="중간고사",start_week=1,end_week=1,published=True);session.add(plan);session.commit()
         code=(await c.post(f"/api/v1/sections/{section['id']}/join-code",json={})).json()["join_code"]
         await login(c,"student1");await c.post("/api/v1/enrollments",json={"join_code":code})
@@ -86,6 +94,8 @@ async def test_weekly_schedule_and_manual_boundary(app_db, files_root):
         session.add(first); session.flush()
         version.status = "ready"; version.concept_ids = [first.id]
         session.get(Material, material["material_id"]).active_version_id = version.id
+        from publication_fixtures import published
+        published(session,course["id"],concept_ids=[first.id])
         sec = session.get(Section, section["id"])
         sec.week_schedule = [{"week":1,"date":(date.today()+timedelta(days=2)).isoformat()}]
         session.commit()

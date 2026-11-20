@@ -1,0 +1,35 @@
+.material-viewer { min-inline-size: 0; }
+.material-viewer-heading h1 { overflow-wrap: anywhere; font-size: clamp(1.25rem, 3vw, 1.8rem); }
+.material-viewer-heading p, .material-viewer-page-status { color: var(--text-muted, #707580); }
+.material-viewer-toolbar { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; margin-block: 1.25rem .75rem; }
+.material-viewer-toolbar label { display: flex; gap: .5rem; align-items: center; }
+.material-viewer-toolbar select { inline-size: auto; }
+.material-viewer-page { margin: 0; }
+.material-viewer-canvas { overflow: auto; max-block-size: 75dvh; border: 1px solid var(--border, #e1e5eb); border-radius: 12px; background: #fff; }
+.material-viewer-canvas img { display: block; inline-size: 100%; block-size: auto; }
+.material-viewer-canvas.is-zoomed img { inline-size: 1800px; max-inline-size: none; }
+.material-viewer-page figcaption { padding-block: .75rem; font-size: .85rem; overflow-wrap: anywhere; }
+.material-viewer-transcript { margin-block-start: 1rem; }
+.material-viewer-transcript summary { cursor: pointer; }
+.material-viewer-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; padding: 1rem; }
+.material-viewer :focus-visible { outline: 2px solid var(--primary, #875cbd); outline-offset: 3px; }
+
+#root .material-viewer-heading {
+  margin-block: 1.25rem;
+  padding-block-end: 1rem;
+  border-block-end: 1px solid var(--d-hair);
+}
+#root .material-viewer-heading h1 { color: var(--d-ink); font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2.4rem); }
+#root .material-viewer-toolbar {
+  padding: .75rem 1rem;
+  border: 1px solid var(--d-hair);
+  border-radius: 1rem;
+  background: var(--d-pearl);
+}
+#root .material-viewer-page {
+  padding: clamp(.5rem, 1.5vw, 1.25rem);
+  border: 1px solid var(--d-hair);
+  border-radius: 1.25rem;
+  background: var(--d-surface);
+}
+#root .material-viewer-page-status, #root .material-viewer-page figcaption { color: var(--d-ink-2); }

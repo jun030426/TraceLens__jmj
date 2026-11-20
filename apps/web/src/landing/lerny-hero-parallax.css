@@ -1,0 +1,274 @@
+/* 랜딩 ① 첫 화면 — 강의자료 패럴랙스 (landing/HeroParallax.tsx)
+   원본 Tailwind 클래스를 같은 값의 CSS 로 옮겼어요. 색은 랜딩의 라일락 · 바이올렛 */
+
+/* 원본: h-[300vh] overflow-hidden antialiased relative flex flex-col [perspective:1000px] [transform-style:preserve-3d]
+   여기선 모였다 내려가는 구간까지 넣어서 400vh, 장면은 화면에 붙어 있어요 */
+#root .lerny-landing .hp-root {
+  position: relative;
+  height: 150vh; /* 11/18 (3): 스크롤 약 0.5장 — 모이고 → 위로 날아가 연결 섹션 제목 속으로. 맥북을 다시 넣으면(MAC_IN_HERO) 250vh */
+  z-index: 4; /* 밑에 겹친 다음 칸보다 위 */
+  /* 화면 속으로 확대될 무렵 다음 칸이 바로 올라와 덮어요 (빈 화면을 스크롤하지 않게) */
+  margin-bottom: -100vh;
+  -webkit-font-smoothing: antialiased;
+  /* 바탕은 장면(.hp-stage)에만 — 장면이 걷히면 밑에 겹친 '하루의 학습'이 바로 보여요 */
+  pointer-events: none;
+}
+#root .lerny-landing .hp-stage {
+  background: var(--d-ground, #f7f0f8);
+  pointer-events: auto;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+/* 원본 Header: max-w-7xl mx-auto py-20 md:py-40 px-4 w-full */
+#root .lerny-landing .hp-header {
+  position: relative;
+  z-index: 3;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: clamp(88px, 13vh, 140px) 16px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+#root .lerny-landing .hp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #e6dbf7;
+  color: #5b4a78;
+  font-size: 14px;
+}
+#root .lerny-landing .hp-eyebrow b {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #6631db;
+  color: #fff;
+  font-size: 12px;
+}
+/* 원본 h1: text-2xl md:text-7xl font-bold */
+#root .lerny-landing .hp-header h1 {
+  margin: 22px 0 0;
+  font-size: clamp(30px, 5.6vw, 72px);
+  line-height: 1.12;
+  font-weight: 700;
+  color: var(--d-ink, #2b2029);
+}
+#root .lerny-landing .hp-g {
+  background: linear-gradient(135deg, #491ab1 0%, #7b45f0 55%, #b0789a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* 원본 p: max-w-2xl text-base md:text-xl mt-8 */
+#root .lerny-landing .hp-header p {
+  max-width: 42rem;
+  margin: 28px 0 0;
+  font-size: clamp(16px, 1.4vw, 20px);
+  line-height: 1.6;
+  color: var(--d-ink-3, #8a76a8);
+}
+
+/* 카드 묶음: 화면 가운데 기준으로 놓고, 화면 너비에 맞춰 전체 크기를 줄여요 */
+#root .lerny-landing .hp-fit {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  width: 0;
+  height: 0;
+  transform: scale(var(--hp-k, 0.86)); /* 11/18: 두 줄로 바꾸며 카드를 더 크게 */
+  transform-style: preserve-3d;
+}
+@media (max-width: 1100px) { #root .lerny-landing .hp-fit { --hp-k: 0.66; } }
+@media (max-width: 760px) { #root .lerny-landing .hp-fit { --hp-k: 0.42; top: 60%; } }
+#root .lerny-landing .hp-group {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: -50% -50%;
+  transform-origin: center center;
+}
+/* 원본 줄: flex flex-row(-reverse) space-x-20 mb-20 */
+#root .lerny-landing .hp-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 5rem;
+  margin-bottom: 5rem;
+}
+#root .lerny-landing .hp-row:last-child { margin-bottom: 0; }
+#root .lerny-landing .hp-row.hp-reverse { flex-direction: row-reverse; }
+
+/* 원본 카드: group/product h-96 w-[30rem] relative shrink-0 */
+#root .lerny-landing .hp-card-slot { flex-shrink: 0; }
+#root .lerny-landing .hp-card {
+  position: relative;
+  width: 30rem;
+  height: 24rem;
+  flex-shrink: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 18px 40px -18px rgba(73, 26, 177, 0.35);
+}
+#root .lerny-landing .hp-card:hover { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); } /* group-hover:shadow-2xl */
+/* 원본 hover: 검은 막 opacity-80 + 이름 */
+#root .lerny-landing .hp-shade {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+#root .lerny-landing .hp-card:hover .hp-shade { opacity: 0.8; }
+#root .lerny-landing .hp-card-title {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  margin: 0;
+  color: #fff;
+  font-size: 20px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+#root .lerny-landing .hp-card:hover .hp-card-title { opacity: 1; }
+
+/* 강의자료 한 쪽 */
+#root .lerny-landing .hp-page {
+  position: absolute;
+  inset: 0;
+  padding: 26px 30px;
+  background: #fffdfd;
+  color: #2b2029;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 10px solid var(--hp-tone);
+  box-sizing: border-box;
+}
+#root .lerny-landing .hp-page.tone-0 { --hp-tone: #7b45f0; --hp-soft: #efe7ff; }
+#root .lerny-landing .hp-page.tone-1 { --hp-tone: #dfb6b2; --hp-soft: #fbefed; }
+#root .lerny-landing .hp-page.tone-2 { --hp-tone: #a981ff; --hp-soft: #f2ecff; }
+#root .lerny-landing .hp-page.tone-3 { --hp-tone: #b0789a; --hp-soft: #f8edf3; }
+#root .lerny-landing .hp-page-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #8a76a8;
+}
+#root .lerny-landing .hp-page h3 { margin: 0; font-size: 30px; line-height: 1.25; color: #2b2029; }
+/* 본문: 밑줄 자리 대신 강의 내용 문장 (11/18) — 앞에 작은 점 */
+#root .lerny-landing .hp-page-body { display: grid; gap: 8px; }
+#root .lerny-landing .hp-page-body p {
+  position: relative;
+  margin: 0;
+  padding-left: 16px;
+  font-size: 17px;
+  line-height: 1.45;
+  color: #4a3d58;
+}
+#root .lerny-landing .hp-page-body p::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hp-tone);
+}
+#root .lerny-landing .hp-page pre {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #241b33;
+  color: #e9defe;
+  font-size: 17px;
+  line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+}
+#root .lerny-landing .hp-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+#root .lerny-landing .hp-chips span {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--hp-soft);
+  color: #491ab1;
+  font-size: 15px;
+}
+#root .lerny-landing .hp-page-no { margin-top: auto; align-self: flex-end; font-size: 13px; color: #a3919e; }
+
+/* 움직임 줄이기: 기울기 없이 반듯하게, 화면에 붙지 않고 한 화면 높이만 */
+#root .lerny-landing .hp-root.is-still { height: auto; margin-bottom: 0; }
+#root .lerny-landing .hp-root.is-still .hp-stage { position: relative; height: auto; }
+#root .lerny-landing .is-still .hp-fit {
+  position: static;
+  width: min(100%, 80rem);
+  height: auto;
+  margin: clamp(28px, 5vw, 64px) auto;
+  padding: 0 16px;
+  box-sizing: border-box;
+  transform: none;
+}
+#root .lerny-landing .is-still .hp-group { position: static; translate: none; transform: none !important; }
+#root .lerny-landing .is-still .hp-row.hp-reverse {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(12px, 2vw, 32px);
+  margin: 0;
+}
+#root .lerny-landing .is-still .hp-row + .hp-row,
+#root .lerny-landing .is-still .hp-card-slot:nth-child(n+4) { display: none; }
+#root .lerny-landing .is-still .hp-card-slot { min-width: 0; transform: none !important; }
+#root .lerny-landing .is-still .hp-card { width: 100%; height: auto; }
+#root .lerny-landing .is-still .hp-page { position: relative; min-height: 290px; }
+@media (max-width: 760px) {
+  #root .lerny-landing .is-still .hp-row.hp-reverse { grid-template-columns: 1fr; }
+  #root .lerny-landing .is-still .hp-card-slot:nth-child(n+2) { display: none; }
+}
+
+/* 다크 모드 (원본: 제목 dark:text-white, 설명 dark:text-neutral-200) */
+:root[data-theme="dark"] #root .lerny-landing .hp-stage { background: #211a28; }
+:root[data-theme="dark"] #root .lerny-landing .hp-header h1 { color: #fff; }
+:root[data-theme="dark"] #root .lerny-landing .hp-header p { color: #e5e5e5; }
+:root[data-theme="dark"] #root .lerny-landing .hp-eyebrow { background: rgba(255, 255, 255, 0.06); border-color: #3a2f48; color: #d7d0de; }
+:root[data-theme="dark"] #root .lerny-landing .hp-g { background: linear-gradient(135deg, #c6b0ff 0%, #a981ff 55%, #e7b9cf 100%); -webkit-background-clip: text; background-clip: text; }
+:root[data-theme="dark"] #root .lerny-landing .hp-page { background: #2a2233; color: #ece6f3; }
+:root[data-theme="dark"] #root .lerny-landing .hp-page h3 { color: #f3eefa; }
+:root[data-theme="dark"] #root .lerny-landing .hp-page-body p { color: #d9d0e4; }
+
+/* ===== 맥북 장면 (11/18) — MacScene 을 장면 전체에 깔아요. 모인 강의자료(.hp-fit)가 그 위에서 네모 속으로 ===== */
+#root .lerny-landing .hp-mac { position: absolute; inset: 0; z-index: 1; }
+#root .lerny-landing .hp-fit { z-index: 40; } /* 네모 · 글자(.lm-first) 위로 지나가며 들어가요 */
+
+/* 첫 화면 바로 다음 칸(하루의 학습) */
+#root .lerny-landing .hp-root + .lw-flow {
+  position: relative;
+  z-index: 1; /* 첫 화면 장면 밑에 겹쳐 있다가, 확대가 끝나면 장면이 걷히며 보여요 */
+  background: var(--d-ground, #f7f0f8);
+}
+
+/* 11/18 (2): 첫 화면 밑에는 '학생의 배움과 교수자의 수업을 잇다'(ConnectFlow)가 겹쳐 있다가, 장면이 걷히면 보여요 */
+#root .lerny-landing .hp-root + .cn-connect {
+  z-index: 1;
+  background: var(--d-ground, #f7f0f8);
+}
+
+/* 자료가 제목 속으로 들어가는 순간 (--hp-in 0 → 1, HeroParallax.tsx): 제목이 작게 시작해 커지고, 들어오는 끝에 보라 빛이 번져요 */
+#root .lerny-landing .hp-root + .cn-connect .cn-head h2 {
+  transform: scale(calc(0.86 + 0.14 * var(--hp-in, 1)));
+  text-shadow: 0 0 calc(40px * (1 - var(--hp-in, 1)) * var(--hp-in, 1) * 4) rgba(150, 105, 255, calc(0.9 * (1 - var(--hp-in, 1)) * var(--hp-in, 1) * 4));
+  transition: transform 0.1s linear;
+}
+
+/* 11/18 밤: 첫 화면 문구 묶음을 조금 더 위로 + AI 배지는 투명 바탕에 글자 · 테두리만 보라 */
+#root .lerny-landing .hp-header { padding-top: clamp(44px, 6.5vh, 80px); }
+#root .lerny-landing .hp-eyebrow { background: transparent; border-color: color-mix(in srgb, #6631db 45%, transparent); color: #6631db; }
+#root .lerny-landing .hp-eyebrow b { background: transparent; border: 1px solid #6631db; color: #6631db; }
+:root[data-theme="dark"] #root .lerny-landing .hp-eyebrow { background: transparent; border-color: #8f6be8; color: #c9b3ff; }
+:root[data-theme="dark"] #root .lerny-landing .hp-eyebrow b { border-color: #c9b3ff; color: #c9b3ff; }

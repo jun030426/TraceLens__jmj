@@ -6,6 +6,11 @@ export type LearningConcept = {
   valid_recent: number;
   correct_recent: number;
   mastered: boolean;
+  learning?: {
+    state: "no_data" | "insufficient" | "review" | "learning" | "mastered";
+    sample: number; correct: number; success_days: number;
+    weakness: number | null; trend_points: number | null;
+  };
   review_due: string | null;
   review_session_id: string | null;
   review_question_id: string | null;
@@ -20,10 +25,13 @@ export function reviewReason(concept: LearningConcept, today: string) {
   return "";
 }
 
-export function conceptStatus(concept: LearningConcept, today: string) {
-  if (reviewReason(concept, today)) return "review";
+export function conceptStatus(concept: LearningConcept, _today?: string) {
+  // Review reminders are advice, separate from the shared evidence classification.
+  if (concept.learning) return concept.learning.state;
+  if (!concept.valid_recent) return "no_data";
+  if (concept.valid_recent < 5) return "insufficient";
   if (concept.mastered) return "mastered";
-  return concept.valid_recent ? "learning" : "new";
+  return concept.correct_recent < 4 ? "review" : "learning";
 }
 
 export function suggestedConcepts(

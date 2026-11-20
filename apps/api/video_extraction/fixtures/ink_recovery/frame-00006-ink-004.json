@@ -1,0 +1,1053 @@
+{
+  "source_result": "outputs/ink-continuation-v1/results/frame-00006-ink-004.json",
+  "package": {
+    "task": {
+      "id": "frame-00006-ink-004",
+      "source_sha256": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6",
+      "frame_id": "frame-00006",
+      "time_seconds": 100.0,
+      "onset_interval_seconds": [
+        80.0,
+        100.0
+      ],
+      "bbox": [
+        366,
+        562,
+        448,
+        626
+      ],
+      "current_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00006.png",
+      "audio_interval": [
+        77.0,
+        105.0
+      ],
+      "asr_context": [
+        {
+          "id": "asr-0000-0025",
+          "start_seconds": 76.94,
+          "end_seconds": 78.0,
+          "text": "라고 보시면 되겠습니다."
+        },
+        {
+          "id": "asr-0000-0026",
+          "start_seconds": 78.54,
+          "end_seconds": 80.3,
+          "text": "그래서 그 데이터를 프린트로 출력을 하면"
+        },
+        {
+          "id": "asr-0000-0027",
+          "start_seconds": 80.3,
+          "end_seconds": 85.5,
+          "text": "다음과 같은 중괄호를 통해서 데이터가 출력이 된 것을 볼 수가 있겠습니다."
+        },
+        {
+          "id": "asr-0000-0028",
+          "start_seconds": 85.88,
+          "end_seconds": 90.08,
+          "text": "바로 여러분은 셋의 결과를 지금 보고 계시는 거예요."
+        },
+        {
+          "id": "asr-0000-0029",
+          "start_seconds": 91.34,
+          "end_seconds": 92.82,
+          "text": "자, 다른 예제를 한번 볼게요."
+        },
+        {
+          "id": "asr-0000-0030",
+          "start_seconds": 93.06,
+          "end_seconds": 97.32,
+          "text": "다음과 같이 지금 보니까 애플, 바나나, 오렌지라고 지정이 되어 있죠?"
+        },
+        {
+          "id": "asr-0000-0031",
+          "start_seconds": 97.48,
+          "end_seconds": 99.8,
+          "text": "지금 보니까 중괄호로 만들어져 있어요."
+        },
+        {
+          "id": "asr-0000-0032",
+          "start_seconds": 100.24,
+          "end_seconds": 103.28,
+          "text": "근데 여기에 키와 밸류라고 하는 쌍으로 만들어져 있어요."
+        },
+        {
+          "id": "asr-0000-0033",
+          "start_seconds": 103.46,
+          "end_seconds": 104.7,
+          "text": "그러면 딕셔넬이 아니죠?"
+        }
+      ],
+      "speech_cue_hits": [
+        "다음",
+        "여기"
+      ],
+      "priority_score": 4.584,
+      "before_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00006.png",
+      "after_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00006.png",
+      "asr_status": "machine_transcription_not_verified",
+      "previous_context_only": false,
+      "evidence": {
+        "selected_frame": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00006.png",
+        "frame_candidates": [
+          {
+            "path": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00006.png",
+            "eligible": true,
+            "local_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "global_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "sharpness": 5917.20947796249,
+            "contrast": 188.0
+          }
+        ],
+        "source_size": [
+          1280,
+          720
+        ],
+        "views": {
+          "original": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-004/original.png",
+            "crop_in_source": [
+              0.3453125,
+              0.5444444444444444,
+              0.46875,
+              0.6430555555555556
+            ],
+            "size": [
+              158,
+              71
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          },
+          "contrast": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-004/contrast.png",
+            "crop_in_source": [
+              0.3453125,
+              0.5444444444444444,
+              0.46875,
+              0.6430555555555556
+            ],
+            "size": [
+              158,
+              71
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "contrast",
+            "never_replaces_original": true
+          },
+          "denoise": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-004/denoise.png",
+            "crop_in_source": [
+              0.3453125,
+              0.5444444444444444,
+              0.46875,
+              0.6430555555555556
+            ],
+            "size": [
+              158,
+              71
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "denoise",
+            "never_replaces_original": true
+          },
+          "binary": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-004/binary.png",
+            "crop_in_source": [
+              0.3453125,
+              0.5444444444444444,
+              0.46875,
+              0.6430555555555556
+            ],
+            "size": [
+              158,
+              71
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "binary",
+            "never_replaces_original": true
+          },
+          "expanded": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-004/expanded.png",
+            "crop_in_source": [
+              0.3125,
+              0.5194444444444445,
+              0.5015625,
+              0.6680555555555555
+            ],
+            "size": [
+              242,
+              107
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          }
+        },
+        "selected_frame_seconds": 100.0
+      }
+    },
+    "view": {
+      "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-004/review/source-context.png",
+      "size": [
+        316,
+        143
+      ],
+      "crop_in_source": [
+        0.28359375,
+        0.49444444444444446,
+        0.53046875,
+        0.6930555555555555
+      ],
+      "operation": "source_crop_only",
+      "eligible": true,
+      "core_unchanged": true
+    },
+    "ocr": {
+      "state": "candidate",
+      "words": [
+        {
+          "text": "P1, 2,3, 4,5",
+          "score": 0.7762417197227478,
+          "bbox_pixels": [
+            80.00000000000006,
+            49.99999999999999,
+            205.99999999999997,
+            86.00000000000003
+          ]
+        }
+      ],
+      "raw": {
+        "res": {
+          "input_path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-004/original.png",
+          "page_index": null,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_textline_orientation": false
+          },
+          "dt_polys": [
+            [
+              [
+                1,
+                14
+              ],
+              [
+                127,
+                14
+              ],
+              [
+                127,
+                50
+              ],
+              [
+                1,
+                50
+              ]
+            ]
+          ],
+          "text_det_params": {
+            "limit_side_len": 64,
+            "limit_type": "min",
+            "thresh": 0.3,
+            "max_side_limit": 4000,
+            "box_thresh": 0.6,
+            "unclip_ratio": 1.5
+          },
+          "text_type": "general",
+          "textline_orientation_angles": [
+            -1
+          ],
+          "text_rec_score_thresh": 0.0,
+          "return_word_box": false,
+          "rec_texts": [
+            "P1, 2,3, 4,5"
+          ],
+          "rec_scores": [
+            0.7762417197227478
+          ],
+          "rec_polys": [
+            [
+              [
+                1,
+                14
+              ],
+              [
+                127,
+                14
+              ],
+              [
+                127,
+                50
+              ],
+              [
+                1,
+                50
+              ]
+            ]
+          ],
+          "rec_boxes": [
+            [
+              1,
+              14,
+              127,
+              50
+            ]
+          ]
+        }
+      },
+      "provider": "PaddleOCR",
+      "model_hashes": {
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/config.json": "7ac1c33f377ba58561f4b89d3180b6add2b7c5c60a4edac90fa4e0ceccdc6665",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.json": "05feef1acb00aa4cd7362b15f7f501fc4f99d7b1fa73c1c871e0c7b1504b0f5c",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.pdiparams": "afa1820cb16c1fd0dad589d0f8b389139061c1ef6d68019685fd07be997dda5b",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.yml": "98069072e1b6b37d727fd9d9f11725faa46d6ea0de012f2ed26caea011c37699",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/config.json": "c86a49d6301e6c4ff3398a87a2a1926b3521a46e90042833e18bbfa8ba6165c2",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.json": "562404e3c590c50c93778d5f0a94df21b47b5ab8f3ea6d47c7f8a7930c3bc844",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.pdiparams": "cac3e5f12cf04aaa77f6a5bc704e4e736ef2908476551891d84b41b4e9090462",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.yml": "f757fa1c40e99edcf27e9cce879b93eb2a51fa46f5ef39095689b8c37dd75998"
+      },
+      "id": "frame-00006-ink-004-original",
+      "task_id": "frame-00006-ink-004",
+      "view": "original",
+      "path": "outputs/ink-continuation-v1/evidence/frame-00006-ink-004/original.png",
+      "image_sha256": "bf179bf9bb39b9b8f0e770f6175e3b9df859647f9f8c49f7aad3852c823f8cc6",
+      "alternative_words": [
+        {
+          "text": "P1,2,3, 4,5",
+          "score": 0.7976980209350586,
+          "bbox_pixels": [
+            80.00000000000006,
+            49.99999999999999,
+            205.99999999999997,
+            85.00000000000003
+          ]
+        }
+      ]
+    },
+    "ocr_coverage": {
+      "left": 250.0000000000001,
+      "top": 251.74825174825145,
+      "right": 749.9999999999999,
+      "bottom": 748.2517482517486
+    },
+    "base": {
+      "items": [
+        {
+          "id": "item_0",
+          "kind": "printed_text",
+          "box": {
+            "left": 0,
+            "top": 36,
+            "right": 315,
+            "bottom": 196
+          },
+          "text": "t(numbers)",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_1",
+          "kind": "underline",
+          "box": {
+            "left": 4,
+            "top": 213,
+            "right": 334,
+            "bottom": 242
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_2",
+          "kind": "arrow",
+          "box": {
+            "left": 134,
+            "top": 0,
+            "right": 208,
+            "bottom": 78
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": [
+            {
+              "x": 154,
+              "y": 0
+            },
+            {
+              "x": 164,
+              "y": 74
+            }
+          ]
+        },
+        {
+          "id": "item_3",
+          "kind": "printed_text",
+          "box": {
+            "left": 222,
+            "top": 425,
+            "right": 605,
+            "bottom": 551
+          },
+          "text": "#{1, 2, 3, 4, 5}",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_4",
+          "kind": "circle",
+          "box": {
+            "left": 251,
+            "top": 372,
+            "right": 303,
+            "bottom": 570
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_5",
+          "kind": "circle",
+          "box": {
+            "left": 561,
+            "top": 375,
+            "right": 653,
+            "bottom": 593
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_6",
+          "kind": "bracket",
+          "box": {
+            "left": 279,
+            "top": 561,
+            "right": 656,
+            "bottom": 637
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_7",
+          "kind": "handwriting",
+          "box": {
+            "left": 231,
+            "top": 692,
+            "right": 622,
+            "bottom": 855
+          },
+          "text": "set 형태",
+          "uncertainties": [
+            "형태"
+          ],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "link_0",
+          "from_ids": [
+            "item_1"
+          ],
+          "to_ids": [
+            "item_0"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "underline"
+        },
+        {
+          "id": "link_1",
+          "from_ids": [
+            "item_2"
+          ],
+          "to_ids": [
+            "item_0"
+          ],
+          "kind": "connection",
+          "direction": "observed",
+          "evidence": "arrow pointing to t(numbers)"
+        },
+        {
+          "id": "link_2",
+          "from_ids": [
+            "item_4"
+          ],
+          "to_ids": [
+            "item_3"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "circle around left brace"
+        },
+        {
+          "id": "link_3",
+          "from_ids": [
+            "item_5"
+          ],
+          "to_ids": [
+            "item_3"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "circle around right brace"
+        },
+        {
+          "id": "link_4",
+          "from_ids": [
+            "item_6"
+          ],
+          "to_ids": [
+            "item_3"
+          ],
+          "kind": "grouping",
+          "direction": "observed",
+          "evidence": "bracket under #{1, 2, 3, 4, 5}"
+        },
+        {
+          "id": "link_5",
+          "from_ids": [
+            "item_7"
+          ],
+          "to_ids": [
+            "item_6"
+          ],
+          "kind": "label",
+          "direction": "observed",
+          "evidence": "handwritten label under bracket"
+        }
+      ],
+      "complete": false,
+      "notes": []
+    },
+    "candidate": {
+      "items": [
+        {
+          "id": "item_0",
+          "kind": "printed_text",
+          "box": {
+            "left": 0,
+            "top": 36,
+            "right": 315,
+            "bottom": 196
+          },
+          "text": "t(numbers)",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_1",
+          "kind": "underline",
+          "box": {
+            "left": 4,
+            "top": 213,
+            "right": 334,
+            "bottom": 242
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_2",
+          "kind": "arrow",
+          "box": {
+            "left": 134,
+            "top": 0,
+            "right": 208,
+            "bottom": 78
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": [
+            {
+              "x": 154,
+              "y": 0
+            },
+            {
+              "x": 164,
+              "y": 74
+            }
+          ]
+        },
+        {
+          "id": "item_3",
+          "kind": "printed_text",
+          "box": {
+            "left": 222,
+            "top": 425,
+            "right": 605,
+            "bottom": 551
+          },
+          "text": "#{1, 2, 3, 4, 5}",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_4",
+          "kind": "circle",
+          "box": {
+            "left": 251,
+            "top": 372,
+            "right": 303,
+            "bottom": 570
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_5",
+          "kind": "circle",
+          "box": {
+            "left": 561,
+            "top": 375,
+            "right": 653,
+            "bottom": 593
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_6",
+          "kind": "bracket",
+          "box": {
+            "left": 279,
+            "top": 561,
+            "right": 656,
+            "bottom": 637
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_7",
+          "kind": "handwriting",
+          "box": {
+            "left": 231,
+            "top": 692,
+            "right": 622,
+            "bottom": 855
+          },
+          "text": "set 형태",
+          "uncertainties": [
+            "형태"
+          ],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "link_0",
+          "from_ids": [
+            "item_1"
+          ],
+          "to_ids": [
+            "item_0"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "underline"
+        },
+        {
+          "id": "link_1",
+          "from_ids": [
+            "item_2"
+          ],
+          "to_ids": [
+            "item_0"
+          ],
+          "kind": "connection",
+          "direction": "observed",
+          "evidence": "arrow pointing to t(numbers)"
+        },
+        {
+          "id": "link_2",
+          "from_ids": [
+            "item_4"
+          ],
+          "to_ids": [
+            "item_3"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "circle around left brace"
+        },
+        {
+          "id": "link_3",
+          "from_ids": [
+            "item_5"
+          ],
+          "to_ids": [
+            "item_3"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "circle around right brace"
+        },
+        {
+          "id": "link_4",
+          "from_ids": [
+            "item_6"
+          ],
+          "to_ids": [
+            "item_3"
+          ],
+          "kind": "grouping",
+          "direction": "observed",
+          "evidence": "bracket under #{1, 2, 3, 4, 5}"
+        },
+        {
+          "id": "link_5",
+          "from_ids": [
+            "item_7"
+          ],
+          "to_ids": [
+            "item_6"
+          ],
+          "kind": "label",
+          "direction": "observed",
+          "evidence": "handwritten label under bracket"
+        }
+      ],
+      "complete": true,
+      "notes": []
+    },
+    "audio_context": {
+      "bindings": [
+        {
+          "item_ids": [
+            "item_0",
+            "item_1",
+            "item_2"
+          ],
+          "quote": "그래서 그 데이터를 프린트로 출력을 하면",
+          "start_seconds": 78.54,
+          "end_seconds": 80.3,
+          "relevance": "aligned",
+          "reason": "The speaker talks about outputting data via print, directly referring to print(numbers), partially visible as t(numbers) with an arrow and underline."
+        },
+        {
+          "item_ids": [
+            "item_3",
+            "item_4",
+            "item_5"
+          ],
+          "quote": "다음과 같은 중괄호를 통해서 데이터가 출력이 된 것을 볼 수가 있겠습니다.",
+          "start_seconds": 80.3,
+          "end_seconds": 85.5,
+          "relevance": "aligned",
+          "reason": "The speaker mentions curly braces (중괄호) enclosing the output data, corresponding to the circled braces around #{1, 2, 3, 4, 5}."
+        },
+        {
+          "item_ids": [
+            "item_6",
+            "item_7"
+          ],
+          "quote": "바로 여러분은 셋의 결과를 지금 보고 계시는 거예요.",
+          "start_seconds": 85.88,
+          "end_seconds": 90.08,
+          "relevance": "aligned",
+          "reason": "The speaker explains that this is the result of a set (셋의 결과), aligning with the bracket and handwritten label 'set 형태'."
+        }
+      ],
+      "concepts": [],
+      "word_candidates": [],
+      "notes": [
+        "ASR-derived context, not independently listened speech."
+      ],
+      "rejected_bindings": []
+    },
+    "failed_ids": [
+      "item_3",
+      "item_4",
+      "item_5",
+      "item_6",
+      "item_7",
+      "link_2",
+      "link_3",
+      "link_4",
+      "link_5"
+    ]
+  },
+  "audit": {
+    "checks": [
+      {
+        "id": "item_3",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "The text corresponds to '#{1, 2, 3, 4, 5}' printed in the crop, correctly positioned and fully recognized.",
+        "full_text": "#{1, 2, 3, 4, 5}",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_4",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Red circle emphasis enclosing the opening curly brace '{'.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_5",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Red circle emphasis enclosing the closing curly brace '}'.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_6",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Underlying grouping bracket/brace directly under #{1, 2, 3, 4, 5}.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "structural",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_7",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Handwritten text reads 'set 형태' under the grouping bracket.",
+        "full_text": "set 형태",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      }
+    ],
+    "missing": [],
+    "complete": true
+  },
+  "previous_decisions": [
+    {
+      "id": "item_0",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "context_crop_boundary"
+      ],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_2",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "context_crop_boundary"
+      ],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_3",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "audit_id_contract_invalid"
+      ],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_4",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "audit_id_contract_invalid"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_5",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "audit_id_contract_invalid"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_6",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "audit_id_contract_invalid"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_7",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "unclear_item",
+        "audit_id_contract_invalid"
+      ],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link_0",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link_1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link_2",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints",
+        "audit_id_contract_invalid"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link_3",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints",
+        "audit_id_contract_invalid"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link_4",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints",
+        "audit_id_contract_invalid"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link_5",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints",
+        "audit_id_contract_invalid"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+현재 준비한 188개 실행:
+zsh "${LERNY_EXTRACTION_WORKSPACE}/음성_단어시간_재정렬.command"
+
+이 명령은 기존 ASR 환경과 분리한 work/audio-alignment-env에 WhisperX를 설치하고
+최초 정렬 모델을 내려받습니다. 유료 API/음원 업로드는 없습니다. 한국어 기본 정렬
+모델을 사용하며, 외국어/숫자 등 지원하지 않는 문자는 정렬 성공으로 처리하지 않습니다.
+원래 문장·실제 반복·내용 선별 판정은 바꾸지 않고 새로운 결과 파일을 만듭니다.
+
+outputs/audio-word-alignment-v2/latest.json: 새 데이터와 시간 검토 파일 위치
+summary.json: 대상/시간 계산 통과/미처리·불확실 건수
+word_timing_status=model_aligned_checks_passed: 모델 정렬과 계산 검사 통과
+word_timestamps_verified=false: 사람의 원음 정답 시각으로 검증했다는 뜻이 아님
+eligible_for_word_timed_use=false: 미완료/실패 시간으로 단어별 자막 생성 금지
+내용이 이미 확인된 텍스트의 RAG 사용 여부와 시간 정확도는 분리됩니다.
+
+새 공통 결과를 대상으로 준비(API/모델 실행 없음):
+python -m video_extraction.audio.word_alignment prepare --records /절대경로/usable-records.jsonl --output outputs/새음성-정렬 --language ko
+그 다음:
+zsh ./음성_단어시간_재정렬.command outputs/새음성-정렬
+
+과거 결과에 audio_offset_seconds가 없으면 --source-plan에 해당 원음과 오프셋을
+기록한 검사 plan.json을 추가합니다. 오프셋을 0으로 추측하지 않습니다.
+기존 소스/텍스트가 바뀌면 새 출력 폴더를 사용합니다. 같은 계획은 완료 건을 재사용합니다.
+문장 정답성은 이 정렬로 판정하지 않습니다. 별도의 청취 정답/표본 평가가 필요합니다.

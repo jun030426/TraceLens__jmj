@@ -5,7 +5,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi",
     "uvicorn",
-    "pydantic-settings",
+    "pydantic",
     "sqlalchemy>=2.1.4",
     "alembic>=1.20.0",
     "psycopg[binary]>=3.3.6",
@@ -15,7 +15,19 @@ dependencies = [
     "python-docx>=1.2.0",
     "python-pptx>=1.0.2",
     "httpx>=0.28.1",
+    "markdown-it-py>=3,<5",
+    "tree-sitter==0.25.2",
+    "tree-sitter-java==0.23.5",
+    "python-dotenv>=1,<2",
+    "Pillow>=10,<13",
+    "boto3==1.44.0",
+    "cryptography>=46,<49",
+    "pyotp>=2.9,<3",
 ]
+
+[project.optional-dependencies]
+engine-index = ["llama-index-core==0.14.25"]
+engine-media = ["av>=13,<20", "imageio-ffmpeg>=0.5,<1", "Pillow>=10,<13", "numpy>=1.26,<3", "faster-whisper>=1.2,<2", "opencv-python-headless>=4.10,<6"]
 
 [dependency-groups]
 dev = [

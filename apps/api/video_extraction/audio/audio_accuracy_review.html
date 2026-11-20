@@ -1,0 +1,69 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><title>음성 289개 원음 대조</title>
+<style>body{font:17px/1.65 system-ui;color:#172033;background:#f5f7fa;max-width:1000px;margin:30px auto;padding:0 20px}h1{font-size:28px}section{background:white;padding:22px;border:1px solid #dce2ea;border-radius:14px;margin:18px 0}button,input,select,textarea{font:inherit}button{cursor:pointer;padding:9px 14px;border-radius:8px;border:1px solid #9babc0;background:white;margin:4px}button.primary{background:#195fc6;color:white}textarea{box-sizing:border-box;width:100%;min-height:140px;padding:12px}audio{width:100%}.notice{background:#fff1cc;padding:16px;border-radius:10px}#message{min-height:30px;color:#174c8c}small{color:#536579}label{display:inline-block;margin:5px 10px 5px 0}#notes{min-height:60px}#progress{font-weight:700}.toolbar{background:#f5f7fa;padding:8px 0}</style>
+<h1>음성 원음 대조 · 정확도 측정 준비</h1>
+<p>289개 구간, 원음 합계 약 16분 27초입니다. 우선 검토할 30개를 무작위로 골랐습니다. 한 번에 모두 작성할 필요는 없습니다.</p>
+<details><summary>작성 기준 · 처음 한 번 읽어주세요</summary><ul>
+<li>먼저 원음을 듣고 <b>평가 구간 안에서 실제로 들린 말</b>을 입력하세요. 앞뒤 문맥 재생에는 구간 밖 말도 포함되므로 옮겨 적지 마세요.</li>
+<li>말한 발음을 문맥으로 고치지 않습니다. ‘투풀’처럼 들리면 그대로 쓰고, ‘튜플’ 같은 표준 용어 후보는 메모에 적습니다.</li>
+<li>소리는 들리지만 단어를 확정할 수 없으면 ‘불명료’, 구간 경계에서 말이 잘렸으면 ‘경계 잘림’을 선택합니다. 추측해서 정답을 채우지 않습니다.</li>
+<li>띄어쓰기·구두점은 읽기 쉽게 쓰세요. 채점 시 구두점을 정규화하고 문자 오류율은 공백을 제외합니다. 단어·숫자·기술 용어는 자동 치환하지 않습니다.</li>
+<li>발화가 전혀 없을 때만 ‘발화 없음’을 선택합니다. 빈 입력은 정답으로 간주하지 않습니다.</li>
+<li>평가 대상 자동 전사문은 이 화면에 넣지 않았습니다. 정답 저장 후 채점 결과에서 수정 전후를 비교합니다.</li>
+</ul><p>이 화면은 개발용 정확도 검토입니다. 일반 서비스 사용자가 매번 수행하는 작업은 아닙니다. 기존 6개 청취 입력은 구간·완성도가 달라 자동 승인하지 않았습니다.</p></details>
+<div class="toolbar"><label>검토자 <input id="reviewer" placeholder="이름 또는 식별명"></label><br>
+<label>대상 <select id="scope"><option value="pilot">먼저 30개</option><option value="all">전체 289개</option></select></label>
+<label>보기 <select id="filter"><option value="all">모든 상태</option><option value="pending">승인 전</option><option value="approved">승인됨</option><option value="uncertain">불명료·경계 잘림</option></select></label>
+<button id="export" class="primary">검토 내용 내려받기</button><button id="importButton">이전 파일 불러오기</button><input id="importFile" type="file" accept=".json" hidden>
+<p id="progress"></p><div id="message" role="status" aria-live="polite"></div></div>
+<p class="notice">브라우저에 임시 저장하며, <b>중단하기 전 ‘검토 내용 내려받기’로 파일을 보관</b>하세요. 다른 브라우저에서는 내려받은 파일을 불러오면 이어서 할 수 있습니다. 30개만 검토한 점수는 289개 전체 정확도가 아닙니다.</p>
+<section id="card"></section>
+<p>채점은 원음을 듣고 승인한 구간만 사용합니다. 불명료·경계 잘림·미완료는 제외 수와 비율을 별도로 표시합니다. 원본 데이터는 변경하지 않습니다. API 호출은 없습니다.</p>
+<script id="payload" type="application/json">__PAYLOAD__</script>
+<script>
+const payload=JSON.parse(document.getElementById('payload').textContent),key='audio-accuracy-'+payload.manifest_sha256;
+let state=structuredClone(payload.blank),index=0,visible=[],rendering=false,storageOK=true;
+const $=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function message(t){$('message').textContent=t;}
+function validate(v){
+ if(v.version!==1||v.manifest_sha256!==payload.manifest_sha256||!Array.isArray(v.records)||typeof v.reviewer!=='string')throw Error('이 평가 대상의 검토 파일이 아닙니다.');
+ const known=new Set(payload.blank.records.map(r=>r.id)),seen=new Set();
+ for(const r of v.records){if(!known.has(r.id)||seen.has(r.id)||!['pending','draft','approved','ambiguous','boundary'].includes(r.status)||typeof r.reference_text!=='string'||typeof r.no_speech!=='boolean'||typeof r.listened!=='boolean')throw Error('파일 항목 형식이나 ID를 확인하세요.');seen.add(r.id);}
+ return v;
+}
+try{let saved=localStorage.getItem(key);if(saved)state=validate(JSON.parse(saved));}catch(e){storageOK=false;message('임시 저장을 복원하지 못했습니다. 이전 JSON 파일이 있다면 불러오세요.');}
+function persist(){try{localStorage.setItem(key,JSON.stringify(state));storageOK=true;}catch(e){storageOK=false;message('브라우저 임시 저장이 안 됩니다. 반드시 검토 내용을 내려받아 보관하세요.');}}
+function record(id){return state.records.find(r=>r.id===id);}
+function refresh(){
+ visible=payload.clips.filter(c=>($('scope').value==='all'||c.pilot)&&($('filter').value==='all'||($('filter').value==='pending'&&record(c.id).status!=='approved')||($('filter').value==='approved'&&record(c.id).status==='approved')||($('filter').value==='uncertain'&&['ambiguous','boundary'].includes(record(c.id).status))));
+ index=Math.min(index,Math.max(0,visible.length-1));render();
+}
+function progress(){const approved=state.records.filter(r=>r.status==='approved').length,uncertain=state.records.filter(r=>['ambiguous','boundary'].includes(r.status)).length;$('progress').textContent=`전체 ${state.records.length}개 중 승인 ${approved}개 · 불명료/경계 ${uncertain}개 · 현재 보기 ${visible.length}개`;}
+function render(){
+ rendering=true;progress();const c=visible[index];
+ if(!c){$('card').innerHTML='<p>현재 조건에 해당하는 항목이 없습니다. 대상을 전체로 바꾸거나 다른 상태를 선택하세요.</p>';rendering=false;return;}
+ const r=record(c.id),statuses={pending:'미작성',draft:'작성 중',approved:'청취 승인',ambiguous:'불명료',boundary:'경계 잘림'};
+ $('card').innerHTML=`<button id="prev">← 이전</button><span> ${index+1} / ${visible.length} </span><button id="next">다음 →</button><h2>${esc(c.label)} · ${c.start_seconds.toFixed(2)}–${c.end_seconds.toFixed(2)}초</h2><p>상태: <b id="statusLabel">${statuses[r.status]}</b></p><label>평가할 원음 구간 (${c.clip_meta.duration_seconds.toFixed(2)}초)</label><audio id="exact" controls preload="metadata" src="${esc(c.clip)}"></audio><label>재생 속도 <select id="speed"><option value="1">1배</option><option value="0.85">0.85배</option><option value="0.7">0.7배</option></select></label><details><summary>앞뒤 문맥 함께 듣기</summary><p>이 재생 파일의 <b>${c.context_target_start.toFixed(2)}–${c.context_target_end.toFixed(2)}초</b>만 평가 대상입니다.</p><audio id="context" controls preload="none" src="${esc(c.context_clip)}"></audio></details><p><label><input id="noSpeech" type="checkbox" ${r.no_speech?'checked':''}> 이 구간에 발화가 없음</label></p><label for="transcript">원음에서 들은 내용</label><textarea id="transcript" placeholder="들리는 말을 입력하세요. 자동 전사문은 표시하지 않습니다.">${esc(r.reference_text)}</textarea><label for="notes">불확실한 이유 / 표준 용어 후보 (채점에서 제외되는 메모)</label><textarea id="notes">${esc(r.notes||'')}</textarea><p><label><input id="listened" type="checkbox" ${r.listened?'checked':''}> 원음을 직접 듣고 입력 내용을 확인했습니다</label></p><button id="approve" class="primary">청취 내용 승인</button><button id="ambiguous">불명료로 남기기</button><button id="boundary">경계 잘림으로 남기기</button><p><small>이전·다음 이동 시 입력 내용은 유지됩니다. 승인 후 내용을 바꾸면 다시 작성 중 상태가 됩니다.</small></p>`;
+ $('transcript').disabled=r.no_speech;
+ function edit(){r.reference_text=$('transcript').value;r.notes=$('notes').value;r.no_speech=$('noSpeech').checked;r.listened=$('listened').checked;if(r.status==='approved'){r.status='draft';r.reviewed_at=null;}else if(r.status==='pending')r.status='draft';$('statusLabel').textContent=statuses[r.status];persist();progress();}
+ for(const id of ['transcript','notes','listened'])$(id).addEventListener('input',edit);
+ $('noSpeech').onchange=()=>{$('transcript').disabled=$('noSpeech').checked;edit();};
+ $('speed').onchange=()=>{for(const id of ['exact','context'])$(id).playbackRate=Number($('speed').value);};
+ $('prev').onclick=()=>{index=Math.max(0,index-1);render();};$('next').onclick=()=>{index=Math.min(visible.length-1,index+1);render();};
+ function decide(status){
+  if(!state.reviewer.trim()){message('검토자 이름 또는 식별명을 입력하세요.');return;}
+  if(status==='approved'){
+   if(!r.listened){message('직접 청취·확인 체크가 필요합니다.');return;}
+   if((r.no_speech&&r.reference_text.trim())||(!r.no_speech&&!r.reference_text.trim())){message('발화가 있으면 전사를 입력하고, 발화 없음은 입력을 비워두세요.');return;}
+   if(/\[불명료\]|\[판독불가\]|⟦|⟧/.test(r.reference_text)){message('불확실한 내용은 승인하지 말고 불명료로 남겨주세요.');return;}
+  }
+  r.status=status;r.reviewed_at=new Date().toISOString();r.reviewer=state.reviewer;persist();message(`${c.label}: ${statuses[status]}로 저장했습니다.`);refresh();
+ }
+ $('approve').onclick=()=>decide('approved');$('ambiguous').onclick=()=>decide('ambiguous');$('boundary').onclick=()=>decide('boundary');rendering=false;
+}
+$('reviewer').value=state.reviewer;$('reviewer').oninput=()=>{state.reviewer=$('reviewer').value;persist();};
+for(const id of ['scope','filter'])$(id).onchange=()=>{index=0;refresh();};
+$('export').onclick=()=>{const value={...state,exported_at:new Date().toISOString()},url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='audio-references.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message('audio-references.json을 내려받았습니다. 이 파일로 채점하거나 다음 검토를 이어갈 수 있습니다.');};
+$('importButton').onclick=()=>$('importFile').click();
+$('importFile').onchange=async ev=>{try{const f=ev.target.files[0];if(!f)return;const v=validate(JSON.parse(await f.text()));if(!confirm('현재 브라우저 작성 내용을 불러온 파일로 바꿀까요? 보관이 필요하면 먼저 내려받으세요.'))return;const merged=structuredClone(payload.blank);merged.reviewer=v.reviewer;for(const r of v.records)Object.assign(merged.records.find(x=>x.id===r.id),r);state=merged;$('reviewer').value=state.reviewer;persist();index=0;refresh();message('이전 검토 내용을 불러왔습니다.');}catch(e){message(e.message);}finally{ev.target.value='';}};
+refresh();
+</script></html>

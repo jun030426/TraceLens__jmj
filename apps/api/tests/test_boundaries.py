@@ -1,7 +1,20 @@
 import asyncio
 
 import httpx
+import pytest
+from lerny import health
+from lerny.config import settings
 from lerny.main import create_app
+
+
+@pytest.fixture(autouse=True)
+def unavailable_services(monkeypatch):
+    # These boundary cases represent a process with no configured learning services.
+    def unavailable():
+        raise RuntimeError("No test database configured")
+    monkeypatch.setattr(health, "engine", unavailable)
+    monkeypatch.setattr(settings(), "trace_backend", "disabled")
+    monkeypatch.setattr(settings(), "trace_sandbox_command", [])
 
 
 async def check_readiness_boundary():

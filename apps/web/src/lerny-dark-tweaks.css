@@ -1,0 +1,20 @@
+/* [다크 모드] 자동 변환(lerny-dark.css)만으로 어색한 곳을 손으로 다듬어요. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* 로고의 'Lerny' 글씨가 어두운 바탕에서도 보이게 — 밝기만 뒤집고 보라 빛은 지켜요 */
+:root[data-theme="dark"] #root .app-logo {
+  filter: invert(1) hue-rotate(180deg) saturate(1.2);
+}
+
+/* 분반 수강생 관리 — 접히는 수강생 목록 */
+:root[data-theme="dark"] .teacher-roster-hint { color: #6c6672; }
+:root[data-theme="dark"] .teacher-roster-fold { border-color: #332c3a; }
+:root[data-theme="dark"] .teacher-course-page .teacher-roster-fold > .teacher-roster-toggle { background: #201926; color: #98929f; border: 0; }
+:root[data-theme="dark"] .teacher-course-page .teacher-roster-fold > .teacher-roster-toggle:hover { background: #18111e; }
+:root[data-theme="dark"] .teacher-roster-toggle small,
+:root[data-theme="dark"] .teacher-roster-chevron { color: #6c6672; }
+:root[data-theme="dark"] .teacher-roster-list { border-top-color: #160f1d; }
+:root[data-theme="dark"] .teacher-roster-profile { color: #6c6672; }
+:root[data-theme="dark"] .teacher-roster-profile > span:first-child { color: #87818e; }

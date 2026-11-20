@@ -1,0 +1,1790 @@
+{
+  "source_result": "outputs/ink-continuation-v1/results/frame-00112-ink-003.json",
+  "package": {
+    "task": {
+      "id": "frame-00112-ink-003",
+      "source_sha256": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6",
+      "frame_id": "frame-00112",
+      "time_seconds": 2047.5,
+      "onset_interval_seconds": [
+        2027.5,
+        2047.5
+      ],
+      "bbox": [
+        297,
+        451,
+        788,
+        593
+      ],
+      "current_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00112.png",
+      "audio_interval": [
+        2024.5,
+        2052.5
+      ],
+      "asr_context": [
+        {
+          "id": "asr-0011-0009",
+          "start_seconds": 2023.58,
+          "end_seconds": 2026.24,
+          "text": "서로 비교해 보시기를 바랍니다."
+        },
+        {
+          "id": "asr-0011-0010",
+          "start_seconds": 2028.06,
+          "end_seconds": 2031.54,
+          "text": "자 더불어 집합 구조라고 하는 것 얘는 중복을 허용하지 않았어요."
+        },
+        {
+          "id": "asr-0011-0011",
+          "start_seconds": 2031.54,
+          "end_seconds": 2033.36,
+          "text": "그래서 얘는 더불어 순서도 없고요."
+        },
+        {
+          "id": "asr-0011-0012",
+          "start_seconds": 2033.5,
+          "end_seconds": 2034.78,
+          "text": "인덱스 사용할 수가 없었어요."
+        },
+        {
+          "id": "asr-0011-0013",
+          "start_seconds": 2035.22,
+          "end_seconds": 2037.4,
+          "text": "자 여기서 사용할 수 있는 메소드가 뭐가 있었었나"
+        },
+        {
+          "id": "asr-0011-0014",
+          "start_seconds": 2037.4,
+          "end_seconds": 2039.2,
+          "text": "라고 하는 거 연산과 관련되어 있는"
+        },
+        {
+          "id": "asr-0011-0015",
+          "start_seconds": 2039.2,
+          "end_seconds": 2041.48,
+          "text": "마찬가지로 우리가 사용할 수 있는"
+        },
+        {
+          "id": "asr-0011-0016",
+          "start_seconds": 2041.48,
+          "end_seconds": 2042.66,
+          "text": "연산이 있었다는 거"
+        },
+        {
+          "id": "asr-0011-0017",
+          "start_seconds": 2042.66,
+          "end_seconds": 2043.58,
+          "text": "그 다음에"
+        },
+        {
+          "id": "asr-0011-0018",
+          "start_seconds": 2044.7,
+          "end_seconds": 2047.14,
+          "text": "데이터 중에서 중복을 제거하려면"
+        },
+        {
+          "id": "asr-0011-0019",
+          "start_seconds": 2047.14,
+          "end_seconds": 2049.28,
+          "text": "이 집합이라고 하는 자료 구조를 통하면"
+        },
+        {
+          "id": "asr-0011-0020",
+          "start_seconds": 2049.28,
+          "end_seconds": 2051.62,
+          "text": "조금 더 효율적으로 자료를 관리할 수"
+        },
+        {
+          "id": "asr-0011-0021",
+          "start_seconds": 2051.62,
+          "end_seconds": 2052.74,
+          "text": "있다라고 하는 거"
+        }
+      ],
+      "speech_cue_hits": [
+        "다음",
+        "순서",
+        "여기"
+      ],
+      "priority_score": 5,
+      "before_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00112.png",
+      "after_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00112.png",
+      "asr_status": "machine_transcription_not_verified",
+      "previous_context_only": false,
+      "evidence": {
+        "selected_frame": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00112.png",
+        "frame_candidates": [
+          {
+            "path": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00112.png",
+            "eligible": true,
+            "local_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "global_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "sharpness": 12356.232692720601,
+            "contrast": 252.0
+          }
+        ],
+        "source_size": [
+          1280,
+          720
+        ],
+        "views": {
+          "original": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00112-ink-003/original.png",
+            "crop_in_source": [
+              0.17421875,
+              0.4152777777777778,
+              0.9109375,
+              0.6291666666666667
+            ],
+            "size": [
+              943,
+              154
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          },
+          "contrast": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00112-ink-003/contrast.png",
+            "crop_in_source": [
+              0.17421875,
+              0.4152777777777778,
+              0.9109375,
+              0.6291666666666667
+            ],
+            "size": [
+              943,
+              154
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "contrast",
+            "never_replaces_original": true
+          },
+          "denoise": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00112-ink-003/denoise.png",
+            "crop_in_source": [
+              0.17421875,
+              0.4152777777777778,
+              0.9109375,
+              0.6291666666666667
+            ],
+            "size": [
+              943,
+              154
+            ],
+            "foreground_retention": 0.9998712391089747,
+            "eligible": true,
+            "operation": "denoise",
+            "never_replaces_original": true
+          },
+          "binary": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00112-ink-003/binary.png",
+            "crop_in_source": [
+              0.17421875,
+              0.4152777777777778,
+              0.9109375,
+              0.6291666666666667
+            ],
+            "size": [
+              943,
+              154
+            ],
+            "foreground_retention": 0.9998712391089747,
+            "eligible": true,
+            "operation": "binary",
+            "never_replaces_original": true
+          },
+          "expanded": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00112-ink-003/expanded.png",
+            "crop_in_source": [
+              0.0,
+              0.35833333333333334,
+              1.0,
+              0.6861111111111111
+            ],
+            "size": [
+              1280,
+              236
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          }
+        },
+        "selected_frame_seconds": 2047.5
+      }
+    },
+    "view": {
+      "path": "outputs/ink-continuation-v1/evidence/frame-00112-ink-003/review/source-context.png",
+      "size": [
+        1280,
+        308
+      ],
+      "crop_in_source": [
+        0.0,
+        0.30833333333333335,
+        1.0,
+        0.7361111111111112
+      ],
+      "operation": "source_crop_only",
+      "eligible": true,
+      "core_unchanged": true
+    },
+    "ocr": {
+      "state": "candidate",
+      "words": [
+        {
+          "text": "주요 특징",
+          "score": 0.9588171243667603,
+          "bbox_pixels": [
+            236.0,
+            81.99999999999997,
+            329.0,
+            110.0
+          ]
+        },
+        {
+          "text": "중복 제거,순서 없음,인덱스 사용 불가,집합 연산 지원",
+          "score": 0.9767485857009888,
+          "bbox_pixels": [
+            396.0,
+            81.99999999999997,
+            903.0,
+            109.00000000000001
+          ]
+        },
+        {
+          "text": "주요메서드",
+          "score": 0.9996626973152161,
+          "bbox_pixels": [
+            235.0,
+            123.0,
+            350.0,
+            150.00000000000003
+          ]
+        },
+        {
+          "text": "addO, updateQ, remove(, discard(), pop(), clear",
+          "score": 0.9421069622039795,
+          "bbox_pixels": [
+            390.0,
+            123.0,
+            851.0,
+            152.0
+          ]
+        },
+        {
+          "text": "집합연산",
+          "score": 0.9987803101539612,
+          "bbox_pixels": [
+            236.0,
+            163.99999999999994,
+            331.0,
+            190.99999999999994
+          ]
+        },
+        {
+          "text": "unionO, intersectionO, differenceO, symmetric differenceO",
+          "score": 0.9504202604293823,
+          "bbox_pixels": [
+            388.0,
+            163.99999999999994,
+            936.0,
+            190.99999999999994
+          ]
+        },
+        {
+          "text": "대표활용",
+          "score": 0.9994316697120667,
+          "bbox_pixels": [
+            234.00000000000003,
+            204.99999999999997,
+            330.0,
+            230.99999999999997
+          ]
+        },
+        {
+          "text": "중복 제거,데이터 비교,공통 요소 탐색, 포함 여부 검사",
+          "score": 0.974739134311676,
+          "bbox_pixels": [
+            396.0,
+            205.99999999999997,
+            903.9999999999999,
+            229.99999999999994
+          ]
+        }
+      ],
+      "raw": {
+        "res": {
+          "input_path": "outputs/ink-continuation-v1/evidence/frame-00112-ink-003/original.png",
+          "page_index": null,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_textline_orientation": false
+          },
+          "dt_polys": [
+            [
+              [
+                13,
+                5
+              ],
+              [
+                106,
+                5
+              ],
+              [
+                106,
+                33
+              ],
+              [
+                13,
+                33
+              ]
+            ],
+            [
+              [
+                173,
+                5
+              ],
+              [
+                680,
+                6
+              ],
+              [
+                680,
+                32
+              ],
+              [
+                173,
+                31
+              ]
+            ],
+            [
+              [
+                12,
+                46
+              ],
+              [
+                127,
+                46
+              ],
+              [
+                127,
+                73
+              ],
+              [
+                12,
+                73
+              ]
+            ],
+            [
+              [
+                167,
+                46
+              ],
+              [
+                628,
+                49
+              ],
+              [
+                628,
+                75
+              ],
+              [
+                167,
+                72
+              ]
+            ],
+            [
+              [
+                13,
+                87
+              ],
+              [
+                108,
+                87
+              ],
+              [
+                108,
+                114
+              ],
+              [
+                13,
+                114
+              ]
+            ],
+            [
+              [
+                165,
+                88
+              ],
+              [
+                713,
+                87
+              ],
+              [
+                713,
+                113
+              ],
+              [
+                165,
+                114
+              ]
+            ],
+            [
+              [
+                11,
+                128
+              ],
+              [
+                107,
+                128
+              ],
+              [
+                107,
+                154
+              ],
+              [
+                11,
+                154
+              ]
+            ],
+            [
+              [
+                173,
+                129
+              ],
+              [
+                681,
+                130
+              ],
+              [
+                681,
+                153
+              ],
+              [
+                173,
+                152
+              ]
+            ]
+          ],
+          "text_det_params": {
+            "limit_side_len": 64,
+            "limit_type": "min",
+            "thresh": 0.3,
+            "max_side_limit": 4000,
+            "box_thresh": 0.6,
+            "unclip_ratio": 1.5
+          },
+          "text_type": "general",
+          "textline_orientation_angles": [
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1
+          ],
+          "text_rec_score_thresh": 0.0,
+          "return_word_box": false,
+          "rec_texts": [
+            "주요 특징",
+            "중복 제거,순서 없음,인덱스 사용 불가,집합 연산 지원",
+            "주요메서드",
+            "addO, updateQ, remove(, discard(), pop(), clear",
+            "집합연산",
+            "unionO, intersectionO, differenceO, symmetric differenceO",
+            "대표활용",
+            "중복 제거,데이터 비교,공통 요소 탐색, 포함 여부 검사"
+          ],
+          "rec_scores": [
+            0.9588171243667603,
+            0.9767485857009888,
+            0.9996626973152161,
+            0.9421069622039795,
+            0.9987803101539612,
+            0.9504202604293823,
+            0.9994316697120667,
+            0.974739134311676
+          ],
+          "rec_polys": [
+            [
+              [
+                13,
+                5
+              ],
+              [
+                106,
+                5
+              ],
+              [
+                106,
+                33
+              ],
+              [
+                13,
+                33
+              ]
+            ],
+            [
+              [
+                173,
+                5
+              ],
+              [
+                680,
+                6
+              ],
+              [
+                680,
+                32
+              ],
+              [
+                173,
+                31
+              ]
+            ],
+            [
+              [
+                12,
+                46
+              ],
+              [
+                127,
+                46
+              ],
+              [
+                127,
+                73
+              ],
+              [
+                12,
+                73
+              ]
+            ],
+            [
+              [
+                167,
+                46
+              ],
+              [
+                628,
+                49
+              ],
+              [
+                628,
+                75
+              ],
+              [
+                167,
+                72
+              ]
+            ],
+            [
+              [
+                13,
+                87
+              ],
+              [
+                108,
+                87
+              ],
+              [
+                108,
+                114
+              ],
+              [
+                13,
+                114
+              ]
+            ],
+            [
+              [
+                165,
+                88
+              ],
+              [
+                713,
+                87
+              ],
+              [
+                713,
+                113
+              ],
+              [
+                165,
+                114
+              ]
+            ],
+            [
+              [
+                11,
+                128
+              ],
+              [
+                107,
+                128
+              ],
+              [
+                107,
+                154
+              ],
+              [
+                11,
+                154
+              ]
+            ],
+            [
+              [
+                173,
+                129
+              ],
+              [
+                681,
+                130
+              ],
+              [
+                681,
+                153
+              ],
+              [
+                173,
+                152
+              ]
+            ]
+          ],
+          "rec_boxes": [
+            [
+              13,
+              5,
+              106,
+              33
+            ],
+            [
+              173,
+              5,
+              680,
+              32
+            ],
+            [
+              12,
+              46,
+              127,
+              73
+            ],
+            [
+              167,
+              46,
+              628,
+              75
+            ],
+            [
+              13,
+              87,
+              108,
+              114
+            ],
+            [
+              165,
+              87,
+              713,
+              114
+            ],
+            [
+              11,
+              128,
+              107,
+              154
+            ],
+            [
+              173,
+              129,
+              681,
+              153
+            ]
+          ]
+        }
+      },
+      "provider": "PaddleOCR",
+      "model_hashes": {
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/config.json": "7ac1c33f377ba58561f4b89d3180b6add2b7c5c60a4edac90fa4e0ceccdc6665",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.json": "05feef1acb00aa4cd7362b15f7f501fc4f99d7b1fa73c1c871e0c7b1504b0f5c",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.pdiparams": "afa1820cb16c1fd0dad589d0f8b389139061c1ef6d68019685fd07be997dda5b",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.yml": "98069072e1b6b37d727fd9d9f11725faa46d6ea0de012f2ed26caea011c37699",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/config.json": "c86a49d6301e6c4ff3398a87a2a1926b3521a46e90042833e18bbfa8ba6165c2",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.json": "562404e3c590c50c93778d5f0a94df21b47b5ab8f3ea6d47c7f8a7930c3bc844",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.pdiparams": "cac3e5f12cf04aaa77f6a5bc704e4e736ef2908476551891d84b41b4e9090462",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.yml": "f757fa1c40e99edcf27e9cce879b93eb2a51fa46f5ef39095689b8c37dd75998"
+      },
+      "id": "frame-00112-ink-003-original",
+      "task_id": "frame-00112-ink-003",
+      "view": "original",
+      "path": "outputs/ink-continuation-v1/evidence/frame-00112-ink-003/original.png",
+      "image_sha256": "e520fafc33209c9e74634c12f829b5f5eca6edbf61472e9b4dbf5bd63d4c6d97",
+      "alternative_words": [
+        {
+          "text": "주요 특징",
+          "score": 0.9720246195793152,
+          "bbox_pixels": [
+            234.00000000000003,
+            80.99999999999999,
+            329.0,
+            111.0
+          ]
+        },
+        {
+          "text": "중복 제거,순서없음,인덱스 사용 불가,집합 연산 지원",
+          "score": 0.9230217933654785,
+          "bbox_pixels": [
+            396.0,
+            81.99999999999997,
+            903.0,
+            109.00000000000001
+          ]
+        },
+        {
+          "text": "주요메서드",
+          "score": 0.9996421933174133,
+          "bbox_pixels": [
+            235.0,
+            123.0,
+            350.0,
+            150.00000000000003
+          ]
+        },
+        {
+          "text": "addO, updateQ, remove(, discard(, pop(), clear",
+          "score": 0.9468207359313965,
+          "bbox_pixels": [
+            390.0,
+            123.0,
+            851.0,
+            152.0
+          ]
+        },
+        {
+          "text": "집합연산",
+          "score": 0.9986951947212219,
+          "bbox_pixels": [
+            236.0,
+            163.99999999999994,
+            331.0,
+            190.99999999999994
+          ]
+        },
+        {
+          "text": "unionO, intersectionO, differenceO, symmetric difference0",
+          "score": 0.9447197914123535,
+          "bbox_pixels": [
+            388.0,
+            163.99999999999994,
+            936.0,
+            190.99999999999994
+          ]
+        },
+        {
+          "text": "대표활용",
+          "score": 0.9994201064109802,
+          "bbox_pixels": [
+            234.00000000000003,
+            204.99999999999997,
+            330.0,
+            230.99999999999997
+          ]
+        },
+        {
+          "text": "중복 제거,데이터 비교,공통 요소 탐색, 포함 여부 검사",
+          "score": 0.9590623378753662,
+          "bbox_pixels": [
+            396.0,
+            205.99999999999997,
+            903.9999999999999,
+            229.99999999999994
+          ]
+        }
+      ]
+    },
+    "ocr_coverage": {
+      "left": 174.21875,
+      "top": 250.0,
+      "right": 910.9375,
+      "bottom": 749.9999999999999
+    },
+    "base": {
+      "items": [
+        {
+          "id": "item-0",
+          "kind": "printed_text",
+          "box": {
+            "left": 312,
+            "top": 147,
+            "right": 361,
+            "bottom": 213
+          },
+          "text": "중복을",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-1",
+          "kind": "circle",
+          "box": {
+            "left": 311,
+            "top": 113,
+            "right": 362,
+            "bottom": 249
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-2",
+          "kind": "printed_text",
+          "box": {
+            "left": 427,
+            "top": 286,
+            "right": 456,
+            "bottom": 349
+          },
+          "text": "없음",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-3",
+          "kind": "underline",
+          "box": {
+            "left": 425,
+            "top": 339,
+            "right": 476,
+            "bottom": 367
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-4",
+          "kind": "printed_text",
+          "box": {
+            "left": 558,
+            "top": 286,
+            "right": 586,
+            "bottom": 349
+          },
+          "text": "불가",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-5",
+          "kind": "underline",
+          "box": {
+            "left": 572,
+            "top": 329,
+            "right": 605,
+            "bottom": 362
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-6",
+          "kind": "printed_text",
+          "box": {
+            "left": 311,
+            "top": 429,
+            "right": 665,
+            "bottom": 487
+          },
+          "text": "add(), update(), remove(), discard(), pop(), clear()",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-7",
+          "kind": "underline",
+          "box": {
+            "left": 303,
+            "top": 432,
+            "right": 668,
+            "bottom": 512
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-8",
+          "kind": "printed_text",
+          "box": {
+            "left": 311,
+            "top": 546,
+            "right": 732,
+            "bottom": 627
+          },
+          "text": "union(), intersection(), difference(), symmetric_difference()",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-9",
+          "kind": "circle",
+          "box": {
+            "left": 301,
+            "top": 490,
+            "right": 771,
+            "bottom": 651
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-10",
+          "kind": "printed_text",
+          "box": {
+            "left": 310,
+            "top": 867,
+            "right": 395,
+            "bottom": 949
+          },
+          "text": "중복 제거",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-11",
+          "kind": "underline",
+          "box": {
+            "left": 313,
+            "top": 929,
+            "right": 412,
+            "bottom": 968
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "link-0",
+          "from_ids": [
+            "item-1"
+          ],
+          "to_ids": [
+            "item-0"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-1 circles item-0"
+        },
+        {
+          "id": "link-1",
+          "from_ids": [
+            "item-3"
+          ],
+          "to_ids": [
+            "item-2"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-3 underlines item-2"
+        },
+        {
+          "id": "link-2",
+          "from_ids": [
+            "item-5"
+          ],
+          "to_ids": [
+            "item-4"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-5 underlines item-4"
+        },
+        {
+          "id": "link-3",
+          "from_ids": [
+            "item-7"
+          ],
+          "to_ids": [
+            "item-6"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-7 underlines item-6"
+        },
+        {
+          "id": "link-4",
+          "from_ids": [
+            "item-9"
+          ],
+          "to_ids": [
+            "item-8"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-9 encircles item-8"
+        },
+        {
+          "id": "link-5",
+          "from_ids": [
+            "item-11"
+          ],
+          "to_ids": [
+            "item-10"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-11 underlines item-10"
+        }
+      ],
+      "complete": false,
+      "notes": []
+    },
+    "candidate": {
+      "items": [
+        {
+          "id": "item-0",
+          "kind": "printed_text",
+          "box": {
+            "left": 312,
+            "top": 147,
+            "right": 361,
+            "bottom": 213
+          },
+          "text": "중복을",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-1",
+          "kind": "circle",
+          "box": {
+            "left": 311,
+            "top": 113,
+            "right": 362,
+            "bottom": 249
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-2",
+          "kind": "printed_text",
+          "box": {
+            "left": 427,
+            "top": 286,
+            "right": 456,
+            "bottom": 349
+          },
+          "text": "없음",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-3",
+          "kind": "underline",
+          "box": {
+            "left": 425,
+            "top": 339,
+            "right": 476,
+            "bottom": 367
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-4",
+          "kind": "printed_text",
+          "box": {
+            "left": 558,
+            "top": 286,
+            "right": 586,
+            "bottom": 349
+          },
+          "text": "불가",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-5",
+          "kind": "underline",
+          "box": {
+            "left": 572,
+            "top": 329,
+            "right": 605,
+            "bottom": 362
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-6",
+          "kind": "printed_text",
+          "box": {
+            "left": 311,
+            "top": 429,
+            "right": 665,
+            "bottom": 487
+          },
+          "text": "add(), update(), remove(), discard(), pop(), clear()",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-7",
+          "kind": "underline",
+          "box": {
+            "left": 303,
+            "top": 432,
+            "right": 668,
+            "bottom": 512
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-8",
+          "kind": "printed_text",
+          "box": {
+            "left": 310,
+            "top": 546,
+            "right": 732,
+            "bottom": 622
+          },
+          "text": "union(), intersection(), difference(), symmetric_difference()",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-9",
+          "kind": "circle",
+          "box": {
+            "left": 301,
+            "top": 490,
+            "right": 771,
+            "bottom": 651
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-10",
+          "kind": "printed_text",
+          "box": {
+            "left": 310,
+            "top": 867,
+            "right": 395,
+            "bottom": 949
+          },
+          "text": "중복 제거",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item-11",
+          "kind": "underline",
+          "box": {
+            "left": 313,
+            "top": 929,
+            "right": 412,
+            "bottom": 968
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "link-0",
+          "from_ids": [
+            "item-1"
+          ],
+          "to_ids": [
+            "item-0"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-1 circles item-0"
+        },
+        {
+          "id": "link-1",
+          "from_ids": [
+            "item-3"
+          ],
+          "to_ids": [
+            "item-2"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-3 underlines item-2"
+        },
+        {
+          "id": "link-2",
+          "from_ids": [
+            "item-5"
+          ],
+          "to_ids": [
+            "item-4"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-5 underlines item-4"
+        },
+        {
+          "id": "link-3",
+          "from_ids": [
+            "item-7"
+          ],
+          "to_ids": [
+            "item-6"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-7 underlines item-6"
+        },
+        {
+          "id": "link-4",
+          "from_ids": [
+            "item-9"
+          ],
+          "to_ids": [
+            "item-8"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-9 encircles item-8"
+        },
+        {
+          "id": "link-5",
+          "from_ids": [
+            "item-11"
+          ],
+          "to_ids": [
+            "item-10"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "item-11 underlines item-10"
+        }
+      ],
+      "complete": true,
+      "notes": []
+    },
+    "audio_context": {
+      "bindings": [
+        {
+          "item_ids": [
+            "item-0",
+            "item-1"
+          ],
+          "quote": "자 더불어 집합 구조라고 하는 것 얘는 중복을 허용하지 않았어요.",
+          "start_seconds": 2028.06,
+          "end_seconds": 2031.54,
+          "relevance": "aligned",
+          "reason": "The speech explicitly mentions '중복을 허용하지 않았어요', corresponding to the circled text '중복을'."
+        },
+        {
+          "item_ids": [
+            "item-2",
+            "item-3"
+          ],
+          "quote": "그래서 얘는 더불어 순서도 없고요.",
+          "start_seconds": 2031.54,
+          "end_seconds": 2033.36,
+          "relevance": "aligned",
+          "reason": "The underlined word '없음' follows '순서' ('순서 없음'), matching the speaker stating '순서도 없고요'."
+        },
+        {
+          "item_ids": [
+            "item-4",
+            "item-5"
+          ],
+          "quote": "인덱스 사용할 수가 없었어요.",
+          "start_seconds": 2033.5,
+          "end_seconds": 2034.78,
+          "relevance": "aligned",
+          "reason": "The underlined text '불가' directly pertains to '인덱스 사용 불가', matching '인덱스 사용할 수가 없었어요'."
+        },
+        {
+          "item_ids": [
+            "item-6",
+            "item-7"
+          ],
+          "quote": "자 여기서 사용할 수 있는 메소드가 뭐가 있었었나",
+          "start_seconds": 2035.22,
+          "end_seconds": 2037.4,
+          "relevance": "aligned",
+          "reason": "The underlined list of set methods corresponds to the speaker discussing methods ('메소드가 뭐가 있었었나')."
+        },
+        {
+          "item_ids": [
+            "item-8",
+            "item-9"
+          ],
+          "quote": "라고 하는 거 연산과 관련되어 있는",
+          "start_seconds": 2037.4,
+          "end_seconds": 2039.2,
+          "relevance": "aligned",
+          "reason": "The circled set operations (union, intersection, difference, symmetric_difference) correspond to operations ('연산과 관련되어 있는')."
+        },
+        {
+          "item_ids": [
+            "item-10",
+            "item-11"
+          ],
+          "quote": "데이터 중에서 중복을 제거하려면",
+          "start_seconds": 2044.7,
+          "end_seconds": 2047.14,
+          "relevance": "aligned",
+          "reason": "The underlined phrase '중복 제거' precisely matches the spoken words '중복을 제거하려면'."
+        }
+      ],
+      "concepts": [],
+      "word_candidates": [],
+      "notes": [
+        "ASR-derived context, not independently listened speech."
+      ],
+      "rejected_bindings": []
+    },
+    "failed_ids": [
+      "item-8",
+      "link-4"
+    ]
+  },
+  "audit": {
+    "checks": [
+      {
+        "id": "item-2",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "The text '없음' is correctly localized and recognized.",
+        "full_text": "없음",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-3",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "The underline under '없음' is correctly placed and identified.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-4",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "The text '불가' is correctly localized and recognized.",
+        "full_text": "불가",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-5",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "The underline under '불가' is correctly identified and localized.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-6",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "The method list 'add(), update(), remove(), discard(), pop(), clear()' matches the visible printed text accurately.",
+        "full_text": "add(), update(), remove(), discard(), pop(), clear()",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-7",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "The underline stroke emphasizing the methods in row 3 is correctly bounded.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-8",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "The text 'union(), intersection(), difference(), symmetric_difference()' matches the visible printed text completely.",
+        "full_text": "union(), intersection(), difference(), symmetric_difference()",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item-9",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "The surrounding loop/circle enclosing 'item-8' is correctly marked and bounded.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link-1",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "item-3 directly underlines item-2.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link-2",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "item-5 directly underlines item-4.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link-3",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "item-7 directly underlines item-6.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link-4",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "item-9 encircles item-8.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      }
+    ],
+    "missing": [],
+    "complete": true
+  },
+  "previous_decisions": [
+    {
+      "id": "item-0",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "adjacent_glyph_requires_word_review",
+        "text_stroke_crosses_box"
+      ],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-2",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_partial_word_coverage"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-3",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_region"
+    },
+    {
+      "id": "item-4",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_partial_word_coverage"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-5",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_region"
+    },
+    {
+      "id": "item-6",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_partial_word_coverage"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-7",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_region"
+    },
+    {
+      "id": "item-8",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "ocr_text_conflict"
+      ],
+      "warnings": [
+        "ocr_item_variant_difference"
+      ],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-9",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_region"
+    },
+    {
+      "id": "item-10",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "adjacent_glyph_requires_word_review"
+      ],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item-11",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link-0",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link-1",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_relation"
+    },
+    {
+      "id": "link-2",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_relation"
+    },
+    {
+      "id": "link-3",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_relation"
+    },
+    {
+      "id": "link-4",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "dependency_unresolved"
+      ],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_relation"
+    },
+    {
+      "id": "link-5",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    }
+  ]
+}

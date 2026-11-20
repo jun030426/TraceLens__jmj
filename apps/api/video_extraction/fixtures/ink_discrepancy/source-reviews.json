@@ -1,0 +1,85 @@
+{
+  "frame-00007-ink-001": {
+    "task_id": "frame-00007-ink-001",
+    "reviewer": "assistant_direct_visual_review",
+    "approval": "user_authorized_direct_source_review",
+    "at": "2026-10-28T06:57:09.739520+00:00",
+    "source_sha256": "8a6ec80bb2d1a7f3caccf7f9ad8887d807c80aeca0ed5d5bfe3bfd0f1972011c",
+    "result_signature": "a68613508f07a2adc9f5e27adadc48b1940fcac71091548149d699152883babf",
+    "entries": [
+      {
+        "id": "item-0",
+        "item_signature": "e867e087d9a7a0a42e11dc9c7a5d5f7c7ee74c654dd2adfa079b38639cec7729",
+        "action": "bracket_shape_meaning_unresolved",
+        "observed_text": "ㄷ",
+        "direct_observation": "원본 전체에서 오른쪽 짝과 아래쪽 둥근 괄호가 함께 보인다. 한글 ㄷ이 아닌 괄호형 표시로 보존한다. 정확한 기호 및 설명 의미는 확정하지 않는다."
+      }
+    ],
+    "probes": []
+  },
+  "frame-00094-ink-001": {
+    "task_id": "frame-00094-ink-001",
+    "reviewer": "assistant_direct_visual_review",
+    "approval": "user_authorized_direct_source_review",
+    "at": "2026-10-28T06:57:09.767942+00:00",
+    "source_sha256": "40a02247af4ec76cca0a7a4dda4969fb6977656e9844365ece820aae7e91bbf4",
+    "result_signature": "0d2368cee4870cfa8e71be767a2abcca7cc25714cdd58be83bed4b2c361e9b35",
+    "entries": [
+      {
+        "id": "item_11",
+        "item_signature": "e1b76d0efa392e5289cb1120901eab3c6d4e917a216e1b4844f1406b45bbb96c",
+        "action": "release_ocr_false_positive",
+        "observed_text": "\"김민수\":",
+        "direct_observation": "원본의 김민수 뒤에는 점 두 개의 콜론이 있다. OCR이 마침표로 읽었으며 기존 추출의 콜론이 맞다. 이름 밑줄 연결도 원본에서 확인했다."
+      }
+    ],
+    "probes": [
+      {
+        "kind": "colon",
+        "roi": [
+          750,
+          154,
+          756,
+          168
+        ]
+      }
+    ]
+  },
+  "frame-00112-ink-003": {
+    "task_id": "frame-00112-ink-003",
+    "reviewer": "assistant_direct_visual_review",
+    "approval": "user_authorized_direct_source_review",
+    "at": "2026-10-28T06:57:09.980586+00:00",
+    "source_sha256": "478cb3ab1814929b18a706c2a3052fb7a620bce73b6404f0a0864aa8c1221993",
+    "result_signature": "5a7ffb9a0bcfe71bfe3d7d9a9f46ce539b5f177697c6bffeb4b8570dbe3f7add",
+    "entries": [
+      {
+        "id": "item-8",
+        "item_signature": "3a52e1c5c70b6b4a3a01a038fc5fc4a0d83a41c1b0dcd90a14bb870820837174",
+        "action": "release_ocr_false_positive",
+        "observed_text": "union(), intersection(), difference(), symmetric_difference()",
+        "direct_observation": "원본은 union(), intersection(), difference(), symmetric_difference()이다. 괄호 쌍과 아래 기준선의 밑줄을 확인했다. OCR의 O/0 및 공백 판독이 잘못되었다. 해당 문구를 감싼 붉은 표시도 확인했다."
+      }
+    ],
+    "probes": [
+      {
+        "kind": "parentheses_pair",
+        "roi": [
+          448,
+          390,
+          464,
+          414
+        ]
+      },
+      {
+        "kind": "underscore",
+        "roi": [
+          815,
+          407,
+          828,
+          417
+        ]
+      }
+    ]
+  }
+}

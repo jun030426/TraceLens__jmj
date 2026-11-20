@@ -1,0 +1,24 @@
+[Unit]
+Description=Lerny isolated code execution worker
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/lerny/current/deploy/aws/start_worker.py code
+Restart=always
+RestartSec=5
+TimeoutStopSec=50
+KillMode=mixed
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/lerny-code
+PrivateTmp=true
+LimitNOFILE=1024
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

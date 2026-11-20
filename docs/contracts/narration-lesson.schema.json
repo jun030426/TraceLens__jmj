@@ -1,0 +1,152 @@
+{
+  "$defs": {
+    "LessonCitation": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "quote": {
+          "maxLength": 3000,
+          "minLength": 4,
+          "title": "Quote",
+          "type": "string"
+        },
+        "target": {
+          "pattern": "^/lesson/(narration|key_facts)/(0|[1-9][0-9]*)$",
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "quote",
+        "target"
+      ],
+      "title": "LessonCitation",
+      "type": "object"
+    },
+    "NarrationLesson": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Title",
+          "type": "string"
+        },
+        "language": {
+          "const": "ko-KR",
+          "default": "ko-KR",
+          "title": "Language",
+          "type": "string"
+        },
+        "narration": {
+          "items": {
+            "maxLength": 3000,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "minItems": 1,
+          "title": "Narration",
+          "type": "array"
+        },
+        "key_facts": {
+          "items": {
+            "maxLength": 1500,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "title": "Key Facts",
+          "type": "array"
+        },
+        "target_duration_seconds": {
+          "default": 65,
+          "maximum": 90,
+          "minimum": 15,
+          "title": "Target Duration Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "title",
+        "narration"
+      ],
+      "title": "NarrationLesson",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "lerny.lesson-draft.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "request_id": {
+      "maxLength": 100,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "title": "Request Id",
+      "type": "string"
+    },
+    "source_snapshot_id": {
+      "maxLength": 100,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "title": "Source Snapshot Id",
+      "type": "string"
+    },
+    "generation_status": {
+      "enum": [
+        "draft",
+        "insufficient_evidence",
+        "conflicting_evidence"
+      ],
+      "title": "Generation Status",
+      "type": "string"
+    },
+    "lesson": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NarrationLesson"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "citations": {
+      "items": {
+        "$ref": "#/$defs/LessonCitation"
+      },
+      "maxItems": 180,
+      "title": "Citations",
+      "type": "array"
+    },
+    "reason": {
+      "maxLength": 1000,
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "source_snapshot_id",
+    "generation_status",
+    "lesson",
+    "citations",
+    "reason"
+  ],
+  "title": "LessonDraft",
+  "type": "object"
+}

@@ -1,0 +1,3 @@
+# Isolated CPU alignment environment; installed by the user's terminal only.
+whisperx>=3,<4
+nltk>=3.9,<4

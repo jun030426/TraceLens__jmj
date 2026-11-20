@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>강좌별 학습실 · 퀴즈와 학습 기록</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/markdown.css"><script defer src="/markdown.js"></script><script defer src="/app.js"></script></head>
+<body><main>
+<header><div class="eyebrow">LOCAL LEARNING LAB</div><h1>강좌별 학습실</h1><p>강의 근거로 풀고, 개념별 학습 기록을 확인하세요.</p><span class="badge">로컬 테스트 · 강좌별 자료와 학습 기록</span></header>
+<div id="error" role="alert" hidden></div>
+<section id="profile"><h2>학습자 선택</h2><p>이 브라우저에 테스트 학습자 ID를 보관합니다. 실제 로그인 기능은 아닙니다.</p><form id="profile-form"><label>테스트 이름 <input id="name" maxlength="30" required placeholder="예: 학생 A"></label><button>학습 시작</button></form></section>
+<div id="workspace" hidden>
+<nav><strong id="student-name"></strong><button id="switch-profile" class="secondary">다른 학습자</button><button id="refresh-analysis" class="secondary">학습 기록 새로고침</button></nav>
+<section><h2>과목 · 학기 · 분반</h2>
+<label>현재 강좌 <select id="course-select"></select></label><p id="course-status" role="status"></p>
+<details><summary>새 강좌 만들기 (테스트용)</summary>
+<form id="course-form"><div class="actions">
+<label>과목 코드 <input id="subject-code" maxlength="80" required placeholder="예: CS201"></label>
+<label>과목 이름 <input id="subject-name" maxlength="80" required placeholder="자료구조"></label>
+<label>학기 <input id="semester" maxlength="80" required placeholder="2026-2"></label>
+<label>분반 <input id="section-name" maxlength="80" required placeholder="01"></label></div>
+<label>이 강좌의 개념 (한 줄에 개념ID=이름)<textarea id="course-concepts" rows="7" required></textarea></label>
+<p class="note">같은 개념 ID를 사용해도 강좌가 다르면 취약도는 합쳐지지 않습니다. 다른 과목은 해당 과목의 개념으로 바꿔 주세요.</p><button>강좌 만들고 선택</button></form></details>
+<p class="note">현재는 테스트 학습자가 강좌를 직접 만들고 등록할 수 있습니다. 실제 로그인·교수 권한 관리 기능은 아직 없습니다.</p>
+</section>
+<section><h2>선택한 강좌의 자료</h2><p id="material-status" role="status"></p>
+<div class="actions"><button id="use-fixture" class="secondary">기존 스택 테스트 자료를 이 강좌에 등록</button>
+<label>검증된 corpus.json 등록 <input type="file" id="material-file" accept="application/json,.json"></label></div>
+<p class="note">현재는 추출·검증을 마친 텍스트 청크 묶음을 등록합니다. PDF·PPT·영상 원본 업로드 화면은 아닙니다. 등록하면 이 강좌의 검색 자료 버전을 교체하며, 이전 퀴즈의 출제 근거와 기록은 보존합니다.</p></section>
+<section id="chat-panel"><h2>이 강좌의 개인 학습 챗봇</h2>
+<p>현재 학생의 이 강좌 대화와 퀴즈 학습 기록을 참고합니다. 답변 근거는 이 강좌 자료에서 검색합니다.</p>
+<button id="chat-older" class="secondary" hidden>이전 대화 더 보기</button>
+<div id="chat-messages" aria-label="저장된 대화"></div>
+<p id="chat-status" role="status" aria-live="polite"></p>
+<form id="chat-form"><label for="chat-question">질문</label><textarea id="chat-question" rows="3" maxlength="2000" required placeholder="예: Pop과 Peek의 차이를 다시 설명해 줘"></textarea>
+<button id="chat-send">질문 보내기</button></form>
+<p class="note">기록이 적으면 취약도를 단정하지 않습니다. 인용 검사를 통과해도 AI 답변의 정확성이 보장되지는 않습니다. 대화는 학습 DB에 저장되며, 답변 생성 시 관련 대화·학습 신호·강의 근거가 Gemini API에 전달됩니다.</p></section>
+<section id="library"><div class="section-title"><h2>퀴즈 선택</h2><span class="badge">기초 2 · 적용 2 · 심화 1</span></div>
+<p>예제는 수동 작성된 동작 확인용입니다. Gemini 퀴즈는 검색된 강의자료로 새로 생성하고 정답·인용을 검사합니다. AI 검증만으로 무오류가 보장되지는 않습니다.</p>
+<div class="actions"><label>출제 범위 <select id="concept"><option value="">현재 강좌 전체</option></select></label><button id="generate">Gemini로 5문항 생성</button></div>
+<p id="job-status" role="status" aria-live="polite"></p><div id="quizzes"></div></section>
+<section id="quiz" hidden><div class="section-title"><h2 id="quiz-title"></h2><span id="progress" class="badge"></span></div>
+<div class="timers"><span>활성 풀이 <strong id="active-time">0초</strong></span><span>전체 경과 <strong id="elapsed-time">0초</strong></span><span id="timer-state">측정 중</span></div>
+<p class="note">다른 탭으로 이동하거나 일시정지하면 활성시간에서 제외합니다. 연결이 끊긴 구간은 불확실한 시간으로 표시합니다.</p>
+<div id="question-area"><p id="question-meta"></p><h3 id="stem"></h3><fieldset id="options"><legend>정답 하나를 선택하세요</legend></fieldset>
+<div class="actions"><button id="submit">답안 제출</button><button id="pause" class="secondary">일시정지</button><button id="hint" class="secondary">강의 근거 보기 (힌트)</button></div><blockquote id="hint-text" hidden></blockquote></div>
+<div id="feedback" hidden></div><button id="next" hidden>다음 문제</button>
+</section>
+<section><h2>개념별 학습 기록</h2><p id="analysis-notice"></p><div id="analysis"></div><p id="time-notice" class="note"></p></section>
+<section><h2>숏츠 연결 준비</h2><p>개념과 출제 근거를 영상 제작 단계에 넘길 수 있도록 요청 데이터를 만듭니다. 현재는 영상이나 HeyGen API를 호출하지 않습니다.</p><div class="actions"><label>설명할 개념 <select id="shorts-concept"></select></label><button id="shorts" class="secondary">연결 데이터 내려받기</button></div><p id="shorts-status" role="status"></p></section>
+</div><footer>자료·문제·응답을 버전과 함께 보관합니다. 취약도는 학습 지원을 위한 실험용 신호입니다.</footer>
+</main></body></html>

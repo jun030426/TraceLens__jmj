@@ -1,0 +1,71 @@
+/* 빈칸 채우기 실습 — 문제 고르기 탭과 빈칸 편집기 */
+.blank-quiz-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+.blank-quiz-tabs > button { min-height: 34px; padding: 0 12px; border: 1px solid #e4e0ea; border-radius: 999px; background: #fff; color: #5a5563; font-size: 13px; cursor: pointer; }
+.blank-quiz-tabs > button[aria-selected="true"] { border-color: #7b4a80; background: #f3e9f6; color: #5b2f63; font-weight: 700; }
+
+.blank-editor { margin: 0; padding: 14px 0; list-style: none; min-height: 290px; max-height: 460px; overflow: auto; background: #fdfcfe; font: 13.5px/2.1 var(--v-mono, Consolas, monospace); color: #4f5156; }
+.blank-editor li { display: grid; grid-template-columns: 3em minmax(0, 1fr) auto; align-items: center; padding-right: 12px; }
+.blank-editor li.is-stop { background: #f3e9f6; box-shadow: inset 3px 0 0 #7b4a80; }
+.blank-editor__ln { padding-right: 12px; text-align: right; color: #b1aeb8; font-size: 12px; user-select: none; }
+.blank-editor code { white-space: pre; overflow-x: auto; background: none; padding: 0; color: inherit; font: inherit; }
+.blank-editor__slot { display: inline-flex; align-items: center; gap: 3px; margin: 0 2px; vertical-align: middle; }
+.blank-editor__num { color: #7b4a80; font-weight: 800; font-size: 13px; }
+#root main.app .blank-editor .blank-editor__slot input.blank-editor__input.blank-editor__input { box-sizing: content-box; min-height: 0; margin: 0; box-shadow: none; min-width: 6ch; max-width: 60ch; height: 1.7em; padding: 0 6px; border: 1.5px dashed #b78fbf; border-radius: 6px; background: #fbf6fc; color: #2b2530; font: inherit; line-height: 1.7em; }
+#root main.app .blank-editor .blank-editor__slot input.blank-editor__input.blank-editor__input:focus { outline: 2px solid #bda5e8; outline-offset: 0; border-style: solid; background: #fff; }
+#root main.app .blank-editor .blank-editor__slot.is-filled input.blank-editor__input.blank-editor__input { border-style: solid; border-color: #9fdcbf; background: #f1faf5; }
+.blank-editor__stop { padding: 0 8px; border-radius: 999px; background: #7b4a80; color: #fff; font: 700 11px/1.8 system-ui, sans-serif; white-space: nowrap; }
+
+:root[data-theme="dark"] .blank-quiz-tabs > button { background: #2a232c; border-color: #3a323d; color: #b9b2c4; }
+:root[data-theme="dark"] .blank-quiz-tabs > button[aria-selected="true"] { background: #33213a; border-color: #915f96; color: #e3c6ea; }
+:root[data-theme="dark"] .blank-editor { background: #1f1a21; color: #cfc8d8; }
+:root[data-theme="dark"] .blank-editor li.is-stop { background: #33213a; }
+:root[data-theme="dark"] .blank-editor__ln { color: #6f6a79; }
+:root[data-theme="dark"] .blank-editor__num { color: #d7a9df; }
+:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot input.blank-editor__input.blank-editor__input { background: #2a1f2d; border-color: #915f96; color: #f1eaf5; }
+:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot.is-filled input.blank-editor__input.blank-editor__input { background: #1d2a24; border-color: #4f8f70; }
+
+/* 시각화가 지금 보여 주는 줄 — 오른쪽 무대와 같은 줄을 왼쪽 코드에서도 짚어 준다 */
+.blank-editor { position: relative; }
+.blank-editor li.is-viz { background: #efe7fb; box-shadow: inset 3px 0 0 #8a5cd6; }
+.blank-editor li.is-viz-ran { background: #eaf6ee; box-shadow: inset 3px 0 0 #3f9a68; }
+.blank-editor li.is-viz-error { background: #fdecea; box-shadow: inset 3px 0 0 #c8463b; }
+.blank-editor li.is-viz .blank-editor__ln { color: #6d4fb0; font-weight: 800; }
+.blank-editor__viz { padding: 0 8px; border-radius: 999px; background: #8a5cd6; color: #fff; font: 700 11px/1.8 system-ui, sans-serif; white-space: nowrap; }
+.blank-editor__viz.is-ran { background: #3f9a68; }
+.blank-editor__viz.is-error { background: #c8463b; }
+:root[data-theme="dark"] .blank-editor li.is-viz { background: #2c2440; }
+:root[data-theme="dark"] .blank-editor li.is-viz-ran { background: #1d2a24; }
+:root[data-theme="dark"] .blank-editor li.is-viz-error { background: #3a1f1f; }
+:root[data-theme="dark"] .blank-editor li.is-viz .blank-editor__ln { color: #c3a8f0; }
+
+/* 채점 결과 — 맞음(초록) / 틀림(빨강). 틀린 빈칸은 입력 칸도 빨갛게 */
+.blank-verdict { margin: 0 20px 4px; padding: 12px 14px; border-radius: 12px; font-size: 13px; line-height: 1.6; }
+.blank-verdict strong { display: block; font-size: 14px; }
+.blank-verdict p { margin: 2px 0 0; }
+.blank-verdict.is-correct { background: #e9f7ef; color: #1f6b43; border: 1px solid #b8e3c9; }
+.blank-verdict.is-wrong { background: #fdeceb; color: #a12a1e; border: 1px solid #f3c4bf; }
+.blank-verdict__cmp { display: grid; gap: 4px; margin: 8px 0 0; }
+.blank-verdict__cmp > div { display: flex; gap: 8px; align-items: baseline; }
+.blank-verdict__cmp dt { flex: 0 0 5.5em; font-size: 12px; color: #7a4a45; }
+.blank-verdict__cmp dd { margin: 0; min-width: 0; }
+.blank-verdict__cmp code { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; color: #303235; white-space: pre-wrap; word-break: break-all; background: rgba(255, 255, 255, 0.7); padding: 1px 6px; border-radius: 6px; }
+#root main.app .blank-editor .blank-editor__slot.is-bad input.blank-editor__input.blank-editor__input { border-style: solid; border-color: #e0786d; background: #fdeceb; }
+.blank-editor__slot.is-bad .blank-editor__num { color: #c8463b; }
+:root[data-theme="dark"] .blank-verdict.is-correct { background: #1d2a24; color: #9fdcbf; border-color: #2f5a44; }
+:root[data-theme="dark"] .blank-verdict.is-wrong { background: #3a1f1f; color: #f2b3ab; border-color: #6a3330; }
+:root[data-theme="dark"] .blank-verdict__cmp dt { color: #d9a39c; }
+:root[data-theme="dark"] .blank-verdict__cmp code { background: rgba(0, 0, 0, 0.25); color: #f1eaf5; }
+:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot.is-bad input.blank-editor__input.blank-editor__input { background: #3a1f1f; border-color: #c8463b; }
+
+/* ── 시각화 중 줄 설명 주석: 코드 한 줄마다 바로 위에 (문제 코드는 그대로, 화면에만) ── */
+.blank-editor li.blank-editor__cmt { grid-template-columns: 3em minmax(0, 1fr); align-items: start; margin-top: 2px; line-height: 1.55; }
+.blank-editor__cmt-text { min-width: 0; padding-right: 12px; white-space: normal; overflow-wrap: anywhere; font-size: 12px; color: #4f8a5c; }
+.blank-editor li.blank-editor__cmt.is-viz-next { background: #efe7fb; box-shadow: inset 3px 0 0 #8a5cd6; }
+.blank-editor li.blank-editor__cmt.is-viz-ran { background: #eaf6ee; box-shadow: inset 3px 0 0 #3f9a68; }
+.blank-editor li.blank-editor__cmt.is-viz-error { background: #fdecea; box-shadow: inset 3px 0 0 #c8463b; }
+.blank-editor li.blank-editor__cmt[class*="is-viz-"] .blank-editor__cmt-text { font-weight: 700; color: #2f7a4a; }
+:root[data-theme="dark"] .blank-editor__cmt-text { color: #8fcf9e; }
+:root[data-theme="dark"] .blank-editor li.blank-editor__cmt.is-viz-next { background: #2c2440; }
+:root[data-theme="dark"] .blank-editor li.blank-editor__cmt.is-viz-ran { background: #1d2a24; }
+:root[data-theme="dark"] .blank-editor li.blank-editor__cmt.is-viz-error { background: #3a1f1f; }
+:root[data-theme="dark"] .blank-editor li.blank-editor__cmt[class*="is-viz-"] .blank-editor__cmt-text { color: #b4ecc1; }

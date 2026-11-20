@@ -1,0 +1,2402 @@
+{
+  "source_result": "outputs/ink-continuation-v1/results/frame-00094-ink-001.json",
+  "package": {
+    "task": {
+      "id": "frame-00094-ink-001",
+      "source_sha256": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6",
+      "frame_id": "frame-00094",
+      "time_seconds": 1759.0,
+      "onset_interval_seconds": [
+        1739.0,
+        1759.0
+      ],
+      "bbox": [
+        457,
+        201,
+        602,
+        312
+      ],
+      "current_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00094.png",
+      "audio_interval": [
+        1736.0,
+        1764.0
+      ],
+      "asr_context": [
+        {
+          "id": "asr-0009-0033",
+          "start_seconds": 1735.64,
+          "end_seconds": 1738.92,
+          "text": "첫 번째 고객만 구매한 거, 두 번째 고객만 구매한 거."
+        },
+        {
+          "id": "asr-0009-0034",
+          "start_seconds": 1739.26,
+          "end_seconds": 1741.94,
+          "text": "두 고객이 구매한 모든 상품들."
+        },
+        {
+          "id": "asr-0009-0035",
+          "start_seconds": 1742.08,
+          "end_seconds": 1743.58,
+          "text": "이렇게 내용을 보고 싶은 거예요."
+        },
+        {
+          "id": "asr-0009-0036",
+          "start_seconds": 1744.0,
+          "end_seconds": 1746.46,
+          "text": "자, 그러면 한번 봅시다. 데이터 여러분이."
+        },
+        {
+          "id": "asr-0009-0037",
+          "start_seconds": 1746.94,
+          "end_seconds": 1748.56,
+          "text": "자, 기본적으로 다음과 같이"
+        },
+        {
+          "id": "asr-0009-0038",
+          "start_seconds": 1750.12,
+          "end_seconds": 1753.7,
+          "text": "딕셔너리를 통해서 해당되는 데이터 값을 먼저"
+        },
+        {
+          "id": "asr-0009-0039",
+          "start_seconds": 1753.7,
+          "end_seconds": 1755.74,
+          "text": "초기 데이터를 먼저 만들어놓습니다."
+        },
+        {
+          "id": "asr-0009-0040",
+          "start_seconds": 1757.37,
+          "end_seconds": 1759.14,
+          "text": "초기 데이터를 먼저 만들어놓고요."
+        },
+        {
+          "id": "asr-0009-0041",
+          "start_seconds": 1759.84,
+          "end_seconds": 1762.84,
+          "text": "자, 이때 각각에 해당되는 데이터들을"
+        },
+        {
+          "id": "asr-0009-0042",
+          "start_seconds": 1762.84,
+          "end_seconds": 1765.94,
+          "text": "지금 임시 변수를 하나씩 만들어냈네요."
+        }
+      ],
+      "speech_cue_hits": [
+        "다음",
+        "먼저"
+      ],
+      "priority_score": 4.6,
+      "before_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00094.png",
+      "after_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00094.png",
+      "asr_status": "machine_transcription_not_verified",
+      "previous_context_only": false,
+      "evidence": {
+        "selected_frame": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00094.png",
+        "frame_candidates": [
+          {
+            "path": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00094.png",
+            "eligible": true,
+            "local_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "global_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "sharpness": 7130.9356072777355,
+            "contrast": 158.0
+          }
+        ],
+        "source_size": [
+          1280,
+          720
+        ],
+        "views": {
+          "original": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00094-ink-001/original.png",
+            "crop_in_source": [
+              0.4203125,
+              0.17222222222222222,
+              0.63828125,
+              0.3402777777777778
+            ],
+            "size": [
+              279,
+              121
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          },
+          "contrast": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00094-ink-001/contrast.png",
+            "crop_in_source": [
+              0.4203125,
+              0.17222222222222222,
+              0.63828125,
+              0.3402777777777778
+            ],
+            "size": [
+              279,
+              121
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "contrast",
+            "never_replaces_original": true
+          },
+          "denoise": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00094-ink-001/denoise.png",
+            "crop_in_source": [
+              0.4203125,
+              0.17222222222222222,
+              0.63828125,
+              0.3402777777777778
+            ],
+            "size": [
+              279,
+              121
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "denoise",
+            "never_replaces_original": true
+          },
+          "binary": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00094-ink-001/binary.png",
+            "crop_in_source": [
+              0.4203125,
+              0.17222222222222222,
+              0.63828125,
+              0.3402777777777778
+            ],
+            "size": [
+              279,
+              121
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "binary",
+            "never_replaces_original": true
+          },
+          "expanded": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00094-ink-001/expanded.png",
+            "crop_in_source": [
+              0.3625,
+              0.12777777777777777,
+              0.696875,
+              0.38472222222222224
+            ],
+            "size": [
+              428,
+              185
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          }
+        },
+        "selected_frame_seconds": 1759.0
+      }
+    },
+    "view": {
+      "path": "outputs/ink-continuation-v1/evidence/frame-00094-ink-001/review/source-context.png",
+      "size": [
+        559,
+        243
+      ],
+      "crop_in_source": [
+        0.3109375,
+        0.0875,
+        0.74765625,
+        0.425
+      ],
+      "operation": "source_crop_only",
+      "eligible": true,
+      "core_unchanged": true
+    },
+    "ocr": {
+      "state": "candidate",
+      "words": [
+        {
+          "text": "customers",
+          "score": 0.9994745254516602,
+          "bbox_pixels": [
+            261.00000000000006,
+            66.0,
+            349.99999999999994,
+            83.0
+          ]
+        },
+        {
+          "text": "\"김민수\".",
+          "score": 0.9471666216850281,
+          "bbox_pixels": [
+            276.00000000000006,
+            84.99999999999999,
+            361.00000000000006,
+            101.0
+          ]
+        },
+        {
+          "text": "Curt",
+          "score": 0.3863508701324463,
+          "bbox_pixels": [
+            361.00000000000006,
+            89.0,
+            382.9999999999999,
+            96.99999999999999
+          ]
+        },
+        {
+          "text": "T",
+          "score": 0.6884558200836182,
+          "bbox_pixels": [
+            397.0,
+            90.0,
+            407.99999999999994,
+            96.99999999999999
+          ]
+        },
+        {
+          "text": "장",
+          "score": 0.9462294578552246,
+          "bbox_pixels": [
+            140.0,
+            104.0,
+            167.99999999999991,
+            129.0
+          ]
+        },
+        {
+          "text": "M",
+          "score": 0.1583925485610962,
+          "bbox_pixels": [
+            281.00000000000006,
+            113.00000000000001,
+            287.0,
+            117.99999999999999
+          ]
+        },
+        {
+          "text": "0",
+          "score": 0.9958207607269287,
+          "bbox_pixels": [
+            287.0,
+            110.99999999999999,
+            301.00000000000006,
+            122.99999999999999
+          ]
+        },
+        {
+          "text": "{\"L",
+          "score": 0.7478125691413879,
+          "bbox_pixels": [
+            357.99999999999994,
+            109.0,
+            396.00000000000006,
+            122.99999999999999
+          ]
+        },
+        {
+          "text": "E",
+          "score": 0.7921765446662903,
+          "bbox_pixels": [
+            395.0,
+            110.99999999999999,
+            411.0,
+            120.99999999999997
+          ]
+        }
+      ],
+      "raw": {
+        "res": {
+          "input_path": "outputs/ink-continuation-v1/evidence/frame-00094-ink-001/original.png",
+          "page_index": null,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_textline_orientation": false
+          },
+          "dt_polys": [
+            [
+              [
+                121,
+                5
+              ],
+              [
+                210,
+                5
+              ],
+              [
+                210,
+                22
+              ],
+              [
+                121,
+                22
+              ]
+            ],
+            [
+              [
+                136,
+                24
+              ],
+              [
+                221,
+                24
+              ],
+              [
+                221,
+                40
+              ],
+              [
+                136,
+                40
+              ]
+            ],
+            [
+              [
+                221,
+                28
+              ],
+              [
+                243,
+                28
+              ],
+              [
+                243,
+                36
+              ],
+              [
+                221,
+                36
+              ]
+            ],
+            [
+              [
+                257,
+                29
+              ],
+              [
+                268,
+                29
+              ],
+              [
+                268,
+                36
+              ],
+              [
+                257,
+                36
+              ]
+            ],
+            [
+              [
+                0,
+                43
+              ],
+              [
+                28,
+                43
+              ],
+              [
+                28,
+                68
+              ],
+              [
+                0,
+                68
+              ]
+            ],
+            [
+              [
+                141,
+                52
+              ],
+              [
+                147,
+                52
+              ],
+              [
+                147,
+                57
+              ],
+              [
+                141,
+                57
+              ]
+            ],
+            [
+              [
+                147,
+                50
+              ],
+              [
+                161,
+                50
+              ],
+              [
+                161,
+                62
+              ],
+              [
+                147,
+                62
+              ]
+            ],
+            [
+              [
+                218,
+                48
+              ],
+              [
+                256,
+                48
+              ],
+              [
+                256,
+                62
+              ],
+              [
+                218,
+                62
+              ]
+            ],
+            [
+              [
+                255,
+                50
+              ],
+              [
+                271,
+                50
+              ],
+              [
+                271,
+                60
+              ],
+              [
+                255,
+                60
+              ]
+            ]
+          ],
+          "text_det_params": {
+            "limit_side_len": 64,
+            "limit_type": "min",
+            "thresh": 0.3,
+            "max_side_limit": 4000,
+            "box_thresh": 0.6,
+            "unclip_ratio": 1.5
+          },
+          "text_type": "general",
+          "textline_orientation_angles": [
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1
+          ],
+          "text_rec_score_thresh": 0.0,
+          "return_word_box": false,
+          "rec_texts": [
+            "customers",
+            "\"김민수\".",
+            "Curt",
+            "T",
+            "장",
+            "M",
+            "0",
+            "{\"L",
+            "E"
+          ],
+          "rec_scores": [
+            0.9994745254516602,
+            0.9471666216850281,
+            0.3863508701324463,
+            0.6884558200836182,
+            0.9462294578552246,
+            0.1583925485610962,
+            0.9958207607269287,
+            0.7478125691413879,
+            0.7921765446662903
+          ],
+          "rec_polys": [
+            [
+              [
+                121,
+                5
+              ],
+              [
+                210,
+                5
+              ],
+              [
+                210,
+                22
+              ],
+              [
+                121,
+                22
+              ]
+            ],
+            [
+              [
+                136,
+                24
+              ],
+              [
+                221,
+                24
+              ],
+              [
+                221,
+                40
+              ],
+              [
+                136,
+                40
+              ]
+            ],
+            [
+              [
+                221,
+                28
+              ],
+              [
+                243,
+                28
+              ],
+              [
+                243,
+                36
+              ],
+              [
+                221,
+                36
+              ]
+            ],
+            [
+              [
+                257,
+                29
+              ],
+              [
+                268,
+                29
+              ],
+              [
+                268,
+                36
+              ],
+              [
+                257,
+                36
+              ]
+            ],
+            [
+              [
+                0,
+                43
+              ],
+              [
+                28,
+                43
+              ],
+              [
+                28,
+                68
+              ],
+              [
+                0,
+                68
+              ]
+            ],
+            [
+              [
+                141,
+                52
+              ],
+              [
+                147,
+                52
+              ],
+              [
+                147,
+                57
+              ],
+              [
+                141,
+                57
+              ]
+            ],
+            [
+              [
+                147,
+                50
+              ],
+              [
+                161,
+                50
+              ],
+              [
+                161,
+                62
+              ],
+              [
+                147,
+                62
+              ]
+            ],
+            [
+              [
+                218,
+                48
+              ],
+              [
+                256,
+                48
+              ],
+              [
+                256,
+                62
+              ],
+              [
+                218,
+                62
+              ]
+            ],
+            [
+              [
+                255,
+                50
+              ],
+              [
+                271,
+                50
+              ],
+              [
+                271,
+                60
+              ],
+              [
+                255,
+                60
+              ]
+            ]
+          ],
+          "rec_boxes": [
+            [
+              121,
+              5,
+              210,
+              22
+            ],
+            [
+              136,
+              24,
+              221,
+              40
+            ],
+            [
+              221,
+              28,
+              243,
+              36
+            ],
+            [
+              257,
+              29,
+              268,
+              36
+            ],
+            [
+              0,
+              43,
+              28,
+              68
+            ],
+            [
+              141,
+              52,
+              147,
+              57
+            ],
+            [
+              147,
+              50,
+              161,
+              62
+            ],
+            [
+              218,
+              48,
+              256,
+              62
+            ],
+            [
+              255,
+              50,
+              271,
+              60
+            ]
+          ]
+        }
+      },
+      "provider": "PaddleOCR",
+      "model_hashes": {
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/config.json": "7ac1c33f377ba58561f4b89d3180b6add2b7c5c60a4edac90fa4e0ceccdc6665",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.json": "05feef1acb00aa4cd7362b15f7f501fc4f99d7b1fa73c1c871e0c7b1504b0f5c",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.pdiparams": "afa1820cb16c1fd0dad589d0f8b389139061c1ef6d68019685fd07be997dda5b",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.yml": "98069072e1b6b37d727fd9d9f11725faa46d6ea0de012f2ed26caea011c37699",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/config.json": "c86a49d6301e6c4ff3398a87a2a1926b3521a46e90042833e18bbfa8ba6165c2",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.json": "562404e3c590c50c93778d5f0a94df21b47b5ab8f3ea6d47c7f8a7930c3bc844",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.pdiparams": "cac3e5f12cf04aaa77f6a5bc704e4e736ef2908476551891d84b41b4e9090462",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.yml": "f757fa1c40e99edcf27e9cce879b93eb2a51fa46f5ef39095689b8c37dd75998"
+      },
+      "id": "frame-00094-ink-001-original",
+      "task_id": "frame-00094-ink-001",
+      "view": "original",
+      "path": "outputs/ink-continuation-v1/evidence/frame-00094-ink-001/original.png",
+      "image_sha256": "7d0d16fae02582fdd473bf4c1bf1a51f5e067380622a0605c725bc420b94fd09",
+      "alternative_words": [
+        {
+          "text": "customers",
+          "score": 0.9994734525680542,
+          "bbox_pixels": [
+            261.00000000000006,
+            66.0,
+            349.99999999999994,
+            83.0
+          ]
+        },
+        {
+          "text": "\"김민수\".",
+          "score": 0.947396457195282,
+          "bbox_pixels": [
+            276.00000000000006,
+            84.99999999999999,
+            361.00000000000006,
+            101.0
+          ]
+        },
+        {
+          "text": "Curt",
+          "score": 0.4460315406322479,
+          "bbox_pixels": [
+            361.00000000000006,
+            89.0,
+            382.9999999999999,
+            96.99999999999999
+          ]
+        },
+        {
+          "text": "T",
+          "score": 0.8373160362243652,
+          "bbox_pixels": [
+            397.0,
+            90.0,
+            407.99999999999994,
+            96.99999999999999
+          ]
+        },
+        {
+          "text": "장",
+          "score": 0.9335371255874634,
+          "bbox_pixels": [
+            140.0,
+            104.0,
+            167.99999999999991,
+            129.0
+          ]
+        },
+        {
+          "text": "0",
+          "score": 0.9959244728088379,
+          "bbox_pixels": [
+            287.0,
+            110.99999999999999,
+            301.00000000000006,
+            122.99999999999999
+          ]
+        },
+        {
+          "text": "{\"L",
+          "score": 0.5994017720222473,
+          "bbox_pixels": [
+            357.99999999999994,
+            109.0,
+            396.00000000000006,
+            122.99999999999999
+          ]
+        },
+        {
+          "text": "E",
+          "score": 0.8168689012527466,
+          "bbox_pixels": [
+            395.0,
+            110.99999999999999,
+            411.0,
+            120.99999999999997
+          ]
+        }
+      ]
+    },
+    "ocr_coverage": {
+      "left": 250.44722719141322,
+      "top": 251.02880658436217,
+      "right": 749.5527728085868,
+      "bottom": 748.9711934156378
+    },
+    "base": {
+      "items": [
+        {
+          "id": "item_0",
+          "kind": "printed_text",
+          "box": {
+            "left": 0,
+            "top": 444,
+            "right": 296,
+            "bottom": 515
+          },
+          "text": "상품을 집합으로 저장",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_1",
+          "kind": "circle",
+          "box": {
+            "left": 40,
+            "top": 418,
+            "right": 97,
+            "bottom": 516
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_2",
+          "kind": "circle",
+          "box": {
+            "left": 0,
+            "top": 395,
+            "right": 164,
+            "bottom": 544
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_3",
+          "kind": "underline",
+          "box": {
+            "left": 80,
+            "top": 518,
+            "right": 204,
+            "bottom": 555
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_4",
+          "kind": "line",
+          "box": {
+            "left": 234,
+            "top": 481,
+            "right": 506,
+            "bottom": 551
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_5",
+          "kind": "handwriting",
+          "box": {
+            "left": 354,
+            "top": 352,
+            "right": 432,
+            "bottom": 481
+          },
+          "text": "초기",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_6",
+          "kind": "code",
+          "box": {
+            "left": 639,
+            "top": 277,
+            "right": 668,
+            "bottom": 355
+          },
+          "text": "{",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_7",
+          "kind": "circle",
+          "box": {
+            "left": 635,
+            "top": 242,
+            "right": 699,
+            "bottom": 376
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_8",
+          "kind": "code",
+          "box": {
+            "left": 472,
+            "top": 547,
+            "right": 484,
+            "bottom": 625
+          },
+          "text": "}",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_9",
+          "kind": "circle",
+          "box": {
+            "left": 445,
+            "top": 507,
+            "right": 516,
+            "bottom": 649
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_10",
+          "kind": "code",
+          "box": {
+            "left": 472,
+            "top": 284,
+            "right": 622,
+            "bottom": 334
+          },
+          "text": "customers",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_11",
+          "kind": "code",
+          "box": {
+            "left": 490,
+            "top": 361,
+            "right": 643,
+            "bottom": 433
+          },
+          "text": "\"김민수\":",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_12",
+          "kind": "code",
+          "box": {
+            "left": 646,
+            "top": 362,
+            "right": 1000,
+            "bottom": 435
+          },
+          "text": "{\"노트북\", \"마우스\", \"키",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_13",
+          "kind": "code",
+          "box": {
+            "left": 490,
+            "top": 456,
+            "right": 645,
+            "bottom": 529
+          },
+          "text": "\"이영희\":",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_14",
+          "kind": "code",
+          "box": {
+            "left": 647,
+            "top": 457,
+            "right": 1000,
+            "bottom": 529
+          },
+          "text": "{\"노트북\", \"마우스\", \"모",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_15",
+          "kind": "underline",
+          "box": {
+            "left": 499,
+            "top": 441,
+            "right": 575,
+            "bottom": 452
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_16",
+          "kind": "underline",
+          "box": {
+            "left": 655,
+            "top": 430,
+            "right": 1000,
+            "bottom": 444
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_17",
+          "kind": "underline",
+          "box": {
+            "left": 510,
+            "top": 544,
+            "right": 659,
+            "bottom": 558
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_18",
+          "kind": "underline",
+          "box": {
+            "left": 745,
+            "top": 519,
+            "right": 1000,
+            "bottom": 548
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "link_0",
+          "from_ids": [
+            "item_1"
+          ],
+          "to_ids": [
+            "item_0"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "circle surrounds 을"
+        },
+        {
+          "id": "link_1",
+          "from_ids": [
+            "item_2"
+          ],
+          "to_ids": [
+            "item_0"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "circle surrounds 상품을 집합"
+        },
+        {
+          "id": "link_2",
+          "from_ids": [
+            "item_3"
+          ],
+          "to_ids": [
+            "item_0"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "underline below 집합으로"
+        },
+        {
+          "id": "link_3",
+          "from_ids": [
+            "item_7"
+          ],
+          "to_ids": [
+            "item_6"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "circle around {"
+        },
+        {
+          "id": "link_4",
+          "from_ids": [
+            "item_9"
+          ],
+          "to_ids": [
+            "item_8"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "circle around }"
+        },
+        {
+          "id": "link_5",
+          "from_ids": [
+            "item_15"
+          ],
+          "to_ids": [
+            "item_11"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "underline below \"김민"
+        },
+        {
+          "id": "link_6",
+          "from_ids": [
+            "item_16"
+          ],
+          "to_ids": [
+            "item_12"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "underline below set elements"
+        },
+        {
+          "id": "link_7",
+          "from_ids": [
+            "item_17"
+          ],
+          "to_ids": [
+            "item_13"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "underline below \"이영희\":"
+        },
+        {
+          "id": "link_8",
+          "from_ids": [
+            "item_18"
+          ],
+          "to_ids": [
+            "item_14"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "underline below set elements"
+        },
+        {
+          "id": "link_9",
+          "from_ids": [
+            "item_4"
+          ],
+          "to_ids": [
+            "item_9",
+            "item_0"
+          ],
+          "kind": "connection",
+          "direction": "observed",
+          "evidence": "line extending from near '저장' towards the circled '}'"
+        }
+      ],
+      "complete": false,
+      "notes": []
+    },
+    "candidate": {
+      "items": [
+        {
+          "id": "item_0",
+          "kind": "printed_text",
+          "box": {
+            "left": 0,
+            "top": 444,
+            "right": 296,
+            "bottom": 515
+          },
+          "text": "상품을 집합으로 저장",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_1",
+          "kind": "circle",
+          "box": {
+            "left": 40,
+            "top": 418,
+            "right": 97,
+            "bottom": 516
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_2",
+          "kind": "circle",
+          "box": {
+            "left": 0,
+            "top": 395,
+            "right": 164,
+            "bottom": 544
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_3",
+          "kind": "underline",
+          "box": {
+            "left": 80,
+            "top": 518,
+            "right": 204,
+            "bottom": 555
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_4",
+          "kind": "line",
+          "box": {
+            "left": 234,
+            "top": 481,
+            "right": 506,
+            "bottom": 551
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_5",
+          "kind": "handwriting",
+          "box": {
+            "left": 354,
+            "top": 352,
+            "right": 432,
+            "bottom": 481
+          },
+          "text": "초기",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_6",
+          "kind": "code",
+          "box": {
+            "left": 639,
+            "top": 277,
+            "right": 668,
+            "bottom": 355
+          },
+          "text": "{",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_7",
+          "kind": "circle",
+          "box": {
+            "left": 635,
+            "top": 242,
+            "right": 699,
+            "bottom": 376
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_8",
+          "kind": "code",
+          "box": {
+            "left": 472,
+            "top": 547,
+            "right": 484,
+            "bottom": 625
+          },
+          "text": "}",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_9",
+          "kind": "circle",
+          "box": {
+            "left": 445,
+            "top": 507,
+            "right": 516,
+            "bottom": 649
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_10",
+          "kind": "code",
+          "box": {
+            "left": 472,
+            "top": 284,
+            "right": 622,
+            "bottom": 334
+          },
+          "text": "customers",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_11",
+          "kind": "code",
+          "box": {
+            "left": 490,
+            "top": 361,
+            "right": 643,
+            "bottom": 433
+          },
+          "text": "\"김민수\":",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_12",
+          "kind": "code",
+          "box": {
+            "left": 646,
+            "top": 362,
+            "right": 1000,
+            "bottom": 435
+          },
+          "text": "{\"노트북\", \"마우스\", \"키",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_13",
+          "kind": "code",
+          "box": {
+            "left": 490,
+            "top": 456,
+            "right": 645,
+            "bottom": 529
+          },
+          "text": "\"이영희\":",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_14",
+          "kind": "code",
+          "box": {
+            "left": 647,
+            "top": 457,
+            "right": 1000,
+            "bottom": 529
+          },
+          "text": "{\"노트북\", \"마우스\", \"모",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_15",
+          "kind": "underline",
+          "box": {
+            "left": 499,
+            "top": 441,
+            "right": 575,
+            "bottom": 452
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_16",
+          "kind": "underline",
+          "box": {
+            "left": 655,
+            "top": 430,
+            "right": 1000,
+            "bottom": 444
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_17",
+          "kind": "underline",
+          "box": {
+            "left": 510,
+            "top": 544,
+            "right": 659,
+            "bottom": 558
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "item_18",
+          "kind": "underline",
+          "box": {
+            "left": 745,
+            "top": 519,
+            "right": 1000,
+            "bottom": 548
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "link_0",
+          "from_ids": [
+            "item_1"
+          ],
+          "to_ids": [
+            "item_0"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "circle surrounds 을"
+        },
+        {
+          "id": "link_1",
+          "from_ids": [
+            "item_2"
+          ],
+          "to_ids": [
+            "item_0"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "circle surrounds 상품을 집합"
+        },
+        {
+          "id": "link_2",
+          "from_ids": [
+            "item_3"
+          ],
+          "to_ids": [
+            "item_0"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "underline below 집합으로"
+        },
+        {
+          "id": "link_3",
+          "from_ids": [
+            "item_7"
+          ],
+          "to_ids": [
+            "item_6"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "circle around {"
+        },
+        {
+          "id": "link_4",
+          "from_ids": [
+            "item_9"
+          ],
+          "to_ids": [
+            "item_8"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "circle around }"
+        },
+        {
+          "id": "link_5",
+          "from_ids": [
+            "item_15"
+          ],
+          "to_ids": [
+            "item_11"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "underline below \"김민"
+        },
+        {
+          "id": "link_6",
+          "from_ids": [
+            "item_16"
+          ],
+          "to_ids": [
+            "item_12"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "underline below set elements"
+        },
+        {
+          "id": "link_7",
+          "from_ids": [
+            "item_17"
+          ],
+          "to_ids": [
+            "item_13"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "underline below \"이영희\":"
+        },
+        {
+          "id": "link_8",
+          "from_ids": [
+            "item_18"
+          ],
+          "to_ids": [
+            "item_14"
+          ],
+          "kind": "emphasis",
+          "direction": "not_applicable",
+          "evidence": "underline below set elements"
+        },
+        {
+          "id": "link_9",
+          "from_ids": [
+            "item_4"
+          ],
+          "to_ids": [
+            "item_9",
+            "item_0"
+          ],
+          "kind": "connection",
+          "direction": "observed",
+          "evidence": "line extending from near '저장' towards the circled '}'"
+        }
+      ],
+      "complete": true,
+      "notes": []
+    },
+    "audio_context": {
+      "bindings": [
+        {
+          "item_ids": [
+            "item_6",
+            "item_7",
+            "item_8",
+            "item_9",
+            "item_10"
+          ],
+          "quote": "딕셔너리를 통해서 해당되는 데이터 값을 먼저",
+          "start_seconds": 1750.12,
+          "end_seconds": 1753.7,
+          "relevance": "aligned",
+          "reason": "The speaker mentions creating a dictionary ('딕셔너리를 통해서'), matching the dictionary variable 'customers' defined with braces { and }."
+        },
+        {
+          "item_ids": [
+            "item_5"
+          ],
+          "quote": "초기 데이터를 먼저 만들어놓습니다.",
+          "start_seconds": 1753.7,
+          "end_seconds": 1755.74,
+          "relevance": "aligned",
+          "reason": "The handwritten text '초기' explicitly matches the spoken phrase '초기 데이터'."
+        },
+        {
+          "item_ids": [
+            "item_5"
+          ],
+          "quote": "초기 데이터를 먼저 만들어놓고요.",
+          "start_seconds": 1757.37,
+          "end_seconds": 1759.14,
+          "relevance": "aligned",
+          "reason": "The speaker repeats '초기 데이터', which corresponds to the handwritten '초기'."
+        },
+        {
+          "item_ids": [
+            "item_11",
+            "item_12",
+            "item_13",
+            "item_14",
+            "item_15",
+            "item_16",
+            "item_17",
+            "item_18"
+          ],
+          "quote": "자, 이때 각각에 해당되는 데이터들을",
+          "start_seconds": 1759.84,
+          "end_seconds": 1762.84,
+          "relevance": "aligned",
+          "reason": "Refers to the individual data entries/elements for each customer ('김민수', '이영희' with their respective sets), emphasized by underlines."
+        }
+      ],
+      "concepts": [],
+      "word_candidates": [],
+      "notes": [
+        "ASR-derived context, not independently listened speech."
+      ],
+      "rejected_bindings": []
+    },
+    "failed_ids": [
+      "item_0",
+      "item_11",
+      "item_12",
+      "item_14",
+      "item_16",
+      "item_18",
+      "link_5",
+      "link_6",
+      "link_8",
+      "link_9"
+    ]
+  },
+  "audit": {
+    "checks": [
+      {
+        "id": "item_0",
+        "content": "partial",
+        "geometry": "partial",
+        "meaning": "supported",
+        "reason": "The line starts before '상품을', cropped from '두 명의 고객이 구매한 상품을 집합으로 저장'. In Image 1, '두 명의 고객이 구매한 ' is truncated on the left, but '상품을 집합으로 저장' is clearly visible.",
+        "full_text": "두 명의 고객이 구매한 상품을 집합으로 저장",
+        "lexical_complete": false,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_4",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Connecting squiggly/wavy red line extending between the printed requirement and the dictionary code braces.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "structural",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_5",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Handwritten Korean text '초기'.",
+        "full_text": "초기",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_6",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Opening curly brace '{' in customers = {.",
+        "full_text": "{",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_7",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Red circle around opening curly brace '{'.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_8",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Closing curly brace '}' of the customers dictionary.",
+        "full_text": "}",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_9",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Red circle around closing curly brace '}'.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_11",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Dictionary key '\"김민수\":'.",
+        "full_text": "\"김민수\":",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_12",
+        "content": "partial",
+        "geometry": "partial",
+        "meaning": "partial",
+        "reason": "The full code line extends beyond the crop: '{\"노트북\", \"마우스\", \"키보드\", \"USB\"},'. In Image 1, it is cropped at '{\"노트북\", \"마우스\", \"키'.",
+        "full_text": "{\"노트북\", \"마우스\", \"키보드\", \"USB\"},",
+        "lexical_complete": false,
+        "meaning_preserved": false,
+        "role_risk": true,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_13",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Dictionary key '\"이영희\":'.",
+        "full_text": "\"이영희\":",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_14",
+        "content": "partial",
+        "geometry": "partial",
+        "meaning": "partial",
+        "reason": "The full code line extends beyond the crop: '{\"노트북\", \"마우스\", \"모니터\", \"헤드셋\"}'. In Image 1, it is cropped at '{\"노트북\", \"마우스\", \"모'.",
+        "full_text": "{\"노트북\", \"마우스\", \"모니터\", \"헤드셋\"}",
+        "lexical_complete": false,
+        "meaning_preserved": false,
+        "role_risk": true,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_15",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Red underline mark under '\"김민'.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_16",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Red underline mark under the set values of 김민수.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_17",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Red underline mark under '\"이영희\":'.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "item_18",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Red underline mark under the set values of 이영희.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link_3",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Circle emphasizes opening brace.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link_4",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Circle emphasizes closing brace.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link_5",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Underline emphasizes customer key.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link_6",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Underline emphasizes customer set values.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link_7",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Underline emphasizes customer key.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link_8",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Underline emphasizes customer set values.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "link_9",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Line structurally connects requirement statement/handwriting to dictionary brace.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "structural",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      }
+    ],
+    "missing": [],
+    "complete": true
+  },
+  "previous_decisions": [
+    {
+      "id": "item_0",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "required_item_touches_crop_boundary",
+        "source_content_partial",
+        "source_geometry_partial",
+        "whole_word_source_review_unresolved"
+      ],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_2",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "context_crop_boundary"
+      ],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_3",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_4",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_5",
+      "status": "model_source_checked",
+      "applied": true,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_no_detection"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_6",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_partial_word_coverage"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_7",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_region"
+    },
+    {
+      "id": "item_8",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_no_detection"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_9",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_10",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_partial_word_coverage"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_11",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "ocr_text_conflict"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_12",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "required_item_touches_crop_boundary",
+        "source_content_partial",
+        "source_geometry_partial",
+        "source_meaning_partial",
+        "whole_word_source_review_unresolved"
+      ],
+      "warnings": [
+        "adjacent_glyph_requires_word_review"
+      ],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_13",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "ocr_low_confidence",
+        "ocr_not_comparable"
+      ],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_14",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "required_item_touches_crop_boundary",
+        "source_content_partial",
+        "source_geometry_partial",
+        "source_meaning_partial",
+        "whole_word_source_review_unresolved"
+      ],
+      "warnings": [
+        "adjacent_glyph_requires_word_review",
+        "text_stroke_crosses_box"
+      ],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "item_15",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_region"
+    },
+    {
+      "id": "item_16",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "required_item_touches_crop_boundary"
+      ],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_region"
+    },
+    {
+      "id": "item_17",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_region"
+    },
+    {
+      "id": "item_18",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "required_item_touches_crop_boundary"
+      ],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_region"
+    },
+    {
+      "id": "link_0",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link_1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link_2",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "link_3",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_relation"
+    },
+    {
+      "id": "link_4",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_relation"
+    },
+    {
+      "id": "link_5",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "dependency_unresolved"
+      ],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_relation"
+    },
+    {
+      "id": "link_6",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "dependency_unresolved"
+      ],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_relation"
+    },
+    {
+      "id": "link_7",
+      "status": "usable_with_warning",
+      "applied": false,
+      "reasons": [],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_relation"
+    },
+    {
+      "id": "link_8",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "dependency_unresolved"
+      ],
+      "warnings": [
+        "simple_emphasis_group_accepted"
+      ],
+      "unprocessed": [],
+      "representation": "emphasis_relation"
+    },
+    {
+      "id": "link_9",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    }
+  ]
+}

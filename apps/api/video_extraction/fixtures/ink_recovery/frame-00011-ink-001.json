@@ -1,0 +1,866 @@
+{
+  "source_result": "outputs/ink-continuation-v1/results/frame-00011-ink-001.json",
+  "package": {
+    "task": {
+      "id": "frame-00011-ink-001",
+      "source_sha256": "f2bbd01de9a3e78d82349f526eccd378d5cba188c8f1d9351de5cabd12403eb6",
+      "frame_id": "frame-00011",
+      "time_seconds": 183.0,
+      "onset_interval_seconds": [
+        163.0,
+        183.0
+      ],
+      "bbox": [
+        354,
+        189,
+        483,
+        299
+      ],
+      "current_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00011.png",
+      "audio_interval": [
+        160.0,
+        188.0
+      ],
+      "asr_context": [
+        {
+          "id": "asr-0000-0045",
+          "start_seconds": 155.76,
+          "end_seconds": 161.8,
+          "text": "이걸 다시 한번 돌리잖아요. 그러면 순서가 바뀌어요. 바로 이게 집합이다 라고 보시면 되겠습니다."
+        },
+        {
+          "id": "asr-0000-0046",
+          "start_seconds": 163.66,
+          "end_seconds": 170.32,
+          "text": "자 집합에 대한 개념으로서 해당되는 분야를 어디서 활용할 수 있을까를 한번 생각을 해보면"
+        },
+        {
+          "id": "asr-0000-0047",
+          "start_seconds": 170.32,
+          "end_seconds": 173.68,
+          "text": "자 중복되어 있는 데이터를 없애야 되는 경우에요."
+        },
+        {
+          "id": "asr-0000-0048",
+          "start_seconds": 173.94,
+          "end_seconds": 179.28,
+          "text": "데이터를 정지하는 과정들 데이터를 정지하는 과정에서 또 사용할 수가 있겠죠."
+        },
+        {
+          "id": "asr-0001-0000",
+          "start_seconds": 177.0,
+          "end_seconds": 184.58,
+          "text": "하는 과정에서 또 사용할 수가 있겠죠. 반복적인 데이터를 줄이면 그만큼의 메모리 사이즈를 어떻게 할 수 있을까요? 줄일 수가 있겠죠."
+        },
+        {
+          "id": "asr-0001-0001",
+          "start_seconds": 185.1,
+          "end_seconds": 194.6,
+          "text": "그래서 중복되어 있는 데이터를 하나만 저장해서 중복되어 있는 데이터를 제거하는 경우에 이럴 때 SET이라고 하는 구조를 사용하면 된다."
+        }
+      ],
+      "speech_cue_hits": [
+        "순서"
+      ],
+      "priority_score": 5,
+      "before_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00011.png",
+      "after_image": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00011.png",
+      "asr_status": "machine_transcription_not_verified",
+      "previous_context_only": true,
+      "evidence": {
+        "selected_frame": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00011.png",
+        "frame_candidates": [
+          {
+            "path": "outputs/video-extraction/f2bbd01de9a3e78d-f9a29e713f86/frames/frame-00011.png",
+            "eligible": true,
+            "local_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "global_state": {
+              "eligible": true,
+              "lost_foreground": 0.0,
+              "added_foreground": 0.0,
+              "rgb_difference": 0.0
+            },
+            "sharpness": 3734.1343071068295,
+            "contrast": 172.0
+          }
+        ],
+        "source_size": [
+          1280,
+          720
+        ],
+        "views": {
+          "original": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00011-ink-001/original.png",
+            "crop_in_source": [
+              0.32109375,
+              0.16111111111111112,
+              0.515625,
+              0.3277777777777778
+            ],
+            "size": [
+              249,
+              120
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          },
+          "contrast": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00011-ink-001/contrast.png",
+            "crop_in_source": [
+              0.32109375,
+              0.16111111111111112,
+              0.515625,
+              0.3277777777777778
+            ],
+            "size": [
+              249,
+              120
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "contrast",
+            "never_replaces_original": true
+          },
+          "denoise": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00011-ink-001/denoise.png",
+            "crop_in_source": [
+              0.32109375,
+              0.16111111111111112,
+              0.515625,
+              0.3277777777777778
+            ],
+            "size": [
+              249,
+              120
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "denoise",
+            "never_replaces_original": true
+          },
+          "binary": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00011-ink-001/binary.png",
+            "crop_in_source": [
+              0.32109375,
+              0.16111111111111112,
+              0.515625,
+              0.3277777777777778
+            ],
+            "size": [
+              249,
+              120
+            ],
+            "foreground_retention": 1.0,
+            "eligible": true,
+            "operation": "binary",
+            "never_replaces_original": true
+          },
+          "expanded": {
+            "path": "outputs/ink-continuation-v1/evidence/frame-00011-ink-001/expanded.png",
+            "crop_in_source": [
+              0.26953125,
+              0.11666666666666667,
+              0.5671875,
+              0.37083333333333335
+            ],
+            "size": [
+              381,
+              183
+            ],
+            "eligible": true,
+            "operation": "crop_only"
+          }
+        },
+        "selected_frame_seconds": 183.0
+      }
+    },
+    "view": {
+      "path": "outputs/ink-continuation-v1/evidence/frame-00011-ink-001/review/source-context.png",
+      "size": [
+        499,
+        240
+      ],
+      "crop_in_source": [
+        0.2234375,
+        0.07777777777777778,
+        0.61328125,
+        0.4111111111111111
+      ],
+      "operation": "source_crop_only",
+      "eligible": true,
+      "core_unchanged": true
+    },
+    "ocr": {
+      "state": "candidate",
+      "words": [
+        {
+          "text": "연게",
+          "score": 0.7978839874267578,
+          "bbox_pixels": [
+            132.00000000000003,
+            98.00000000000001,
+            189.0,
+            127.0
+          ]
+        },
+        {
+          "text": "시",
+          "score": 0.5682923197746277,
+          "bbox_pixels": [
+            211.00000000000003,
+            91.0,
+            294.0,
+            132.0
+          ]
+        },
+        {
+          "text": "*",
+          "score": 0.16332213580608368,
+          "bbox_pixels": [
+            356.0,
+            100.0,
+            369.99999999999994,
+            113.0
+          ]
+        }
+      ],
+      "raw": {
+        "res": {
+          "input_path": "outputs/ink-continuation-v1/evidence/frame-00011-ink-001/original.png",
+          "page_index": null,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_textline_orientation": false
+          },
+          "dt_polys": [
+            [
+              [
+                7,
+                38
+              ],
+              [
+                64,
+                38
+              ],
+              [
+                64,
+                67
+              ],
+              [
+                7,
+                67
+              ]
+            ],
+            [
+              [
+                86,
+                36
+              ],
+              [
+                167,
+                31
+              ],
+              [
+                169,
+                67
+              ],
+              [
+                88,
+                72
+              ]
+            ],
+            [
+              [
+                231,
+                40
+              ],
+              [
+                245,
+                40
+              ],
+              [
+                245,
+                53
+              ],
+              [
+                231,
+                53
+              ]
+            ]
+          ],
+          "text_det_params": {
+            "limit_side_len": 64,
+            "limit_type": "min",
+            "thresh": 0.3,
+            "max_side_limit": 4000,
+            "box_thresh": 0.6,
+            "unclip_ratio": 1.5
+          },
+          "text_type": "general",
+          "textline_orientation_angles": [
+            -1,
+            -1,
+            -1
+          ],
+          "text_rec_score_thresh": 0.0,
+          "return_word_box": false,
+          "rec_texts": [
+            "연게",
+            "시",
+            "*"
+          ],
+          "rec_scores": [
+            0.7978839874267578,
+            0.5682923197746277,
+            0.16332213580608368
+          ],
+          "rec_polys": [
+            [
+              [
+                7,
+                38
+              ],
+              [
+                64,
+                38
+              ],
+              [
+                64,
+                67
+              ],
+              [
+                7,
+                67
+              ]
+            ],
+            [
+              [
+                86,
+                36
+              ],
+              [
+                167,
+                31
+              ],
+              [
+                169,
+                67
+              ],
+              [
+                88,
+                72
+              ]
+            ],
+            [
+              [
+                231,
+                40
+              ],
+              [
+                245,
+                40
+              ],
+              [
+                245,
+                53
+              ],
+              [
+                231,
+                53
+              ]
+            ]
+          ],
+          "rec_boxes": [
+            [
+              7,
+              38,
+              64,
+              67
+            ],
+            [
+              86,
+              31,
+              169,
+              72
+            ],
+            [
+              231,
+              40,
+              245,
+              53
+            ]
+          ]
+        }
+      },
+      "provider": "PaddleOCR",
+      "model_hashes": {
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/config.json": "7ac1c33f377ba58561f4b89d3180b6add2b7c5c60a4edac90fa4e0ceccdc6665",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.json": "05feef1acb00aa4cd7362b15f7f501fc4f99d7b1fa73c1c871e0c7b1504b0f5c",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.pdiparams": "afa1820cb16c1fd0dad589d0f8b389139061c1ef6d68019685fd07be997dda5b",
+        "work/extraction-compare/paddlex/official_models/PP-OCRv5_mobile_det/inference.yml": "98069072e1b6b37d727fd9d9f11725faa46d6ea0de012f2ed26caea011c37699",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/.gitattributes": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/config.json": "c86a49d6301e6c4ff3398a87a2a1926b3521a46e90042833e18bbfa8ba6165c2",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.json": "562404e3c590c50c93778d5f0a94df21b47b5ab8f3ea6d47c7f8a7930c3bc844",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.pdiparams": "cac3e5f12cf04aaa77f6a5bc704e4e736ef2908476551891d84b41b4e9090462",
+        "work/extraction-compare/paddlex/official_models/korean_PP-OCRv5_mobile_rec/inference.yml": "f757fa1c40e99edcf27e9cce879b93eb2a51fa46f5ef39095689b8c37dd75998"
+      },
+      "id": "frame-00011-ink-001-original",
+      "task_id": "frame-00011-ink-001",
+      "view": "original",
+      "path": "outputs/ink-continuation-v1/evidence/frame-00011-ink-001/original.png",
+      "image_sha256": "7c0be208553f3fd63ba286186dcc8b1e88c5327b9f3fe3cd59d7dd7c1f7728f6",
+      "alternative_words": [
+        {
+          "text": "연게",
+          "score": 0.8617398142814636,
+          "bbox_pixels": [
+            132.00000000000003,
+            98.00000000000001,
+            190.0,
+            127.0
+          ]
+        },
+        {
+          "text": "시",
+          "score": 0.38639169931411743,
+          "bbox_pixels": [
+            211.00000000000003,
+            91.0,
+            294.0,
+            132.0
+          ]
+        },
+        {
+          "text": "*",
+          "score": 0.19913701713085175,
+          "bbox_pixels": [
+            356.0,
+            100.0,
+            369.99999999999994,
+            113.0
+          ]
+        }
+      ]
+    },
+    "ocr_coverage": {
+      "left": 250.50100200400806,
+      "top": 250.00000000000006,
+      "right": 749.498997995992,
+      "bottom": 750.0
+    },
+    "base": {
+      "items": [
+        {
+          "id": "t1",
+          "kind": "printed_text",
+          "box": {
+            "left": 0,
+            "top": 444,
+            "right": 366,
+            "bottom": 526
+          },
+          "text": "료구조와의 연계",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "h1",
+          "kind": "handwriting",
+          "box": {
+            "left": 435,
+            "top": 420,
+            "right": 583,
+            "bottom": 520
+          },
+          "text": "정제",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "c1",
+          "kind": "circle",
+          "box": {
+            "left": 343,
+            "top": 352,
+            "right": 655,
+            "bottom": 642
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "a1",
+          "kind": "arrow",
+          "box": {
+            "left": 673,
+            "top": 446,
+            "right": 732,
+            "bottom": 482
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": [
+            {
+              "x": 673,
+              "y": 465
+            },
+            {
+              "x": 732,
+              "y": 453
+            }
+          ]
+        },
+        {
+          "id": "h2",
+          "kind": "handwriting",
+          "box": {
+            "left": 725,
+            "top": 412,
+            "right": 822,
+            "bottom": 485
+          },
+          "text": "mm",
+          "uncertainties": [
+            "mm"
+          ],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "l1",
+          "from_ids": [
+            "c1"
+          ],
+          "to_ids": [
+            "h1"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "circle surrounds 정제"
+        },
+        {
+          "id": "l2",
+          "from_ids": [
+            "a1"
+          ],
+          "to_ids": [
+            "h2"
+          ],
+          "kind": "sequence",
+          "direction": "observed",
+          "evidence": "arrow points to handwriting h2"
+        }
+      ],
+      "complete": false,
+      "notes": []
+    },
+    "candidate": {
+      "items": [
+        {
+          "id": "t1",
+          "kind": "printed_text",
+          "box": {
+            "left": 0,
+            "top": 444,
+            "right": 366,
+            "bottom": 526
+          },
+          "text": "료구조와의 연계",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "h1",
+          "kind": "handwriting",
+          "box": {
+            "left": 435,
+            "top": 420,
+            "right": 583,
+            "bottom": 520
+          },
+          "text": "정제",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "c1",
+          "kind": "circle",
+          "box": {
+            "left": 343,
+            "top": 352,
+            "right": 655,
+            "bottom": 642
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": []
+        },
+        {
+          "id": "a1",
+          "kind": "arrow",
+          "box": {
+            "left": 673,
+            "top": 446,
+            "right": 732,
+            "bottom": 482
+          },
+          "text": "",
+          "uncertainties": [],
+          "cancelled": false,
+          "arrow_points": [
+            {
+              "x": 673,
+              "y": 465
+            },
+            {
+              "x": 732,
+              "y": 453
+            }
+          ]
+        },
+        {
+          "id": "h2",
+          "kind": "handwriting",
+          "box": {
+            "left": 725,
+            "top": 412,
+            "right": 822,
+            "bottom": 485
+          },
+          "text": "mm",
+          "uncertainties": [
+            "mm"
+          ],
+          "cancelled": false,
+          "arrow_points": []
+        }
+      ],
+      "links": [
+        {
+          "id": "l1",
+          "from_ids": [
+            "c1"
+          ],
+          "to_ids": [
+            "h1"
+          ],
+          "kind": "emphasis",
+          "direction": "observed",
+          "evidence": "circle surrounds 정제"
+        },
+        {
+          "id": "l2",
+          "from_ids": [
+            "a1"
+          ],
+          "to_ids": [
+            "h2"
+          ],
+          "kind": "sequence",
+          "direction": "observed",
+          "evidence": "arrow points to handwriting h2"
+        }
+      ],
+      "complete": true,
+      "notes": []
+    },
+    "audio_context": {
+      "bindings": [
+        {
+          "item_ids": [
+            "c1",
+            "h1"
+          ],
+          "quote": "데이터를 정지하는 과정들 데이터를 정지하는 과정에서 또 사용할 수가 있겠죠.",
+          "start_seconds": 173.94,
+          "end_seconds": 179.28,
+          "relevance": "aligned",
+          "reason": "The handwritten text '정제' circled by c1 semantically corresponds to the speaker's mention of '데이터를 정지(정제)하는 과정들'."
+        },
+        {
+          "item_ids": [
+            "a1",
+            "h2"
+          ],
+          "quote": "하는 과정에서 또 사용할 수가 있겠죠. 반복적인 데이터를 줄이면 그만큼의 메모리 사이즈를 어떻게 할 수 있을까요? 줄일 수가 있겠죠.",
+          "start_seconds": 177.0,
+          "end_seconds": 184.58,
+          "relevance": "aligned",
+          "reason": "The arrow a1 pointing to handwriting h2 relates to memory reduction mentioned in the speech ('메모리 사이즈')."
+        }
+      ],
+      "concepts": [],
+      "word_candidates": [],
+      "notes": [
+        "ASR-derived context, not independently listened speech."
+      ],
+      "rejected_bindings": []
+    },
+    "failed_ids": [
+      "t1",
+      "l1"
+    ]
+  },
+  "audit": {
+    "checks": [
+      {
+        "id": "c1",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Circle drawn around the handwritten text '정제'.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "h1",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Handwritten Korean text reads '정제'.",
+        "full_text": "정제",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "l1",
+        "content": "supported",
+        "geometry": "supported",
+        "meaning": "supported",
+        "reason": "Circle c1 directly highlights and emphasizes handwriting h1.",
+        "full_text": "",
+        "lexical_complete": true,
+        "meaning_preserved": true,
+        "role_risk": false,
+        "role": "simple_emphasis",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      },
+      {
+        "id": "t1",
+        "content": "partial",
+        "geometry": "supported",
+        "meaning": "partial",
+        "reason": "The full source line in the complete slide context is '자료구조와의 연계', but the candidate text is cropped at the left margin to '료구조와의 연계' ('자' is omitted/truncated outside the crop).",
+        "full_text": "자료구조와의 연계",
+        "lexical_complete": false,
+        "meaning_preserved": false,
+        "role_risk": true,
+        "role": "text",
+        "split_required": false,
+        "critical": false,
+        "uncertainty_scope": "none"
+      }
+    ],
+    "missing": [],
+    "complete": true
+  },
+  "previous_decisions": [
+    {
+      "id": "t1",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "required_item_touches_crop_boundary",
+        "source_content_partial",
+        "source_meaning_partial",
+        "whole_word_source_review_unresolved"
+      ],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "h1",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_partial_word_coverage"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "c1",
+      "status": "model_source_checked",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "a1",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "h2",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [
+        "unclear_item"
+      ],
+      "warnings": [],
+      "unprocessed": [
+        "ocr_outside_scanned_area"
+      ],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "l1",
+      "status": "held",
+      "applied": false,
+      "reasons": [
+        "direction_without_endpoints"
+      ],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    },
+    {
+      "id": "l2",
+      "status": "context_only",
+      "applied": false,
+      "reasons": [],
+      "warnings": [],
+      "unprocessed": [],
+      "representation": "literal_observation"
+    }
+  ]
+}

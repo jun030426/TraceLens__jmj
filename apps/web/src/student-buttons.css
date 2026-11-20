@@ -1,0 +1,30 @@
+/* 학생 화면 버튼 색 (2026-11-14)
+   홈 '오늘의 학습' 버튼의 모브색(#9b7bb8)과 이어지는, 한 톤 진한 모브 보라로 통일해요.
+   학생으로 로그인했을 때(<html data-role="student">)의 밝은 모드에만 적용돼요.
+   교수자·운영자 화면과 다크 모드는 그대로예요. */
+:root[data-role="student"]:not([data-theme="dark"]) {
+  --student-btn: #85639f;
+  --student-btn-hover: #73538c;
+}
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app :is(.primary, .ln-cta, .exam-study-cta):not(:disabled):not([aria-disabled="true"]):not(.lerny-landing *) {
+  background: var(--student-btn) !important;
+  border-color: var(--student-btn) !important;
+  color: #ffffff !important;
+}
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app :is(.primary, .ln-cta, .exam-study-cta):not(:disabled):not([aria-disabled="true"]):not(.lerny-landing *):hover {
+  background: var(--student-btn-hover) !important;
+  border-color: var(--student-btn-hover) !important;
+  color: #ffffff !important;
+}
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app :is(.primary, .ln-cta, .exam-study-cta) span { color: inherit !important; }
+
+/* 학생용 페이지: 내용이 짧아도 하단 바는 항상 화면 맨 아래에 (11-14) */
+:root[data-role="student"] #root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+:root[data-role="student"] #root > main.app { flex: 1 0 auto; width: 100%; }
+:root[data-role="student"] #root > header,
+:root[data-role="student"] #root > footer { flex: none; width: 100%; }

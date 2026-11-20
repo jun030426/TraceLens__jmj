@@ -6,8 +6,24 @@ import {
   type ReactNode,
 } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+
+// 비밀번호 보기 토글: 숨김 상태면 눈(누르면 보임), 보이는 상태면 가린 눈(누르면 숨김)
+function PasswordEye({ shown }: { shown: boolean }) {
+  return <svg className="password-eye" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {shown ? <>
+      <path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6 0 9.5 7 9.5 7a17.6 17.6 0 0 1-2.6 3.5" />
+      <path d="M6.6 6.6C3.9 8.3 2.5 12 2.5 12S6 19 12 19a9.6 9.6 0 0 0 5.4-1.6" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      <path d="M3 3l18 18" />
+    </> : <>
+      <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7S2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>}
+  </svg>;
+}
 import { api, post, setCsrf, type User } from "./api";
-import { Form, Input, Notice, field } from "./components";
+import { Form, Notice, field } from "./components";
+import { SHOW_TEST_ROLE_BUTTONS, TEST_ROLES, getTestRole, setTestRole, testAccount, testUser } from "./testAccess";
 export const Auth = createContext<{
   user: User | null;
   loading: boolean;
@@ -21,9 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = await api<User>("/me");
       const c = await api<{ csrf_token: string }>("/auth/csrf");
       setCsrf(c.csrf_token);
+      setTestRole(null);
       setUser(u);
     } catch {
-      setUser(null);
+      const testRole = getTestRole();
+      setUser(testRole ? testUser(testRole) : null);
       setCsrf("");
     } finally {
       setLoading(false);
@@ -67,7 +85,6 @@ export function Login() {
           ← Lerny 알아보기
         </Link>
         <div className="login-story-copy">
-          <span className="login-kicker">PICK UP WHERE YOU LEFT OFF</span>
           <h1>
             다시 연결되는
             <br />
@@ -82,7 +99,6 @@ export function Login() {
         <div className="login-art" aria-hidden="true">
           <div className="login-art-orbit" />
           <div className="login-note">
-            <span>MY LEARNING SPACE</span>
             <strong>오늘도, 한 걸음.</strong>
             <div className="login-note-line" />
             <div className="login-note-line short" />
@@ -99,11 +115,9 @@ export function Login() {
           </div>
           <span className="login-art-star">✦</span>
         </div>
-        <span className="login-story-foot">YOUR CLASS. YOUR CLARITY.</span>
       </aside>
       <section className="login-panel" aria-labelledby="login-title">
         <div className="login-form-wrap">
-          <span className="login-kicker">WELCOME BACK</span>
           <h2 id="login-title">다시 만나 반가워요</h2>
           <p className="login-intro">로그인하고 배움을 이어가세요.</p>
           <Form
@@ -149,7 +163,7 @@ export function Login() {
                 aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
                 aria-pressed={showPassword}
               >
-                {showPassword ? "숨기기" : "보기"}
+                <PasswordEye shown={showPassword} />
               </button>
             </div>
             <Link className="login-reset" to="/reset">
@@ -163,6 +177,39 @@ export function Login() {
           <p className="login-teacher-note">
             교수님은 발급받은 계정으로 로그인해 주세요.
           </p>
+          {SHOW_TEST_ROLE_BUTTONS && (
+            <div className="login-test-roles" aria-labelledby="login-test-title">
+              <span id="login-test-title" className="login-test-title">테스트용 화면 바로가기</span>
+              <div className="login-test-buttons">
+                {TEST_ROLES.map(({ role, label, hint }) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={async () => {
+                      const account = testAccount(role);
+                      if (account) {
+                        try {
+                          const r = await api<{ csrf_token: string }>("/auth/login", post(account));
+                          setCsrf(r.csrf_token);
+                          setTestRole(null);
+                          await refresh();
+                          return;
+                        } catch {
+                          /* 서버에 로그인하지 못하면 화면만 열어요. */
+                        }
+                      }
+                      setTestRole(role);
+                      await refresh();
+                    }}
+                  >
+                    <strong>{label}</strong>
+                    <small>{hint}</small>
+                  </button>
+                ))}
+              </div>
+              <p>로그인 없이 샘플 데이터로 화면을 둘러봐요. 저장은 되지 않아요.</p>
+            </div>
+          )}
         </div>
       </section>
     </div>
@@ -178,7 +225,6 @@ export function Signup() {
           ← 로그인으로 돌아가기
         </Link>
         <div className="login-story-copy">
-          <span className="login-kicker">YOUR FIRST CONNECTION</span>
           <h1>
             나의 이해가
             <br />
@@ -222,7 +268,6 @@ export function Signup() {
         aria-labelledby="signup-title"
       >
         <div className="login-form-wrap">
-          <span className="login-kicker">JOIN LERNY</span>
           <h2 id="signup-title">학생 회원가입</h2>
           <p className="login-intro">
             배움의 첫걸음을 함께. 내 강의를 만나보세요.
@@ -245,19 +290,6 @@ export function Signup() {
               navigate("/login");
             }}
           >
-            <label>
-              아이디
-              <input
-                name="login_id"
-                placeholder="영문·숫자 3자 이상"
-                minLength={3}
-                maxLength={100}
-                autoComplete="username"
-                autoCapitalize="none"
-                spellCheck={false}
-                required
-              />
-            </label>
             <label>
               이름
               <input
@@ -292,13 +324,26 @@ export function Signup() {
                 aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
                 aria-pressed={showPassword}
               >
-                {showPassword ? "숨기기" : "보기"}
+                <PasswordEye shown={showPassword} />
               </button>
             </div>
-            <div className="signup-privacy">
-              <span className="signup-privacy-title">
+            <label>
+              아이디
+              <input
+                name="login_id"
+                placeholder="영문·숫자 3자 이상"
+                minLength={3}
+                maxLength={100}
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                required
+              />
+            </label>
+            <details className="signup-privacy">
+              <summary className="signup-privacy-title">
                 가입 전, 학습 기록 안내
-              </span>
+              </summary>
               <ul>
                 <li>
                   교수님은 답안·코드·취약점과 질문 개념·횟수를 볼 수 있어요.
@@ -309,7 +354,7 @@ export function Signup() {
                   학기 종료 후에도 학습 기록을 열람할 수 있어요. 질문 원문은 90일 보존합니다.
                 </li>
               </ul>
-            </div>
+            </details>
             <label className="signup-consent">
               <input type="checkbox" required />{" "}
               <span>학습 기록 열람·보존 안내를 확인했습니다.</span>
@@ -337,7 +382,6 @@ export function Reset() {
           ← 로그인으로 돌아가기
         </Link>
         <div className="login-story-copy">
-          <span className="login-kicker">FIND YOUR WAY BACK</span>
           <h1>
             잠시 멈춘 배움을,
             <br />
@@ -362,14 +406,12 @@ export function Reset() {
             BACK TO YOUR LEARNING SPACE
           </span>
         </div>
-        <span className="login-story-foot">YOUR NEXT CHAPTER IS WAITING.</span>
       </aside>
       <section
         className="login-panel reset-panel"
         aria-labelledby="reset-title"
       >
         <div className="login-form-wrap">
-          <span className="login-kicker">ACCOUNT RECOVERY</span>
           <h2 id="reset-title">
             {done ? "비밀번호를 변경했어요" : "비밀번호 초기화"}
           </h2>
@@ -445,7 +487,7 @@ export function Reset() {
                     aria-pressed={showPassword}
                     onClick={() => setShowPassword((v) => !v)}
                   >
-                    {showPassword ? "숨기기" : "보기"}
+                    <PasswordEye shown={showPassword} />
                   </button>
                 </div>
               </Form>
@@ -467,7 +509,6 @@ export function ChangePassword() {
   return (
     <div className="login-layout change-layout">
       <aside className="login-story change-story">
-        <span className="login-kicker">YOUR ACCOUNT. YOUR SPACE.</span>
         <div className="login-story-copy">
           <h1>
             나만의 배움,
@@ -502,7 +543,6 @@ export function ChangePassword() {
         aria-labelledby="change-title"
       >
         <div className="login-form-wrap">
-          <span className="login-kicker">ACCOUNT SETUP</span>
           <h2 id="change-title">초기 비밀번호 변경</h2>
           <p className="login-intro">
             발급받은 비밀번호를
@@ -567,7 +607,7 @@ export function ChangePassword() {
                       setVisible((v) => ({ ...v, [item.key]: !v[item.key] }))
                     }
                   >
-                    {visible[item.key] ? "숨기기" : "보기"}
+                    <PasswordEye shown={visible[item.key]} />
                   </button>
                 </div>
               </div>

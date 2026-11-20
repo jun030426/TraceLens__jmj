@@ -1,0 +1,1886 @@
+/* 학생 홈 정리판 (2026-11-14)
+   원칙: 강조 색은 보라 하나, 글자 크기는 3단계(제목 · 본문 · 보조),
+   눈에 띄는 버튼은 '오늘의 학습' 하나, 화살표는 → 하나로 통일.
+   색은 lerny-design.css 의 --d-* 값을 그대로 써서 다크 모드에서도 자동으로 바뀌어요. */
+
+#root .sh-home {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+/* 1. 인사 */
+#root .sh-home .sh-greeting { margin: 0; }
+#root .sh-home .sh-meta {
+  margin: 0 0 6px;
+  color: var(--d-ink-3);
+  font-size: 14px;
+}
+#root .sh-home .sh-meta a { color: var(--d-ink-3); text-decoration: none; }
+#root .sh-home .sh-meta a:hover { color: var(--d-accent); }
+#root .sh-home .sh-meta strong { color: var(--d-accent); font-weight: 600; }
+#root main.app .sh-home .sh-greeting h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  line-height: 1.35;
+  color: var(--d-ink);
+}
+
+/* 2. 오늘의 학습 — 밤하늘 카드(기존 Lerny 규칙)는 그대로, 안쪽만 덜어냄 */
+#root .student-today.sh-home .sh-next {
+  display: flex;
+  min-height: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 36px 40px;
+  margin: 0;
+}
+#root .sh-home .sh-next .sh-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--d-accent-on-night) !important;
+}
+#root .student-today.sh-home .sh-next h2 {
+  max-width: none;
+  margin: 8px 0 10px;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  line-height: 1.35;
+}
+#root .sh-home .sh-next p { margin: 0; font-size: 15px; }
+#root .sh-home .sh-progress {
+  display: block;
+  width: min(320px, 100%);
+  height: 4px;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 99px;
+  overflow: hidden;
+  appearance: none;
+  background: rgba(250, 243, 240, 0.18);
+}
+#root .sh-home .sh-progress::-webkit-progress-bar { background: rgba(250, 243, 240, 0.18); }
+#root .sh-home .sh-progress::-webkit-progress-value { background: var(--d-accent-on-night); border-radius: 99px; }
+#root .sh-home .sh-progress::-moz-progress-bar { background: var(--d-accent-on-night); }
+#root .sh-home .sh-next .ln-cta { flex: none; }
+
+/* 3·4. 섹션 공통 */
+#root .sh-home .sh-section { margin: 0; }
+#root .sh-home .sh-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+#root main.app .sh-home .sh-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--d-ink);
+}
+#root .sh-home .sh-heading a {
+  font-size: 14px;
+  color: var(--d-ink-3);
+  text-decoration: none;
+}
+#root .sh-home .sh-heading a:hover { color: var(--d-accent); }
+
+#root .sh-home .sh-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  border-radius: var(--d-r-card);
+  background: var(--d-surface);
+}
+#root .sh-home .sh-list li + li .sh-row { border-top: 1px solid var(--d-hair); }
+#root .sh-home .sh-list li { margin: 0 24px; }
+
+#root .sh-home .sh-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 0;
+  color: inherit;
+  text-decoration: none;
+}
+#root .sh-home .sh-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#root .sh-home .sh-row-main strong {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--d-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#root .sh-home .sh-row-main small {
+  font-size: 13px;
+  color: var(--d-ink-3);
+}
+#root .sh-home .sh-row-state {
+  flex: none;
+  font-size: 13px;
+  color: var(--d-ink-3);
+}
+#root .sh-home .sh-row-state.is-done { color: var(--d-accent); font-weight: 500; }
+#root .sh-home .sh-arrow {
+  flex: none;
+  color: var(--d-ink-3);
+  transition: transform 0.2s var(--d-ease-out), color 0.2s;
+}
+#root .sh-home .sh-row:hover .sh-row-main strong,
+#root .sh-home .sh-row:hover .sh-arrow { color: var(--d-accent); }
+#root .sh-home .sh-row:hover .sh-arrow { transform: translateX(3px); }
+#root .sh-home .sh-row:focus-visible {
+  outline: 2px solid var(--d-mauve);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+#root .sh-home .sh-note { margin: 0; color: var(--d-ink-3); }
+#root .sh-home .sh-empty {
+  padding: 28px;
+  border-radius: var(--d-r-card);
+  background: var(--d-surface);
+}
+#root .sh-home .sh-empty p { margin: 6px 0 12px; color: var(--d-ink-3); font-size: 14px; }
+#root .sh-home .sh-empty a { color: var(--d-accent); font-weight: 500; text-decoration: none; }
+
+/* 휴대폰 */
+@media (max-width: 640px) {
+  #root .sh-home { gap: 32px; }
+  #root main.app .sh-home .sh-greeting h1 { font-size: 24px; }
+  #root .student-today.sh-home .sh-next {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 28px 24px;
+  }
+  #root .student-today.sh-home .sh-next h2 { font-size: 22px; }
+  #root .sh-home .sh-next .ln-cta { justify-content: center; }
+  #root .sh-home .sh-list li { margin: 0 18px; }
+  #root .sh-home .sh-row-state { display: none; }
+}
+
+/* 오늘의 학습 박스 순서: 강의명 → 분반 → 오늘의 학습 (11-14 2차) */
+#root .student-today.sh-home .sh-next h2 { margin: 0 0 4px; }
+#root .sh-home .sh-next .sh-section-name { font-size: 15px; }
+#root .sh-home .sh-next .sh-today {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(250, 243, 240, 0.14);
+  font-size: 15px;
+}
+#root .sh-home .sh-next .sh-today .sh-label {
+  display: inline;
+  margin-right: 10px;
+  font-weight: 600;
+}
+
+/* 오늘의 학습 박스 — 진한 밤하늘 대신 페이지와 어울리는 연한 보라·분홍 그라데이션 (11-14 3차)
+   색은 --d-* 변수라 다크 모드에서는 자동으로 어두운 보라 그라데이션이 돼요. */
+#root .student-home.student-today.sh-home .sh-next {
+  background: linear-gradient(120deg, var(--d-mist) 0%, var(--d-accent-wash) 55%, var(--d-rose) 100%) !important;
+  color: var(--d-ink) !important;
+  border: 0 !important;
+}
+#root .student-home.student-today.sh-home .sh-next::before { display: none; }
+#root .student-home.student-today.sh-home .sh-next h2 { color: var(--d-ink) !important; }
+#root .student-home.student-today.sh-home .sh-next p,
+#root .student-home.student-today.sh-home .sh-next p span:not(.sh-label) { color: var(--d-ink-2) !important; }
+#root .student-home.student-today.sh-home .sh-next .sh-label { color: var(--d-accent) !important; }
+#root .student-home.student-today.sh-home .sh-next .sh-today { border-top-color: var(--d-hair); }
+#root .student-home.student-today.sh-home .sh-progress,
+#root .student-home.student-today.sh-home .sh-progress::-webkit-progress-bar { background: var(--d-hair); }
+#root .student-home.student-today.sh-home .sh-progress::-webkit-progress-value { background: var(--d-accent); }
+#root .student-home.student-today.sh-home .sh-progress::-moz-progress-bar { background: var(--d-accent); }
+#root .student-home.student-today.sh-home .sh-next .ln-cta {
+  background: var(--d-accent) !important;
+  border-color: var(--d-accent) !important;
+  color: #ffffff !important;
+}
+#root .student-home.student-today.sh-home .sh-next .ln-cta:hover {
+  background: var(--d-accent-deep) !important;
+  border-color: var(--d-accent-deep) !important;
+  color: #ffffff !important;
+}
+
+/* 4차: 박스는 한 톤 진한 라일락→분홍 그라데이션, 버튼은 진한 자두색 (11-14) */
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next {
+  background: linear-gradient(120deg, #d6c1ea 0%, #e3c8ea 50%, #efc6dc 100%) !important;
+}
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next p,
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next p span:not(.sh-label) { color: #4a3447 !important; }
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next .sh-label { color: #5e2f63 !important; }
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next .sh-today { border-top-color: rgba(58, 36, 56, 0.14); }
+#root .student-home.student-today.sh-home .sh-next .ln-cta {
+  background: var(--d-night) !important;
+  border-color: var(--d-night) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 16px rgba(58, 36, 56, 0.22);
+}
+#root .student-home.student-today.sh-home .sh-next .ln-cta:hover {
+  background: var(--d-night-2) !important;
+  border-color: var(--d-night-2) !important;
+  color: #ffffff !important;
+}
+:root[data-theme="dark"] #root .student-home.student-today.sh-home .sh-next .ln-cta {
+  background: var(--d-accent-on-night) !important;
+  border-color: var(--d-accent-on-night) !important;
+  color: var(--d-night) !important;
+  box-shadow: none;
+}
+:root[data-theme="dark"] #root .student-home.student-today.sh-home .sh-next .ln-cta:hover {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: var(--d-night) !important;
+}
+
+/* 5차: 분반은 강의명 바로 옆에 작게 (11-14) */
+#root .student-home.student-today.sh-home .sh-next h2 .sh-section-name {
+  margin-left: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--d-ink-3) !important;
+}
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next h2 .sh-section-name { color: #6a4f66 !important; }
+
+/* 5차: 버튼을 박스와 같은 보라→분홍 그라데이션의 진한 버전으로 (11-14) */
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next .ln-cta {
+  background: linear-gradient(120deg, #8e5bb0 0%, #b0609a 100%) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 18px rgba(142, 91, 176, 0.28);
+}
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next .ln-cta:hover {
+  background: linear-gradient(120deg, #7a4a9c 0%, #9c4f87 100%) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
+/* 6차: 글꼴 굵기·자간 통일 — 제목은 모두 600, 자간 -0.02em (11-14) */
+#root main.app .student-home.student-today.sh-home h1,
+#root main.app .student-home.student-today.sh-home h2,
+#root main.app .student-home.student-today.sh-home .sh-row-main strong {
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+}
+#root .student-home.student-today.sh-home .sh-next h2 .sh-section-name { font-weight: 500; letter-spacing: 0 !important; }
+#root .student-home.student-today.sh-home .sh-next .ln-cta { font-weight: 600; letter-spacing: -0.01em; }
+
+/* 6차: 그라데이션 없이 단색 — 연한 라일락 박스 + 보라 버튼 (11-14) */
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next {
+  background: #e6d5f0 !important;
+}
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next .ln-cta {
+  background: #7b4a80 !important;
+  border-color: #7b4a80 !important;
+  color: #ffffff !important;
+  box-shadow: none;
+}
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next .ln-cta:hover {
+  background: #643a69 !important;
+  border-color: #643a69 !important;
+  color: #ffffff !important;
+}
+
+/* 7차: 버튼 색 — 연한 보라(모브) (11-14) */
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next .ln-cta {
+  background: #85639f !important;
+  border-color: #85639f !important;
+  color: #ffffff !important;
+  box-shadow: none;
+}
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next .ln-cta:hover {
+  background: #73538c !important;
+  border-color: #73538c !important;
+  color: #ffffff !important;
+}
+
+/* 8차: '오늘의 학습'과 옆 문장 글자 크기 15px 로 통일 (11-14) */
+#root .student-home.student-today.sh-home .sh-next .sh-today,
+#root .student-home.student-today.sh-home .sh-next .sh-today .sh-label {
+  font-size: 15px !important;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+/* 9차: 구분선을 아래로 내리고, 오늘의 학습 줄 글자 3% 작게 (15px → 14.5px) (11-14) */
+#root .student-home.student-today.sh-home .sh-next .sh-today {
+  margin-top: 30px;
+  padding-top: 12px;
+}
+#root .student-home.student-today.sh-home .sh-next .sh-today,
+#root .student-home.student-today.sh-home .sh-next .sh-today .sh-label {
+  font-size: 14.5px !important;
+}
+
+/* 내 강의 페이지 (11-14) — 홈과 같은 sh-* 규칙을 함께 써요 */
+#root main.app .student-home.sh-home h1,
+#root main.app .student-home.sh-home .sh-heading h2,
+#root main.app .student-home.sh-home .sh-row-main strong {
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+}
+#root main.app .student-home.sh-home .sh-greeting h1 { font-size: 34px; margin: 0; }
+#root .sh-home .sh-row.is-static { cursor: default; }
+#root .sh-home .sh-tools { display: flex; gap: 10px; margin-bottom: -16px; }
+#root .sh-home .sh-tools input { flex: 1; min-width: 0; }
+#root .sh-home .sh-tools select { flex: none; width: 180px; }
+#root .sh-home .sh-text-btn {
+  border: 0; background: none; padding: 0; min-height: 0;
+  color: var(--d-accent); font: inherit; text-decoration: underline; cursor: pointer;
+}
+#root .sh-home .sh-enroll-card {
+  padding: 24px;
+  border-radius: var(--d-r-card);
+  background: var(--d-surface);
+}
+#root .sh-home .sh-enroll-card .form { display: flex; align-items: center; gap: 10px; margin: 0; }
+#root .sh-home .sh-enroll-card .form > fieldset { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; }
+#root .sh-home .sh-enroll-card .form > fieldset input { width: 100%; margin: 0; }
+#root .sh-home .sh-enroll-card .form > button { flex: none; margin: 0; }
+#root .sh-home .sh-enroll-hint { margin: 12px 0 0; font-size: 13px; color: var(--d-ink-3); }
+@media (max-width: 640px) {
+  #root main.app .student-home.sh-home .sh-greeting h1 { font-size: 28px; }
+  #root .sh-home .sh-enroll-card .form { flex-direction: column; align-items: stretch; }
+  #root .sh-home .sh-tools { flex-direction: column; }
+  #root .sh-home .sh-tools select { width: 100%; }
+}
+
+/* 내 강의: '새 강의 참여하기'는 원래처럼 오른쪽에 (11-14) */
+#root .sh-home .sh-courses-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 32px;
+  align-items: start;
+}
+#root .sh-home .sh-courses-main { display: flex; flex-direction: column; gap: 40px; min-width: 0; }
+#root .sh-home .sh-courses-layout .sh-enroll { position: sticky; top: 96px; }
+#root .sh-home .sh-courses-layout .sh-enroll-card .form { flex-direction: column; align-items: stretch; }
+#root .sh-home .sh-courses-layout .sh-enroll-card .form > button { width: 100%; justify-content: center; }
+#root .sh-home .sh-courses-layout .sh-tools { margin-bottom: 0; }
+@media (max-width: 900px) {
+  #root .sh-home .sh-courses-layout { grid-template-columns: 1fr; gap: 40px; }
+  #root .sh-home .sh-courses-layout .sh-enroll { position: static; }
+}
+
+/* 내 강의: 승인 대기 강의는 수강 중보다 눈에 덜 띄게 흐리게 (11-14) */
+#root .sh-home .sh-list-waiting { opacity: 0.6; }
+#root .sh-home .sh-list-waiting .sh-row-main strong { font-weight: 500; }
+#root .sh-home .sh-list-waiting .sh-row-state {
+  font-size: 12px; font-weight: 500; color: var(--d-ink-3);
+}
+
+/* 내 강의: 검색·학기 필터와 '수강 코드를 모르겠다면?' 안내 복구 (11-14) */
+#root .sh-home .sh-tools label {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--d-ink-2);
+}
+#root .sh-home .sh-tools label:first-child { flex: 1; min-width: 0; }
+#root .sh-home .sh-tools label:last-child { flex: none; width: 180px; }
+#root .sh-home .sh-tools label input,
+#root .sh-home .sh-tools label select { width: 100%; margin: 0; font-weight: 400; }
+#root .sh-home .sh-enroll-note {
+  margin-top: 14px; padding: 18px 20px;
+  border-radius: var(--d-r-card);
+  background: var(--d-surface);
+}
+#root .sh-home .sh-enroll-note strong { display: block; font-size: 14px; font-weight: 600; color: var(--d-ink); }
+#root .sh-home .sh-enroll-note p { margin: 6px 0 0; font-size: 13px; line-height: 1.55; color: var(--d-ink-3); }
+@media (max-width: 640px) {
+  #root .sh-home .sh-tools label:first-child,
+  #root .sh-home .sh-tools label:last-child { flex: none; width: 100%; align-self: stretch; margin: 0; }
+}
+
+/* 내 강의: 부가 설명 복구 (11-14) */
+#root .sh-home .sh-greeting .sh-sub { margin: 8px 0 0; font-size: 15px; color: var(--d-ink-2); }
+#root .sh-home .sh-heading .sh-count { font-size: 13px; color: var(--d-ink-3); }
+#root .sh-home .sh-waiting-note { margin: 12px 0 0; font-size: 13px; color: var(--d-ink-3); }
+#root .sh-home .sh-bottom-note { margin-top: 48px; }
+
+/* 홈 ↔ 내 강의 이동 시 어긋남 줄이기 (11-14) */
+#root main.app .sh-home.sh-courses .sh-greeting { padding-top: 27px; }
+#root .sh-home .sh-heading .sh-count { font-size: 14px; }
+:root:not([data-theme="dark"]) #root .sh-home .sh-heading .sh-count { color: #656668; }
+
+/* 홈 '오늘의 학습' 박스: 진한 모브 박스 + 흰 버튼 (11-14, 시안 A) */
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next { background: #85639f !important; }
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next h2 { color: #ffffff !important; }
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next h2 .sh-section-name { color: #e6d9ef !important; }
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next p,
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next p span:not(.sh-label) { color: #f1eaf6 !important; }
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next .sh-label { color: #ffffff !important; }
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next .sh-today { border-top-color: rgba(255, 255, 255, 0.28) !important; }
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]) { background: #ffffff !important; border-color: #ffffff !important; color: #5e3f78 !important; }
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]):hover { background: #f3ecf7 !important; border-color: #f3ecf7 !important; color: #5e3f78 !important; }
+
+/* 내 강의: 참여 박스 제목을 다른 소제목(18px)과 같은 크기로 (11-14) */
+#root main.app .student-home.sh-courses .courses-enroll h2 { font-size: 18px !important; font-weight: 600 !important; line-height: 1.4 !important; }
+
+/* 홈 '학습 시작하기' 버튼: 마우스를 올리면 왼쪽부터 색이 차오르고 화살표가 옆으로 밀려요 (11-14) */
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]) {
+  background: linear-gradient(#dcc8ea, #dcc8ea) no-repeat left center / 0% 100%, #ffffff !important;
+  transform: none !important;
+  transition: background-size 0.35s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s, transform 0.12s ease !important;
+}
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]):hover,
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]):focus-visible {
+  background: linear-gradient(#dcc8ea, #dcc8ea) no-repeat left center / 100% 100%, #ffffff !important;
+  border-color: #ffffff !important;
+  color: #4e3366 !important;
+  transform: none !important;
+}
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]):active { transform: scale(0.97) !important; }
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]) span { display: inline-block; transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1); }
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]):hover span,
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]):focus-visible span { transform: translateX(5px); }
+@media (prefers-reduced-motion: reduce) {
+  :root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]), :root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]) span { transition: none !important; }
+}
+
+/* 차오르는 색이 테두리까지 덮도록: 흰 테두리 없애기 (11-14) */
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]),
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]):hover,
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.student-today.sh-home .sh-next .ln-cta:not(:disabled):not([aria-disabled="true"]):focus-visible {
+  border-color: transparent !important;
+  background-origin: border-box !important;
+  background-clip: border-box !important;
+  box-shadow: none !important;
+}
+
+/* 홈 '오늘의 학습' 박스 전체를 눌러도 강의실로 들어가요 (11-14) */
+#root .student-home.student-today.sh-home .sh-next { position: relative !important; transition: background-color 0.2s ease; }
+#root .student-home.student-today.sh-home .sh-next .sh-next-link { color: inherit !important; text-decoration: none !important; }
+#root .student-home.student-today.sh-home .sh-next .sh-next-link::after {
+  content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit;
+}
+#root .student-home.student-today.sh-home .sh-next .sh-next-link:focus-visible { outline: none; }
+#root .student-home.student-today.sh-home .sh-next .sh-next-link:focus-visible::after {
+  outline: 2px solid #ffffff; outline-offset: -4px; border-radius: var(--d-r-card, 24px);
+}
+#root .student-home.student-today.sh-home .sh-next .ln-cta { position: relative; z-index: 2; }
+:root:not([data-theme="dark"]) #root .student-home.student-today.sh-home .sh-next:hover { background: #7b5a96 !important; }
+
+/* ───── 학생 강의실: 홈과 같은 톤으로 정리 (11-14) ───── */
+#root main.app .student-home.classroom-page .classroom-intro h1 { font-weight: 600 !important; letter-spacing: -0.02em; }
+#root main.app .student-home.classroom-page .classroom-action h2 { font-size: 18px !important; font-weight: 600 !important; }
+#root main.app .student-home.classroom-page .classroom-action-arrow { font-size: 16px !important; transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1); }
+#root main.app .student-home.classroom-page .classroom-action:hover .classroom-action-arrow { transform: translateX(4px); }
+#root main.app .student-home.classroom-page .classroom-materials h2 { font-size: 22px !important; }
+
+/* AI 강의 박스: 홈 '오늘의 학습' 박스와 같은 모브 박스 + 흰 버튼 + 차오르는 효과 */
+#root main.app .student-home.classroom-page .instructor-classroom-entry {
+  padding: 36px 40px !important;
+  border-radius: 28px !important;
+  transform: none !important;
+  box-shadow: none !important;
+  transition: background-color 0.2s ease !important;
+}
+#root main.app .student-home.classroom-page .instructor-classroom-entry strong { font-size: 26px !important; font-weight: 600 !important; letter-spacing: -0.02em !important; }
+#root main.app .student-home.classroom-page .instructor-classroom-entry::before,
+#root main.app .student-home.classroom-page .instructor-classroom-entry::after { display: none !important; }
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .instructor-classroom-entry { background: #85639f !important; color: #ffffff !important; }
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .instructor-classroom-entry:hover { background: #7b5a96 !important; }
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .instructor-classroom-entry strong { color: #ffffff !important; }
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .instructor-classroom-entry > span:first-child > span { color: #f1eaf6 !important; }
+#root main.app .student-home.classroom-page .instructor-classroom-entry .cr-cta {
+  display: inline-flex !important; align-items: center; gap: 8px;
+  height: 44px; padding: 0 22px !important; border: 0 !important; border-radius: 9999px !important;
+  font-size: 15px !important; font-weight: 600 !important; letter-spacing: -0.01em;
+  transform: none !important; box-shadow: none !important;
+  transition: background-size 0.35s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s !important;
+}
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .instructor-classroom-entry .cr-cta {
+  background: linear-gradient(#dcc8ea, #dcc8ea) no-repeat left center / 0% 100%, #ffffff !important;
+  color: #5e3f78 !important;
+}
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .instructor-classroom-entry:hover .cr-cta,
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .instructor-classroom-entry:focus-visible .cr-cta {
+  background: linear-gradient(#dcc8ea, #dcc8ea) no-repeat left center / 100% 100%, #ffffff !important;
+  color: #4e3366 !important;
+}
+#root main.app .student-home.classroom-page .instructor-classroom-entry:active .cr-cta { transform: scale(0.97) !important; }
+#root main.app .student-home.classroom-page .instructor-classroom-entry .cr-cta i { font-style: normal; display: inline-block; transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1); }
+#root main.app .student-home.classroom-page .instructor-classroom-entry:hover .cr-cta i,
+#root main.app .student-home.classroom-page .instructor-classroom-entry:focus-visible .cr-cta i { transform: translateX(5px); }
+@media (prefers-reduced-motion: reduce) {
+  #root main.app .student-home.classroom-page .instructor-classroom-entry .cr-cta, #root main.app .student-home.classroom-page .instructor-classroom-entry .cr-cta i, #root main.app .student-home.classroom-page .classroom-action-arrow { transition: none !important; }
+}
+@media (max-width: 640px) {
+  #root main.app .student-home.classroom-page .instructor-classroom-entry { padding: 28px 24px !important; }
+  #root main.app .student-home.classroom-page .instructor-classroom-entry strong { font-size: 22px !important; }
+}
+
+/* 학생 강의실 글자 크기·굵기를 홈과 같은 단계로 통일 (11-14)
+   제목 34/600 · 소제목 18/600 · 목록 제목 16/600 · 본문 15/400 · 보조 14/400 · 작은 글씨 13 */
+#root main.app .student-home.classroom-page .classroom-meta { font-size: 14px !important; letter-spacing: normal !important; }
+#root main.app .student-home.classroom-page .classroom-description { font-size: 15px !important; letter-spacing: normal !important; }
+#root main.app .student-home.classroom-page .classroom-exam-link { font-size: 14px !important; }
+#root main.app .student-home.classroom-page .instructor-classroom-entry > span:first-child > span { font-size: 15px !important; letter-spacing: normal !important; }
+#root main.app .student-home.classroom-page .classroom-action p { font-size: 14px !important; }
+#root main.app .student-home.classroom-page .classroom-materials h2 { font-size: 18px !important; font-weight: 600 !important; letter-spacing: -0.02em !important; }
+#root main.app .student-home.classroom-page .classroom-materials .materials-count { font-size: 18px !important; font-weight: 600 !important; }
+#root main.app .student-home.classroom-page .classroom-materials-intro p,
+#root main.app .student-home.classroom-page .materials-heading p,
+#root main.app .student-home.classroom-page .material-week-guide,
+#root main.app .student-home.classroom-page .student-list-tools label,
+#root main.app .student-home.classroom-page .classroom-bottom { font-size: 14px !important; font-weight: 400 !important; }
+#root main.app .student-home.classroom-page .student-list-tools label { font-weight: 600 !important; }
+#root main.app .student-home.classroom-page .material-week summary strong { font-size: 16px !important; font-weight: 600 !important; letter-spacing: -0.01em !important; }
+#root main.app .student-home.classroom-page .student-material h3 { font-size: 15px !important; font-weight: 600 !important; letter-spacing: -0.01em !important; }
+#root main.app .student-home.classroom-page .material-week-count { font-size: 13px !important; font-weight: 400 !important; }
+#root main.app .student-home.classroom-page .materials-heading button,
+#root main.app .student-home.classroom-page .student-material > a { font-size: 13px !important; font-weight: 600 !important; }
+#root main.app .student-home.classroom-page .material-processing,
+#root main.app .student-home.classroom-page .material-week-current { font-size: 12px !important; font-weight: 600 !important; }
+
+/* 강의실: 학기·교수·분반을 강의명 오른쪽에 작게 (11-14) */
+#root main.app .student-home.classroom-page .classroom-intro h1 { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 4px; }
+#root main.app .student-home.classroom-page .classroom-intro h1 .cr-meta {
+  font-size: 15px !important; font-weight: 500 !important; letter-spacing: normal !important;
+  color: var(--d-ink-3) !important;
+}
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .classroom-intro h1 .cr-meta { color: #656668 !important; }
+
+/* 강의실: 바로가기 카드 3개는 설명 정도라 작고 납작하게 (11-14) */
+#root main.app .student-home.classroom-page .classroom-actions { margin: 12px 0 40px !important; border-radius: 18px !important; }
+#root main.app .student-home.classroom-page .classroom-action {
+  min-height: 0 !important; height: auto !important;
+  padding: 16px 48px 16px 20px !important;
+  justify-content: center !important;
+}
+#root main.app .student-home.classroom-page .classroom-action > div { top: 50% !important; right: 20px !important; left: auto !important; transform: translateY(-50%); }
+#root main.app .student-home.classroom-page .classroom-action h2 { font-size: 15px !important; margin: 0 0 3px !important; letter-spacing: -0.01em !important; }
+#root main.app .student-home.classroom-page .classroom-action p { font-size: 13px !important; line-height: 1.5 !important; max-width: none !important; margin: 0 !important; }
+#root main.app .student-home.classroom-page .classroom-action-arrow { font-size: 15px !important; }
+
+/* 강의실: '시험 대비'도 바로가기 카드로 — 카드 4개 한 줄 (11-14) */
+#root main.app .student-home.classroom-page .classroom-actions { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+@media (max-width: 1100px) { #root main.app .student-home.classroom-page .classroom-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+@media (max-width: 640px) { #root main.app .student-home.classroom-page .classroom-actions { grid-template-columns: 1fr !important; } }
+
+/* 강의실: 시험 범위가 공개되지 않았을 때 '시험 대비' 카드는 흐리게 잠가요 (11-14) */
+#root main.app .student-home.classroom-page .classroom-action.is-locked { cursor: default; }
+#root main.app .student-home.classroom-page .classroom-action.is-locked h2,
+#root main.app .student-home.classroom-page .classroom-action.is-locked p { opacity: 0.5; }
+#root main.app .student-home.classroom-page .classroom-action.is-locked:hover { transform: none !important; box-shadow: none !important; }
+#root main.app .student-home.classroom-page .classroom-action-lock {
+  display: inline-block; padding: 3px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; line-height: 1.4;
+  background: rgba(101, 102, 104, 0.1); color: #656668;
+}
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .classroom-action-lock { background: rgba(255, 255, 255, 0.08); color: #b3adba; }
+#root main.app .student-home.classroom-page .classroom-action.is-locked { padding-right: 92px !important; }
+
+/* 강의실 바로가기 카드 설명은 한 줄로 (11-14) */
+#root main.app .student-home.classroom-page .classroom-action { padding-right: 40px !important; }
+#root main.app .student-home.classroom-page .classroom-action.is-locked { padding-right: 84px !important; }
+#root main.app .student-home.classroom-page .classroom-action > div { right: 16px !important; }
+#root main.app .student-home.classroom-page .classroom-action p { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; }
+#root main.app .student-home.classroom-page .classroom-action.is-locked { padding-right: 40px !important; }
+#root main.app .student-home.classroom-page .classroom-action.is-locked > div { top: 14px !important; transform: none !important; }
+
+/* 강의실 강의 자료: '새로고침'은 버튼 대신 글자 링크로 (11-14) */
+#root main.app .student-home.classroom-page .materials-heading .materials-refresh {
+  display: inline-flex !important; align-items: center; gap: 4px;
+  min-height: 0 !important; height: auto !important; padding: 2px 0 !important;
+  border: 0 !important; background: none !important; box-shadow: none !important;
+  font-size: 13px !important; font-weight: 500 !important; color: #656668 !important;
+  cursor: pointer; transform: none !important;
+}
+#root main.app .student-home.classroom-page .materials-heading .materials-refresh:hover { color: #5e3f78 !important; text-decoration: underline; text-underline-offset: 3px; }
+#root main.app .student-home.classroom-page .materials-heading .materials-refresh span { font-size: 15px; display: inline-block; transition: transform 0.4s ease; }
+#root main.app .student-home.classroom-page .materials-heading .materials-refresh:hover span { transform: rotate(180deg); }
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .materials-heading .materials-refresh { color: #b3adba !important; }
+
+/* 강의 자료: 현재 진도 주차는 박스 색 자체를 다르게 (11-14) */
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .material-week.is-current { background: #efe5f6 !important; box-shadow: inset 4px 0 0 #85639f !important; }
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .material-week.is-current > summary { background: transparent !important; }
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .material-week.is-current > summary strong { color: #5e3f78 !important; }
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .material-week.is-current .material-week-current { background: #85639f !important; color: #ffffff !important; }
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .material-week.is-current { box-shadow: inset 4px 0 0 #b38fef !important; }
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .material-week.is-current > summary,
+:root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .material-week.is-current > .material-week-content { background: #efe5f6 !important; }
+
+/* 강의 자료: 10주차 이상이면 '1–9주차 / 10주차~' 두 묶음 탭 (11-14) */
+#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split {
+  display: inline-flex !important; width: fit-content !important; gap: 4px; padding: 4px; margin: 0 0 12px;
+  border-radius: 999px; background: rgba(133, 99, 159, 0.1);
+}
+#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split button {
+  display: inline-flex !important; align-items: center; gap: 6px;
+  min-height: 0 !important; height: 34px !important; padding: 0 16px !important;
+  border: 0 !important; border-radius: 999px !important; box-shadow: none !important;
+  background: transparent !important; color: #656668 !important;
+  font-size: 14px !important; font-weight: 600 !important; cursor: pointer; transform: none !important;
+  transition: background-color 0.2s, color 0.2s;
+}
+#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split button:hover { color: #5e3f78 !important; }
+#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split button.is-active { background: #ffffff !important; color: #5e3f78 !important; box-shadow: 0 1px 3px rgba(58, 36, 56, 0.12) !important; }
+#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split-dot { width: 6px; height: 6px; border-radius: 50%; background: #85639f; }
+:root[data-theme="dark"] #root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split { background: rgba(255, 255, 255, 0.06); }
+:root[data-theme="dark"] #root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split button { color: #b3adba !important; }
+:root[data-theme="dark"] #root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split button.is-active { background: #2e2636 !important; color: #e4dcec !important; }
+
+/* 강의 자료: 새로고침은 제목 옆 작은 ↻ 모양만, 누르면 한 바퀴 돌아요 (11-14) */
+#root main.app .student-home.classroom-page .materials-heading h2 { display: flex !important; align-items: center; gap: 8px; }
+#root main.app .student-home.classroom-page .materials-heading h2 .materials-refresh {
+  display: inline-flex !important; align-items: center; justify-content: center;
+  width: 24px !important; height: 24px !important; min-height: 0 !important; padding: 0 !important;
+  border: 0 !important; border-radius: 50% !important; background: none !important; box-shadow: none !important;
+  font-size: 16px !important; font-weight: 400 !important; line-height: 1 !important;
+  color: #656668 !important; text-decoration: none !important; cursor: pointer; transform: none !important;
+}
+#root main.app .student-home.classroom-page .materials-heading h2 .materials-refresh:hover { color: #5e3f78 !important; background: rgba(133, 99, 159, 0.1) !important; text-decoration: none !important; }
+#root main.app .student-home.classroom-page .materials-heading h2 .materials-refresh span { display: inline-block; transition: none !important; }
+#root main.app .student-home.classroom-page .materials-heading h2 .materials-refresh.is-spinning span { animation: materials-spin 0.8s cubic-bezier(0.45, 0, 0.25, 1); }
+@keyframes materials-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .materials-heading h2 .materials-refresh { color: #b3adba !important; }
+@media (prefers-reduced-motion: reduce) { #root main.app .student-home.classroom-page .materials-heading h2 .materials-refresh.is-spinning span { animation: none; } }
+#root main.app .student-home.classroom-page .materials-heading h2 .materials-refresh:hover span { transform: none; }
+
+/* 강의실: 강의 자료 검색창을 주차 탭 오른쪽에 같은 줄로 (11-14) */
+#root main.app .student-home.classroom-page .material-week-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin: 4px 0 14px;
+}
+#root main.app .student-home.classroom-page .material-week-toolbar .material-week-split { margin: 0 !important; }
+#root main.app .student-home.classroom-page .material-week-toolbar .material-week-split.is-searching { opacity: 0.45; }
+#root main.app .student-home.classroom-page .material-week-search {
+  position: relative; display: flex; align-items: center; margin: 0 0 0 auto !important;
+  width: 260px; max-width: 100%; flex: 0 1 260px;
+}
+#root main.app .student-home.classroom-page .material-week-search > span {
+  position: absolute; left: 12px; font-size: 16px; line-height: 1; color: #85639f; pointer-events: none;
+}
+#root main.app .student-home.classroom-page .material-week-search input {
+  width: 100% !important; height: 38px; margin: 0 !important; padding: 0 12px 0 34px !important;
+  border-radius: 999px !important; font-size: 14px !important;
+}
+@media (max-width: 640px) {
+  #root main.app .student-home.classroom-page .material-week-search { width: 100%; flex: 1 1 100%; }
+}
+
+/* 강의실: 한 주차 자료를 카드 여러 장이 아니라 한 박스 안 목록으로 (11-14) */
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-list {
+  overflow: hidden; border-radius: 14px; background: var(--d-surface, #fff);
+}
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-list .student-material {
+  border-radius: 0 !important; background: transparent !important; margin: 0 !important; box-shadow: none !important;
+}
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-list .student-material + .student-material { border-top: 1px solid rgba(133, 99, 159, 0.14) !important; }
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-all { display: flex; justify-content: flex-end; margin: 0 0 10px; }
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-all button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 14px;
+  border: 1px solid rgba(133, 99, 159, 0.35); border-radius: 999px; background: transparent;
+  color: #85639f; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-all button:hover { background: rgba(133, 99, 159, 0.1); }
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .student-material-weeks .material-week-list .student-material + .student-material { border-top-color: rgba(255, 255, 255, 0.08) !important; }
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .student-material-weeks .material-week-all button { color: #d3b8e6; border-color: rgba(211, 184, 230, 0.35); }
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-list .student-material { align-items: center !important; padding-top: 14px !important; padding-bottom: 14px !important; }
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-list .student-material h3 { margin: 0 !important; }
+
+/* 다크 모드에서 안 보이던 곳 보이게 (11-14): 색은 원래 밝은 모드 값으로 되돌리거나 한 단계만 밝게 */
+/* AI 강의 화면: 원래 어두운 화면 위 밝은 글씨였는데 다크 모드에서 글씨까지 어두워졌어요 */
+:root[data-theme="dark"] #root .instructor-stage-top { color: #d7dcd7; }
+:root[data-theme="dark"] #root .instructor-stage-state { border-color: #ffffff30; }
+:root[data-theme="dark"] #root .instructor-board { border-left-color: #b5c7ba50; }
+:root[data-theme="dark"] #root .instructor-board-kicker { color: #d3d4d7; }
+:root[data-theme="dark"] #root .instructor-board-flow>span { border-color: #ced1dd38; }
+:root[data-theme="dark"] #root .instructor-board-flow>b { color: #acb8b0; }
+:root[data-theme="dark"] #root .instructor-stage .instructor-board>p { color: #c4cfc8 !important; }
+:root[data-theme="dark"] #root .instructor-figure>svg { stroke: #d0d1d2; }
+:root[data-theme="dark"] #root .instructor-figure>span { color: #e2e3e5; }
+:root[data-theme="dark"] #root .instructor-stage .instructor-figure>small { color: #bbbbbc !important; }
+:root[data-theme="dark"] #root .instructor-stage-caption { border-top-color: #ffffff10; }
+:root[data-theme="dark"] #root .instructor-play-placeholder { border-color: #b0b8c570; color: #dedfe1; }
+:root[data-theme="dark"] #root .instructor-stage-caption>div>span { color: #c5c5c6; }
+:root[data-theme="dark"] #root .instructor-timeline { background: #ffffff25; }
+:root[data-theme="dark"] #root .instructor-player-controls>div { color: #bdbebf; }
+:root[data-theme="dark"] #root .instructor-page b { color: #9a93a0; }
+/* 강의실: 현재 진도 주차가 다크 모드에서도 구분되게 */
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .student-material-weeks .material-week.is-current { background: rgba(133, 99, 159, 0.22) !important; }
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .student-material-weeks .material-week.is-current > summary,
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .student-material-weeks .material-week.is-current .material-week-content { background: transparent !important; }
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .student-material-weeks .material-week-current { background: #85639f !important; color: #ffffff !important; }
+:root[data-theme="dark"] #root .sh-home .sh-list-waiting { opacity: 0.75; }
+
+/* 강의실: '자료 전체 받기'를 펼친 주차 제목 줄, 자료 개수 왼쪽에 (11-14) */
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-count { display: inline-flex; align-items: center; gap: 10px; }
+#root main.app .student-home.classroom-page .student-material-weeks .material-week:not([open]) .material-week-all-button { display: none; }
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-all-button {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 12px;
+  border: 1px solid rgba(133, 99, 159, 0.35); border-radius: 999px; background: transparent;
+  color: #85639f; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+#root main.app .student-home.classroom-page .student-material-weeks .material-week-all-button:hover { background: rgba(133, 99, 159, 0.1); }
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .student-material-weeks .material-week-all-button { color: #d3b8e6; border-color: rgba(211, 184, 230, 0.35); }
+
+/* 강의실: '내 강의로'는 강의명 위에, 안내 문구는 강의명과 같은 줄 오른쪽에 작게 (11-14) */
+#root main.app .student-home.classroom-page .classroom-intro > div:first-child { flex: 1; min-width: 0; }
+#root main.app .student-home.classroom-page .classroom-intro .cr-back {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 5px 12px;
+  border: 1px solid rgba(133, 99, 159, 0.28); border-radius: 999px;
+  color: #656668; font-size: 13px; font-weight: 500; text-decoration: none;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+#root main.app .student-home.classroom-page .classroom-intro .cr-back:hover { color: #85639f; border-color: rgba(133, 99, 159, 0.5); background: rgba(133, 99, 159, 0.06); }
+#root main.app .student-home.classroom-page .classroom-intro .cr-titlebar { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 24px; flex-wrap: wrap; }
+#root main.app .student-home.classroom-page .classroom-intro .cr-titlebar h1 { margin: 0 !important; }
+#root main.app .student-home.classroom-page .classroom-intro .cr-titlebar .classroom-description {
+  margin: 0 0 0 auto !important; font-size: 13px !important; line-height: 1.5; color: var(--d-ink-3, #656668) !important; text-align: right;
+}
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .classroom-intro .cr-back { color: #b3adba; border-color: rgba(211, 184, 230, 0.25); }
+:root[data-theme="dark"] #root main.app .student-home.classroom-page .classroom-intro .cr-back:hover { color: #d3b8e6; }
+@media (max-width: 640px) {
+  #root main.app .student-home.classroom-page .classroom-intro .cr-titlebar .classroom-description { margin: 6px 0 0 !important; text-align: left; }
+}
+
+/* AI 강의: 글꼴(Pretendard)은 같지만 크기·굵기가 9~34px, 400~700으로 제각각이라
+   '관련 자료 / 강의 안내' 탭(14px, 보통 500 · 선택 700)을 기준으로 맞춰요 (11-14) */
+#root main.app .student-home.instructor-page .instructor-page-heading h1 { font-weight: 600 !important; letter-spacing: -0.02em !important; }
+#root main.app .student-home.instructor-page :is(h2, h3):not(.instructor-stage *) { font-weight: 600 !important; letter-spacing: -0.02em !important; }
+#root main.app .student-home.instructor-page :is(.instructor-breadcrumb, .instructor-breadcrumb a, .instructor-breadcrumb span) { font-size: 13px !important; }
+#root main.app .student-home.instructor-page .instructor-current-teacher > span { font-size: 12px !important; }
+#root main.app .student-home.instructor-page .instructor-current-teacher strong { font-size: 14px !important; font-weight: 600 !important; }
+#root main.app .student-home.instructor-page .instructor-current-teacher button { font-size: 13px !important; font-weight: 500 !important; }
+#root main.app .student-home.instructor-page .instructor-stage-caption strong { font-size: 14px !important; font-weight: 600 !important; }
+#root main.app .student-home.instructor-page .instructor-stage-caption > div > span { font-size: 12px !important; }
+#root main.app .student-home.instructor-page .instructor-week-label { font-size: 12px !important; }
+#root main.app .student-home.instructor-page .instructor-study-action { font-size: 14px !important; font-weight: 600 !important; letter-spacing: normal !important; }
+#root main.app .student-home.instructor-page .instructor-action-bar > span { font-size: 13px !important; }
+#root main.app .student-home.instructor-page .instructor-source-list li > span { font-size: 14px !important; font-weight: 500 !important; }
+#root main.app .student-home.instructor-page .instructor-source-list li > a { font-size: 13px !important; font-weight: 500 !important; }
+#root main.app .student-home.instructor-page .instructor-curriculum-heading > span { font-size: 12px !important; }
+#root main.app .student-home.instructor-page .instructor-curriculum-note { font-size: 13px !important; }
+#root main.app .student-home.instructor-page .instructor-week-toggle > span { font-size: 14px !important; font-weight: 500 !important; }
+#root main.app .student-home.instructor-page .instructor-week-toggle > span b,
+#root main.app .student-home.instructor-page .instructor-week-toggle > span:last-child { font-size: 12px !important; font-weight: 400 !important; }
+#root main.app .student-home.instructor-page .instructor-week-toggle > span i { font-size: 15px !important; }
+#root main.app .student-home.instructor-page .instructor-week button > span > strong { font-size: 14px !important; font-weight: 600 !important; }
+#root main.app .student-home.instructor-page .instructor-week button > span > small { font-size: 12px !important; }
+
+/* AI 강의: 주차별 자료 박스 안 주차 탭은 박스 너비에 맞춰 3칸으로 (11-14) */
+#root main.app .student-home.instructor-page .instructor-week-split { display: flex !important; width: auto !important; margin: 4px 20px 14px !important; }
+#root main.app .student-home.instructor-page .instructor-week-split button { flex: 1 1 0; justify-content: center; padding: 0 8px !important; font-size: 13px !important; white-space: nowrap; }
+
+/* AI 강의 '오늘의 문제 풀기': 홈 '학습 시작하기'와 같은 → 화살표, 같은 애니메이션
+   (왼쪽부터 색이 차오르고 화살표가 옆으로 밀려요) (11-14) */
+:root[data-role="student"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]) {
+  border-color: transparent !important; background-origin: border-box !important; box-shadow: none !important; transform: none !important;
+  transition: background-size 0.35s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s, transform 0.12s ease !important;
+}
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]) { background: linear-gradient(#73538c, #73538c) no-repeat left center / 0% 100%, #85639f !important; }
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]):hover, :root[data-role="student"]:not([data-theme="dark"]) #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]):focus-visible { background: linear-gradient(#73538c, #73538c) no-repeat left center / 100% 100%, #85639f !important; }
+:root[data-role="student"][data-theme="dark"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]) { background: linear-gradient(#955c9b, #955c9b) no-repeat left center / 0% 100%, #aa71b0 !important; }
+:root[data-role="student"][data-theme="dark"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]):hover, :root[data-role="student"][data-theme="dark"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]):focus-visible { background: linear-gradient(#955c9b, #955c9b) no-repeat left center / 100% 100%, #aa71b0 !important; }
+:root[data-role="student"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]):hover, :root[data-role="student"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]):focus-visible { border-color: transparent !important; transform: none !important; }
+:root[data-role="student"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]):active { transform: scale(0.97) !important; }
+:root[data-role="student"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]) span { display: inline-block; transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1); }
+:root[data-role="student"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]):hover span, :root[data-role="student"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]):focus-visible span { transform: translateX(5px); }
+@media (prefers-reduced-motion: reduce) { :root[data-role="student"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]), :root[data-role="student"] #root main.app .student-home.instructor-page a.primary.instructor-study-action:not(:disabled):not([aria-disabled="true"]) span { transition: none !important; } }
+
+/* 학생 화면: 위로 꺾인 ↗ 대신 옆으로 가는 → 화살표. 마우스를 올리면 화살표가 옆으로 살짝 밀려요 (11-14) */
+:root[data-role="student"] #root .go-arrow { display: inline-block; font-style: normal; transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1); }
+:root[data-role="student"] #root :is(a, button):is(:hover, :focus-visible) .go-arrow { transform: translateX(4px); }
+@media (prefers-reduced-motion: reduce) { :root[data-role="student"] #root .go-arrow { transition: none; } }
+
+/* AI 강의: 주차별 자료 검색창을 강의실 강의 자료 검색창과 같은 모양으로 (11-14) */
+#root main.app .student-home.instructor-page .instructor-week-search { position: relative; display: flex; align-items: center; margin: 4px 20px 12px; }
+#root main.app .student-home.instructor-page .instructor-week-search > span { position: absolute; left: 12px; font-size: 16px; line-height: 1; color: #85639f; pointer-events: none; }
+#root main.app .student-home.instructor-page .instructor-week-search input { width: 100% !important; height: 38px; margin: 0 !important; padding: 0 12px 0 34px !important; border-radius: 999px !important; font-size: 14px !important; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-search > span { color: #d3b8e6; }
+
+/* 학생 화면: → 화살표가 있는 채워진 버튼은 홈 '학습 시작하기'처럼 왼쪽부터 색이 차올라요 (11-14) */
+:root[data-role="student"] #root main.app :is(a.ln-cta, a.exam-study-cta, button.primary):has(> .go-arrow):not(:disabled):not([aria-disabled="true"]):not(.lerny-landing *) {
+  border-color: transparent !important; background-origin: border-box !important; box-shadow: none !important;
+  transition: background-size 0.35s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s, transform 0.12s ease !important;
+}
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app :is(a.ln-cta, a.exam-study-cta, button.primary):has(> .go-arrow):not(:disabled):not([aria-disabled="true"]):not(.lerny-landing *) { background: linear-gradient(#73538c, #73538c) no-repeat left center / 0% 100%, #85639f !important; color: #ffffff !important; }
+:root[data-role="student"]:not([data-theme="dark"]) #root main.app :is(a.ln-cta, a.exam-study-cta, button.primary):has(> .go-arrow):not(:disabled):not([aria-disabled="true"]):not(.lerny-landing *):is(:hover, :focus-visible) { background: linear-gradient(#73538c, #73538c) no-repeat left center / 100% 100%, #85639f !important; }
+:root[data-role="student"][data-theme="dark"] #root main.app :is(a.ln-cta, a.exam-study-cta, button.primary):has(> .go-arrow):not(:disabled):not([aria-disabled="true"]):not(.lerny-landing *) { background: linear-gradient(#955c9b, #955c9b) no-repeat left center / 0% 100%, #aa71b0 !important; color: #ffffff !important; }
+:root[data-role="student"][data-theme="dark"] #root main.app :is(a.ln-cta, a.exam-study-cta, button.primary):has(> .go-arrow):not(:disabled):not([aria-disabled="true"]):not(.lerny-landing *):is(:hover, :focus-visible) { background: linear-gradient(#955c9b, #955c9b) no-repeat left center / 100% 100%, #aa71b0 !important; }
+:root[data-role="student"] #root main.app :is(a.ln-cta, a.exam-study-cta, button.primary):has(> .go-arrow):not(:disabled):not([aria-disabled="true"]):not(.lerny-landing *):is(:hover, :focus-visible) { transform: none !important; }
+:root[data-role="student"] #root main.app :is(a.ln-cta, a.exam-study-cta, button.primary):has(> .go-arrow):not(:disabled):not([aria-disabled="true"]):not(.lerny-landing *):active { transform: scale(0.97) !important; }
+
+/* AI 강의 자료: 펼친 주차 안 영상 번호(01, 02…) (11-14) */
+#root main.app .student-home.instructor-page .instructor-item-no {
+  display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 999px;
+  background: rgba(133, 99, 159, 0.1); color: #85639f !important; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-item-no { background: rgba(211, 184, 230, 0.12); color: #d3b8e6 !important; }
+
+/* AI 강의 자료: 현재 진도는 글자로만 표시하고, 보라색은 내가 고른 주차·영상 박스 테두리에만 써요 (11-14) */
+#root main.app .student-home.instructor-page .instructor-week-now { margin-left: 8px; font-style: normal; font-size: 12px; font-weight: 600; color: #85639f; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-now { color: #d3b8e6; }
+#root main.app .student-home.instructor-page .instructor-week.is-selected { position: relative; box-shadow: inset 0 0 0 1.5px #85639f; border-radius: 12px; border-top-color: transparent; }
+#root main.app .student-home.instructor-page .instructor-week.is-selected + .instructor-week { border-top-color: transparent; }
+#root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true] { background: #ffffff !important; border: 1.5px solid #85639f !important; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true] { background: transparent !important; border-color: #d3b8e6 !important; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week.is-selected { box-shadow: inset 0 0 0 1.5px #d3b8e6; }
+
+/* AI 강의: '내 강의로'는 강의실과 같은 모양으로 제목 위에, 강의명·분반은 제목 줄 오른쪽,
+   함께할 강사는 '오늘의 문제 풀기' 줄 오른쪽으로 (11-14) */
+#root main.app .student-home.instructor-page .cr-back {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 5px 12px;
+  border: 1px solid rgba(133, 99, 159, 0.28); border-radius: 999px;
+  color: #656668; font-size: 13px; font-weight: 500; text-decoration: none;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+#root main.app .student-home.instructor-page .cr-back:hover { color: #85639f; border-color: rgba(133, 99, 159, 0.5); background: rgba(133, 99, 159, 0.06); }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .cr-back { color: #b3adba; border-color: rgba(211, 184, 230, 0.25); }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .cr-back:hover { color: #d3b8e6; }
+#root main.app .student-home.instructor-page .instructor-page-heading { align-items: flex-end !important; }
+#root main.app .student-home.instructor-page .instructor-page-heading .instructor-breadcrumb { margin: 0 0 6px auto !important; justify-content: flex-end; }
+#root main.app .student-home.instructor-page .instructor-action-bar { display: flex !important; align-items: center; gap: 12px; flex-wrap: wrap; }
+#root main.app .student-home.instructor-page .instructor-action-bar .instructor-current-teacher { margin-left: auto; }
+@media (max-width: 640px) {
+  #root main.app .student-home.instructor-page .instructor-page-heading .instructor-breadcrumb { margin: 8px 0 0 !important; justify-content: flex-start; }
+  #root main.app .student-home.instructor-page .instructor-action-bar .instructor-current-teacher { margin-left: 0; width: 100%; }
+}
+#root main.app .student-home.instructor-page .instructor-action-bar + .instructor-picker { margin: 14px 0 0 !important; }
+
+/* AI 질문: '내 강의로' 버튼을 내 강의 박스 안 맨 위에, 강의실과 같은 모양 (11-14) */
+#root main.app .student-home.chat-page .cr-back {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; width: auto; margin: 0 0 6px; padding: 5px 12px;
+  border: 1px solid rgba(133, 99, 159, 0.28); border-radius: 999px; background: transparent;
+  color: #656668; font-size: 13px; font-weight: 500; text-decoration: none;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+#root main.app .student-home.chat-page .cr-back:hover { color: #85639f; border-color: rgba(133, 99, 159, 0.5); background: rgba(133, 99, 159, 0.06); }
+:root[data-theme="dark"] #root main.app .student-home.chat-page .cr-back { color: #b3adba; border-color: rgba(211, 184, 230, 0.25); }
+:root[data-theme="dark"] #root main.app .student-home.chat-page .cr-back:hover { color: #d3b8e6; }
+#root main.app .student-home.chat-page .chat-mobile-course .cr-back { margin: 0 0 12px; }
+@media (max-width: 760px) { #root main.app .student-home.chat-page .course-rail > .cr-back { flex-basis: auto; } }
+
+/* AI 강의: 강의명 · 학기 · 교수자명 · 분반 간격을 촘촘하게 (11-14) */
+#root main.app .student-home.instructor-page .instructor-page-heading .instructor-breadcrumb { gap: 4px 7px; flex-wrap: wrap; }
+
+/* 남은 힌트 숫자: 동그라미 없이 색 있는 숫자 글자만 (11-14) */
+#root .step-hints .hint-left b { display: inline; min-width: 0; height: auto; margin-left: 3px; padding: 0; border-radius: 0; background: none; color: #85639f; font-size: 14px; font-weight: 700; }
+:root[data-theme="dark"] #root .step-hints .hint-left b { background: none; color: #d3a6d8; }
+
+/* 실습: 정답 확인하기·코드 실행·최종 제출을 '빈칸 채우기 ?' 줄 오른쪽에 (11-14) */
+#root .practice-card .practice-editor-toolbar { flex-wrap: nowrap; }
+#root .practice-card .practice-editor-toolbar .practice-editor-title { flex: 0 0 auto; flex-wrap: nowrap; }
+#root .practice-card .practice-editor-toolbar .practice-editor-buttons { margin-left: auto; justify-content: flex-end; }
+@media (max-width: 640px) { #root .practice-card .practice-editor-toolbar { flex-wrap: wrap; } #root .practice-card .practice-editor-toolbar .practice-editor-buttons { margin-left: 0; } }
+/* 실습 질문 챗봇 창을 더 크게 (11-14) */
+@media (min-width: 641px) {
+  .practice-chat { width: min(520px, calc(100vw - 48px)); height: min(780px, calc(100vh - 116px)); }
+}
+
+/* 이론 퀴즈: 한 문항씩 정답 확인 (11-14) */
+#root .theory-workspace .theory-check-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+#root .theory-workspace .theory-check-result { margin: 18px 0 0; padding: 20px 22px; border: 1px solid #e3e4e5; border-radius: 14px; background: #fdfcfe; }
+#root .theory-workspace .theory-check-result.result-correct { border-color: #cfe2d4; }
+#root .theory-workspace .theory-check-result.result-review { border-color: #ecd3d9; }
+#root .theory-workspace .theory-check-result .result-answer-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0; }
+#root .theory-workspace .theory-check-result .result-answer { display: grid; gap: 6px; margin: 0; padding: 12px 16px; border: 1px solid #eaebec; border-radius: 10px; background: #fff; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; white-space: pre-wrap; }
+#root .theory-workspace .theory-check-result .result-answer:only-child { grid-column: 1 / -1; }
+#root .theory-workspace .theory-check-result .result-answer strong { font-size: 12px; color: #6c6e71; }
+#root .theory-workspace .theory-check-result .result-correct-answer { border-color: #cfe2d4; background: #f6fbf7; }
+#root .theory-workspace .theory-check-result .result-feedback { font-size: 14px; line-height: 1.8; margin: 10px 0; white-space: pre-wrap; }
+#root .theory-workspace .theory-check-result details { margin: 14px 0 0; padding-top: 14px; border-top: 1px solid #ecedee; }
+#root .theory-workspace .theory-check-result details p { font-size: 14px; line-height: 1.85; word-break: keep-all; margin: 8px 0 0; }
+#root .theory-workspace .theory-check-result .quiz-ask-link { margin-top: 14px; }
+#root .theory-workspace .theory-all-done { margin: 14px 0 0; font-size: 13px; color: #85639f; text-align: right; }
+@media (max-width: 600px) { #root .theory-workspace .theory-check-result .result-answer-comparison { grid-template-columns: 1fr; } }
+:root[data-theme="dark"] #root .theory-workspace .theory-check-result { background: #241c2b; border-color: #362e3d; }
+:root[data-theme="dark"] #root .theory-workspace .theory-check-result.result-correct { border-color: #2f4a37; }
+:root[data-theme="dark"] #root .theory-workspace .theory-check-result.result-review { border-color: #4f3039; }
+:root[data-theme="dark"] #root .theory-workspace .theory-check-result .result-answer { background: #1c1523; border-color: #332c3a; color: #b3adba; }
+:root[data-theme="dark"] #root .theory-workspace .theory-check-result .result-answer strong { color: #a39dab; }
+:root[data-theme="dark"] #root .theory-workspace .theory-check-result .result-correct-answer { background: #1d2a21; border-color: #2f4a37; }
+:root[data-theme="dark"] #root .theory-workspace .theory-check-result details { border-top-color: #332c3a; }
+:root[data-theme="dark"] #root .theory-workspace .theory-all-done { color: #d3a6d8; }
+
+/* AI 질문: 답변 뒤 학생 상태 버튼 — 실습 질문 창과 같은 모양 (11-14) */
+#root .chat .chat-feedback { padding: 12px 0 0; max-width: 520px; }
+#root .chat .chat-feedback button { min-height: 0; line-height: 1.4; }
+#root .chat .chat-feedback-note { margin: 8px 0 0; }
+#root .chat .chat-feedback-note { margin: 8px 0 12px; }
+
+/* 테스트 화면 전용: 이론 퀴즈 기록 지우기 (11-14) */
+#root .theory-workspace .theory-test-reset { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; margin: 0 0 16px; padding: 10px 14px; border: 1px dashed #d8c8dd; border-radius: 12px; font-size: 13px; color: #6c6e71; }
+#root .theory-workspace .theory-test-reset button { min-height: 0; padding: 7px 14px; border: 1px solid #d8c8dd; border-radius: 999px; background: #fff; color: #5b2f63; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+:root[data-theme="dark"] #root .theory-workspace .theory-test-reset { border-color: #4a3d52; color: #a39dab; }
+:root[data-theme="dark"] #root .theory-workspace .theory-test-reset button { background: #241c2b; border-color: #4a3d52; color: #d3b8e6; }
+/* AI 질문: 상태 버튼 3개가 한 줄을 꽉 채우게 (11-14) */
+#root .chat .chat-feedback { max-width: none; gap: 10px; }
+#root .chat .chat-feedback button { flex: 1 1 0; padding: 10px 12px; font-size: 14px; }
+
+/* AI 질문 · 내 강의 박스: 강의명 옆 교수자명, 아랫줄 학기 · 분반 (11-15) */
+#root .student-home.ai-page .course-rail .course-rail-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
+#root .student-home.ai-page .course-rail .course-rail-teacher { font-size: 12px; font-weight: 400; color: #8a8c8f; }
+#root .student-home.ai-page .course-rail .course-rail-term { display: block; margin-top: 4px; font-size: 12px; color: #76787a; }
+:root[data-theme="dark"] #root .student-home.ai-page .course-rail .course-rail-teacher { color: #827c89; }
+:root[data-theme="dark"] #root .student-home.ai-page .course-rail .course-rail-term { color: #918b97; }
+
+/* AI 질문 · 이전 질문 찾아보기 다듬기 (11-15): 돋보기 검색칸 + 날짜별 질문 카드 */
+#root main.app .chat-archive .qa-archive { display: grid; gap: 10px; padding-bottom: 8px; }
+#root main.app .chat-archive .qa-search { position: relative; display: flex; align-items: center; margin: 2px 0 0; }
+#root main.app .chat-archive .qa-search svg { position: absolute; left: 12px; color: #8a8c8f; pointer-events: none; }
+#root main.app .chat-archive .qa-search input { width: 100%; min-width: 0; height: 40px; padding: 0 34px 0 36px; border: 1px solid #e3dde7; border-radius: 999px; background: #fff; font-size: 13px; color: #3f4146; box-sizing: border-box; }
+#root main.app .chat-archive .qa-search input::-webkit-search-cancel-button { display: none; }
+#root main.app .chat-archive .qa-search input:focus { outline: none; border-color: #a98bc0; box-shadow: 0 0 0 3px rgba(169, 139, 192, .18); }
+#root main.app .chat-archive .qa-search .qa-search-clear { position: absolute; right: 6px; min-height: 0; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: #f1eef3; color: #6c6e71; font-size: 16px; line-height: 1; cursor: pointer; }
+#root main.app .chat-archive .qa-count { margin: 0; font-size: 12px; color: #76787a; }
+#root main.app .chat-archive .qa-count b { color: #5b2f63; font-weight: 700; }
+#root main.app .chat-archive .qa-empty { margin: 4px 0; padding: 14px; border-radius: 12px; background: #f8f6fa; font-size: 12.5px; line-height: 1.6; color: #76787a; text-align: center; }
+#root main.app .chat-archive .qa-group h4 { margin: 6px 0 6px; font-size: 12px; font-weight: 600; color: #85639f; }
+#root main.app .chat-archive .qa-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#root main.app .chat-archive .qa-item { border: 1px solid #ece8ef; border-radius: 12px; background: #fff; transition: border-color .15s, box-shadow .15s; }
+#root main.app .chat-archive .qa-item:hover { border-color: #d8c8e2; }
+#root main.app .chat-archive .qa-item.is-open { border-color: #cdb8dc; box-shadow: 0 2px 10px rgba(91, 47, 99, .06); }
+#root main.app .chat-archive .qa-item-head { display: grid; gap: 6px; width: 100%; min-height: 0; padding: 11px 12px; border: 0; border-radius: inherit; background: transparent; text-align: left; white-space: normal; cursor: pointer; font: inherit; }
+#root main.app .chat-archive .qa-q { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; font-weight: 600; line-height: 1.5; color: #3f4146; word-break: keep-all; overflow-wrap: anywhere; }
+#root main.app .chat-archive .qa-item.is-open .qa-q { display: block; color: #5b2f63; }
+#root main.app .chat-archive .qa-q mark { padding: 0 1px; border-radius: 3px; background: #f3e3a8; color: inherit; }
+#root main.app .chat-archive .qa-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #8a8c8f; }
+#root main.app .chat-archive .qa-tag { padding: 1px 7px; border-radius: 999px; background: #f3eef6; color: #85639f; font-size: 11px; }
+#root main.app .chat-archive .qa-tag.is-error { background: #fbe9e9; color: #a33b3b; }
+#root main.app .chat-archive .qa-chevron { margin-left: auto; width: 7px; height: 7px; border-right: 1.5px solid #9a9c9f; border-bottom: 1.5px solid #9a9c9f; transform: rotate(45deg) translateY(-2px); transition: transform .15s; }
+#root main.app .chat-archive .qa-item.is-open .qa-chevron { transform: rotate(-135deg) translateY(-1px); }
+#root main.app .chat-archive .qa-body { display: grid; gap: 8px; padding: 0 12px 12px; }
+#root main.app .chat-archive .qa-answer { margin: 0; padding: 10px 12px; border-radius: 10px; background: #f8f6fa; font-size: 12.5px; line-height: 1.7; color: #4f5154; white-space: pre-wrap; }
+#root main.app .chat-archive .qa-sources { display: flex; flex-wrap: wrap; gap: 6px; }
+#root main.app .chat-archive .qa-sources a { display: inline-flex; align-items: center; gap: 4px; min-height: 0; padding: 4px 10px; border: 1px solid #e3dde7; border-radius: 999px; font-size: 11.5px; color: #5b2f63; text-decoration: none; white-space: normal; }
+#root main.app .chat-archive .qa-sources a:hover { border-color: #a98bc0; background: #fbf8fd; }
+#root main.app .chat-archive .qa-reuse { justify-self: start; min-height: 0; padding: 6px 12px; border: 1px solid #d8c8dd; border-radius: 999px; background: #fff; color: #5b2f63; font-size: 12px; font-weight: 600; cursor: pointer; }
+#root main.app .chat-archive .qa-reuse:hover { background: #f6f0f9; }
+#root main.app .chat-archive .qa-retry { justify-self: start; min-height: 0; padding: 6px 12px; font-size: 12px; }
+#root main.app .chat-archive .qa-archive .student-list-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 12px; }
+#root main.app .chat-archive .qa-archive .student-list-pager button { min-height: 0; padding: 5px 10px; font-size: 12px; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-search input { background: #1c1820; border-color: #3d3545; color: #e4e1e8; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-search .qa-search-clear { background: #2a2630; color: #a39dab; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-count b,
+:root[data-theme="dark"] #root main.app .chat-archive .qa-group h4 { color: #d3a6d8; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-empty,
+:root[data-theme="dark"] #root main.app .chat-archive .qa-answer { background: #241f29; color: #c4bfcb; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-item { background: #1c1820; border-color: #34303a; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-item:hover,
+:root[data-theme="dark"] #root main.app .chat-archive .qa-item.is-open { border-color: #4a3d52; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-q { color: #e4e1e8; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-item.is-open .qa-q { color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-q mark { background: #5a4a1f; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-tag { background: #2e2338; color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-sources a,
+:root[data-theme="dark"] #root main.app .chat-archive .qa-reuse { background: #241c2b; border-color: #4a3d52; color: #d3b8e6; }
+/* 이전 질문 정렬 (11-15) */
+#root main.app .chat-archive .qa-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+#root main.app .chat-archive .qa-order { display: inline-flex; padding: 2px; border-radius: 999px; background: #f3eef6; }
+#root main.app .chat-archive .qa-order button { min-height: 0; padding: 4px 10px; border: 0; border-radius: 999px; background: transparent; color: #76787a; font-size: 11.5px; cursor: pointer; }
+#root main.app .chat-archive .qa-order button[aria-pressed="true"] { background: #fff; color: #5b2f63; font-weight: 600; box-shadow: 0 1px 3px rgba(91, 47, 99, .12); }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-order { background: #2a2630; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-order button { color: #a39dab; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-order button[aria-pressed="true"] { background: #3a2f44; color: #e4d3f0; }
+/* 이전 질문 정렬은 글자로만 (11-15): 고른 쪽만 진한 보라 글씨, 가운데 점으로 구분 */
+#root main.app .chat-archive .qa-order { gap: 0; padding: 0; background: transparent; align-items: center; }
+#root main.app .chat-archive .qa-order button { padding: 2px 0; background: transparent; box-shadow: none; color: #9a9c9f; font-size: 12px; font-weight: 400; }
+#root main.app .chat-archive .qa-order button + button::before { content: "·"; margin: 0 7px; color: #c4c5c7; font-weight: 400; }
+#root main.app .chat-archive .qa-order button[aria-pressed="true"] { background: transparent; box-shadow: none; color: #5b2f63; font-weight: 700; }
+#root main.app .chat-archive .qa-order button:hover { color: #5b2f63; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-order { background: transparent; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-order button { color: #8f8996; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-order button[aria-pressed="true"] { background: transparent; color: #d3b8e6; }
+
+/* AI 질문 제목을 흰 대화 상자 안으로 (11-15) */
+#root .chat-page .chat-heading h2.chat-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; font-size: 24px; font-weight: 700; line-height: 1.35; }
+#root .chat-page .chat-heading h2.chat-title span { font-size: 14px; font-weight: 400; color: #76787a; }
+#root .chat-page .chat-heading { margin-bottom: 8px; }
+@media (min-width: 721px) { #root .chat-page .ai-workspace { margin-top: 4px; } #root .chat-page .chat { height: calc(100dvh - 120px); } }
+@media (max-width: 720px) { #root .chat-page .chat-heading h2.chat-title { font-size: 20px; } #root .chat-page .chat-heading h2.chat-title span { font-size: 12.5px; } }
+:root[data-theme="dark"] #root .chat-page .chat-heading h2.chat-title span { color: #918b97; }
+
+/* AI 질문 · 내 강의 박스 아래 '강의·수강 관리' 글자 링크 (11-15) */
+#root .ai-page .course-rail > a.course-rail-manage, #root .ai-page .chat-mobile-course a.course-rail-manage { display: inline-flex; align-items: center; gap: 4px; width: auto; min-height: 0; margin-top: 12px; padding: 0; border: 0; background: transparent; font-size: 13px; font-weight: 600; color: #5b2f63; text-decoration: none; }
+#root .ai-page a.course-rail-manage:hover { text-decoration: underline; text-underline-offset: 3px; }
+#root .ai-page .chat-mobile-course a.course-rail-manage { margin-top: 8px; }
+:root[data-theme="dark"] #root .ai-page a.course-rail-manage { color: #d3b8e6; }
+/* AI 질문 제목 아래 구분선 + 설명 글씨 작게 (11-15) */
+#root .chat-page .chat-heading { padding-bottom: 14px; margin-bottom: 12px; border-bottom: 1px solid #ece8ef; }
+#root .chat-page .chat-heading h2.chat-title span { font-size: 12.5px; }
+@media (max-width: 720px) { #root .chat-page .chat-heading h2.chat-title span { font-size: 12px; } }
+:root[data-theme="dark"] #root .chat-page .chat-heading { border-bottom-color: #2c2832; }
+/* '강의·수강 관리'를 '내 강의' 제목 줄 오른쪽으로, 글씨 10% 작게 (11-15) */
+#root .ai-page .course-rail .course-rail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 9px; }
+#root .ai-page .course-rail .course-rail-head h2 { margin: 0; }
+#root .ai-page .course-rail .course-rail-head a.course-rail-manage { display: inline-flex; align-items: center; gap: 3px; width: auto; min-height: 0; margin: 0; padding: 0; border: 0; background: transparent; font-size: 11.7px; font-weight: 600; color: #656668; white-space: nowrap; text-decoration: none; }
+#root .ai-page .course-rail .course-rail-head a.course-rail-manage:hover { color: #5b2f63; text-decoration: underline; text-underline-offset: 3px; }
+:root[data-theme="dark"] #root .ai-page .course-rail .course-rail-head a.course-rail-manage { color: #918b97; }
+:root[data-theme="dark"] #root .ai-page .course-rail .course-rail-head a.course-rail-manage:hover { color: #d3b8e6; }
+#root .ai-page .chat-mobile-course a.course-rail-manage { font-size: 11.7px; }
+/* AI 질문 '새 대화': 회색 버튼 대신 + 글자 링크 (11-15) */
+#root .chat-page .chat-heading button.chat-new-button { display: inline-flex; align-items: center; gap: 4px; min-height: 0; padding: 4px 2px; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: #5b2f63; font-size: 13px; font-weight: 600; cursor: pointer; }
+#root .chat-page .chat-heading button.chat-new-button span { font-size: 17px; font-weight: 500; line-height: 1; }
+#root .chat-page .chat-heading button.chat-new-button:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+#root .chat-page .chat-heading button.chat-new-button:disabled { color: #b5b6b8; cursor: default; }
+:root[data-theme="dark"] #root .chat-page .chat-heading button.chat-new-button { background: transparent; color: #d3b8e6; }
+:root[data-theme="dark"] #root .chat-page .chat-heading button.chat-new-button:disabled { color: #5d5763; }
+/* AI 질문 말풍선: 마우스를 올리면 아래에 작게 날짜·시간 (11-15) */
+#root .chat-messenger .chat-row .chat-time { display: block; max-height: 0; overflow: hidden; opacity: 0; margin: 0 6px; font-size: 11px; line-height: 1.4; color: #8a8c8f; transition: opacity .15s, max-height .15s, margin .15s; }
+#root .chat-messenger .chat-row:hover .chat-time, #root .chat-messenger .chat-row:focus-within .chat-time { max-height: 20px; opacity: 1; margin-top: 4px; }
+:root[data-theme="dark"] #root .chat-messenger .chat-row .chat-time { color: #8f8996; }
+
+/* 이전 질문 찾아보기 · 5개씩 페이지 넘기기 (11-15) */
+#root main.app .chat-archive .qa-pager { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 6px; }
+#root main.app .chat-archive .qa-pager button { min-height: 0; min-width: 28px; height: 28px; padding: 0 6px; border: 0; border-radius: 8px; background: transparent; color: #6c6e71; font-size: 12.5px; font-weight: 500; line-height: 1; cursor: pointer; box-shadow: none; }
+#root main.app .chat-archive .qa-pager button:hover:not(:disabled) { background: #f3eef6; color: #5b2f63; }
+#root main.app .chat-archive .qa-pager button[aria-current="page"] { background: #5b2f63; color: #fff; font-weight: 700; }
+#root main.app .chat-archive .qa-pager .qa-pager-arrow { font-size: 17px; color: #5b2f63; }
+#root main.app .chat-archive .qa-pager .qa-pager-arrow:disabled { background: transparent; color: #cfcbd3; cursor: default; opacity: 1; }
+#root main.app .chat-archive .qa-pager .qa-pager-gap { min-width: 16px; text-align: center; font-size: 12px; color: #9a9c9f; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-pager button { color: #a39dab; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-pager button:hover:not(:disabled) { background: #2a2330; color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-pager button[aria-current="page"] { background: #8a5a9a; color: #fff; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-pager .qa-pager-arrow { color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-pager .qa-pager-arrow:disabled { color: #4a4450; }
+
+/* 이전 질문 → 그 대화로 이동 (11-15) */
+#root main.app .chat-archive .qa-go { margin-left: auto; font-size: 11px; color: #85639f; opacity: 0; transition: opacity .15s; }
+#root main.app .chat-archive .qa-item:hover .qa-go,
+#root main.app .chat-archive .qa-item-head:focus-visible .qa-go { opacity: 1; }
+#root main.app .chat-messages .chat-past-bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; background: #f6f0f9; font-size: 12px; color: #5b2f63; }
+#root main.app .chat-messages .chat-past-bar button { min-height: 0; padding: 0; border: 0; background: transparent; color: #5b2f63; font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; box-shadow: none; }
+#root main.app .chat-messages .chat-pair.is-focus .chat-row.is-me .chat-bubble { animation: chat-focus-flash 2.2s ease-out 1; }
+@keyframes chat-focus-flash { 0%, 40% { box-shadow: 0 0 0 3px rgba(169, 139, 192, .55); } 100% { box-shadow: 0 0 0 3px rgba(169, 139, 192, 0); } }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-go { color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .chat-messages .chat-past-bar { background: #2a2330; color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .chat-messages .chat-past-bar button { color: #d3b8e6; }
+#root main.app .chat-archive .qa-pager .qa-pager-arrow:disabled, #root main.app .chat-archive .qa-pager .qa-pager-arrow:disabled:hover { background: transparent !important; color: #cfcbd3 !important; border: 0 !important; box-shadow: none !important; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-pager .qa-pager-arrow:disabled { background: transparent !important; color: #4a4450 !important; }
+
+/* AI 질문 · 질문 칸 오른쪽 보내기 화살표, 음성 기능은 칸 바깥 아래, 대화 위 여백 줄이기 (11-15) */
+#root main.app .chat-page .chat-composer .form.chat-form { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+#root .chat-page .chat-composer .chat-input-row { display: flex; align-items: flex-end; gap: 8px; }
+#root .chat-page .chat-composer .chat-input-label { display: block; flex: 1; min-width: 0; margin: 0; }
+#root .chat-page .chat-composer .chat-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#root .chat-page .chat-composer .chat-input-row textarea { height: 48px; min-height: 48px; max-height: 160px; resize: none; padding: 12px 14px; border-radius: 14px; line-height: 1.5; }
+#root .chat-page .chat-composer .chat-send { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; min-height: 0; padding: 0; margin: 0; border: 0; border-radius: 14px; background: #6e3f7a; color: #fff; cursor: pointer; box-shadow: none; transition: background .15s, transform .1s; }
+#root .chat-page .chat-composer .chat-send:hover:not(:disabled) { background: #5b2f63; }
+#root .chat-page .chat-composer .chat-send:active:not(:disabled) { transform: scale(.95); }
+#root .chat-page .chat-composer .chat-send:disabled, #root .chat-page .chat-composer .chat-send:disabled:hover { background: #e6e1ea !important; color: #a9a3ae !important; border: 0 !important; cursor: default; }
+#root .chat-page .chat-composer .chat-send-spin { width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: chat-send-spin .8s linear infinite; }
+@keyframes chat-send-spin { to { transform: rotate(360deg); } }
+#root main.app .chat-page .chat-composer .chat-form .chat-voice { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 0; justify-content: flex-start; }
+#root .chat-page .chat-composer .chat-form .error { margin: 0; }
+#root main.app .chat-page .chat .chat-messages > .chat-pair:first-of-type { margin-top: 0; }
+#root main.app .chat-page .chat .chat-messages { padding-top: 2px; }
+:root[data-theme="dark"] #root .chat-page .chat-composer .chat-send { background: #8a5a9a; }
+:root[data-theme="dark"] #root .chat-page .chat-composer .chat-send:hover:not(:disabled) { background: #9d6aae; }
+:root[data-theme="dark"] #root .chat-page .chat-composer .chat-send:disabled { background: #2a2330 !important; color: #5d5663 !important; }
+/* 대화 창은 내용만큼만 커지고(화면 높이까지), 길어지면 그 안에서 스크롤해요 — 구분선과 첫 말풍선 사이 빈 공간이 생기지 않게 (11-15) */
+/* 대화 창 높이는 대화가 적어도 화면에 맞춰 길게 고정해요. 음성 기능 줄이 아래에 보이도록 그만큼 남겨요 (11-15) */
+@media (min-width: 721px) {
+  #root main.app .chat-page .chat.chat-messenger { height: calc(100dvh - 190px); min-height: 520px; max-height: none; }
+}
+@media (max-width: 720px) {
+  #root main.app .chat-page .chat.chat-messenger { height: calc(100dvh - 140px); min-height: 460px; max-height: none; }
+}
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-input-label { display: block; flex: 1 1 auto; width: auto; min-width: 0; max-width: none; margin: 0; }
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-input-label textarea { width: 100%; height: 48px; min-height: 48px; }
+#root main.app .chat-page .chat-composer .chat-form > .chat-voice { align-self: stretch; justify-content: flex-start; margin: 0; width: auto; }
+#root main.app .chat-page .chat-composer .chat-form > .chat-voice .voice-tools { margin: 0; }
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-send { align-self: flex-end; }
+#root main.app .chat-page .chat-composer .form.chat-form { align-items: stretch; }
+#root main.app .chat-page .chat-composer .chat-form > .chat-input-row { width: 100%; }
+#root main.app .chat-page .chat-composer .chat-form > .chat-voice { align-self: flex-start; }
+/* 이전 질문 카드: 시간 없이 질문 한 줄 + 오른쪽 작은 화살표 (11-15) */
+#root main.app .chat-archive .qa-item-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+#root main.app .chat-archive .qa-item-head .qa-q { flex: 1; min-width: 0; }
+#root main.app .chat-archive .qa-item-head .qa-meta { flex: none; }
+#root main.app .chat-archive .qa-item-head .qa-go { margin: 0; opacity: 1; font-size: 0; color: #b3a2c0; }
+#root main.app .chat-archive .qa-item-head .qa-go span { font-size: 14px; transition: transform .15s, color .15s; display: inline-block; }
+#root main.app .chat-archive .qa-item:hover .qa-go span { color: #5b2f63; transform: translateX(2px); }
+/* 보내기 버튼을 질문 칸 안쪽 오른쪽에 넣어요 (11-15) */
+#root main.app .chat-page .chat-composer .chat-input-row { position: relative; display: block; }
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-input-label textarea { padding-right: 52px; }
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-send { position: absolute; right: 7px; bottom: 7px; width: 34px; height: 34px; border-radius: 10px; }
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-send svg { width: 16px; height: 16px; }
+#root main.app .chat-page .chat-voice.chat-voice-below { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 10px 0 0; justify-content: flex-start; }
+#root main.app .chat-page .chat-voice.chat-voice-below .voice-tools { margin: 0; }
+/* 답변 옆 상태 고르기 → 답변 말풍선에 이모티콘 (11-15) */
+#root main.app .chat-messages .chat-bubble-line { display: flex; align-items: flex-end; gap: 10px; max-width: 100%; }
+#root main.app .chat-messages .chat-bubble-line > .chat-bubble { position: relative; min-width: 0; }
+#root main.app .chat-messages .chat-row.is-ai .chat-bubble-line > .chat-bubble:has(> .chat-reaction) { margin-bottom: 12px; }
+#root main.app .chat-messages .chat-reaction { position: absolute; right: -6px; bottom: -14px; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid #ece8ef; border-radius: 50%; background: #fff; font-size: 15px; line-height: 1; box-shadow: 0 2px 6px rgba(40, 20, 60, .1); animation: chat-reaction-pop .25s ease-out; }
+@keyframes chat-reaction-pop { 0% { transform: scale(.4); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+#root main.app .chat-messages .chat-react { flex: none; display: flex; flex-direction: column; gap: 4px; padding-bottom: 2px; animation: chat-react-in .2s ease-out; }
+@keyframes chat-react-in { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
+#root main.app .chat-messages .chat-react button { display: inline-flex; align-items: center; gap: 5px; min-height: 0; height: 28px; padding: 0 10px 0 8px; border: 1px solid #e6e1ea; border-radius: 999px; background: #fff; color: #4f5154; font-size: 12px; font-weight: 500; white-space: nowrap; cursor: pointer; box-shadow: none; transition: background .15s, border-color .15s; }
+#root main.app .chat-messages .chat-react button span[aria-hidden] { font-size: 13px; }
+#root main.app .chat-messages .chat-react button.is-understood:hover { background: #fff8db; border-color: #e8d27a; }
+#root main.app .chat-messages .chat-react button.is-confused:hover { background: #eaf1ff; border-color: #a9c1f0; }
+#root main.app .chat-messages .chat-react button.is-stop:hover { background: #fdecec; border-color: #eab0b0; }
+@media (max-width: 720px) {
+  #root main.app .chat-messages .chat-react button { width: 30px; height: 30px; padding: 0; justify-content: center; }
+  #root main.app .chat-messages .chat-react .chat-react-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  #root main.app .chat-messages .chat-bubble-line { gap: 6px; }
+}
+:root[data-theme="dark"] #root main.app .chat-messages .chat-reaction { background: #2a2330; border-color: #3d3545; }
+:root[data-theme="dark"] #root main.app .chat-messages .chat-react button { background: #241f29; border-color: #3d3545; color: #c4bfcb; }
+:root[data-theme="dark"] #root main.app .chat-messages .chat-react button:hover { background: #2e2836; border-color: #5a4d63; }
+/* 보내기 버튼: 상자 없이 색만 입힌 ↵ 표시 (11-15) */
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-send,
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-send:hover:not(:disabled) { background: transparent; border: 0; box-shadow: none; color: #6e3f7a; }
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-send:hover:not(:disabled) { color: #4a2353; }
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-send svg { width: 20px; height: 20px; }
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-send:disabled,
+#root main.app .chat-page .chat-composer .chat-input-row > .chat-send:disabled:hover { background: transparent !important; border: 0 !important; color: #c9c2cf !important; box-shadow: none !important; }
+:root[data-theme="dark"] #root main.app .chat-page .chat-composer .chat-input-row > .chat-send { background: transparent; color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .chat-page .chat-composer .chat-input-row > .chat-send:disabled { background: transparent !important; color: #4a4450 !important; }
+/* 음성 기능은 제목 줄 '새 대화' 왼쪽, 질문 칸 위 구분선 없애고 대화 상자 더 길게 (11-15) */
+#root main.app .chat-page .chat-heading-actions { gap: 14px; flex-wrap: nowrap; }
+#root main.app .chat-page .chat-heading-actions .chat-voice-head { display: flex; align-items: center; gap: 8px; margin: 0; }
+#root main.app .chat-page .chat-heading-actions .chat-voice-head .voice-tools { margin: 0; }
+#root main.app .chat-page .chat-heading-actions .chat-voice-head .chat-voice-status:empty { display: none; }
+#root main.app .chat-page .chat-heading-actions .chat-voice-head .chat-voice-status { font-size: 11.5px; color: #85639f; }
+#root main.app .chat-page .chat-composer { border-top: 0; padding-top: 6px; }
+@media (min-width: 721px) {
+  #root main.app .chat-page .chat.chat-messenger { height: calc(100dvh - 130px); min-height: 560px; }
+}
+@media (max-width: 720px) {
+  #root main.app .chat-page .chat.chat-messenger { height: calc(100dvh - 110px); min-height: 500px; }
+  #root main.app .chat-page .chat-heading-actions { flex-wrap: wrap; gap: 8px; }
+}
+:root[data-theme="dark"] #root main.app .chat-page .chat-composer { border-top: 0; }
+@media (max-width: 720px) {
+  #root main.app .chat-page .chat-heading { flex-wrap: wrap; row-gap: 10px; }
+  #root main.app .chat-page .chat-heading > .chat-title { flex: 1 1 100%; }
+  #root main.app .chat-page .chat-heading-actions { flex: 1 1 100%; flex-wrap: nowrap; justify-content: space-between; }
+}
+/* 제목 줄 + 메뉴: 마우스를 올리면 새 대화 · 음성 질문 · 음성 답변 (11-15) */
+#root main.app .chat-page .chat-heading-actions { position: relative; gap: 10px; align-items: center; }
+#root main.app .chat-page .chat-heading-actions .chat-voice-status { font-size: 11.5px; color: #85639f; }
+#root main.app .chat-plus { position: relative; }
+#root main.app .chat-plus .chat-plus-toggle { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; min-height: 0; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #6e3f7a; font-size: 24px; font-weight: 400; line-height: 1; cursor: pointer; box-shadow: none; transition: transform .2s, color .15s; }
+#root main.app .chat-plus:hover .chat-plus-toggle,
+#root main.app .chat-plus.is-open .chat-plus-toggle,
+#root main.app .chat-plus:focus-within .chat-plus-toggle { transform: rotate(45deg); color: #4a2353; }
+#root main.app .chat-plus.is-active .chat-plus-toggle::after { content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: #d9534f; }
+#root main.app .chat-plus .chat-plus-menu { position: absolute; top: 100%; right: 0; z-index: 20; display: grid; gap: 2px; min-width: 170px; margin-top: 0; padding: 6px; border: 1px solid #ece8ef; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px rgba(40, 20, 60, .12); opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .15s, transform .15s, visibility 0s .15s; }
+#root main.app .chat-plus .chat-plus-menu::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
+#root main.app .chat-plus:hover .chat-plus-menu,
+#root main.app .chat-plus.is-open .chat-plus-menu,
+#root main.app .chat-plus:focus-within .chat-plus-menu { opacity: 1; visibility: visible; transform: none; transition: opacity .15s, transform .15s; }
+#root main.app .chat-plus .chat-plus-item { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 0; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: #3f4146; font-size: 13px; font-weight: 500; text-align: left; white-space: nowrap; cursor: pointer; box-shadow: none; }
+#root main.app .chat-plus .chat-plus-item svg { flex: none; color: #85639f; }
+#root main.app .chat-plus .chat-plus-item:hover:not(:disabled) { background: #f6f0f9; color: #5b2f63; }
+#root main.app .chat-plus .chat-plus-item.is-on { color: #5b2f63; font-weight: 600; }
+#root main.app .chat-plus .chat-plus-item:disabled, #root main.app .chat-plus .chat-plus-item:disabled:hover { background: transparent !important; border: 0 !important; color: #b8b3bc !important; opacity: 1; }
+#root main.app .chat-plus .chat-plus-switch { position: relative; margin-left: auto; width: 26px; height: 15px; border-radius: 999px; background: #dcd6e0; transition: background .15s; }
+#root main.app .chat-plus .chat-plus-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%; background: #fff; transition: transform .15s; }
+#root main.app .chat-plus .chat-plus-switch.is-on { background: #8a5a9a; }
+#root main.app .chat-plus .chat-plus-switch.is-on::after { transform: translateX(11px); }
+#root main.app .chat-plus .chat-plus-state { font-size: 11px; color: #85639f; }
+:root[data-theme="dark"] #root main.app .chat-plus .chat-plus-toggle { color: #d3b8e6; background: transparent; }
+:root[data-theme="dark"] #root main.app .chat-plus .chat-plus-menu { background: #1c1820; border-color: #3d3545; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+:root[data-theme="dark"] #root main.app .chat-plus .chat-plus-item { color: #e4e1e8; background: transparent; }
+:root[data-theme="dark"] #root main.app .chat-plus .chat-plus-item:hover:not(:disabled) { background: #2a2330; color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .chat-plus .chat-plus-item svg { color: #c4a6d8; }
+:root[data-theme="dark"] #root main.app .chat-plus .chat-plus-switch { background: #3d3545; }
+@media (max-width: 720px) {
+  #root main.app .chat-page .chat-heading { flex-wrap: nowrap; }
+  #root main.app .chat-page .chat-heading > .chat-title { flex: 1 1 auto; }
+  #root main.app .chat-page .chat-heading-actions { flex: none; justify-content: flex-end; align-self: flex-start; }
+}
+#root main.app .chat-plus:hover .chat-plus-toggle, #root main.app .chat-plus.is-open .chat-plus-toggle, #root main.app .chat-plus:focus-within .chat-plus-toggle { transform: none; background: #f6f0f9; }
+:root[data-theme="dark"] #root main.app .chat-plus:hover .chat-plus-toggle, :root[data-theme="dark"] #root main.app .chat-plus.is-open .chat-plus-toggle { background: #2a2330; }
+/* 답변 아래 한 줄: 왼쪽 시간 · 오른쪽 이해했어요·헷갈려요·중단 (11-15) */
+#root main.app .chat-messages .chat-bubble-col { display: inline-flex; flex-direction: column; align-items: stretch; max-width: 100%; min-width: 0; }
+#root main.app .chat-messages .chat-bubble-col > .chat-bubble { position: relative; min-width: 0; }
+#root main.app .chat-messages .chat-ai-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 0; }
+#root main.app .chat-messages .chat-ai-foot.has-react { margin-top: 6px; }
+#root main.app .chat-messages .chat-ai-foot .chat-time { margin-left: 6px; }
+#root main.app .chat-messages .chat-ai-foot.has-react .chat-time { max-height: 20px; margin-top: 0; }
+#root main.app .chat-messages .chat-ai-foot .chat-react { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: 6px; padding: 0; margin-left: auto; animation: chat-react-in .2s ease-out; }
+#root main.app .chat-messages .chat-ai-foot .chat-react button { height: 28px; }
+#root main.app .chat-messages .chat-bubble-col > .chat-bubble:has(> .chat-reaction) { margin-bottom: 10px; }
+@media (max-width: 720px) {
+  #root main.app .chat-messages .chat-ai-foot .chat-react button { width: auto; height: 28px; padding: 0 9px 0 7px; }
+  #root main.app .chat-messages .chat-ai-foot .chat-react .chat-react-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+}
+#root main.app .chat-messages .chat-bubble-col > .chat-ai-foot { width: 0; min-width: 100%; box-sizing: border-box; }
+#root main.app .chat-messages .chat-row.is-ai > .chat-bubble-col { max-width: min(82%, 760px); }
+#root main.app .chat-messages .chat-bubble-col > .chat-bubble { max-width: 100%; }
+/* 이전 질문 찾아보기 · 전체 질문 / 퀴즈 질문 탭 (11-15) */
+#root main.app .chat-archive .qa-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-bottom: 1px solid #ece8ef; }
+#root main.app .chat-archive .qa-tabs button { min-height: 0; padding: 8px 0 9px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; border-radius: 0; background: transparent; color: #8a8c8f; font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: none; }
+#root main.app .chat-archive .qa-tabs button:hover { color: #5b2f63; }
+#root main.app .chat-archive .qa-tabs button.is-active { border-bottom-color: #6e3f7a; color: #5b2f63; font-weight: 700; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-tabs { border-bottom-color: #34303a; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-tabs button { background: transparent; color: #918b97; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-tabs button.is-active { color: #d3b8e6; border-bottom-color: #c4a6d8; }
+/* 달린 이모티콘을 다시 누르면 바꿀 수 있어요 (11-15) */
+#root main.app .chat-messages button.chat-reaction { min-height: 0; padding: 0; cursor: pointer; transition: transform .15s, box-shadow .15s; }
+#root main.app .chat-messages button.chat-reaction:hover:not(:disabled) { transform: scale(1.1); box-shadow: 0 2px 8px rgba(91, 47, 99, .2); }
+#root main.app .chat-messages button.chat-reaction.is-editing { border-color: #a98bc0; box-shadow: 0 0 0 3px rgba(169, 139, 192, .25); }
+#root main.app .chat-messages button.chat-reaction:disabled, #root main.app .chat-messages button.chat-reaction:disabled:hover { cursor: default; background: #fff !important; border-color: #ece8ef !important; color: inherit !important; box-shadow: 0 2px 6px rgba(40, 20, 60, .1) !important; }
+:root[data-theme="dark"] #root main.app .chat-messages button.chat-reaction:disabled { background: #2a2330 !important; border-color: #3d3545 !important; }
+#root main.app .chat-messages .chat-react button.is-picked { border-color: #a98bc0; background: #f6f0f9; color: #5b2f63; font-weight: 600; }
+:root[data-theme="dark"] #root main.app .chat-messages .chat-react button.is-picked { border-color: #8a5a9a; background: #2e2338; color: #d3b8e6; }
+#root main.app .chat-messages .chat-bubble-col > .chat-bubble:has(> .chat-reaction) + .chat-ai-foot.has-react { margin-top: 12px; }
+/* 퀴즈 질문 이름 표시 (11-15) */
+#root main.app .chat-archive .qa-q-wrap { display: grid; gap: 3px; flex: 1; min-width: 0; }
+#root main.app .chat-archive .qa-quiz-name { justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 8px; border-radius: 999px; background: #f3eef6; color: #85639f; font-size: 11px; font-weight: 600; }
+#root main.app .chat-messages .chat-row.is-me .chat-quiz-name { align-self: flex-end; margin: 0 4px 4px 0; font-size: 11px; font-weight: 600; color: #85639f; }
+#root main.app .chat-composer .chat-quiz-context__name { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 999px; background: #f3eef6; color: #85639f; font-size: 11px; font-weight: 600; vertical-align: 1px; }
+:root[data-theme="dark"] #root main.app .chat-archive .qa-quiz-name, :root[data-theme="dark"] #root main.app .chat-composer .chat-quiz-context__name { background: #2e2338; color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .chat-messages .chat-row.is-me .chat-quiz-name { color: #c4a6d8; }
+/* 새 대화 안내(이해는 질문에서 시작돼요)를 대화 상자 가운데에 (11-15) */
+#root main.app .chat-page .chat .chat-messages:has(> .chat-welcome) { justify-content: center; }
+#root main.app .chat-page .chat .chat-messages > .chat-welcome { margin-top: auto; margin-bottom: auto; }
+
+/* 퀴즈 페이지 글꼴 통일: "4일 연속 학습"(Pretendard · 자간 -0.04em) 기준 */
+#root main.app .student-home.quiz-catalog,
+#root main.app .student-home.quiz-catalog *,
+#root main.app .student-home.quiz-flow,
+#root main.app .student-home.quiz-flow *,
+#root main.app .student-home.quiz-results,
+#root main.app .student-home.quiz-results * {
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  letter-spacing: -0.04em !important;
+}
+#root main.app .student-home.quiz-catalog :is(h1, h2, h3, h4, strong, b, summary),
+#root main.app .student-home.quiz-flow :is(h1, h2, h3, h4, strong, b),
+#root main.app .student-home.quiz-results :is(h1, h2, h3, h4, strong, b) {
+  font-weight: 700 !important;
+}
+#root main.app .student-home.quiz-catalog :is(code, pre, kbd),
+#root main.app .student-home.quiz-catalog :is(code, pre, kbd) *,
+#root main.app .student-home.quiz-flow :is(code, pre, kbd, textarea.code, .code-editor),
+#root main.app .student-home.quiz-flow :is(code, pre, kbd, .code-editor) *,
+#root main.app .student-home.quiz-results :is(code, pre, kbd),
+#root main.app .student-home.quiz-results :is(code, pre, kbd) * {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+  letter-spacing: 0 !important;
+}
+
+/* 퀴즈 헤더: 강의실과 같은 배치 · 왼쪽 퀴즈+문구, 오른쪽 강의명·학기·교수·분반 (11-15) */
+#root main.app .student-home.quiz-catalog .quiz-titlebar { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 24px; flex-wrap: wrap; margin: 0 0 24px; }
+#root main.app .student-home.quiz-catalog .quiz-titlebar h1 { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 4px; margin: 0 !important; }
+#root main.app .student-home.quiz-catalog .quiz-titlebar .quiz-title-desc {
+  font-size: 15px !important; font-weight: 500 !important; color: var(--d-ink-3) !important;
+}
+:root:not([data-theme="dark"]) #root main.app .student-home.quiz-catalog .quiz-titlebar .quiz-title-desc { color: #656668 !important; }
+#root main.app .student-home.quiz-catalog .quiz-titlebar .quiz-course-meta {
+  margin: 0 0 0 auto !important; font-size: 13px !important; line-height: 1.5; color: var(--d-ink-3, #656668) !important; text-align: right;
+}
+@media (max-width: 640px) {
+  #root main.app .student-home.quiz-catalog .quiz-titlebar .quiz-course-meta { margin: 6px 0 0 !important; text-align: left; }
+}
+/* 퀴즈: '내 강의로'를 강의실처럼 제목 위에 (11-15) */
+#root main.app .student-home.quiz-catalog > .cr-back {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 5px 12px; width: auto;
+  border: 1px solid rgba(133, 99, 159, 0.28); border-radius: 999px;
+  color: #656668; font-size: 13px; font-weight: 500; text-decoration: none;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+#root main.app .student-home.quiz-catalog > .cr-back:hover { color: #85639f; border-color: rgba(133, 99, 159, 0.5); background: rgba(133, 99, 159, 0.06); }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog > .cr-back { color: #b3adba; border-color: rgba(211, 184, 230, 0.25); }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog > .cr-back:hover { color: #d3b8e6; }
+
+/* 퀴즈: 지난 학습·복습 기록 안 이론/실습 탭 (11-15) */
+#root main.app .student-home.quiz-catalog .record-kind-tabs { display: flex; gap: 4px; margin: 4px 0 16px; border-bottom: 1px solid rgba(133, 99, 159, 0.16); }
+#root main.app .student-home.quiz-catalog .record-kind-tabs button {
+  appearance: none; background: none !important; border: 0 !important; border-bottom: 2px solid transparent !important; border-radius: 0 !important;
+  margin: 0 0 -1px; padding: 8px 12px !important; min-height: 0 !important; box-shadow: none !important;
+  color: #656668 !important; font-size: 14px !important; font-weight: 500 !important; cursor: pointer;
+}
+#root main.app .student-home.quiz-catalog .record-kind-tabs button.is-active { color: #85639f !important; border-bottom-color: #85639f !important; font-weight: 700 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .record-kind-tabs { border-bottom-color: rgba(211, 184, 230, 0.16); }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .record-kind-tabs button { color: #9a93a1 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .record-kind-tabs button.is-active { color: #d3b8e6 !important; border-bottom-color: #d3b8e6 !important; }
+
+/* 날짜별 학습 기록: 정렬(최신순·오래된순) + 기간 빠른 선택 (11-15) */
+#root main.app .learning-history .history-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; margin: 0 0 12px; }
+#root main.app .learning-history :is(.history-presets, .history-order) { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+#root main.app .learning-history .history-presets button {
+  appearance: none; min-height: 0 !important; padding: 6px 14px !important; border-radius: 999px !important;
+  border: 1px solid rgba(133, 99, 159, 0.22) !important; background: transparent !important; box-shadow: none !important;
+  color: #656668 !important; font-size: 13px !important; font-weight: 500 !important; cursor: pointer; transition: all 0.15s ease;
+}
+#root main.app .learning-history .history-presets button:hover { border-color: rgba(133, 99, 159, 0.5) !important; color: #85639f !important; }
+#root main.app .learning-history .history-presets button.is-on { background: #85639f !important; border-color: #85639f !important; color: #fff !important; font-weight: 600 !important; }
+#root main.app .learning-history .history-order { padding: 3px; border-radius: 999px; background: rgba(133, 99, 159, 0.08); gap: 2px; }
+#root main.app .learning-history .history-order button {
+  appearance: none; min-height: 0 !important; padding: 5px 12px !important; border-radius: 999px !important; border: 0 !important;
+  background: transparent !important; box-shadow: none !important; color: #656668 !important; font-size: 13px !important; font-weight: 500 !important; cursor: pointer;
+}
+#root main.app .learning-history .history-order button.is-on { background: #fff !important; color: #85639f !important; font-weight: 700 !important; box-shadow: 0 1px 3px rgba(60, 30, 80, 0.12) !important; }
+#root main.app .learning-history .history-range {
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; padding: 6px 6px 6px 14px;
+  border: 1px solid rgba(133, 99, 159, 0.22); border-radius: 999px; background: #fff;
+}
+#root main.app .learning-history .history-range label { display: contents; }
+#root main.app .learning-history .history-range input[type="date"] {
+  width: auto !important; min-height: 0 !important; height: 30px; padding: 0 4px !important; border: 0 !important; background: transparent !important;
+  box-shadow: none !important; font-size: 13px !important; color: #2b2530 !important;
+}
+#root main.app .learning-history .history-range-dash { color: #9a93a1; font-size: 13px; }
+#root main.app .learning-history .history-range .history-range-apply {
+  min-height: 0 !important; height: 30px; padding: 0 14px !important; border-radius: 999px !important; border: 0 !important;
+  background: #85639f !important; color: #fff !important; font-size: 13px !important; font-weight: 600 !important; box-shadow: none !important; cursor: pointer;
+}
+#root main.app .learning-history .history-range .history-range-apply:disabled { background: rgba(133, 99, 159, 0.25) !important; color: #fff !important; cursor: default; }
+#root main.app .learning-history .learning-history-count { font-size: 13px; color: #656668; margin: 4px 0 4px; }
+:root[data-theme="dark"] #root main.app .learning-history .history-presets button { color: #b3adba !important; border-color: rgba(211, 184, 230, 0.22) !important; }
+:root[data-theme="dark"] #root main.app .learning-history .history-presets button.is-on { background: #b48fd0 !important; border-color: #b48fd0 !important; color: #1a1220 !important; }
+:root[data-theme="dark"] #root main.app .learning-history .history-order { background: rgba(211, 184, 230, 0.08); }
+:root[data-theme="dark"] #root main.app .learning-history .history-order button { color: #9a93a1 !important; }
+:root[data-theme="dark"] #root main.app .learning-history .history-order button.is-on { background: #2c2233 !important; color: #d3b8e6 !important; }
+:root[data-theme="dark"] #root main.app .learning-history .history-range { background: #1f1726; border-color: rgba(211, 184, 230, 0.22); }
+:root[data-theme="dark"] #root main.app .learning-history .history-range input[type="date"] { color: #e6e0ec !important; color-scheme: dark; }
+:root[data-theme="dark"] #root main.app .learning-history .history-range .history-range-apply { background: #b48fd0 !important; color: #1a1220 !important; }
+:root[data-theme="dark"] #root main.app .learning-history .learning-history-count { color: #9a93a1; }
+@media (max-width: 640px) {
+  #root main.app .learning-history .history-range { border-radius: 16px; width: 100%; }
+}
+/* 기간 검색창 (11-15) */
+#root main.app .learning-history .history-search {
+  display: flex; align-items: center; gap: 6px; flex: 1 1 380px; max-width: 520px; padding: 4px 4px 4px 14px;
+  border: 1px solid rgba(133, 99, 159, 0.28); border-radius: 999px; background: #fff; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+#root main.app .learning-history .history-search:focus-within { border-color: #85639f; box-shadow: 0 0 0 3px rgba(133, 99, 159, 0.12); }
+#root main.app .learning-history .history-search-icon { color: #85639f; flex: none; }
+#root main.app .learning-history .history-search input[type="date"] {
+  flex: 1 1 0; min-width: 0; width: auto !important; min-height: 0 !important; height: 34px; padding: 0 4px !important; border: 0 !important;
+  background: transparent !important; box-shadow: none !important; outline: none; font-size: 13px !important; color: #2b2530 !important;
+}
+#root main.app .learning-history .history-search .history-search-go {
+  flex: none; min-height: 0 !important; height: 34px; padding: 0 18px !important; border-radius: 999px !important; border: 0 !important;
+  background: #85639f !important; color: #fff !important; font-size: 13px !important; font-weight: 600 !important; box-shadow: none !important; cursor: pointer;
+}
+#root main.app .learning-history .history-search .history-search-go:disabled { background: rgba(133, 99, 159, 0.28) !important; color: #fff !important; cursor: default; }
+#root main.app .learning-history > .history-presets { display: flex; margin: 0 0 8px; }
+:root[data-theme="dark"] #root main.app .learning-history .history-search { background: #1f1726; border-color: rgba(211, 184, 230, 0.24); }
+:root[data-theme="dark"] #root main.app .learning-history .history-search-icon { color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .learning-history .history-search input[type="date"] { color: #e6e0ec !important; color-scheme: dark; }
+:root[data-theme="dark"] #root main.app .learning-history .history-search .history-search-go { background: #b48fd0 !important; color: #1a1220 !important; }
+@media (max-width: 640px) {
+  #root main.app .learning-history .history-search { max-width: none; flex-basis: 100%; }
+}
+@media (max-width: 640px) {
+  #root main.app .learning-history .history-search { padding-left: 10px; gap: 2px; box-sizing: border-box; width: 100%; }
+  #root main.app .learning-history .history-search-icon { display: none; }
+  #root main.app .learning-history .history-search input[type="date"] { width: 0 !important; flex: 1 1 0; font-size: 12px !important; }
+  #root main.app .learning-history .history-search .history-search-go { padding: 0 12px !important; }
+}
+
+/* 날짜 기록 검색 정리 (11-15 2차): 글자 검색 + 달력 버튼 + 정렬 토글 하나 */
+#root main.app .learning-history .history-search { max-width: 560px; }
+#root main.app .learning-history .history-search .history-search-text {
+  flex: 1 1 auto; min-width: 0; width: auto !important; min-height: 0 !important; height: 34px; padding: 0 4px !important; border: 0 !important;
+  background: transparent !important; box-shadow: none !important; outline: none; font-size: 14px !important; color: #2b2530 !important;
+}
+#root main.app .learning-history .history-search .history-search-text::placeholder { color: #9a93a1; }
+#root main.app .learning-history .history-search .history-search-text::-webkit-search-cancel-button { display: none; }
+#root main.app .learning-history .history-search :is(.history-search-clear, .history-search-cal) {
+  flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; min-height: 0 !important; padding: 0 !important;
+  border: 0 !important; border-radius: 999px !important; background: transparent !important; box-shadow: none !important; color: #8a8390 !important; cursor: pointer; font-size: 18px !important; line-height: 1;
+}
+#root main.app .learning-history .history-search :is(.history-search-clear, .history-search-cal):hover,
+#root main.app .learning-history .history-search .history-search-cal[aria-expanded="true"] { background: rgba(133, 99, 159, 0.1) !important; color: #85639f !important; }
+#root main.app .learning-history .history-search .history-search-go:disabled { background: #85639f !important; }
+#root main.app .learning-history .history-order-toggle {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 0 !important; padding: 6px 4px !important; border: 0 !important;
+  background: transparent !important; box-shadow: none !important; color: #656668 !important; font-size: 13px !important; font-weight: 600 !important; cursor: pointer;
+}
+#root main.app .learning-history .history-order-toggle:hover { color: #85639f !important; }
+#root main.app .learning-history .history-calendar {
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -4px 0 12px; padding: 8px 8px 8px 14px;
+  border: 1px solid rgba(133, 99, 159, 0.22); border-radius: 14px; background: #fff; box-shadow: 0 6px 18px rgba(60, 30, 80, 0.08);
+}
+#root main.app .learning-history .history-calendar input[type="date"] {
+  width: auto !important; min-height: 0 !important; height: 32px; padding: 0 8px !important; border: 1px solid rgba(133, 99, 159, 0.18) !important;
+  border-radius: 8px !important; background: transparent !important; box-shadow: none !important; font-size: 13px !important; color: #2b2530 !important;
+}
+#root main.app .learning-history .history-calendar .history-calendar-apply {
+  min-height: 0 !important; height: 32px; padding: 0 14px !important; border-radius: 999px !important; border: 0 !important;
+  background: #85639f !important; color: #fff !important; font-size: 13px !important; font-weight: 600 !important; box-shadow: none !important; cursor: pointer;
+}
+#root main.app .learning-history .history-calendar .history-calendar-apply:disabled { background: rgba(133, 99, 159, 0.28) !important; cursor: default; }
+#root main.app .learning-history .history-search-error { margin: -4px 0 10px; font-size: 13px; color: #b5475b; }
+#root main.app .learning-history .learning-history-count { display: flex; align-items: center; gap: 8px; }
+#root main.app .learning-history .history-range-chip { padding: 2px 10px; border-radius: 999px; background: rgba(133, 99, 159, 0.1); color: #85639f; font-weight: 600; }
+:root[data-theme="dark"] #root main.app .learning-history .history-search .history-search-text { color: #e6e0ec !important; }
+:root[data-theme="dark"] #root main.app .learning-history .history-search .history-search-go:disabled { background: #b48fd0 !important; }
+:root[data-theme="dark"] #root main.app .learning-history .history-order-toggle { color: #b3adba !important; }
+:root[data-theme="dark"] #root main.app .learning-history .history-calendar { background: #1f1726; border-color: rgba(211, 184, 230, 0.22); box-shadow: none; }
+:root[data-theme="dark"] #root main.app .learning-history .history-calendar input[type="date"] { color: #e6e0ec !important; color-scheme: dark; border-color: rgba(211, 184, 230, 0.2) !important; }
+:root[data-theme="dark"] #root main.app .learning-history .history-calendar .history-calendar-apply { background: #b48fd0 !important; color: #1a1220 !important; }
+:root[data-theme="dark"] #root main.app .learning-history .history-range-chip { background: rgba(211, 184, 230, 0.12); color: #d3b8e6; }
+:root[data-theme="dark"] #root main.app .learning-history .history-search-error { color: #f0a0b0; }
+@media (max-width: 640px) {
+  #root main.app .learning-history .history-search .history-search-text { font-size: 13px !important; }
+  #root main.app .learning-history .history-toolbar { gap: 6px; }
+  #root main.app .learning-history .history-order-toggle { margin-left: auto; }
+}
+
+/* 학생 페이지 상단 바: 로고 위치를 AI 강의 페이지와 같게 통일 (11-15)
+   AI 강의·AI 질문처럼 1360px 폭 기준 좌우 여백 + 위아래 20px 로 모든 학생 화면을 맞춰요. 모바일은 원래도 같아서 그대로 둬요. */
+@media (min-width: 721px) {
+  #root:has(main.app.student-main) header.app-header {
+    padding-top: 20px !important; padding-bottom: 20px !important;
+    padding-left: max(var(--d-gutter), calc((100% - 1360px) / 2)) !important;
+    padding-right: max(var(--d-gutter), calc((100% - 1360px) / 2)) !important;
+  }
+}
+
+/* 연속 학습은 강의 정보 위에 간결하게 표시 */
+#root main.app .student-home.quiz-catalog .quiz-titlebar { align-items: center; }
+#root main.app .student-home.quiz-catalog .quiz-header-meta {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin-left: auto; min-width: 0;
+}
+#root main.app .student-home.quiz-catalog .quiz-header-streak {
+  font-size: 16px; font-weight: 700; letter-spacing: -0.04em; color: #85639f;
+}
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .quiz-header-streak { color: var(--d-accent, #d3b8e6); }
+@media (max-width: 640px) {
+  #root main.app .student-home.quiz-catalog .quiz-header-meta { width: 100%; margin-left: 0; align-items: flex-start; }
+  #root main.app .student-home.quiz-catalog .quiz-header-meta .quiz-course-meta { margin: 0 !important; }
+}
+
+/* 오늘의 학습: 날짜와 안내, 클릭으로 여는 인정 기준 */
+#root main.app .student-home.quiz-catalog .quiz-today-heading {
+  justify-content: flex-start; align-items: baseline; flex-wrap: wrap; gap: 10px 18px;
+  padding: 20px 24px; border: 1px solid #e8deef; border-radius: 18px; background: #f7f3fa; box-shadow: 0 3px 12px rgba(89, 61, 111, 0.03);
+}
+#root main.app .student-home.quiz-catalog .quiz-today-date { font: inherit; color: inherit; letter-spacing: inherit; }
+#root main.app .student-home.quiz-catalog .quiz-today-guide { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+#root main.app .student-home.quiz-catalog .quiz-today-guide small { font-size: 12px; line-height: 1.6; color: var(--d-ink-3, #656668); word-break: keep-all; }
+#root main.app .student-home.quiz-catalog .quiz-criteria-help { position: relative; flex-shrink: 0; margin-left: auto; }
+#root main.app .student-home.quiz-catalog .quiz-criteria-help-button {
+  display: inline-flex; align-items: center; justify-content: center; width: auto; min-height: 28px; padding: 4px 0; margin: 0;
+  border: 0; border-radius: 0; background: transparent; color: var(--d-ink-3, #656668); font: inherit; font-size: 12px; cursor: pointer; text-underline-offset: 3px;
+}
+#root main.app .student-home.quiz-catalog .quiz-criteria-help-button:focus-visible { outline: 2px solid #85639f; outline-offset: 3px; }
+#root main.app .student-home.quiz-catalog .quiz-criteria-popover {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; width: min(320px, calc(100vw - 48px)); padding: 16px 18px;
+  border: 1px solid #e3dfe7; border-radius: 12px; background: #fff; color: #656668; box-shadow: 0 8px 28px #30213f1a;
+}
+#root main.app .student-home.quiz-catalog .quiz-criteria-popover strong { font-size: 13px; }
+#root main.app .student-home.quiz-catalog .quiz-criteria-popover p { margin: 8px 0 0; font-size: 12px; line-height: 1.8; word-break: keep-all; }
+#root main.app .student-home.quiz-catalog .quiz-header-streak {
+  display: inline-flex; align-items: center; padding: 8px 16px; border: 1px solid #eee7f3; border-radius: 999px; background: #f7f3fa; box-shadow: none;
+}
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .quiz-header-streak { color: #d3b8e6; background: #2b2333; border-color: #3a2f44; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .quiz-criteria-popover { background: var(--d-surface, #211b29); border-color: #44384e; color: #c1b9ca; }
+@media (max-width: 640px) {
+  #root main.app .student-home.quiz-catalog .quiz-today-guide { flex-basis: 100%; order: 3; }
+  #root main.app .student-home.quiz-catalog .quiz-criteria-popover { position: fixed; top: auto; bottom: 24px; left: 24px; right: 24px; width: auto; }
+}
+
+#root main.app .student-home.quiz-catalog .quiz-criteria-help-button:hover { text-decoration: underline; }
+
+/* 날짜·학습 안내를 하나의 강조 영역으로 묶어요. */
+#root main.app .student-home.quiz-catalog .quiz-today-heading h2 { margin: 0 !important; line-height: 1.5; }
+#root main.app .student-home.quiz-catalog .quiz-today-heading .quiz-today-date { white-space: nowrap; }
+#root main.app .student-home.quiz-catalog .quiz-today-heading .quiz-criteria-help-button { color: #79548f; font-weight: 600; white-space: nowrap; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .quiz-today-heading { background: #292131; border-color: #41324d; box-shadow: none; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .quiz-today-heading .quiz-criteria-help-button { color: #d3b8e6; }
+@media (max-width: 640px) {
+  #root main.app .student-home.quiz-catalog .quiz-today-heading { padding: 16px; gap: 10px 12px; }
+}
+
+/* 기록: 탭 오른쪽에 검색, 건수 오른쪽에 정렬 */
+#root main.app .student-home.quiz-catalog .history-toolbar-with-tabs { gap: 12px 24px; align-items: center; }
+#root main.app .student-home.quiz-catalog .history-toolbar-with-tabs .record-kind-tabs { margin: 0; flex: 0 0 auto; }
+#root main.app .student-home.quiz-catalog .history-toolbar-with-tabs .history-search { margin-left: auto; flex: 0 1 340px; max-width: 340px; min-width: 0; }
+#root main.app .learning-history .history-count-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
+#root main.app .learning-history .history-count-row .learning-history-count { margin: 0; }
+#root main.app .learning-history .history-count-row .history-order-toggle { margin: 0 0 0 auto; }
+@media (max-width: 640px) {
+  #root main.app .student-home.quiz-catalog .history-toolbar-with-tabs .history-search { flex: 1 1 180px; max-width: none; }
+}
+
+/* 각 페이지 마지막 기록 아래에는 구분선을 표시하지 않아요. */
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-history > .learning-history-item:last-of-type { border-bottom: 0; }
+
+/* 한 페이지인 경우에도 기록의 현재 쪽수와 이동 버튼을 표시해요. */
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-pager {
+  display: flex; align-items: center; justify-content: center; gap: 18px; margin: 20px 0 0; padding: 4px 0;
+}
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-pager button {
+  padding: 7px 12px; border: 1px solid #e8deef; border-radius: 999px; background: #f7f3fa; color: #79548f; cursor: pointer;
+}
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-pager button:disabled { opacity: .4; cursor: default; }
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-pager span { font-size: 13px; white-space: nowrap; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .student-record-archive .learning-pager button { background: #2b2333; border-color: #41324d; color: #d3b8e6; }
+
+/* 제목 오른쪽에 현재 학습 기록 유형을 표시해요. */
+#root main.app .progress-page .progress-title-row { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 10px; }
+#root main.app .progress-page .progress-title-row h2 { font-size: 25px; letter-spacing: -0.04em; margin: 0; word-break: keep-all; }
+#root main.app .progress-page .progress-domain-label { flex-shrink: 0; margin-left: auto; font-size: 12px; font-weight: 600; color: #85639f; }
+:root[data-theme="dark"] #root main.app .progress-page .progress-domain-label { color: #d3b8e6; }
+
+/* 전체 개념 목록에서 주차와 제목을 나란히 표시해요. */
+#root main.app .progress-page .concept-item-title { display: flex; align-items: baseline; gap: 10px; }
+#root main.app .progress-page .concept-item-title .concept-week-label { flex-shrink: 0; }
+#root main.app .progress-page .concept-item-title h4 { margin: 0; min-width: 0; }
+
+/* 전체 개념: 주차 탭·검색·범위·상태를 한 줄에 배치 */
+#root main.app .progress-page .concept-browser-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+#root main.app .progress-page .concept-browser-toolbar .material-week-split { margin: 0; flex-shrink: 0; }
+#root main.app .progress-page .concept-browser-toolbar .material-week-split button { padding: 0 12px !important; font-size: 13px !important; }
+#root main.app .progress-page .concept-browser-search { position: relative; display: flex; flex: 1 1 160px; margin-left: auto; min-width: 140px; }
+#root main.app .progress-page .concept-browser-search > span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #85639f; pointer-events: none; }
+#root main.app .progress-page .concept-browser-search input { height: 38px; padding: 0 10px 0 30px; border-radius: 999px; font-size: 12px; }
+#root main.app .progress-page .concept-inline-filter { position: relative; display: flex; flex: 0 0 auto; margin: 0; }
+#root main.app .progress-page .concept-inline-filter select { height: 38px; width: auto; max-width: 145px; border-radius: 999px; font-size: 12px; padding: 0 24px 0 12px; }
+#root main.app .progress-page .concept-filter-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 640px) {
+  #root main.app .progress-page .concept-browser-toolbar .material-week-split { max-width: 100%; }
+  #root main.app .progress-page .concept-browser-toolbar .material-week-split button { padding: 0 10px !important; font-size: 12px !important; }
+  #root main.app .progress-page .concept-browser-search { flex-basis: 100%; }
+  #root main.app .progress-page .concept-inline-filter { flex: 1; }
+  #root main.app .progress-page .concept-inline-filter select { width: 100%; max-width: none; }
+}
+
+/* 목록 마지막 구분선 제거, 안내와 이어가기 링크는 박스 바깥에 배치 */
+#root main.app .progress-page .concept-browser .concept-list-item:last-child { border-bottom: 0; }
+#root main.app .progress-page .progress-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 12px; border: 0; margin: 6px 0 0; padding: 0 4px; }
+#root main.app .progress-page .progress-actions p { margin: 0; font-size: 10px; line-height: 1.6; color: var(--d-ink-3, #858789); }
+#root main.app .progress-page .progress-actions .ln-cta { flex-shrink: 0; margin-left: auto; font-size: 12px; padding: 10px 16px; }
+
+/* 이론 날짜별 기록: 보기 탭 오른쪽에 검색창 배치 */
+#root main.app .progress-page .history-toolbar-with-tabs { display: flex; align-items: center; gap: 12px; }
+#root main.app .progress-page .history-toolbar-with-tabs .learning-view-tabs { flex: 0 0 auto; margin: 0; }
+#root main.app .progress-page .history-toolbar-with-tabs .history-search { flex: 0 1 340px; min-width: 0; max-width: 340px; margin-left: auto; }
+@media (max-width: 640px) {
+  #root main.app .progress-page .history-toolbar-with-tabs .history-search { flex: 1 1 180px; max-width: none; }
+}
+
+/* 취약도 첫 요약 박스 — 밝은 모드 색은 평균 상태(취약·조금 약함·튼튼)를 따라가요: student-fit.css (11-16) */
+
+
+/* 학습 기록 화면의 글꼴을 제목과 같은 Pretendard 계열로 통일 */
+#root main.app .student-home.progress-page,
+#root main.app .student-home.progress-page *:not(code, pre, kbd, samp, code *, pre *, kbd *, samp *) {
+  font-family: var(--v-sans, Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif) !important;
+}
+
+/* 완료된 오늘의 학습: 큰 체크와 완료 문구를 강조 */
+#root .student-home.student-today.sh-home .sh-next .sh-today.is-complete {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px; border: 0 !important; padding-top: 0; margin-top: 20px;
+}
+#root .student-home.student-today.sh-home .sh-next .sh-today .sh-complete-label {
+  display: inline-flex; align-items: center; gap: 10px; margin: 0; font-size: 22px !important; line-height: 1.4; font-weight: 800 !important; color: #fff !important;
+}
+#root .student-home.student-today.sh-home .sh-next .sh-today .sh-complete-label .sh-complete-check {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #79548f !important;
+}
+@media (max-width: 640px) {
+  #root .student-home.student-today.sh-home .sh-next .sh-today .sh-complete-label { font-size: 19px !important; }
+}
+
+#root .student-home.student-today.sh-home .sh-next .sh-today .sh-complete-check svg { color: #79548f !important; stroke: #79548f !important; }
+
+/* 학생 취약도 상태 색상 */
+#root main.app .weakness-tab { --wk-weak: #EF3E36; --wk-mid: #FFE381; --wk-strong: #63E2C6; }
+#root main.app .weakness-tab .wk-ring.is-weak :is(.wk-stop-a, .wk-stop-b) { stop-color: #EF3E36; }
+#root main.app .weakness-tab .wk-dist__seg.is-weak,
+#root main.app .weakness-tab .wk-dist i.is-weak,
+#root main.app .weakness-tab .wk-spot.is-weak .wk-spot__bar i,
+#root main.app .weakness-tab .wk-dist__legend .is-weak i { background: #EF3E36; }
+#root main.app .weakness-tab .wk-chip.is-weak { background: #EF3E36 !important; color: #ffffff !important; }
+#root main.app .weakness-tab .wk-ring.is-mid :is(.wk-stop-a, .wk-stop-b) { stop-color: #FFE381; }
+#root main.app .weakness-tab .wk-dist__seg.is-mid,
+#root main.app .weakness-tab .wk-dist i.is-mid,
+#root main.app .weakness-tab .wk-spot.is-mid .wk-spot__bar i,
+#root main.app .weakness-tab .wk-dist__legend .is-mid i { background: #FFE381; }
+#root main.app .weakness-tab .wk-chip.is-mid { background: #FFE381 !important; color: #594613 !important; }
+#root main.app .weakness-tab .wk-ring.is-strong :is(.wk-stop-a, .wk-stop-b) { stop-color: #63E2C6; }
+#root main.app .weakness-tab .wk-dist__seg.is-strong,
+#root main.app .weakness-tab .wk-dist i.is-strong,
+#root main.app .weakness-tab .wk-spot.is-strong .wk-spot__bar i,
+#root main.app .weakness-tab .wk-dist__legend .is-strong i { background: #63E2C6; }
+#root main.app .weakness-tab .wk-chip.is-strong { background: #63E2C6 !important; color: #164d41 !important; }
+
+/* 전체 분포 막대도 개념별 정답률 막대와 같은 두께로 표시 */
+#root main.app .weakness-tab .wk-dist { height: 8px; padding: 0; }
+
+
+/* 강의실 맨 아래 "하나의 수업, 이어지는 학습…" 문구: 강의 자료 박스 바로 밑 오른쪽 (2026-11-18) */
+#root main.app .student-home.classroom-page .classroom-bottom { margin: 16px 0 0 auto !important; text-align: right !important; }
+/* AI 강의 '관련 자료' 탭 제목 "교수님이 공개한 원본 자료" 크게 (2026-11-18: 15 → 18px) */
+#root main.app .instructor-details .instructor-info-content > h3 { font-size: 18px !important; font-weight: 700; margin: 0 0 12px; }
+
+/* AI 강의 자료 목록 다듬기 (2026-11-18)
+   - 고른 주차·고른 영상에 이중으로 두르던 보라 테두리를 없앴어요.
+   - 색은 위쪽 '전체 주차 / 1–9주차' 탭과 같은 보라(#85639f) 한 가지를 농도만 달리해 써요.
+     주차 박스(흰 바탕, 고르면 보라 테두리) · 영상 박스(연한 보라 7%) · 고른 영상(꽉 찬 보라 + 흰 글씨, '오늘의 문제 풀기' 버튼과 같은 색). */
+#root main.app .student-home.instructor-page .instructor-week.is-selected { box-shadow: inset 0 0 0 1.5px #85639f; border-radius: 16px; }
+#root main.app .student-home.instructor-page .instructor-week.is-open { margin: 4px 8px; border-top-color: transparent; border-radius: 16px; background: #ffffff; }
+#root main.app .student-home.instructor-page .instructor-week.is-open + .instructor-week { border-top-color: transparent; }
+#root main.app .student-home.instructor-page .instructor-week.is-open .instructor-week-toggle { padding-left: 12px; padding-right: 12px; }
+#root main.app .student-home.instructor-page .instructor-week-items { padding: 0 8px 8px; }
+#root main.app .student-home.instructor-page .instructor-week-items .student-paged-list { display: grid; gap: 6px; }
+#root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed] { background: rgba(133, 99, 159, .07) !important; border: 0 !important; border-radius: 12px; box-shadow: none; transition: background .15s ease, color .15s ease; }
+#root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed]:hover { background: rgba(133, 99, 159, .12) !important; }
+#root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true],
+#root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true]:hover { background: #85639f !important; color: #ffffff; box-shadow: 0 4px 12px rgba(133, 99, 159, .28); }
+#root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true] strong { color: #ffffff; }
+#root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true] small { color: rgba(255, 255, 255, .78) !important; }
+#root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true] .instructor-item-no { background: rgba(255, 255, 255, .22); color: #ffffff; }
+#root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true] .instructor-current-dot { background: #ffffff; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week.is-selected { box-shadow: inset 0 0 0 1.5px #d3b8e6; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week.is-open { background: transparent; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed] { background: rgba(211, 184, 230, .08) !important; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed]:hover { background: rgba(211, 184, 230, .18) !important; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true],
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true]:hover { background: #b993cf !important; color: #1f1423; box-shadow: none; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true] strong { color: #1f1423; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true] small { color: rgba(31, 20, 35, .72) !important; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true] .instructor-item-no { background: rgba(31, 20, 35, .14); color: #1f1423; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-items button[aria-pressed=true] .instructor-current-dot { background: #1f1423; }
+
+/* AI 강의 '강의 자료 요약' 아래 출처 줄 크게 + 자료 이름은 보라로 (2026-11-18) */
+#root main.app .instructor-details .lecture-summary-source { margin-top: 14px; font-size: 14px; }
+#root main.app .instructor-details .lecture-summary-source > span { font-size: 13px; font-weight: 600; color: #6b6e72; }
+#root main.app .instructor-details .lecture-summary-source a { color: #6b3f78; font-weight: 700; text-decoration-color: #c9a6d3; }
+#root main.app .instructor-details .lecture-summary-source a:hover { color: #4e2a58; }
+#root main.app .instructor-details .lecture-summary-source small { font-size: 12.5px; }
+:root[data-theme="dark"] #root main.app .instructor-details .lecture-summary-source > span { color: #b9b3bf; }
+:root[data-theme="dark"] #root main.app .instructor-details .lecture-summary-source a { color: #e3c6ea; text-decoration-color: #7d5a8a; }
+
+/* '이 부분 요약' 제목 크게 (2026-11-18: 13 → 16px) */
+#root main.app .instructor-details .lecture-summary-current h4 { margin: 0 0 8px; font-size: 16px; font-weight: 700; color: #2f3236; }
+:root[data-theme="dark"] #root main.app .instructor-details .lecture-summary-current h4 { color: #ece6f0; }
+/* AI 강의 자료 목록 '현재 진도' 표시: 글자만 있던 것을 보라 알약으로 (2026-11-18) */
+#root main.app .student-home.instructor-page .instructor-week-now { display: inline-flex; align-items: center; margin-left: 8px; padding: 2px 9px; border-radius: 999px; background: #85639f; color: #ffffff; font-size: 11.5px; font-weight: 700; line-height: 1.6; letter-spacing: -.01em; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-week-now { background: #d3b8e6; color: #1f1423; }
+/* 강사 표시: 영상 박스 바깥, "개념을 보고, 직접 풀어보세요." 줄 오른쪽 끝에 작은 프로필로 (2026-11-18) */
+#root main.app .student-home.instructor-page .instructor-main-column { position: relative; }
+#root main.app .student-home.instructor-page .instructor-main-column > .instructor-teacher-chip { position: absolute; right: 0; bottom: calc(100% + 12px); margin: 0; }
+@media (max-width: 820px) {
+  #root main.app .student-home.instructor-page .instructor-main-column > .instructor-teacher-chip { position: static; align-self: flex-end; margin: -8px 0 10px auto; display: flex; width: max-content; }
+}
+#root main.app .student-home.instructor-page .instructor-teacher-chip { display: inline-flex; align-items: center; gap: 7px; flex: none; padding: 3px 12px 3px 3px; border-radius: 999px; background: #ffffff; border: 1px solid #e6dcea; color: #4e3456; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+#root main.app .student-home.instructor-page .instructor-teacher-chip .instructor-avatar { width: 26px; height: 26px; border-radius: 50%; background: #efe4f3; overflow: hidden; }
+#root main.app .student-home.instructor-page .instructor-teacher-chip .instructor-avatar > svg { width: 17px; height: 19px; margin-top: 5px; stroke: #85639f; stroke-width: 5; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-teacher-chip { background: #261f2d; border-color: #3a323d; color: #ecd7ef; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-teacher-chip .instructor-avatar { background: #3a2c40; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-teacher-chip .instructor-avatar > svg { stroke: #d3b8e6; }
+/* '오늘의 문제 풀기' 버튼: 영상 아래 큰 제목과 같은 줄 오른쪽 (2026-11-18). 버튼 크기는 원래대로 */
+#root main.app .student-home.instructor-page .instructor-lecture-heading.is-stacked { display: block; }
+#root main.app .student-home.instructor-page .instructor-lecture-title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 4px; }
+#root main.app .student-home.instructor-page .instructor-lecture-title-row h2 { margin: 0; min-width: 0; }
+#root main.app .student-home.instructor-page .instructor-heading-action { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+#root main.app .student-home.instructor-page .instructor-heading-action .instructor-study-action { min-height: 44px; padding: 11px 22px; }
+@media (max-width: 540px) {
+  #root main.app .student-home.instructor-page .instructor-lecture-title-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+/* AI 강의 위쪽 (2026-11-18): '내 강의로' 버튼 시작을 로고 글자 시작(그림 안쪽 6px)에 맞추고,
+   'AI 강의' 제목 크게(34 → 40px), 제목 줄과 영상 박스 사이 여백 22 → 12px */
+#root main.app .student-home.instructor-page .cr-back { margin-left: 6px !important; }
+#root main.app.student-main:not(.ln-main):not(.login-main) > .student-home.instructor-page:not(.teacher-home):not(.teacher-course-page) .instructor-page-heading h1:not(.lerny-landing *):not(.login-story *) { font-size: 40px !important; }
+:root #root main.app .student-home.instructor-page .instructor-page-heading { margin-bottom: 12px !important; }
+/* 영상 아래: 윗줄 [N주차 · 자료 이름 ……… 영상 시청 없이도 학습할 수 있어요.], 아랫줄 [영상 제목 ……… 오늘의 문제 풀기] (2026-11-18) */
+#root main.app .student-home.instructor-page .instructor-lecture-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+#root main.app .student-home.instructor-page .instructor-heading-note { font-size: 12.5px; color: #8b8d90; }
+:root[data-theme="dark"] #root main.app .student-home.instructor-page .instructor-heading-note { color: #9d96a3; }
+/* 영상 제목 크게 (2026-11-18) */
+#root main.app .student-home.instructor-page .instructor-lecture-title-row h2 { font-size: 24px !important; line-height: 1.35; } /* 22 → 28 → 24px */
+@media (max-width: 540px) { #root main.app .student-home.instructor-page .instructor-lecture-title-row h2 { font-size: 21px !important; } }
+/* AI 질문 페이지 대화 박스 글자 크게 (2026-11-18, 한 번 키웠다가 조금 줄임). 아래 질문 입력칸은 그대로 */
+#root main.app .student-home.chat-page .chat-messenger .chat-title { font-size: 27px !important; }
+#root main.app .student-home.chat-page .chat-messenger .chat-title > span { font-size: 13.5px !important; }
+#root main.app .student-home.chat-page .chat-messenger .chat-bubble,
+#root main.app .student-home.chat-page .chat-messenger .chat-bubble p { font-size: 14px !important; line-height: 1.7 !important; }
+#root main.app .student-home.chat-page .chat-messenger .chat-bubble a { font-size: 12.5px !important; }
+#root main.app .student-home.chat-page .chat-messenger .chat-speaker { font-size: 12.5px !important; }
+#root main.app .student-home.chat-page .chat-messenger .chat-time { font-size: 11.5px !important; }
+#root main.app .student-home.chat-page .chat-messenger .chat-react-label { font-size: 12.5px !important; }
+#root main.app .student-home.chat-page .chat-messenger .chat-plus-item { font-size: 13.5px !important; }
+/* 왼쪽 '이전 질문 찾아보기' 제목: 위 '내 강의' 제목(18px)과 맞춰요 */
+#root main.app .student-home.chat-page .ai-side .chat-archive > summary { font-size: 17px !important; }
+/* 퀴즈 페이지 (2026-11-18): 제목을 "날짜 오늘의 학습"으로, 연한 형광펜 밑줄 강조.
+   인정 안내 + [인정 기준]은 이론·실습 카드 아래 오른쪽 */
+#root main.app .student-home.quiz-catalog .quiz-title-mark { display: inline; padding: 0 4px; background: linear-gradient(transparent 58%, rgba(201, 166, 222, .45) 58%, rgba(201, 166, 222, .45) 92%, transparent 92%); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+#root main.app .student-home.quiz-catalog .quiz-title-mark .quiz-today-date { white-space: nowrap; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .quiz-title-mark { background: linear-gradient(transparent 58%, rgba(160, 112, 190, .38) 58%, rgba(160, 112, 190, .38) 92%, transparent 92%); }
+#root main.app .student-home.quiz-catalog .quiz-today-foot { display: flex; justify-content: flex-end; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; margin: 12px 4px 0; }
+#root main.app .student-home.quiz-catalog .quiz-today-foot .quiz-today-guide small { font-size: 13px; }
+#root main.app .student-home.quiz-catalog .quiz-today-foot .quiz-criteria-help { margin-left: 0; }
+#root main.app .student-home.quiz-catalog .quiz-today-foot .quiz-criteria-help-button { color: #79548f; font-size: 13px; font-weight: 600; white-space: nowrap; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .quiz-today-foot .quiz-criteria-help-button { color: #d3b8e6; }
+/* 퀴즈 카드 (2026-11-18): '이론' · '실습 · Python' 표시 크게, 진행 상태는 카드 아래 오른쪽 */
+#root main.app .student-home.quiz-catalog .quiz-mode-card .quiz-mode-tag { font-size: 15px !important; font-weight: 700 !important; }
+#root main.app .student-home.quiz-catalog .quiz-mode-card .quiz-mode-footer { justify-content: flex-end; }
+#root main.app .student-home.quiz-catalog .quiz-mode-card .quiz-mode-footer p { flex: 0 1 auto; text-align: right; }
+/* 퀴즈 카드 진행 상태 (2026-11-18): 시작 전 회색 · 푸는 중 노란 계열 · 완료는 보라 글자 + 보라 체크 */
+#root main.app .student-home.quiz-catalog .quiz-mode-card .quiz-progress-status { display: inline-flex; align-items: center; gap: 6px; font-size: 14px !important; font-weight: 600 !important; }
+#root main.app .student-home.quiz-catalog .quiz-mode-card .quiz-progress-status.is-progress { color: #b07a12 !important; }
+#root main.app .student-home.quiz-catalog .quiz-mode-card .quiz-progress-status.is-progress::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #e0a526; flex: none; }
+#root main.app .student-home.quiz-catalog .quiz-mode-card .quiz-progress-status.is-done::before { content: "✓"; color: inherit; font-size: 15px; font-weight: 800; line-height: 1; flex: none; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .quiz-mode-card .quiz-progress-status.is-progress { color: #f0c463 !important; }
+
+#root main.app .student-home.quiz-catalog .quiz-mode-card .quiz-progress-status.is-done { color: #6b3f78 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .quiz-mode-card .quiz-progress-status.is-done { color: #d3b8e6 !important; }
+/* 퀴즈 페이지: 제목 줄과 이론·실습 카드 사이 구분선 (2026-11-18) */
+#root main.app .student-home.quiz-catalog .quiz-titlebar { padding-bottom: 18px; border-bottom: 1px solid #e6dcea; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .quiz-titlebar { border-bottom-color: #3a323d; }
+/* 지난 학습·복습 기록 (2026-11-18): 제목 조금 크게(17px), 이론/실습 탭 밑줄은 검색칸 앞까지 길게 깔아 구분선처럼 */
+#root main.app .student-home.quiz-catalog .student-record-archive > summary .record-archive-title { font-size: 17px; font-weight: 700; color: var(--d-ink, #2b2029); }
+#root main.app .student-home.quiz-catalog .student-record-archive .history-toolbar-with-tabs .record-kind-tabs { flex: 1 1 auto; align-self: stretch; align-items: flex-end; border-bottom: 1px solid #e6dcea; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .student-record-archive .history-toolbar-with-tabs .record-kind-tabs { border-bottom-color: #3a323d; }
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-history-count { font-size: 14px !important; }
+/* 지난 학습·복습 기록: 제목과 이론/실습 탭 사이 여백 24 → 4px (2026-11-18) */
+#root main.app .student-home.quiz-catalog .student-record-archive > .learning-progress { margin-top: 4px !important; }
+/* 지난 학습·복습 기록 목록 (2026-11-18): 글자 살짝 크게, '제출 완료'는 보라 체크 알약 · '진행 중'은 노란 계열 */
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-history-item time { font-size: 14px !important; }
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-history-item strong { font-size: 14px !important; }
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-history-item div > span,
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-history-item > a { font-size: 13px !important; }
+#root main.app .student-home.quiz-catalog .student-record-archive .history-state { display: inline-flex; align-items: center; gap: 4px; width: max-content; }
+#root main.app .student-home.quiz-catalog .student-record-archive .history-state.is-done { padding: 2px 10px; border-radius: 999px; background: #f1e6f4; color: #6b3f78 !important; }
+#root main.app .student-home.quiz-catalog .student-record-archive .history-state.is-done::before { content: "✓"; font-weight: 800; }
+#root main.app .student-home.quiz-catalog .student-record-archive .history-state.is-progress { color: #b07a12 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .student-record-archive .history-state.is-done { background: #3a2c40; color: #e3c6ea !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-catalog .student-record-archive .history-state.is-progress { color: #f0c463 !important; }
+/* 지난 기록 목록: '✓ 제출 완료'와 'N/N문항 제출'을 한 줄에 (2026-11-18) */
+#root main.app .student-home.quiz-catalog .student-record-archive .learning-history-item > div { display: flex !important; flex-direction: row !important; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+/* 결과와 복습 페이지 (2026-11-18): '퀴즈 목록' 버튼을 AI 강의 '내 강의로'와 같은 알약 모양으로, 제목 옆에 안내 문구 */
+#root main.app .student-home:is(.quiz-results, .practice-results-page) .cr-back {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px 6px; padding: 5px 12px;
+  border: 1px solid rgba(133, 99, 159, 0.28); border-radius: 999px;
+  color: #656668; font-size: 13px; font-weight: 500; text-decoration: none;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+#root main.app .student-home:is(.quiz-results, .practice-results-page) .cr-back:hover { color: #85639f; border-color: rgba(133, 99, 159, 0.5); background: rgba(133, 99, 159, 0.06); }
+:root[data-theme="dark"] #root main.app .student-home:is(.quiz-results, .practice-results-page) .cr-back { color: #b3adba; border-color: rgba(211, 184, 230, 0.25); }
+:root[data-theme="dark"] #root main.app .student-home:is(.quiz-results, .practice-results-page) .cr-back:hover { color: #d3b8e6; }
+#root main.app .student-home:is(.quiz-results, .practice-results-page) .result-titlebar { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 20px; }
+#root main.app .student-home:is(.quiz-results, .practice-results-page) .result-titlebar h1 { margin: 0 !important; }
+#root main.app .student-home:is(.quiz-results, .practice-results-page) .result-titlebar .result-intro { margin: 0 !important; font-size: 14px; }
+/* 결과와 복습: 위 요약 박스 (2026-11-18) — 연보라로 눈에 띄게, 'N/N문항 제출' 조금 크게·살짝 위로, 숫자 칸 글자 살짝 크게.
+   아래 안내 문구와 '채점 상태 새로고침' 버튼은 그대로 */
+#root main.app .student-home.quiz-results .result-overview { background: #efe3f5 !important; border-color: #d8c2e5 !important; padding-top: 20px !important; }
+#root main.app .student-home.quiz-results .result-overview-title h2 { font-size: 25px !important; margin-top: -2px !important; }
+#root main.app .student-home.quiz-results .result-stats span { font-size: 13.5px !important; }
+#root main.app .student-home.quiz-results .result-stats strong { font-size: 35px !important; }
+#root main.app .student-home.quiz-results .result-stats small { font-size: 13.5px !important; }
+#root main.app .student-home.quiz-results .result-stats > * { border-color: #dccbe5 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-overview { background: #2a2131 !important; border-color: #43354d !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-stats > * { border-color: #43354d !important; }
+#root main.app .student-home.quiz-results .result-overview > p { text-align: right !important; }
+/* 결과와 복습: 문항별 카드 (2026-11-18) — 섹션 제목 22→26px, '문제N · 유형' 12→14px, 문제 제목 22→24px, 둘 사이 여백 18→8px */
+#root main.app .student-home.quiz-results .result-section-title { font-size: 26px !important; }
+#root main.app .student-home.quiz-results .result-question .result-question-meta small { font-size: 14px !important; font-weight: 600; }
+#root main.app .student-home.quiz-results .result-question > h2 { font-size: 24px !important; margin-top: 8px !important; }
+/* 결과와 복습 (2026-11-18): 틀린 내 답안은 빨간 글자만, 정답(정답 칸 · 맞힌 내 답안)은 초록 형광펜.
+   '내 답안 / 정답' 라벨과 답 글자도 조금 크게 */
+#root main.app .student-home.quiz-results .result-answer > strong { font-size: 14.5px !important; }
+#root main.app .student-home.quiz-results .result-answer > span { font-size: 16px !important; }
+#root main.app .student-home.quiz-results .result-question.result-review .result-answer:not(.result-correct-answer) > span { color: #c0392b !important; font-weight: 600; }
+#root main.app .student-home.quiz-results .result-question.result-correct .result-answer:not(.result-correct-answer) > span,
+#root main.app .student-home.quiz-results .result-question .result-answer.result-correct-answer > span { display: inline !important; width: fit-content !important; max-width: 100%; justify-self: start; align-self: start; padding: 0 3px; font-weight: 600; color: #1f6e3d !important; background: linear-gradient(transparent 50%, rgba(98, 200, 130, .40) 50%, rgba(98, 200, 130, .40) 92%, transparent 92%); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-question.result-review .result-answer:not(.result-correct-answer) > span { color: #ff8f84 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-question.result-correct .result-answer:not(.result-correct-answer) > span,
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-question .result-answer.result-correct-answer > span { color: #c9f2d6 !important; background: linear-gradient(transparent 50%, rgba(70, 170, 105, .45) 50%, rgba(70, 170, 105, .45) 92%, transparent 92%); }
+/* 결과와 복습: 문항 상태 알약 크게·선명하게 (2026-11-18) — 복습해 보세요 빨강 · 정답 초록 · 채점 대기 노랑 */
+#root main.app .student-home.quiz-results .result-status { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px !important; border-radius: 999px !important; font-size: 13.5px !important; font-weight: 700 !important; line-height: 1.3; border: 1px solid transparent; }
+#root main.app .student-home.quiz-results .result-status.is-review { background: #fde3df !important; color: #b0362a !important; border-color: #f4bdb5; }
+#root main.app .student-home.quiz-results .result-status.is-review::before { content: "!"; font-weight: 800; }
+#root main.app .student-home.quiz-results .result-status.is-correct { background: #dcf2e3 !important; color: #1f6e3d !important; border-color: #b3e0c2; }
+#root main.app .student-home.quiz-results .result-status.is-correct::before { content: "✓"; font-weight: 800; }
+#root main.app .student-home.quiz-results .result-status.is-pending { background: #fcefd2 !important; color: #94650a !important; border-color: #f0d79e; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-status.is-review { background: #4a2420 !important; color: #ffb3aa !important; border-color: #6e332c; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-status.is-correct { background: #1d3b29 !important; color: #a8e8bf !important; border-color: #2d5a3e; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-status.is-pending { background: #3d3115 !important; color: #f0cf7e !important; border-color: #5c4a1e; }
+/* 결과와 복습: 글자 크기 한 단계 줄임 + 답안 칸 색 (2026-11-18) */
+#root main.app .student-home.quiz-results .result-section-title { font-size: 24px !important; }
+#root main.app .student-home.quiz-results .result-question > h2 { font-size: 22.5px !important; }
+#root main.app .student-home.quiz-results .result-status { padding: 5px 12px !important; font-size: 12.5px !important; }
+#root main.app .student-home.quiz-results .result-answer > strong { font-size: 13.5px !important; }
+#root main.app .student-home.quiz-results .result-answer > span { font-size: 15px !important; }
+#root main.app .student-home.quiz-results .result-answer { background: #f8f3fb !important; border-color: #e6d9ee !important; }
+#root main.app .student-home.quiz-results .result-answer.result-correct-answer,
+#root main.app .student-home.quiz-results .result-question.result-correct .result-answer { background: #f0f8f2 !important; border-color: #cfe8d7 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-answer { background: #2a2230 !important; border-color: #3e3346 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-answer.result-correct-answer,
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-question.result-correct .result-answer { background: #1f2c24 !important; border-color: #2f4a39 !important; }
+/* 결과와 복습: 해설은 접고 펼 수 있는 연파랑 박스 (2026-11-18), 글자 살짝 크게 */
+#root main.app .student-home.quiz-results .result-question > details { margin-top: 14px; padding: 12px 16px !important; border: 1px solid #cfe0f5 !important; border-radius: 12px; background: #eef5fd; }
+#root main.app .student-home.quiz-results .result-question > details > summary { font-size: 14px !important; font-weight: 700; color: #2d5d93 !important; cursor: pointer; }
+#root main.app .student-home.quiz-results .result-question > details > p { margin: 8px 0 0 !important; font-size: 15px !important; line-height: 1.75; color: #2f3a48 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-question > details { background: #1c2733; border-color: #2e4157 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-question > details > summary { color: #9cc4f0 !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .result-question > details > p { color: #d3dce7 !important; }
+/* 결과와 복습: 답안 칸 아래 한 줄 피드백("아쉬워요…", "정확해요…")은 오른쪽 정렬 (2026-11-18) */
+#root main.app .student-home.quiz-results .result-question > .result-feedback { text-align: right !important; }
+/* 결과와 복습: 'AI에게 물어보기' 줄 — 박스 없이, 제목 크게, 설명은 같은 줄 오른쪽 (2026-11-18) */
+#root main.app .student-home.quiz-results .result-question .quiz-ask-link { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 10px 0 0 !important; align-items: center; }
+#root main.app .student-home.quiz-results .result-question .quiz-ask-link__text { flex: 1 1 auto; flex-direction: row !important; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 14px; }
+#root main.app .student-home.quiz-results .result-question .quiz-ask-link__text strong { font-size: 15.5px !important; }
+#root main.app .student-home.quiz-results .result-question .quiz-ask-link__text small { text-align: right; margin-left: auto; }
+#root main.app .student-home.quiz-results .result-question .quiz-ask-link:hover { background: transparent !important; }
+#root main.app .student-home.quiz-results .result-question .quiz-ask-link:hover .quiz-ask-link__text strong { text-decoration: underline; text-underline-offset: 3px; }
+/* 결과와 복습 맨 아래 버튼 줄: 오른쪽 정렬, 홈은 동그란 아이콘 버튼 (2026-11-18) */
+#root main.app .student-home.quiz-results .result-flow-actions { display: flex !important; justify-content: flex-end !important; align-items: center; flex-wrap: wrap; gap: 10px !important; }
+#root main.app .student-home.quiz-results .result-flow-actions .result-home-link { display: inline-grid !important; place-items: center; width: 42px; height: 42px; min-width: 0 !important; padding: 0 !important; border-radius: 50% !important; }
+/* 문항 카드 안 'AI에게 물어보기' 아이콘: 화면 오른쪽 아래 떠 있는 챗봇 버튼과 똑같이 (보라 동그라미 · 흰 말풍선 · 보라 점) */
+#root main.app .student-home.quiz-results .quiz-ask-link__icon { --fab-dot: #7b4a80; background: #7b4a80 !important; color: #fff !important; border-radius: 50% !important; }
+:root[data-theme="dark"] #root main.app .student-home.quiz-results .quiz-ask-link__icon { --fab-dot: var(--fab-dark-bg, #7b4a80); }
+
+/* 결과 하단: 텍스트 링크를 버튼 중앙보다 살짝 아래로 */
+#root main.app .student-home.quiz-results .result-flow-actions > a:not(.result-home-link):not(.primary) { position:relative; top:6px; }
+
+/* 학습 기록 페이지 (11-18) — 제목 크게, 제목 아래 여백 줄임, 탭·라벨 글자 키움 */
+#root main.app .student-home.progress-page .progress-title-row h2 { font-size: 28px !important; }
+#root main.app .student-home.progress-page .progress-caption { margin-bottom: 18px !important; }
+#root main.app .student-home.progress-page .progress-domain-tabs button { font-size: 16.5px !important; }
+#root main.app .student-home.progress-page .progress-domain-label { font-size: 13.5px !important; }
+/* 취약도 조회 기간 — 탭 구분선 바로 밑, 위아래 여백 12px로 같게 */
+#root main.app .student-home.progress-page .wk-range { margin: -13px 0 12px !important; border: 0 !important; }
+#root main.app .student-home.progress-page .wk-range > summary { padding-top: 0 !important; padding-bottom: 0 !important; min-height: 0 !important; }
+#root main.app .student-home.progress-page .wk-range .weak-range-body { padding-bottom: 4px; }
+#root main.app .student-home.progress-page .wk-range + .weakness-tab { margin-top: 0 !important; }
+/* 전체 개념 찾아보기 — 드롭다운(다른 화면과 같은 모양) */
+#root main.app .progress-page .concept-inline-filter { align-items: center; gap: 8px; }
+#root main.app .progress-page .concept-inline-filter .drop-select { flex: 0 0 150px; }
+#root main.app .progress-page .concept-inline-filter .drop-select > button { height: 38px; font-size: 13px !important; }
+@media (max-width: 720px) { #root main.app .progress-page .concept-inline-filter .drop-select { flex: 1 1 auto; } }
+/* 학습 기록 제목 위 여백 줄임 (11-18) */
+#root main.app .student-home.progress-page .progress-panel { padding-top: 18px !important; }
+#root main.app .student-home.progress-page .progress-title-row { margin-top: 0 !important; }
+/* 제목 옆에 설명 문구, 오른쪽 끝에 라벨 — 한 줄 (11-18) */
+#root main.app .student-home.progress-page .progress-title-row { display: flex !important; align-items: baseline !important; gap: 12px !important; flex-wrap: wrap; margin-bottom: 18px !important; }
+#root main.app .student-home.progress-page .progress-title-row .progress-caption { margin: 0 !important; flex: 0 1 auto; min-width: 0; }
+#root main.app .student-home.progress-page .progress-title-row { flex-wrap: nowrap !important; }
+#root main.app .student-home.progress-page .progress-title-row h2, #root main.app .student-home.progress-page .progress-title-row .progress-domain-label { flex: 0 0 auto; white-space: nowrap; }
+#root main.app .student-home.progress-page .progress-title-row .progress-domain-label { margin-left: auto; }
+
+.design-picker { display:flex; flex-wrap:wrap; align-items:end; gap:.5rem; min-width:0; }
+.design-picker label { display:grid; gap:.25rem; min-width:0; max-width:100%; }
+.design-picker select,.design-picker input { max-width:100%; min-height:2.6rem; font:inherit; }
+.archive-range-note { display:block; margin:.4rem 0 .8rem; }
+.wk-map-evidence { margin:.4rem auto; max-width:17rem; font-size:.85rem; }
+.wk-map-evidence summary,.practice-chat__ctx summary { cursor:pointer; }
+.wk-map-evidence p,.weak-views-note { margin:.45rem 0; }
+.class-schedule-dates { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; }
+.teacher-processing-counts .material-status-card[aria-pressed="true"] { outline:2px solid currentColor; outline-offset:-2px; }
+@media(max-width:640px) {
+  .material-hub-course .design-picker,.archive-controls .design-picker { width:100%; }
+  .design-picker label { flex:1 1 10rem; }
+}
+
+#root .practice-num-tabs > button[aria-pressed="true"] { color:#63346f !important; font-weight:750; }
+#root .practice-num-tabs > button[aria-pressed="true"]::after { background:currentColor; }
+:root[data-theme="dark"] #root .practice-num-tabs > button[aria-pressed="true"] { color:#e3bee9 !important; }
