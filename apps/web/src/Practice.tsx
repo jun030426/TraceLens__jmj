@@ -1,3 +1,4 @@
+import { recordPracticeSubmit } from "./xp/practiceXp";
 import { isComposingInput } from "./inputKeyboard";
 import { practiceSubmitBody } from "./learningRequests";
 import { lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -186,6 +187,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
     try {
       if (!await confirm({ title: "최종 제출할까요?", message: "현재 작성한 코드를 저장하고 채점해요. 실행 화면의 출력 비교와 최종 채점 결과는 다를 수 있어요.", confirmLabel: "제출하기", cancelLabel: "더 풀어 볼게요" })) return;
       await api(`/sections/${sectionId}/practice/submit`, post(practiceSubmitBody(quiz.id, source)));
+      if (user) recordPracticeSubmit(user.id, sectionId, quiz.id);
       setLocalPending(true); submissions.reload();
     } catch (e) { setSubmitError((e as Error).message); }
     finally { requestBusy.current = false; setSubmitting(false); }
