@@ -5,8 +5,7 @@ import { isComposingInput } from "./inputKeyboard";
 import { MaterialUpload, MATERIAL_ACCEPT } from "./MaterialUpload";
 import { WeeklyContent } from "./WeeklyContent";
 import { HeldMaterialReview } from "./HeldMaterialReview";
-import { TutorFeedback } from "./TutorFeedback";
-import { theoryChatBody } from "./learningRequests";
+import { theoryChatBody, saveTutorChoice, type TutorChoice } from "./learningRequests";
 import type { FeedbackValue } from "./ChatFeedback";
 import { MaterialProcessingDetails, MediaProcessingProgress, useCourseProcessing } from "./AutomaticLearning";
 import { materialProgress, type Tone } from "./materialProcessing";
@@ -14,7 +13,7 @@ import { featureBlock, useServiceStatus } from "./ServiceStatus";
 import "./teacher-processing.css";
 import { PagedList } from "./StudentLists";
 import { matchesSearch } from "./listNavigation";
-import { QuestionArchive } from "./QuestionArchive";
+import { QuestionArchive, quizNameOf, type HistoryItem } from "./QuestionArchive";
 import { TypedAnswer } from "./TypedAnswer";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -315,20 +314,28 @@ function StudentMaterials({ items, currentWeek, totalWeeks }: { items: Material[
 /* 문자 메시지처럼 내 질문은 오른쪽, AI 강사 답변은 왼쪽 말풍선으로 나뉘어요. */
 const VOICE_ANSWER_KEY = "lerny-voice-answer";
 
+/** 말풍선 아래 작은 날짜·시간 — 마우스를 올렸을 때만 보여요 (11-15) */
+function ChatTime({ iso }: { iso?: string }) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const text = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }).format(d);
+  return <time className="chat-time" dateTime={iso}>{text}</time>;
+}
 /** 개념 퀴즈 해설 아래 바로가기가 넘겨주는 문항 정보 (Flow.tsx QuizAskLink) */
-export type QuizAsk = { title: string; question: string; context: string; conceptId?: string };
+export type QuizAsk = { title: string; question: string; context: string; /** 퀴즈 이름 (없으면 날짜) */ name?: string; /** 이 문항의 개념 — 대화와 상태 버튼 기록을 이 개념의 취약도에 연결해요 */ conceptId?: string };
 
 export function Chat({ sectionId, speaker = "AI 강사" }: { sectionId: string; speaker?: string }) {
-  const concepts = useLoad<{items: {id: string; concept: string; in_scope: boolean}[]}>(`/sections/${sectionId}/my-learning`);
+  const sendingRequest = useRef(false);
+  const feedbackRequest = useRef(false);
   const [feedbackBusy, setFeedbackBusy] = useState(false);
-  const sendBusy = useRef(false);
-  const [conceptId, setConceptId] = useState("");
-  useEffect(() => { setConceptId(""); }, [sectionId]);
   const messagesRef = useRef<HTMLDivElement>(null);
   // 개념 퀴즈 해설에서 넘어왔으면 그 문항을 함께 보낼 준비를 하고, 질문 칸에 질문 예시를 적어 둬요.
   // 새로고침해도 다시 채워지지 않게 넘겨받은 기록은 바로 지워요.
   const chatLocation = useLocation();
   const [quizAsk, setQuizAsk] = useState<QuizAsk | null>(() => (chatLocation.state as { quizAsk?: QuizAsk } | null)?.quizAsk || null);
+  // 지금 대화가 어떤 개념 문항에서 시작됐는지 — 새 대화가 되면 비워요. 일반 질문은 개념 없이 남아요 (취약도 2단계, 11-16)
+  const [threadConcept, setThreadConcept] = useState<string | undefined>();
   useEffect(() => {
     if (!quizAsk) return;
     try { window.history.replaceState({ ...window.history.state, usr: null }, ""); } catch { /* 기록을 못 바꿔도 동작에는 문제없어요 */ }
@@ -338,6 +345,7 @@ export function Chat({ sectionId, speaker = "AI 강사" }: { sectionId: string; 
   const [draft, setDraft] = useState(() => quizAsk?.question || "");
   // 질문 칸은 손으로 크기를 바꾸지 않고, 글이 길어지면 저절로 커져요 (최대 높이를 넘으면 칸 안에서 스크롤)
   const draftRef = useRef<HTMLTextAreaElement>(null);
+  const [sent, setSent] = useState<{ text: string; key: number } | null>(null);
   useAutosizeTextarea(draftRef, draft);
   const voice = useSpeechInput(setDraft);
   /* 음성 답변: 켜 두면 새 답변이 도착할 때 소리 내어 읽어요. 선택은 이 브라우저에 기억해요. */
@@ -348,26 +356,63 @@ export function Chat({ sectionId, speaker = "AI 강사" }: { sectionId: string; 
   const [historyLoading, setHistoryLoading] = useState(true);
   const [archiveRevision, setArchiveRevision] = useState(0);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  // 이전 질문에서 고른 대화를 보고 있을 때: 날짜 이름 · 눌렀던 질문 위치 (11-15)
+  const [past, setPast] = useState<{ label: string; focus: number } | null>(null);
+  const [pastLoading, setPastLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [plusOpen, setPlusOpen] = useState(false);
+  const menuBox = useRef<HTMLDivElement>(null);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!plusOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!menuBox.current?.contains(event.target as Node)) setPlusOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [plusOpen]);
+  // 답변에 달린 이모티콘을 다시 누르면 고를 수 있게 열어 두는 답변 번호 (11-15)
+  const [reEdit, setReEdit] = useState<number | null>(null);
+  const [latestKey, setLatestKey] = useState(0);
   const [thread, setThread] = useState<string>(),
     [job, setJob] = useState<string>();
   const [items, setItems] = useState<
-    { id?: string; feedback?: FeedbackValue; question: string; answer?: Answer; error?: string; fresh?: boolean; pending?: string }[]
+    {
+      id?: string; pending?: string; question: string; answer?: Answer; error?: string; fresh?: boolean;
+      /** 질문·답변 시각 — 말풍선에 마우스를 올리면 아래에 작게 보여요 (11-15) */
+      at?: string; answeredAt?: string;
+      /** 퀴즈에서 넘어온 질문이면 퀴즈 이름 — 내 질문 말풍선 위에 작게 보여요 (11-15) */
+      quizName?: string;
+      /** 원래 묻던 주제 — 상태 체크로 다시 물을 때 같은 주제의 자료를 찾게 해요 */
+      topic?: string;
+      /** 답변 뒤 상태 체크박스에서 보낸 상태 · 이해했어요일 때 보여 주는 짧은 안내 */
+      note?: string;
+      /** 답변 옆에서 고른 내 상태 — 답변 말풍선에 이모티콘으로 달려요 (11-15) */
+      reaction?: "understood" | "confused" | "stop";
+    }[]
   >([]);
   useEffect(() => {
     let active = true;
     setHistoryLoading(true);
     setItems([]);
-    setArchiveOpen(false);
+    setPast(null);
+    if (!latestKey) setArchiveOpen(false);
     setThread(undefined);
+    setThreadConcept(undefined);
     setJob(undefined);
     api<{
       thread_id: string | null;
       job_id: string | null;
-      items: { question: string; answer?: Answer; error?: string }[];
-    }>(`/sections/${sectionId}/chat/history?limit=3`)
+      items: (HistoryItem & {feedback?: FeedbackValue})[];
+    }>(`/sections/${sectionId}/chat/history?mode=theory&limit=3`)
       .then((r) => {
         if (active) {
-          setItems(r.items);
+          setItems(r.items.map(x => ({
+            ...x, question: x.question.split("\n\n[함께 보내는 퀴즈와 내 답안]")[0],
+            at: x.created_at, quizName: quizNameOf(x),
+            reaction: x.feedback === "aborted" ? "stop" : x.feedback,
+          })));
           setThread(r.thread_id || undefined);
           setJob(r.job_id || undefined);
         }
@@ -382,7 +427,55 @@ export function Chat({ sectionId, speaker = "AI 강사" }: { sectionId: string; 
     return () => {
       active = false;
     };
-  }, [sectionId]);
+  }, [sectionId, latestKey]);
+  /* 이전 질문을 누르면 그 질문을 했던 대화를 불러와 그 자리로 이동해요 (11-15).
+     서버가 질문마다 대화 번호(thread_id)를 주면 그 대화만 정확히 모으고,
+     아직 주지 않으면 앞뒤 질문 사이 간격이 30분 이내인 것까지를 같은 대화로 봐요. */
+  const openPast = async (target: HistoryItem) => {
+    if (job || sendingRequest.current || feedbackRequest.current || pastLoading) return;
+    reader.stop();
+    setPastLoading(true);
+    if (!archiveSlot) setArchiveOpen(false);
+    try {
+      const all: HistoryItem[] = [];
+      for (let offset = 0; offset < 500; offset += 50) {
+        const r = await api<{ total: number; items: HistoryItem[] }>(`/sections/${sectionId}/chat/history?mode=theory&limit=50&offset=${offset}&q=`);
+        all.push(...r.items);
+        if (all.some(x => x.id === target.id) || !r.items.length || offset + 50 >= r.total) break;
+      }
+      const list = (all.some(x => x.id === target.id) ? all : [...all, target])
+        .filter((x, i, arr) => arr.findIndex(y => y.id === x.id) === i)
+        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+      const at = list.findIndex(x => x.id === target.id);
+      const threadId = target.thread_id || list[at].thread_id;
+      let conv: HistoryItem[];
+      if (threadId) conv = list.filter(x => x.thread_id === threadId);
+      else {
+        const gap = (a?: HistoryItem, b?: HistoryItem) => !!a && !!b && Math.abs(Date.parse(b.created_at) - Date.parse(a.created_at)) <= 30 * 60e3;
+        let from = at, to = at;
+        while (from > 0 && at - from < 20 && gap(list[from - 1], list[from])) from--;
+        while (to < list.length - 1 && to - at < 20 && gap(list[to], list[to + 1])) to++;
+        conv = list.slice(from, to + 1);
+      }
+      setItems(conv.map(x => ({ id: x.id, question: x.question.split("\n\n[함께 보내는 퀴즈와 내 답안]")[0], answer: x.answer, error: x.answer ? undefined : x.error, at: x.created_at, quizName: quizNameOf(x) || undefined })));
+      setThread(threadId || undefined);
+      const d = new Date(target.created_at);
+      setPast({ label: Number.isNaN(d.getTime()) ? "이전" : new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" }).format(d), focus: Math.max(0, conv.findIndex(x => x.id === target.id)) });
+      setTutorNote("");
+    } catch (e) {
+      setTutorNote(`대화를 불러오지 못했어요. ${(e as Error).message}`);
+    } finally {
+      setPastLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (!past) return;
+    const el = messagesRef.current?.querySelector<HTMLElement>(".chat-pair.is-focus");
+    if (el && messagesRef.current) messagesRef.current.scrollTop = el.offsetTop - messagesRef.current.offsetTop - 12;
+    // 좁은 화면에서는 대화 창이 목록 아래에 있으니, 대화 창이 보이도록 내려가요
+    const panel = messagesRef.current?.closest(".chat");
+    if (panel && panel.getBoundingClientRect().top > window.innerHeight * 0.6) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [past]);
   useEffect(() => {
     if (!job) return;
     let stopped = false;
@@ -398,6 +491,7 @@ export function Chat({ sectionId, speaker = "AI 강사" }: { sectionId: string; 
               i === old.length - 1
                 ? {
                     ...x,
+                    answeredAt: new Date().toISOString(),
                     fresh: !!r.result,
                     answer: r.result || undefined,
                     error: r.error
@@ -448,62 +542,139 @@ export function Chat({ sectionId, speaker = "AI 강사" }: { sectionId: string; 
   useEffect(() => {
     const container = messagesRef.current;
     // 메신저처럼 아래로 쌓여요 — 새 질문·답변이 오면 맨 아래로 내려가요
-    if (container && !historyLoading) container.scrollTop = container.scrollHeight;
-  }, [items, historyLoading]);
+    if (container && !past && !historyLoading) container.scrollTop = container.scrollHeight;
+  }, [items, historyLoading, past]);
   // 퀴즈 해설에서 넘어왔으면 대화를 불러온 뒤 질문 칸에 커서를 놓아요 (적어 둔 질문을 고쳐 쓰거나 바로 보낼 수 있게)
   useEffect(() => {
     if (!quizAsk || historyLoading) return;
     const el = draftRef.current;
     if (el) { el.focus({ preventScroll: true }); el.setSelectionRange(el.value.length, el.value.length); el.scrollIntoView({ block: "center" }); }
   }, [historyLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 질문 보내기 — 질문 칸과 상태 체크박스가 같이 써요
+  const [tutorNote, setTutorNote] = useState("");
   const sendQuestion = async (question: string) => {
-    if (job || historyLoading || sendBusy.current) throw new Error("이전 답변을 기다려 주세요.");
-    sendBusy.current = true;
+    if (job || historyLoading || pastLoading || sendingRequest.current) throw new Error("이전 답변을 기다려 주세요.");
+    const conceptId = quizAsk?.conceptId || threadConcept;
+    sendingRequest.current = true;
     try {
       const r = await api<{ job_id: string; thread_id: string; resource_id: string }>(
         `/sections/${sectionId}/chat/messages`, {
-          ...post(theoryChatBody(question, thread, quizAsk?.conceptId || conceptId, quizAsk?.context)),
+          ...post(theoryChatBody(question, thread, conceptId, quizAsk?.context)),
           headers: { "Idempotency-Key": crypto.randomUUID() },
         });
-      setThread(r.thread_id); setQuizAsk(null); setArchiveOpen(false);
-      setItems(v => [...v, { id: r.resource_id, question }]);
-      setJob(r.job_id); setArchiveRevision(value => value + 1);
-    } finally { sendBusy.current = false; }
+      setThread(r.thread_id);
+      setThreadConcept(conceptId);
+      setArchiveOpen(false);
+      setPast(null);
+      setQuizAsk(null);
+      setTutorNote("");
+      setItems(v => [...v, { id: r.resource_id, question, at: new Date().toISOString(), quizName: quizAsk ? quizAsk.name || "개념 퀴즈" : undefined }]);
+      setJob(r.job_id);
+      setArchiveRevision(v => v + 1);
+    } finally { sendingRequest.current = false; }
   };
-  const lastAnswer = items.at(-1);
+  const chatFeedback = async (kind: TutorChoice, index: number) => {
+    if (feedbackRequest.current || sendingRequest.current || past) return;
+    const item = items[index];
+    if (!item) return;
+    setReEdit(null);
+    if (item.reaction === kind) return;
+    feedbackRequest.current = true;
+    setFeedbackBusy(true);
+    try {
+      await saveTutorChoice(api, sectionId, kind, item.id || item.answer?.message_id, job);
+      setItems(old => old.map((x, i) => i === index ? { ...x, reaction: kind } : x));
+      if (kind === "confused") {
+        await sendQuestion("방금 설명이 헷갈려요. 더 쉬운 예로, 한 단계씩 다시 설명해 주세요.");
+      } else if (kind === "stop") {
+        reader.stop();
+        if (job) setItems(old => old.map((x, i) => i === index ? { ...x, pending: undefined, error: "질문을 중단했어요." } : x));
+        setJob(undefined);
+        setThread(undefined);
+        setThreadConcept(undefined);
+        setTutorNote("대화를 중단했어요. 새로 질문하면 새 대화로 시작해요.");
+      } else {
+        setTutorNote("좋아요! 이해한 내용을 오늘의 퀴즈로 확인해 보세요.");
+      }
+      setArchiveRevision(v => v + 1);
+    } catch (error) { setTutorNote((error as Error).message); }
+    finally { feedbackRequest.current = false; setFeedbackBusy(false); }
+  };
   // 이전 질문 내역 — AI 질문 화면에서는 왼쪽 '내 강의' 아래 자리(#chat-archive-slot)에 그려요. 자리가 없으면 대화 창 안에 그대로 둬요.
-  const archive = <QuestionArchive sectionId={sectionId} revision={archiveRevision} open={archiveOpen} onOpenChange={setArchiveOpen} />;
+  const archive = <QuestionArchive sectionId={sectionId} revision={archiveRevision} open={archiveOpen} onOpenChange={setArchiveOpen}
+    onOpenItem={(item) => void openPast(item)} />;
   return (
     <section className="panel chat chat-messenger">
       <div className="chat-heading">
-      <h2>어떤 부분이 궁금한가요?</h2>
+      <h2 className="chat-title">AI 질문 <span>수업 자료에서 답변의 근거를 함께 확인하세요.</span></h2>
       <div className="chat-heading-actions">
-      <button
-        type="button"
-        disabled={!!job || feedbackBusy}
-        onClick={() => {
+      {/* + 에 마우스를 올리면 새 대화 · 음성 질문 · 음성 답변이 펼쳐져요 (11-15) */}
+      {(voice.error || voice.listening) && <span className="chat-voice-status" role="status">{voice.error || "듣고 있어요. 말한 내용이 질문 칸에 적혀요."}</span>}
+      <div ref={menuBox} className={`chat-plus ${plusOpen ? "is-open" : ""} ${voice.listening || reader.speaking ? "is-active" : ""}`}
+        onPointerEnter={e => { if (e.pointerType === "mouse") setPlusOpen(true); }}
+        onPointerLeave={() => { if (!menuBox.current?.contains(document.activeElement)) setPlusOpen(false); }}
+        onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setPlusOpen(false); }}
+        onKeyDown={e => {
+          if (e.key === "Escape") {
+            setPlusOpen(false);
+            menuTrigger.current?.focus();
+          } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            setPlusOpen(true);
+            const step = e.key === "ArrowDown" ? 1 : -1;
+            requestAnimationFrame(() => {
+              const buttons = Array.from(menuBox.current?.querySelectorAll<HTMLButtonElement>(".chat-plus-item:not(:disabled)") || []);
+              const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+              const next = current < 0 ? (step > 0 ? 0 : buttons.length - 1) : (current + step + buttons.length) % buttons.length;
+              buttons[next]?.focus();
+            });
+          }
+        }}>
+        <button type="button" ref={menuTrigger} className="chat-plus-toggle" aria-label="대화 메뉴" aria-haspopup="menu" aria-expanded={plusOpen} onClick={e => { if (e.detail && window.matchMedia("(hover: hover)").matches) setPlusOpen(true); else setPlusOpen(o => !o); }}>+</button>
+        <div className="chat-plus-menu" role="menu" aria-label="대화 메뉴" onClick={() => { setPlusOpen(false); menuTrigger.current?.focus(); }}>
+          <button type="button" role="menuitem" className="chat-plus-item" disabled={!!job || feedbackBusy || sending || pastLoading || historyLoading}
+            onClick={() => {
           reader.stop();
           setItems([]);
           setThread(undefined);
+          setThreadConcept(undefined);
+          setPast(null);
+          setTutorNote("");
           setArchiveOpen(false);
-        }}
-      >
-        새 대화
-      </button>
+              setPlusOpen(false);
+            }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" /></svg>
+            새 대화
+          </button>
+          <button type="button" role="menuitem" className={`chat-plus-item ${voice.listening ? "is-on" : ""}`} aria-pressed={voice.listening}
+            disabled={!!job || historyLoading || !voice.supported}
+            title={voice.supported ? (voice.listening ? "말하기 끝내기" : "음성으로 질문하기") : "이 브라우저는 음성 입력을 지원하지 않아요."}
+            onClick={() => { if (voice.listening) voice.stop(); else voice.start(draft); setPlusOpen(false); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            {voice.listening ? "말하기 끝내기" : "음성 질문"}
+          </button>
+          <button type="button" role="menuitemcheckbox" aria-checked={voiceAnswer} className={`chat-plus-item ${voiceAnswer ? "is-on" : ""}`}
+            disabled={!reader.supported}
+            title={reader.supported ? (voiceAnswer ? "음성 답변 끄기" : "답변을 음성으로 듣기") : "이 브라우저는 음성 답변을 지원하지 않아요."}
+            onClick={toggleVoiceAnswer}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" fill="currentColor" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+              {voiceAnswer
+                ? <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                : <path d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />}
+            </svg>
+            음성 답변
+            <span className={`chat-plus-switch ${voiceAnswer ? "is-on" : ""}`} aria-hidden="true" />
+            {reader.speaking && <span className="chat-plus-state">읽는 중</span>}
+          </button>
+        </div>
       </div>
       </div>
-      <p className="muted">
-        공개된 수업 자료의 원문에서 답변과 출처를 찾아요.
-      </p>
-      <label>질문할 개념
-        <select value={conceptId} disabled={!!job} onChange={e => setConceptId(e.target.value)}>
-          <option value="">강의 전체</option>
-          {concepts.data?.items.filter(c => c.in_scope).map(c => <option key={c.id} value={c.id}>{c.concept}</option>)}
-        </select>
-      </label>
+      </div>
       {archiveSlot ? createPortal(archive, archiveSlot) : archive}
       <div className="chat-messages" ref={messagesRef} aria-live="polite" tabIndex={0} aria-label="최근 질문과 답변">
-        {items.length > 0 && <p className="student-list-count">최근 대화 {Math.min(3,items.length)}개 · 전체 대화는 이전 질문에서 확인하세요.</p>}
+        {past ? <p className="chat-past-bar"><span>{past.label} 대화를 보고 있어요</span><button type="button" disabled={!!job || feedbackBusy || sending || pastLoading || historyLoading} onClick={() => { setLatestKey(k => k + 1); }}>최근 대화로 돌아가기</button></p> : null}
+        {pastLoading && <p className="chat-loading" role="status">그 질문을 했던 대화를 불러오는 중이에요…</p>}
         {historyLoading && (
           <p className="chat-loading" role="status">
             이전 대화를 불러오는 중이에요…
@@ -526,95 +697,110 @@ export function Chat({ sectionId, speaker = "AI 강사" }: { sectionId: string; 
           </div>
         )}
         {/* 메신저처럼 오래된 대화가 위, 가장 최근 질문과 답변이 맨 아래(질문 칸 바로 위)에 와요 */}
-        {items.slice(-3).map((item, n) => ({ item, i: Math.max(0, items.length - 3) + n })).map(({ item, i }) => (
-          <article key={i} className="chat-pair">
-            <div className="chat-row is-me"><p className="chat-bubble">{item.question}</p></div>
+        {(past ? items : items.slice(-3)).map((item, n) => ({ item, i: past ? n : Math.max(0, items.length - 3) + n })).map(({ item, i }) => (
+          <article key={i} className={`chat-pair ${past && i === past.focus ? "is-focus" : ""}`}>
+            <div className="chat-row is-me">{item.quizName && <span className="chat-quiz-name">{item.quizName}</span>}<p className="chat-bubble">{item.question}</p><ChatTime iso={item.at} /></div>
             <div className="chat-row is-ai">
               <span className="chat-speaker">{speaker}</span>
+              <div className="chat-bubble-col">
               <div className="chat-bubble">
+                {item.reaction && <button type="button" className={`chat-reaction ${reEdit === i ? "is-editing" : ""}`} disabled={past !== null || !!job}
+                  title="눌러서 바꾸기" aria-label={`내 상태: ${REACTIONS.find(r => r[0] === item.reaction)?.[2]} · 눌러서 바꾸기`} aria-expanded={reEdit === i}
+                  onClick={() => setReEdit(reEdit === i ? null : i)}>{REACTIONS.find(r => r[0] === item.reaction)?.[1]}</button>}
                 {item.answer ? <TypedAnswer text={item.answer.answer} animate={!!item.fresh}>
-                  {item.answer.citations?.map((c, n) => <span className="source-reference" key={n}>{c.title} · {sourceLabel(c.locator)}</span>)}
+                  {item.answer.citations?.map((c, n) => <a key={n} href={"/api/v1/materials/" + c.material_id + "/file?version_id=" + c.version_id}>{c.title} · {sourceLabel(c.locator)} <span className="go-arrow" aria-hidden="true">→</span></a>)}
                 </TypedAnswer> : item.error ? <ErrorNotice text={item.error} /> : item.pending ? <p role="status">{item.pending}</p> : <p className="chat-typing" role="status"><span className="chat-dots" aria-hidden="true"><i /><i /><i /></span><span>{speaker}가 답변을 적고 있어요</span></p>}
+                {item.answer?.follow_up && <p className="chat-followup"><b>🤔 생각해 볼 질문</b>{item.answer.follow_up}</p>}
+              </div>
+              {/* 답변 바로 아래 줄: 왼쪽은 시간, 오른쪽은 이해했어요·헷갈려요·중단. 하나 고르면 답변에 이모티콘이 달리고 선택지는 사라져요 (11-15) */}
+              {(() => { const react = !past && ((i === items.length - 1 && !item.reaction && !item.error) || (reEdit === i && !!item.answer)); return <div className={`chat-ai-foot ${react ? "has-react" : ""}`}>
+              {item.answer ? <ChatTime iso={item.answeredAt || item.at} /> : <span />}
+              {react && (item.answer
+                ? !job && <div className="chat-react" role="group" aria-label="지금 내 상태">
+                    {REACTIONS.map(([kind, icon, label]) => <button key={kind} type="button" disabled={feedbackBusy || sending} className={`is-${kind} ${item.reaction === kind ? "is-picked" : ""}`} aria-pressed={item.reaction === kind} title={label} onClick={() => void chatFeedback(kind, i)}><span aria-hidden="true">{icon}</span><span className="chat-react-label">{label}</span></button>)}
+                  </div>
+                : !!job && <div className="chat-react" role="group" aria-label="답변 멈추기">
+                    <button type="button" className="is-stop" title="중단" onClick={() => void chatFeedback("stop", i)}><span aria-hidden="true">⛔️</span><span className="chat-react-label">중단</span></button>
+                  </div>)}
+              </div>; })()}
               </div>
             </div>
+            {item.note && <div className="chat-row is-ai"><p className="chat-bubble chat-state-note">{item.note}</p></div>}
           </article>
         ))}
       </div>
-      {items.length > 0 && <TutorFeedback sectionId={sectionId} jobId={job}
-        messageId={lastAnswer?.answer ? lastAnswer.id || lastAnswer.answer.message_id : undefined}
-        disabled={historyLoading} onBusyChange={setFeedbackBusy}
-        onConfused={() => sendQuestion("방금 설명이 헷갈려요. 더 쉬운 예로, 한 단계씩 다시 설명해 주세요.")}
-        onStop={() => {
-          reader.stop(); setJob(undefined); setThread(undefined);
-          setItems(old => old.map((item, i) => i === old.length - 1 && !item.answer ? { ...item, pending: undefined, error: "요청을 취소했어요." } : item));
-          setArchiveRevision(v => v + 1);
-        }} />}
+      {tutorNote && <p className="practice-chat__status chat-feedback-note" role="status">{tutorNote}</p>}
       <div className="chat-composer">
-        {quizAsk && <div className="chat-quiz-context" role="note"><span className="chat-quiz-context__label">함께 보내는 퀴즈 문제</span><strong>{quizAsk.title}</strong><button type="button" onClick={() => setQuizAsk(null)} aria-label="함께 보내는 퀴즈 문제 빼기">빼기 ✕</button></div>}
-      <Form
-        label="질문하기"
-        beside={
-        <div className="chat-voice">
-          <div className="voice-tools" role="group" aria-label="음성 기능">
-          <button type="button" className={`chat-mic ${voice.listening ? "is-listening" : ""}`} aria-pressed={voice.listening}
-            disabled={!!job || historyLoading || !voice.supported}
-            title={voice.supported ? (voice.listening ? "말하기 끝내기" : "음성으로 질문하기") : "이 브라우저는 음성 입력을 지원하지 않아요."}
-            onClick={() => voice.listening ? voice.stop() : voice.start(draft)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-            {voice.listening ? "말하기 끝내기" : "음성 질문"}
-          </button>
-          <button type="button" role="switch" aria-checked={voiceAnswer} className={`voice-answer-switch ${voiceAnswer ? "is-on" : ""}`}
-            disabled={!reader.supported}
-            title={reader.supported ? (voiceAnswer ? "음성 답변 끄기" : "답변을 음성으로 듣기") : "이 브라우저는 음성 답변을 지원하지 않아요."}
-            onClick={toggleVoiceAnswer}>
-            <svg className="voice-answer-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" fill="currentColor" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-              {voiceAnswer
-                ? <path className="voice-answer-waves" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                : <path d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />}
-            </svg>
-            <span className="voice-answer-label">음성 답변</span>
-            <span className="voice-answer-dot" aria-hidden="true" />
-            {reader.speaking && <span className="voice-answer-state">읽는 중</span>}
-          </button>
-          </div>
-          <span className="chat-voice-status" role="status">{voice.error || (voice.listening ? "듣고 있어요. 말한 내용이 질문 칸에 적혀요." : voice.supported ? "" : "이 브라우저는 음성 입력을 지원하지 않아요.")}</span>
-        </div>
-        }
-        onSubmit={async (f) => {
-          if (feedbackBusy) throw new Error("피드백 처리를 기다려 주세요.");
-          await sendQuestion(field(f, "message"));
+      {quizAsk && <div className="chat-quiz-context" role="note">
+        <span className="chat-quiz-context__label">함께 보내는 퀴즈 문제</span>
+        <strong>{quizAsk.name && <span className="chat-quiz-context__name">{quizAsk.name}</span>}{quizAsk.title}</strong>
+        <button type="button" onClick={() => setQuizAsk(null)} aria-label="함께 보내는 퀴즈 문제 빼기">빼기 ✕</button>
+      </div>}
+      {/* 질문 칸 오른쪽에 보내기(화살표) 버튼, 음성 질문·음성 답변은 질문 칸 바깥 아래에 둬요 (11-15) */}
+      <form className="form chat-form" onSubmit={async (e) => {
+        e.preventDefault();
+        if (sending || feedbackBusy) return;
+        const f = new FormData(e.currentTarget);
+        setSending(true);
+        setFormError("");
+        try {
+          const sentText = field(f, "message");
+          await sendQuestion(sentText);
+          setSent({ text: sentText, key: Date.now() });
           setDraft("");
-        }}
-      >
-        <label className="chat-input-label">
-          질문
-          <textarea
-            ref={draftRef}
-            name="message"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={1}
-            maxLength={4000}
-            required
-            disabled={!!job || historyLoading || feedbackBusy}
-            onKeyDown={(e) => {
-              if (
-                e.key === "Enter" &&
-                !e.shiftKey &&
-                !isComposingInput(e.nativeEvent)
-              ) {
-                e.preventDefault();
-                e.currentTarget.form?.requestSubmit();
-              }
-            }}
-          />
-          <VanishPlaceholder textarea={draftRef} examples={voice.listening ? ["듣고 있어요…"] : ["궁금한 점을 적거나 마이크를 눌러 말해 보세요.", "이 개념을 예시로 설명해 주세요."]} hidden={!!draft} />
-        </label>
-      </Form></div>
+        } catch (err) {
+          setFormError(err instanceof Error ? err.message : "질문을 보내지 못했어요.");
+        } finally {
+          setSending(false);
+        }
+      }}>
+        <div className="chat-input-row">
+          <label className="chat-input-label">
+            <span className="chat-sr-only">질문</span>
+            <textarea
+              ref={draftRef}
+              name="message"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={1}
+              maxLength={4000}
+              required
+              disabled={!!job || sending || pastLoading || feedbackBusy || historyLoading}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  !e.shiftKey &&
+                  !isComposingInput(e.nativeEvent)
+                ) {
+                  e.preventDefault();
+                  e.currentTarget.form?.requestSubmit();
+                }
+              }}
+            />
+            <VanishPlaceholder textarea={draftRef} examples={voice.listening ? QUESTION_LISTENING : QUESTION_EXAMPLES} hidden={draft.length > 0} sent={sent} />
+          </label>
+          <button type="submit" className="chat-send" aria-label="질문 보내기" title="질문 보내기 (Enter)" disabled={sending || pastLoading || feedbackBusy || !!job || historyLoading || !draft.trim()}>
+            {sending
+              ? <span className="chat-send-spin" aria-hidden="true" />
+              : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 5v7a3 3 0 0 1-3 3H6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /><path d="m10 10.5-4.5 4.5 4.5 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+          </button>
+        </div>
+        <ErrorNotice text={formError} />
+      </form></div>
     </section>
   );
 }
+
+/* 질문 칸에 돌아가며 보이는 예시 문구 (VanishPlaceholder) */
+const QUESTION_EXAMPLES = [
+  "궁금한 점을 적거나 마이크를 눌러 말해 보세요.",
+  "예: 리스트와 튜플은 뭐가 다른가요?",
+  "예: 재귀 함수는 언제 멈추나요?",
+  "예: 이번 주 강의에서 꼭 알아야 할 개념은 뭐예요?",
+];
+const QUESTION_LISTENING = ["듣고 있어요… 말씀이 끝나면 마이크를 다시 눌러 주세요."];
+
+const REACTIONS = [["understood", "💡", "이해했어요"], ["confused", "❓", "헷갈려요"], ["stop", "⛔️", "중단"]] as const;
 
 /* 새로 도착한 답변은 한 글자씩 적히듯 보여 줘요. 예전 대화나 '동작 줄이기' 설정에서는 바로 다 보여요.
    글이 길어도 2.5초 안에 다 나오도록 한 번에 나오는 글자 수를 늘려요. 다 나온 뒤에 출처 링크가 붙어요. */

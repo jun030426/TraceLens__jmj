@@ -1174,9 +1174,7 @@
 #root main.app .chat-plus.is-active .chat-plus-toggle::after { content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: #d9534f; }
 #root main.app .chat-plus .chat-plus-menu { position: absolute; top: 100%; right: 0; z-index: 20; display: grid; gap: 2px; min-width: 170px; margin-top: 0; padding: 6px; border: 1px solid #ece8ef; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px rgba(40, 20, 60, .12); opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .15s, transform .15s, visibility 0s .15s; }
 #root main.app .chat-plus .chat-plus-menu::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
-#root main.app .chat-plus:hover .chat-plus-menu,
-#root main.app .chat-plus.is-open .chat-plus-menu,
-#root main.app .chat-plus:focus-within .chat-plus-menu { opacity: 1; visibility: visible; transform: none; transition: opacity .15s, transform .15s; }
+#root main.app .chat-plus.is-open .chat-plus-menu { opacity: 1; visibility: visible; transform: none; transition: opacity .15s, transform .15s; }
 #root main.app .chat-plus .chat-plus-item { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 0; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: #3f4146; font-size: 13px; font-weight: 500; text-align: left; white-space: nowrap; cursor: pointer; box-shadow: none; }
 #root main.app .chat-plus .chat-plus-item svg { flex: none; color: #85639f; }
 #root main.app .chat-plus .chat-plus-item:hover:not(:disabled) { background: #f6f0f9; color: #5b2f63; }

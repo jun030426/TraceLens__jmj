@@ -1,4 +1,5 @@
-import { lazy, Suspense, useContext, useEffect, useRef, useState } from "react";
+import { XpBadge } from "./XpBadge";
+import { Fragment, lazy, Suspense, useContext, useEffect, useRef, useState } from "react";
 import {
   BrowserRouter,
   Link,
@@ -215,8 +216,9 @@ function Shell() {
                     ]
                   : [["/admin", "운영 관리"]]
               ).map(([path, label]) => (
+                <Fragment key={path}>
+                  {classroom && label === "강의실" && <XpBadge key={user.id} userId={user.id} />}
                 <NavLink
-                  key={path}
                   to={path}
                   end={
                     path === "/professor" ||
@@ -233,6 +235,7 @@ function Shell() {
                 >
                   {label}
                 </NavLink>
+                </Fragment>
               ))}
               <UserMenu
                 user={user}

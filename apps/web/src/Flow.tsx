@@ -648,22 +648,21 @@ export function CourseWorkspace({ mode }: { mode: "chat" | "progress" }) {
   const room = active.find((r) => r.section.id === params.get("section"));
   return (
     <section className={mode === "chat" ? "student-home ai-page chat-page" : "student-home progress-page ai-page"}>
-      <header className={mode === "progress" ? "progress-title-row" : "chat-page-title"}>
-        <h1>{mode === "chat" ? "AI 질문" : "학습 기록과 복습"}</h1>
-        <p className="progress-caption">{mode === "chat" ? "수업 자료에서 답변의 근거를 함께 확인하세요." : "개념별 학습과 복습할 내용을 확인해 보세요."}</p>
-        {mode === "progress" && room && <span className="progress-domain-label">{DOMAIN_LABEL[domain]}</span>}
-      </header>
+      {mode === "chat" && <span className="student-eyebrow">CONNECT THROUGH QUESTIONS</span>}
+      {mode === "progress" && <header className="progress-title-row">
+        <h1>학습 기록과 복습</h1>
+        <p className="progress-caption">개념별 학습과 복습할 내용을 확인해 보세요.</p>
+        {room && <span className="progress-domain-label">{DOMAIN_LABEL[domain]}</span>}
+      </header>}
       <ErrorNotice text={rooms.error} />
       <div className={"workspace ai-workspace"}>
-        {mode === "chat" && <div className="chat-mobile-course"><Link className="cr-back" to="/courses"><span aria-hidden="true">←</span> 내 강의로</Link><label>질문할 강의<select value={room?.section.id || ""} onChange={e => setParams({ section: e.target.value })}><option value="" disabled>강의를 선택하세요</option>{active.map(r => <option key={r.section.id} value={r.section.id}>{r.course.title} · {r.section.title}</option>)}</select></label></div>}
+        {mode === "chat" && <div className="chat-mobile-course"><label>질문할 강의<select value={room?.section.id || ""} onChange={e => setParams({ section: e.target.value })}><option value="" disabled>강의를 선택하세요</option>{active.map(r => <option key={r.section.id} value={r.section.id}>{r.course.title} · {r.section.title}</option>)}</select></label><Link className="course-rail-manage" to="/courses">강의·수강 관리 <span className="go-arrow" aria-hidden="true">→</span></Link></div>}
         {(() => { const rail = (
         <aside className="course-rail">
-          {/* AI 질문: 강의실과 같은 '내 강의로' 버튼을 내 강의 박스 안에 (11-14) */}
-          {mode === "chat" && <Link className="cr-back" to="/courses"><span aria-hidden="true">←</span> 내 강의로</Link>}
-          <h2>내 강의</h2>
+          <div className="course-rail-head"><h2>내 강의</h2><Link className="course-rail-manage" to="/courses">강의·수강 관리 <span className="go-arrow" aria-hidden="true">→</span></Link></div>
           {active.length > 5 ? <div className="student-course-choice"><label>학습할 강의<select value={room?.section.id || ""} onChange={e => setParams(mode === "progress" ? {section:e.target.value,domain} : {section:e.target.value})}><option value="" disabled>강의를 선택하세요</option>{active.map(r => <option key={r.section.id} value={r.section.id}>{r.course.title} · {r.section.title}</option>)}</select></label>{room && <p>{room.course.title}<br />{room.section.title}</p>}</div> : <>
           {active.map((r) => {
-            const [subject, ...details] = r.course.title.split(/\s+[—–]\s+/);
+            const [subject] = r.course.title.split(/\s+[—–]\s+/);
             return (
               <button
                 aria-pressed={room?.section.id === r.section.id}
@@ -671,16 +670,12 @@ export function CourseWorkspace({ mode }: { mode: "chat" | "progress" }) {
                 key={r.section.id}
                 onClick={() => setParams(mode === "progress" ? { section: r.section.id, domain,  } : { section: r.section.id })}
               >
-                <span className="course-rail-subject">{subject}</span>
-                {details.length > 0 && (
-                  <span className="course-rail-detail">{details.join(" — ")}</span>
-                )}
-                <small>{r.section.title}</small>
+                <span className="course-rail-subject course-rail-title">{subject}{r.teacher_name && <span className="course-rail-teacher">{r.teacher_name}</span>}</span>
+                <small className="course-rail-term">{[r.term?.name, r.section.title].filter(Boolean).join(" · ")}</small>
               </button>
             );
           })}
           </>}
-          {mode !== "chat" && <Link to="/courses">강의·수강 관리 →</Link>}
         </aside>
         ); return mode === "chat" ? <div className="ai-side">{rail}{/* 이전 질문 내역 — Chat 이 이 자리에 그려요 */}<div id="chat-archive-slot" className="chat-archive-slot" /></div> : rail; })()}
         <div>

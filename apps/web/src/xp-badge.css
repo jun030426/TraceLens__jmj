@@ -1,0 +1,329 @@
+/* [헤더] XP 등급 캐릭터 (XpBadge.tsx) — 강의실 메뉴 왼쪽. 캐릭터만 보이고, 올리거나 누르면 등급판이 열려요.
+   헤더 nav 의 버튼 공통 규칙(#root .ln-header nav button …!important)보다 앞서도록 같은 깊이로 적어요.
+   색은 --d-* 토큰만 써서 다크 모드에서도 자동으로 바뀌어요. */
+
+#root header.app-header #app-navigation .xp-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+#root header.app-header #app-navigation .xp-badge button.xp-badge-trigger {
+  display: inline-grid !important;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: -6px 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: transform 0.25s var(--d-ease-out), background-color 0.2s ease;
+}
+#root header.app-header #app-navigation .xp-badge button.xp-badge-trigger:focus-visible {
+  outline: 2px solid var(--d-mauve);
+  outline-offset: 2px;
+}
+#root header.app-header #app-navigation .xp-badge .xp-badge-trigger img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 5px rgba(80, 40, 120, 0.18));
+  transition: transform 0.3s var(--d-ease-out);
+}
+/* ── 말랑 젤리 움직임 ──
+   평소: 숨 쉬듯 출렁 (등급마다 박자가 달라요: high 통통 뛰기 · mid 출렁 · low 느릿느릿)
+   마우스를 올리면: 폴짝 뛰고 흔들 · 판 안의 큰 캐릭터: 둥실둥실 */
+#root header.app-header #app-navigation .xp-badge .xp-badge-jelly {
+  display: inline-block;
+  line-height: 0;
+  transform-origin: 50% 92%;
+  animation: xp-jelly-breathe 2.8s ease-in-out infinite;
+}
+#root header.app-header #app-navigation .xp-badge[data-tier="high"] .xp-badge-trigger .xp-badge-jelly {
+  animation: xp-jelly-hop 2.2s cubic-bezier(0.3, 0, 0.3, 1) infinite;
+}
+#root header.app-header #app-navigation .xp-badge[data-tier="low"] .xp-badge-trigger .xp-badge-jelly {
+  animation: xp-jelly-breathe 4.2s ease-in-out infinite;
+}
+#root header.app-header #app-navigation .xp-badge:hover .xp-badge-trigger .xp-badge-jelly,
+#root header.app-header #app-navigation .xp-badge[data-open="true"] .xp-badge-trigger .xp-badge-jelly {
+  animation: xp-jelly-boing 0.9s cubic-bezier(0.3, 0, 0.3, 1) both;
+}
+#root header.app-header #app-navigation .xp-badge .xp-badge-jelly.is-big {
+  animation: xp-jelly-float 3.2s ease-in-out infinite;
+}
+@keyframes xp-jelly-breathe {
+  0%, 100% { transform: scale(1, 1); }
+  45% { transform: scale(1.05, 0.95); }
+  70% { transform: scale(0.97, 1.03); }
+}
+@keyframes xp-jelly-hop {
+  0%, 55%, 100% { transform: translateY(0) scale(1, 1); }
+  62% { transform: translateY(0) scale(1.1, 0.88); }
+  72% { transform: translateY(-5px) scale(0.94, 1.08); }
+  82% { transform: translateY(0) scale(1.06, 0.94); }
+  90% { transform: translateY(0) scale(0.98, 1.02); }
+}
+@keyframes xp-jelly-boing {
+  0% { transform: translateY(0) scale(1, 1); }
+  15% { transform: translateY(0) scale(1.14, 0.86); }
+  35% { transform: translateY(-7px) scale(0.92, 1.1) rotate(-6deg); }
+  55% { transform: translateY(0) scale(1.08, 0.92) rotate(4deg); }
+  75% { transform: translateY(-2px) scale(0.98, 1.03) rotate(-2deg); }
+  100% { transform: translateY(-1px) scale(1.04, 1.04) rotate(0); }
+}
+@keyframes xp-jelly-float {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-4px) rotate(-2deg) scale(1.02, 0.99); }
+}
+/* 움직임 줄이기를 켠 사용자에게는 멈춰 있어요 */
+@media (prefers-reduced-motion: reduce) {
+  #root header.app-header #app-navigation .xp-badge .xp-badge-jelly {
+    animation: none !important;
+  }
+}
+#root header.app-header #app-navigation .xp-badge .xp-badge-trigger.is-loading {
+  display: inline-block !important;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--d-step);
+  opacity: 0.6;
+}
+
+/* 등급이 오르면 한 번 통통 */
+#root header.app-header #app-navigation .xp-badge[data-levelup="true"] button.xp-badge-trigger {
+  animation: xp-badge-pop 0.9s var(--d-ease-out) 2;
+}
+@keyframes xp-badge-pop {
+  0%, 100% { transform: scale(1); }
+  30% { transform: scale(1.12) rotate(-3deg); }
+  60% { transform: scale(0.98) rotate(2deg); }
+}
+
+/* 펼쳐지는 판 */
+#root header.app-header #app-navigation .xp-badge .xp-badge-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  z-index: 60;
+  display: none;
+  width: 290px;
+  padding: 16px;
+  border: 1px solid var(--d-hair);
+  border-radius: 18px;
+  background: var(--d-surface);
+  color: var(--d-ink);
+  box-shadow: 0 18px 40px -16px rgba(43, 18, 76, 0.35), 0 2px 6px rgba(43, 18, 76, 0.06);
+  transform: translateX(-50%);
+  text-align: left;
+}
+/* 캐릭터와 판 사이 틈 — 마우스가 지나가는 동안 판이 닫히지 않게 */
+#root header.app-header #app-navigation .xp-badge .xp-badge-panel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -14px;
+  height: 14px;
+}
+#root header.app-header #app-navigation .xp-badge[data-open="true"] .xp-badge-panel {
+  display: grid;
+  gap: 14px;
+  animation: xp-badge-in 0.18s ease-out;
+}
+@keyframes xp-badge-in {
+  from { opacity: 0; margin-top: -4px; }
+}
+#root header.app-header #app-navigation .xp-badge-panel span,
+#root header.app-header #app-navigation .xp-badge-panel p {
+  display: block !important;
+}
+#root header.app-header #app-navigation .xp-badge-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#root header.app-header #app-navigation .xp-badge-head img {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  flex: none;
+}
+#root header.app-header #app-navigation .xp-badge-head .xp-badge-kicker {
+  color: var(--d-ink-3) !important;
+  font-size: 11px;
+}
+#root header.app-header #app-navigation .xp-badge-head strong {
+  display: block;
+  margin: 2px 0;
+  color: var(--d-accent);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+#root header.app-header #app-navigation .xp-badge-head strong small {
+  color: var(--d-ink-3);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+#root header.app-header #app-navigation .xp-badge-head p {
+  margin: 0;
+  color: var(--d-ink-2);
+  font-size: 13px;
+}
+
+#root header.app-header #app-navigation .xp-badge-progress {
+  display: grid;
+  gap: 6px;
+}
+#root header.app-header #app-navigation .xp-badge-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--d-step);
+  overflow: hidden;
+}
+#root header.app-header #app-navigation .xp-badge-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--d-lilac), var(--d-mauve));
+  transition: width 0.6s var(--d-ease-out);
+}
+#root header.app-header #app-navigation .xp-badge-progress > span {
+  color: var(--d-ink-3) !important;
+  font-size: 12px;
+  text-align: right;
+}
+
+/* 등급별 필요 XP 표 — 4칸씩 두 줄 */
+#root header.app-header #app-navigation .xp-badge-panel .xp-badge-ladder-title {
+  margin-bottom: -8px;
+  color: var(--d-ink-2) !important;
+  font-size: 12px;
+  font-weight: 600;
+}
+#root header.app-header #app-navigation .xp-badge-ladder {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+#root header.app-header #app-navigation .xp-badge-ladder li {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 6px 2px 5px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  text-align: center;
+}
+#root header.app-header #app-navigation .xp-badge-ladder img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+/* 등급 글자는 모든 칸이 같은 글꼴·굵기·색이에요 */
+#root header.app-header #app-navigation .xp-badge-ladder b {
+  color: var(--d-ink);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+#root header.app-header #app-navigation .xp-badge-ladder li span {
+  color: var(--d-ink-3) !important;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+#root header.app-header #app-navigation .xp-badge-ladder li[data-state="next"] img {
+  filter: grayscale(0.7);
+  opacity: 0.45;
+}
+#root header.app-header #app-navigation .xp-badge-ladder li[data-state="now"] {
+  background: var(--d-accent-wash);
+  border-color: var(--d-lilac);
+}
+
+#root header.app-header #app-navigation .xp-badge-parts {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--d-hair);
+  list-style: none;
+}
+#root header.app-header #app-navigation .xp-badge-parts li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 2px;
+}
+#root header.app-header #app-navigation .xp-badge-parts b {
+  display: block;
+  color: var(--d-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+#root header.app-header #app-navigation .xp-badge-parts li span {
+  color: var(--d-ink-3) !important;
+  font-size: 11.5px;
+}
+#root header.app-header #app-navigation .xp-badge-parts em {
+  color: var(--d-accent);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+#root header.app-header #app-navigation .xp-badge-rules {
+  font-size: 12px;
+  color: var(--d-ink-3);
+}
+#root header.app-header #app-navigation .xp-badge-rules summary {
+  cursor: pointer;
+  color: var(--d-ink-2);
+  font-weight: 600;
+}
+#root header.app-header #app-navigation .xp-badge-rules ul {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 4px;
+  line-height: 1.5;
+}
+
+/* 좁은 화면(모바일 메뉴) — 배지는 한 줄을 다 쓰고, 판은 메뉴 안에서 아래로 펼쳐져요 */
+@media (max-width: 760px) {
+  #root header.app-header #app-navigation .xp-badge {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 8px;
+    justify-items: start;
+  }
+  #root header.app-header #app-navigation .xp-badge .xp-badge-panel {
+    position: static;
+    width: 100%;
+    box-sizing: border-box;
+    transform: none;
+    box-shadow: none;
+  }
+  #root header.app-header #app-navigation .xp-badge button.xp-badge-trigger {
+    margin: 0 !important;
+  }
+}
+#root header.app-header #app-navigation .xp-badge-head p.xp-badge-note {
+  margin-top: 4px;
+  color: var(--d-ink-3);
+  font-size: 11.5px;
+}
