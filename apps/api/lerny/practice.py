@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Header, Response
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from lerny.auth import Input
 from lerny.automatic import eligible
@@ -150,7 +150,8 @@ def prepare(session, job):
     original_quotes = {}
     if language == "python":
         from lerny.practice_inputs import adapted_programs
-        adapted = adapted_programs(chunks, model_json)
+        versions = session.scalars(select(MaterialVersion).where(MaterialVersion.id.in_(version_ids)))
+        adapted = adapted_programs(chunks, model_json, versions)
         for program, quote in adapted:
             original_quotes[(program.source_id, program.code)] = quote
         # Validate adapted numeric inputs first so the same original stdin example
@@ -271,7 +272,13 @@ def practice_progress(session: Db, actor: Actor, response: Response, session_id:
     items = []
     for plan in plans:
         visible = [eid for eid in plan.exercise_ids if current_source(session, session.get(PracticeExercise, eid))]
-        remaining = [eid for eid in visible if (plan.id, eid) not in submitted]
+        if plan.day is None:
+            completed = set(session.scalars(select(PracticeAttempt.exercise_id).where(
+                PracticeAttempt.student_id == actor.id, PracticeAttempt.section_id == plan.section_id,
+                PracticeAttempt.exercise_id.in_(visible)).distinct()))
+        else:
+            completed = {eid for eid in visible if (plan.id, eid) in submitted}
+        remaining = [eid for eid in visible if eid not in completed]
         item = {"section_id": plan.section_id, "session_id": plan.id,
                 "total": len(visible), "submitted": len(visible) - len(remaining)}
         if session_id is not None:
@@ -336,7 +343,7 @@ def daily(section_id: str, session: Db, actor: Actor):
     return {"id":plan.id,"items":items,"status":"ready","week":plan.week,"day":plan.day}
 
 
-def assigned(session, actor, section_id, exercise_id):
+def assigned(session, actor, section_id, exercise_id, plan_id=None):
     section = section_student(session, actor, section_id)
     exercise = session.get(PracticeExercise, exercise_id)
     if not exercise or not current_source(session, exercise):
@@ -353,6 +360,7 @@ def assigned(session, actor, section_id, exercise_id):
 
 
 class Submission(Input):
+    plan_id: str | None = None
     exercise_id: str
     source: str = Field(min_length=1, max_length=32000)
 
@@ -360,7 +368,7 @@ class Submission(Input):
 @router.post("/sections/{section_id}/practice/submit", status_code=202)
 def submit(section_id: str, body: Submission, session: Db, actor: Actor,
            idempotency_key: str | None = Header(default=None)):
-    section, plan, exercise = assigned(session, actor, section_id, body.exercise_id)
+    section, plan, exercise = assigned(session, actor, section_id, body.exercise_id, body.plan_id)
     if "[[빈칸]]" in body.source:
         deny(422, "빈칸을 모두 채워 주세요.")
     def make():
@@ -396,6 +404,7 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
 
 
 class HelpInput(Input):
+    plan_id: str | None = None
     exercise_id: str
     kind: Literal["state", "hint", "chat", "answer"] = "hint"
     step: int | None = Field(default=None, ge=1)
@@ -405,7 +414,7 @@ class HelpInput(Input):
 def help_used(section_id: str, body: HelpInput, session: Db, actor: Actor):
     from lerny.practice_support import help_state
     lock_student(session, actor.id)
-    _, plan, exercise = assigned(session, actor, section_id, body.exercise_id)
+    _, plan, exercise = assigned(session, actor, section_id, body.exercise_id, body.plan_id)
     state = help_state(session, actor, plan, exercise)
     if body.kind == "state":
         return state
@@ -436,14 +445,37 @@ def help_used(section_id: str, body: HelpInput, session: Db, actor: Actor):
     return state
 
 
+@router.get("/my/practice-submission-count")
+def practice_submission_count(session: Db, actor: Actor, section_id: str | None = None):
+    if actor.role != "student":
+        deny(403)
+    # Each daily practice session belongs to one student and class section.
+    submissions = select(PracticeAttempt.practice_session_id, PracticeAttempt.exercise_id).where(
+        PracticeAttempt.student_id == actor.id,
+    )
+    if section_id is not None:
+        section_student(session, actor, section_id)
+        submissions = submissions.where(PracticeAttempt.section_id == section_id)
+    return {"submitted": session.scalar(select(func.count()).select_from(submissions.distinct().subquery()))}
+
+
 @router.get("/sections/{section_id}/practice/attempts")
 def attempts(section_id: str, session: Db, actor: Actor, plan_id: str | None = None):
     section_student(session, actor, section_id)
     query = select(PracticeAttempt).where(PracticeAttempt.student_id == actor.id,
         PracticeAttempt.section_id == section_id)
+    archive = False
     if plan_id:
-        query = query.where(PracticeAttempt.practice_session_id == plan_id)
-    rows = session.scalars(query.order_by(PracticeAttempt.created_at.desc(), PracticeAttempt.id.desc()).limit(100))
+        plan = session.get(PracticeSession, plan_id)
+        if not plan or plan.section_id != section_id or plan.student_id != actor.id:
+            return {"items": []}
+        archive = plan.day is None
+        if archive:
+            query = query.where(PracticeAttempt.exercise_id.in_(plan.exercise_ids))
+        else:
+            query = query.where(PracticeAttempt.practice_session_id == plan_id)
+    query = query.order_by(PracticeAttempt.created_at.desc(), PracticeAttempt.id.desc())
+    rows = session.scalars(query if archive else query.limit(100))
     return {"items":[{**attempt_view(a),"source":a.source,"exercise":exercise_view(session,
         session.get(PracticeExercise,a.exercise_id))} for a in rows]}
 

@@ -30,6 +30,8 @@ async def test_answer_requires_owned_final_submission_and_preserves_frozen_attem
         db.add(ex); db.flush()
         from publication_fixtures import published
         published(db, course["id"])
+        xp_count_url = "/api/v1/my/practice-submission-count"
+        assert (await client.get(xp_count_url)).json() == {"submitted": 0}
         progress_url = "/api/v1/my/practice-progress"
         assert (await client.get(progress_url)).json()["items"] == []
         assert not db.scalar(select(PracticeSession.id).where(PracticeSession.student_id == student.id))
@@ -62,6 +64,12 @@ async def test_answer_requires_owned_final_submission_and_preserves_frozen_attem
             json={"exercise_id": ex.id, "source": code})
         assert submitted.status_code == 202, submitted.text
         aid = submitted.json()["id"]
+        assert (await client.get(xp_count_url)).json() == {"submitted": 2}
+        db.add(PracticeAttempt(student_id=student.id, section_id=sec.id,
+            practice_session_id=old.id, exercise_id=ex.id, source=code,
+            status="graded", independent=False))
+        db.commit()
+        assert (await client.get(xp_count_url)).json() == {"submitted": 2}
         visible = {"section_id": sec.id, "session_id": plan.id, "total": 1, "submitted": 1}
         assert (await client.get(progress_url)).json()["items"] == [visible]
         assert (await client.get(progress_url, params=current_progress)).json()["items"] == [
@@ -70,7 +78,7 @@ async def test_answer_requires_owned_final_submission_and_preserves_frozen_attem
         assert [item["id"] for item in scoped.json()["items"]] == [aid]
         archive = f"/api/v1/sections/{sec.id}/my-practice"
         oldest = (await client.get(archive, params={"order": "asc", "limit": 1})).json()
-        assert oldest["total"] == 2
+        assert oldest["total"] == 3
         assert oldest["items"][0]["id"] != aid
         assert submitted.json()["independent"] == (not use_hints)
         answer = (await help("answer")).json()
@@ -84,6 +92,7 @@ async def test_answer_requires_owned_final_submission_and_preserves_frozen_attem
         db.add(Enrollment(student_id=other.id, course_id=course["id"], section_id=sec.id, status="active"))
         db.commit()
         await login(client, "student2")
+        assert (await client.get(xp_count_url)).json() == {"submitted": 0}
         assert (await client.get(progress_url, params=current_progress)).json()["items"] == []
         assert (await client.get(progress_url)).json()["items"] == []
         assert (await client.get(base + "/attempts", params={"plan_id": plan.id})).json()["items"] == []

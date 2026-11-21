@@ -27,11 +27,12 @@ class DocumentStopped(RuntimeError):
 
 
 def eligible(job, version, material):
-    return bool(version and material and not material.deleted
-                and not job.payload.get("manual_text", False)
-                and Path(version.filename).suffix.lower() in FORMATS
-                and material.visibility == "public" and material.internal_use == "none"
-                and material.kind != "answer")
+    from lerny.material_policy import student_source
+    if not version or not material or material.deleted or job.payload.get("manual_text") or not student_source(material):
+        return False
+    suffix = Path(version.filename).suffix.lower()
+    return suffix in FORMATS and not (
+        suffix == ".pptx" and settings().instructor_reviews_week(material.course_id, material.week))
 
 
 def check_source(job_id, token, version_id, source_sha):
@@ -114,7 +115,7 @@ def selection(output, plan, source_sha, suffix, summary):
         page = row.get("location", {}).get("page")
         row["source_locator"] = f"문서 {page}쪽" if page else "문서"
     return {"chunks": chunks, "held": held, "evidence": {
-        "pipeline": POLICY, "model": settings().gemini_answer_model,
+        "pipeline": POLICY, "model": plan["source_plan"].get("gemini_model", settings().gemini_answer_model),
         "source_sha256": source_sha, "selection_manifest_sha256": digest_file(manifest),
         "mandatory_calculation_gate": True, "summary": summary,
         "accuracy_pct": None, "scope": "model_source_review_and_calculation_gates_not_measured_accuracy"}}
@@ -122,12 +123,13 @@ def selection(output, plan, source_sha, suffix, summary):
 
 def process(path, folder, source_sha, check, report):
     from lerny.gemini_provider import media_call_budget
-    from lerny.gemini_quota import ProviderDeferred
+    from lerny.gemini_quota import ProviderDeferred, verification
     from lerny.media_materials import MediaStopped, service_transport
     from video_extraction.pipeline import connected
     from video_extraction.shared.gemini import Blocked
     from video_extraction.shared.progress import reporting
     config = settings()
+    model = config.gemini_answer_model
     if config.ai_provider != "gemini":
         raise ValueError("DOCUMENT_GEMINI_REQUIRED")
     if digest_file(path) != source_sha:
@@ -140,7 +142,7 @@ def process(path, folder, source_sha, check, report):
         folder = Path("\\\\?\\" + str(folder.resolve()))
     # Keep old policy outputs intact; the service gateway still reuses matching responses.
     output = folder / ("analysis-" + signature({"policy": POLICY, "engine": connected.hashes(),
-                                               "model": config.gemini_answer_model})[:20])
+                                               "model": model})[:20])
     base_output = output
     attempt = 0
     # A failed render is frozen in the common preparation plan. Preserve that
@@ -163,11 +165,14 @@ def process(path, folder, source_sha, check, report):
         report(label, completed, total)
     def transport(request, timeout=150):
         active()
+        if path.suffix.lower() == ".pptx":
+            with verification():
+                return service_transport(request, timeout, expected_model=model)
         return service_transport(request, timeout)
     try:
         with reporting(progress), media_call_budget():
             progress("preparing")
-            plan = connected.prepare(output, inputs=[path], model=config.gemini_answer_model,
+            plan = connected.prepare(output, inputs=[path], model=model,
                                      native_python=sys.executable, code_python=sys.executable,
                                      alignment_allow_download=False,
                                      ocr_models=os.environ.get("LERNY_INGESTION_OCR_MODELS"),
@@ -188,6 +193,13 @@ def process(path, folder, source_sha, check, report):
             report("document_finalize", summary["completed"], summary["tasks"])
             with connected.lock(output):
                 result = selection(output, plan, source_sha, path.suffix, summary)
+            if path.suffix.lower() == ".pptx":
+                from lerny.ppt_source_index import supplement
+                from video_extraction.shared.gemini import Gemini
+                supplement(path, plan, result, output / "source-regions",
+                           Gemini(output / "gemini-cache", model, None,
+                                  max_calls=config.gemini_max_calls_per_job, delay=0, transport=transport), active)
+                active()
             save(output / "site-selection.json", result)
             return result
     except DocumentStopped as exc:

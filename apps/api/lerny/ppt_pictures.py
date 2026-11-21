@@ -26,7 +26,7 @@ def pictures(path, folder, allowed):
             target=rels[sid.get('{'+R+'}id')]
             part=posixpath.normpath(posixpath.join('ppt',target)) if not target.startswith('/') else target[1:]
             slide=ET.fromstring(package.read(part));tree=slide.find('p:cSld/p:spTree',NS)
-            if tree is None or slide.get('show')=='0':continue
+            if tree is None or slide.get('show') in ('0','false'):continue
             relpart=posixpath.join(posixpath.dirname(part),'_rels',posixpath.basename(part)+'.rels')
             refs={r.get('Id'):r.get('Target') for r in ET.fromstring(package.read(relpart)) if r.get('TargetMode')!='External'} if relpart in package.namelist() else {}
             nodes=list(tree)

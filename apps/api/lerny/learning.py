@@ -26,6 +26,7 @@ from lerny.models import (
     MaterialVersion,
     Question,
     Review,
+    TheoryRetake,
     Section,
     User,
     now,
@@ -66,12 +67,14 @@ def streak_summary(days, current_day):
 
 
 @router.get("/my/learning-streak")
-def learning_streak(session: Db, actor: Actor):
+def learning_streak(session: Db, actor: Actor, section_id: str | None = None):
     if actor.role != "student":
         deny(403)
-    days = session.scalars(select(LearningCompletion.day).where(
-        LearningCompletion.student_id == actor.id))
-    return streak_summary(days, today())
+    days = select(LearningCompletion.day).where(LearningCompletion.student_id == actor.id)
+    if section_id is not None:
+        section_student(session, actor, section_id)
+        days = days.where(LearningCompletion.section_id == section_id)
+    return streak_summary(session.scalars(days.distinct()), today())
 
 
 @router.get("/my/learning-sessions")
@@ -266,6 +269,12 @@ def question_state(
 def session_view(session, learning):
     items = []
     target_count = 5
+    retakes = {}
+    for original_id, retry in session.execute(select(Attempt.id, TheoryRetake)
+            .join(TheoryRetake, TheoryRetake.original_id == Attempt.id)
+            .where(Attempt.learning_session_id == learning.id)
+            .order_by(TheoryRetake.created_at, TheoryRetake.id)):
+        retakes.setdefault(original_id, []).append(retry)
     for question_id in learning.question_ids:
         q = session.get(Question, question_id)
         if q.purpose == "daily":
@@ -298,6 +307,12 @@ def session_view(session, learning):
             item["submitted_answer"] = (
                 q.options[int(attempt.answer)] if q.kind == "mcq" else attempt.answer
             )
+        if available and attempt:
+            item["retakes"] = [
+                {"id": r.id, "answer": q.options[int(r.answer)] if q.kind == "mcq" else r.answer,
+                 "correct": r.correct, "status": r.status, "feedback": r.feedback}
+                for r in retakes.get(attempt.id, [])
+            ]
         items.append(item)
     return {
         "id": learning.id,
@@ -381,7 +396,8 @@ def apply_review(session, attempt):
     if attempt.review_applied or attempt.status != "graded":
         return
     lock_student(session, attempt.student_id)
-    day = session.get(LearningSession, attempt.learning_session_id).day
+    assigned_day = session.get(LearningSession, attempt.learning_session_id).day
+    day = max(assigned_day, (attempt.created_at + timedelta(hours=9)).date())
     review = session.scalar(
         select(Review)
         .where(Review.student_id == attempt.student_id, Review.concept_id == attempt.concept_id)

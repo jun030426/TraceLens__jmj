@@ -29,6 +29,7 @@ type Question = {
   explanation?: string;
   submitted_answer?: string;
   correct_option?: string;
+  retakes?: { id: string; answer: string; status: string; correct: boolean | null; feedback?: { message: string } | null }[];
   sources_current?: boolean;
   solution?: { explanation: string };
 };

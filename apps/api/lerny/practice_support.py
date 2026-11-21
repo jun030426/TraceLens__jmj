@@ -64,9 +64,11 @@ def help_state(session, actor, plan, exercise):
     wrong = list(session.scalars(select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
         PracticeAttempt.exercise_id == exercise.id, PracticeAttempt.practice_session_id == plan.id,
         PracticeAttempt.status == "graded", PracticeAttempt.correct.is_(False))))
-    submitted = session.scalar(select(PracticeAttempt.id).where(
-        PracticeAttempt.student_id == actor.id, PracticeAttempt.section_id == plan.section_id,
-        PracticeAttempt.exercise_id == exercise.id, PracticeAttempt.practice_session_id == plan.id).limit(1))
+    submitted_query = select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
+        PracticeAttempt.section_id == plan.section_id, PracticeAttempt.exercise_id == exercise.id)
+    if plan.day is not None:
+        submitted_query = submitted_query.where(PracticeAttempt.practice_session_id == plan.id)
+    submitted = session.scalar(submitted_query.limit(1))
     return {"hints_used": used, "hints": steps[:used], "max_hint_steps": len(steps),
             "failed_attempts": len(wrong), "can_view_answer": submitted is not None,
             "independent": not bool(events)}

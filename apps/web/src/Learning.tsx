@@ -23,8 +23,6 @@ import { RagTools } from "./RagTools";
 import { ErrorNotice, Form, Notice, field, useLoad } from "./components";
 import { materialWeeks } from "./studentOverview";
 import { ChatCitation, useStudentHandouts } from "./ChatCitation";
-import { useSpeechOutput } from "./useSpeechOutput";
-import { useSpeechInput } from "./useSpeechInput";
 
 const labels: Record<string, string> = {
   queued: "처리 대기",
@@ -312,7 +310,6 @@ function StudentMaterials({ items, currentWeek, totalWeeks }: { items: Material[
 }
 
 /* 문자 메시지처럼 내 질문은 오른쪽, AI 강사 답변은 왼쪽 말풍선으로 나뉘어요. */
-const VOICE_ANSWER_KEY = "lerny-voice-answer";
 
 /** 말풍선 아래 작은 날짜·시간 — 마우스를 올렸을 때만 보여요 (11-15) */
 function ChatTime({ iso }: { iso?: string }) {
@@ -348,12 +345,6 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const [sent, setSent] = useState<{ text: string; key: number } | null>(null);
   useAutosizeTextarea(draftRef, draft);
-  const voice = useSpeechInput(setDraft);
-  /* 음성 답변: 켜 두면 새 답변이 도착할 때 소리 내어 읽어요. 선택은 이 브라우저에 기억해요. */
-  const reader = useSpeechOutput();
-  const [voiceAnswer, setVoiceAnswer] = useState(() => { try { return localStorage.getItem(VOICE_ANSWER_KEY) === "on"; } catch { return false; } });
-  const voiceAnswerRef = useRef(voiceAnswer);
-  voiceAnswerRef.current = voiceAnswer;
   const [historyLoading, setHistoryLoading] = useState(true);
   const [archiveRevision, setArchiveRevision] = useState(0);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -362,17 +353,6 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
   const [pastLoading, setPastLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [formError, setFormError] = useState("");
-  const [plusOpen, setPlusOpen] = useState(false);
-  const menuBox = useRef<HTMLDivElement>(null);
-  const menuTrigger = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!plusOpen) return;
-    const closeOutside = (event: PointerEvent) => {
-      if (!menuBox.current?.contains(event.target as Node)) setPlusOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    return () => document.removeEventListener("pointerdown", closeOutside);
-  }, [plusOpen]);
   // 답변에 달린 이모티콘을 다시 누르면 고를 수 있게 열어 두는 답변 번호 (11-15)
   const [reEdit, setReEdit] = useState<number | null>(null);
   const [latestKey, setLatestKey] = useState(0);
@@ -434,7 +414,6 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
      아직 주지 않으면 앞뒤 질문 사이 간격이 30분 이내인 것까지를 같은 대화로 봐요. */
   const openPast = async (target: HistoryItem) => {
     if (job || sendingRequest.current || feedbackRequest.current || pastLoading) return;
-    reader.stop();
     setPastLoading(true);
     if (!archiveSlot) setArchiveOpen(false);
     try {
@@ -486,7 +465,6 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
         const r = await api<Job>("/jobs/" + job);
         if (stopped) return;
         if (["succeeded", "failed", "cancelled"].includes(r.status)) {
-          if (r.status === "succeeded" && r.result?.answer && voiceAnswerRef.current) reader.speak(r.result.answer);
           setItems((old) =>
             old.map((x, i) =>
               i === old.length - 1
@@ -532,14 +510,6 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
       clearTimeout(timer);
     };
   }, [job]); // eslint-disable-line react-hooks/exhaustive-deps
-  const toggleVoiceAnswer = () => {
-    const next = !voiceAnswer;
-    setVoiceAnswer(next);
-    try { localStorage.setItem(VOICE_ANSWER_KEY, next ? "on" : "off"); } catch { /* 저장 불가 환경 */ }
-    if (!next) { reader.stop(); return; }
-    const latest = [...items].reverse().find(x => x.answer?.answer)?.answer?.answer;
-    if (latest) reader.speak(latest);
-  };
   useEffect(() => {
     const container = messagesRef.current;
     // 메신저처럼 아래로 쌓여요 — 새 질문·답변이 오면 맨 아래로 내려가요
@@ -588,7 +558,6 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
       if (kind === "confused") {
         await sendQuestion("방금 설명이 헷갈려요. 더 쉬운 예로, 한 단계씩 다시 설명해 주세요.");
       } else if (kind === "stop") {
-        reader.stop();
         if (job) setItems(old => old.map((x, i) => i === index ? { ...x, pending: undefined, error: "질문을 중단했어요." } : x));
         setJob(undefined);
         setThread(undefined);
@@ -609,67 +578,22 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
       <div className="chat-heading">
       <h2 className="chat-title">AI 질문 <span>수업 자료에서 답변의 근거를 함께 확인하세요.</span></h2>
       <div className="chat-heading-actions">
-      {/* + 에 마우스를 올리면 새 대화 · 음성 질문 · 음성 답변이 펼쳐져요 (11-15) */}
-      {(voice.error || voice.listening) && <span className="chat-voice-status" role="status">{voice.error || "듣고 있어요. 말한 내용이 질문 칸에 적혀요."}</span>}
-      <div ref={menuBox} className={`chat-plus ${plusOpen ? "is-open" : ""} ${voice.listening || reader.speaking ? "is-active" : ""}`}
-        onPointerEnter={e => { if (e.pointerType === "mouse") setPlusOpen(true); }}
-        onPointerLeave={() => { if (!menuBox.current?.contains(document.activeElement)) setPlusOpen(false); }}
-        onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setPlusOpen(false); }}
-        onKeyDown={e => {
-          if (e.key === "Escape") {
-            setPlusOpen(false);
-            menuTrigger.current?.focus();
-          } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-            e.preventDefault();
-            setPlusOpen(true);
-            const step = e.key === "ArrowDown" ? 1 : -1;
-            requestAnimationFrame(() => {
-              const buttons = Array.from(menuBox.current?.querySelectorAll<HTMLButtonElement>(".chat-plus-item:not(:disabled)") || []);
-              const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
-              const next = current < 0 ? (step > 0 ? 0 : buttons.length - 1) : (current + step + buttons.length) % buttons.length;
-              buttons[next]?.focus();
-            });
-          }
-        }}>
-        <button type="button" ref={menuTrigger} className="chat-plus-toggle" aria-label="대화 메뉴" aria-haspopup="menu" aria-expanded={plusOpen} onClick={e => { if (e.detail && window.matchMedia("(hover: hover)").matches) setPlusOpen(true); else setPlusOpen(o => !o); }}>+</button>
-        <div className="chat-plus-menu" role="menu" aria-label="대화 메뉴" onClick={() => { setPlusOpen(false); menuTrigger.current?.focus(); }}>
-          <button type="button" role="menuitem" className="chat-plus-item" disabled={!!job || feedbackBusy || sending || pastLoading || historyLoading}
-            onClick={() => {
-          reader.stop();
-          setItems([]);
-          setThread(undefined);
-          setThreadConcept(undefined);
-          setPast(null);
-          setTutorNote("");
-          setArchiveOpen(false);
-              setPlusOpen(false);
-            }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" /></svg>
-            새 대화
-          </button>
-          <button type="button" role="menuitem" className={`chat-plus-item ${voice.listening ? "is-on" : ""}`} aria-pressed={voice.listening}
-            disabled={!!job || historyLoading || !voice.supported}
-            title={voice.supported ? (voice.listening ? "말하기 끝내기" : "음성으로 질문하기") : "이 브라우저는 음성 입력을 지원하지 않아요."}
-            onClick={() => { if (voice.listening) voice.stop(); else voice.start(draft); setPlusOpen(false); }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-            {voice.listening ? "말하기 끝내기" : "음성 질문"}
-          </button>
-          <button type="button" role="menuitemcheckbox" aria-checked={voiceAnswer} className={`chat-plus-item ${voiceAnswer ? "is-on" : ""}`}
-            disabled={!reader.supported}
-            title={reader.supported ? (voiceAnswer ? "음성 답변 끄기" : "답변을 음성으로 듣기") : "이 브라우저는 음성 답변을 지원하지 않아요."}
-            onClick={toggleVoiceAnswer}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" fill="currentColor" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-              {voiceAnswer
-                ? <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                : <path d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />}
-            </svg>
-            음성 답변
-            <span className={`chat-plus-switch ${voiceAnswer ? "is-on" : ""}`} aria-hidden="true" />
-            {reader.speaking && <span className="chat-plus-state">읽는 중</span>}
-          </button>
-        </div>
-      </div>
+        <button
+          type="button"
+          className="chat-new-conversation"
+          disabled={!!job || feedbackBusy || sending || pastLoading || historyLoading}
+          onClick={() => {
+            setItems([]);
+            setThread(undefined);
+            setThreadConcept(undefined);
+            setPast(null);
+            setTutorNote("");
+            setArchiveOpen(false);
+            draftRef.current?.focus();
+          }}
+        >
+          새 대화
+        </button>
       </div>
       </div>
       {archiveSlot ? createPortal(archive, archiveSlot) : archive}
@@ -778,7 +702,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
                 }
               }}
             />
-            <VanishPlaceholder textarea={draftRef} examples={voice.listening ? QUESTION_LISTENING : QUESTION_EXAMPLES} hidden={draft.length > 0} sent={sent} />
+            <VanishPlaceholder textarea={draftRef} examples={QUESTION_EXAMPLES} hidden={draft.length > 0} sent={sent} />
           </label>
           <button type="submit" className="chat-send" aria-label="질문 보내기" title="질문 보내기 (Enter)" disabled={sending || pastLoading || feedbackBusy || !!job || historyLoading || !draft.trim()}>
             {sending
@@ -799,7 +723,6 @@ const QUESTION_EXAMPLES = [
   "예: 재귀 함수는 언제 멈추나요?",
   "예: 이번 주 강의에서 꼭 알아야 할 개념은 뭐예요?",
 ];
-const QUESTION_LISTENING = ["듣고 있어요… 말씀이 끝나면 마이크를 다시 눌러 주세요."];
 
 const REACTIONS = [["understood", "💡", "이해했어요"], ["confused", "❓", "헷갈려요"], ["stop", "⛔️", "중단"]] as const;
 

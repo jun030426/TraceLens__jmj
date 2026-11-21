@@ -433,7 +433,8 @@ def run_once(job_id=None):
                 "practice_prepare": prepare_practice,
                 "practice_grade": grade_practice,
             }
-            with job_context(job):
+            from lerny.gemini_quota import review_job
+            with job_context(job), review_job(session, job, settings()):
                 if job.kind in {"auto_concepts", "daily_theory"}:
                     raise ValueError("MANUAL_GENERATION_REQUIRED")
                 if job.kind in {"questions", "practice_prepare"} and not job.payload.get("generation_id"):
@@ -516,9 +517,9 @@ def run_once(job_id=None):
                     version.status = "extracted" if job.kind == "embed" else "queued" if job.status == "queued" else "failed"
                     version.error_code = code
                 if job.kind == "grade" and job.status == "failed":
-                    from lerny.models import Attempt
+                    from lerny.models import grading_attempt
 
-                    attempt = session.get(Attempt, job.payload["attempt_id"])
+                    attempt = grading_attempt(session, job)
                     attempt.status = "held"
                     attempt.feedback = {
                         "message": "자동 채점이 완료되지 않아 보류했어요. 오답으로 처리하지 않아요."

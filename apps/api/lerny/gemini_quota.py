@@ -6,6 +6,8 @@ The DB clock and committed state survive process restarts and worker changes.
 import hashlib
 import json
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, time as day_start, timedelta
 from zoneinfo import ZoneInfo
 
@@ -18,6 +20,48 @@ from lerny.db import engine
 from lerny.models import GeminiQuota, uid
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
+_verifying = ContextVar("gemini_verifying", default=False)
+_paid_job = ContextVar("gemini_paid_review_job", default=False)
+
+
+@contextmanager
+def review_job(session, job, config):
+    from lerny.models import ContentGeneration, Material, MaterialVersion
+
+    allowed = False
+    if (config.gemini_review_quota_project and config.gemini_review_week is not None
+            and job.course_id == config.gemini_review_course_id):
+        if job.kind == "extract" and config.instructor_review_from_week is None:
+            week = session.scalar(select(Material.week)
+                .join(MaterialVersion, MaterialVersion.material_id == Material.id)
+                .where(MaterialVersion.id == job.payload.get("version_id"), Material.course_id == job.course_id))
+            allowed = week == config.gemini_review_week
+        elif job.kind == "questions":
+            week = session.scalar(select(ContentGeneration.week).where(
+                ContentGeneration.id == job.payload.get("generation_id"), ContentGeneration.course_id == job.course_id))
+            allowed = week == config.gemini_review_week
+    token = _paid_job.set(allowed)
+    try:
+        yield
+    finally:
+        _paid_job.reset(token)
+
+
+@contextmanager
+def verification():
+    token = _verifying.set(True)
+    try:
+        yield
+    finally:
+        _verifying.reset(token)
+
+
+def request_purpose(path, config):
+    if path.endswith(":embedContent"):
+        return "embedding"
+    if path == "interactions" and _verifying.get() and _paid_job.get() and config.gemini_review_quota_project:
+        return "review"
+    return "content"
 
 
 class ProviderDeferred(ValueError):
@@ -37,7 +81,11 @@ def scope(path, payload):
     # Google's retired alias shares the replacement model's quota.
     if model == "gemini-3.5-flash":
         model = "gemini-3.6-flash"
-    return hashlib.sha256(json.dumps([settings().gemini_quota_project, model]).encode()).hexdigest()
+    config = settings()
+    project = config.gemini_quota_project
+    if request_purpose(path, config) == "review":
+        project = config.gemini_review_quota_project
+    return hashlib.sha256(json.dumps([project, model]).encode()).hexdigest()
 
 
 def db_time(session):

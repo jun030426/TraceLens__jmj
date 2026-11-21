@@ -18,7 +18,7 @@ import httpx
 
 from lerny.config import settings
 from lerny.heygen_pilot import job_lock
-from lerny.gemini_quota import ProviderDeferred, block_until, next_day, release_slot, reserve_slot
+from lerny.gemini_quota import ProviderDeferred, block_until, next_day, release_slot, request_purpose, reserve_slot
 
 _media_budget = ContextVar("gemini_media_budget", default=False)
 _embedding_budget = ContextVar("gemini_embedding_budget", default=0)
@@ -124,12 +124,12 @@ def request(path, payload, parse):
     from lerny.inference import current_job, current_retry_round
     from lerny.gemini_failures import diagnostic, MAX_SERVICE_FAILURES, EXHAUSTED
 
-    purpose = "embedding" if path.endswith(":embedContent") else "content"
+    config = settings()
+    purpose = request_purpose(path, config)
     available(purpose)
     context = current_job()
     if context is None:
         raise ValueError("GEMINI_JOB_CONTEXT_REQUIRED")
-    config = settings()
     # Hash the context rather than accepting a caller-controlled path.
     root = config.runtime_root / "gemini-calls" / fingerprint(context)
     key = fingerprint({"path": path, "payload": payload})
@@ -211,7 +211,7 @@ def request(path, payload, parse):
             raise ValueError("GEMINI_CALL_UNCERTAIN") from None
         finally:
             release_slot(lease)
-        save_json(cache, {"status": "completed", "response": raw})
+        save_json(cache, {"status": "completed", "credential_role": purpose, "response": raw})
         return result
 
 
