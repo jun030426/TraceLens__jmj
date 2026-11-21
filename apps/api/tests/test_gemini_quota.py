@@ -81,13 +81,16 @@ def test_embedding_and_content_have_independent_limits(paced):
 def test_paid_verification_keeps_completed_responses_and_free_project_backoff(paced, monkeypatch):
     config, clock, _ = paced
     config.gemini_review_quota_project = "paid-test"
+    config.gemini_review_course_id = "course"
+    config.gemini_review_week = 4
     config.gemini_embedding_api_key = SecretStr("paid-test-key")
     headers = []
     def post(_client, _url, **kwargs):
         headers.append(kwargs["headers"]["x-goog-api-key"])
         return httpx.Response(200, json={"ok":True}, request=httpx.Request("POST", "https://test.invalid"))
     monkeypatch.setattr(httpx.Client, "post", post)
-    with job_context(SimpleNamespace(id="test-route", payload={})):
+    job = SimpleNamespace(id="test-route", kind="questions", course_id="course", payload={"generation_id":"test"})
+    with job_context(job), quota.review_job(SimpleNamespace(scalar=lambda _: 4), job, config):
         provider.request(PATH, BODY, dict)
         quota.block_until(PATH, BODY, "GEMINI_RATE_LIMITED", clock[0] + 3600)
         changed = {**BODY, "input":"second synthetic request"}

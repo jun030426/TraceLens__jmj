@@ -433,7 +433,8 @@ def run_once(job_id=None):
                 "practice_prepare": prepare_practice,
                 "practice_grade": grade_practice,
             }
-            with job_context(job):
+            from lerny.gemini_quota import review_job
+            with job_context(job), review_job(session, job, settings()):
                 if job.kind in {"auto_concepts", "daily_theory"}:
                     raise ValueError("MANUAL_GENERATION_REQUIRED")
                 if job.kind in {"questions", "practice_prepare"} and not job.payload.get("generation_id"):
