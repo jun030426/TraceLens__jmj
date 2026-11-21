@@ -360,7 +360,7 @@ async def test_complete_bundle_counts_once_without_waiting_for_grading(app_db):
     from lerny.models import now
     app, session = app_db
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
-        _, section, _ = await seed(c, session)
+        _, section, _ = await seed(c, session, legacy_session=True)
         daily = (await c.post(f"/api/v1/sections/{section['id']}/daily")).json()
         assert not (await c.get("/api/v1/my/learning-streak")).json()["today_completed"]
         for i, q in enumerate(daily["items"]):
@@ -368,7 +368,7 @@ async def test_complete_bundle_counts_once_without_waiting_for_grading(app_db):
                 headers={"Idempotency-Key": f"complete-{i}"},
                 json={"answer": "wrong explanation" if q["kind"] == "essay" else "1"})
             assert response.status_code == 202, response.text
-            assert (await c.get("/api/v1/my/learning-streak")).json()["today_completed"] == (i == 2)
+            assert (await c.get("/api/v1/my/learning-streak")).json()["today_completed"] == (i + 1 == len(daily["items"]))
         owner = session.get(LearningSession, daily["id"]).student_id
         record_completion(session, owner, section["id"], "practice", "test-practice", now())
         record_completion(session, owner, section["id"], "practice", "test-practice", now())
