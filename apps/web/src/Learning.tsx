@@ -13,7 +13,7 @@ import { featureBlock, useServiceStatus } from "./ServiceStatus";
 import "./teacher-processing.css";
 import { PagedList } from "./StudentLists";
 import { matchesSearch } from "./listNavigation";
-import { QuestionArchive, quizNameOf, type HistoryItem } from "./QuestionArchive";
+import { QuestionArchive, isQuizQuestion, quizNameOf, type HistoryItem } from "./QuestionArchive";
 import { TypedAnswer } from "./TypedAnswer";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -48,7 +48,7 @@ export function Materials({
   courseId: string;
   teacher?: boolean;
   currentWeek?: number | null;
-  /* 학기 전체 주차 수 — 자료가 없는 주차도 칸을 보여주려고 써요 (학생 강의실) */
+  /* 학기 전체 주차 수 */
   totalWeeks?: number | null;
 }) {
   const list = useLoad<{ items: Material[] }>(
@@ -104,7 +104,7 @@ export function Materials({
         {teacher ? <button className="materials-add" disabled={uploadBusy || (!!uploadBlock && !uploadOpen)} aria-describedby={uploadBlock ? "teacher-upload-block" : undefined} aria-expanded={uploadOpen} aria-controls="material-upload" onClick={() => setUploadOpen(!uploadOpen)}>{uploadOpen ? "업로드 닫기" : "+ 자료 올리기"}</button> : null}
       </div>
       <ErrorNotice text={error || list.error} />
-      {teacher && uploadOpen && <MaterialUpload key={courseId} courseId={courseId} blocked={uploadBlock} onChange={reload} onBusy={setUploadBusy} />}
+      {teacher && uploadOpen && <MaterialUpload key={courseId} courseId={courseId} totalWeeks={totalWeeks ?? 16} blocked={uploadBlock} onChange={reload} onBusy={setUploadBusy} />}
       {teacher && <WeeklyContent courseId={courseId} refreshKey={JSON.stringify(list.data?.items.map(m => [m.id,m.revision,m.version?.id,m.version?.status])) || ""} />}
       {teacher && <>
         {uploadBlock && <div className="teacher-upload-block" id="teacher-upload-block" role="status"><strong>자료 업로드·새 버전 저장 일시중지</strong><p>{uploadBlock}</p><button type="button" onClick={service.reload}>상태 다시 확인</button></div>}
@@ -146,6 +146,25 @@ export function Materials({
               {m.content_generation_mode !== "weekly" && m.learning_status === "failed" && m.version?.status === "ready" && m.visibility === "public" && ["lecture", "example", "assignment"].includes(m.kind) && <button disabled={!!contentBlock} title={contentBlock || undefined} onClick={() => void run(async () => { if (contentBlock) throw new Error(contentBlock); await api(`/materials/${m.id}/learning`, post({})); })}>개념·문항 생성 다시 시도</button>}
             </div>
             <div className="actions">
+              {teacher && <label className="file-replace">
+                수정본 업로드
+                <input
+                  type="file"
+                  disabled={!!uploadBlock}
+                  title={uploadBlock || undefined}
+                  accept={MATERIAL_ACCEPT}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file)
+                      void run(async () => {
+                        if (uploadBlock) throw new Error(uploadBlock);
+                        const f = new FormData();
+                        f.append("file", file);
+                        await uploadMaterial(courseId, f, { id: m.id, revision: m.revision });
+                      });
+                  }}
+                />
+              </label>}
               <a href={"/api/v1/materials/" + m.id + "/file"}>원본 받기</a>
               {teacher && (
                 <>
@@ -177,25 +196,6 @@ export function Materials({
                   >
                     추출 텍스트 확인
                   </button>
-                  <label className="file-replace">
-                    수정본 업로드
-                    <input
-                      type="file"
-                      disabled={!!uploadBlock}
-                      title={uploadBlock || undefined}
-                      accept={MATERIAL_ACCEPT}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file)
-                          void run(async () => {
-                            if (uploadBlock) throw new Error(uploadBlock);
-                            const f = new FormData();
-                            f.append("file", file);
-                            await uploadMaterial(courseId, f, { id: m.id, revision: m.revision });
-                          });
-                      }}
-                    />
-                  </label>
                 </>
               )}
             </div>
@@ -333,6 +333,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
   const chatLocation = useLocation();
   const [quizAsk, setQuizAsk] = useState<QuizAsk | null>(() => (chatLocation.state as { quizAsk?: QuizAsk } | null)?.quizAsk || null);
   // 지금 대화가 어떤 개념 문항에서 시작됐는지 — 새 대화가 되면 비워요. 일반 질문은 개념 없이 남아요 (취약도 2단계, 11-16)
+  const [quizConversation, setQuizConversation] = useState(false);
   const [threadConcept, setThreadConcept] = useState<string | undefined>();
   useEffect(() => {
     if (!quizAsk) return;
@@ -376,6 +377,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
   useEffect(() => {
     let active = true;
     setHistoryLoading(true);
+    setQuizConversation(false);
     setItems([]);
     setPast(null);
     if (!latestKey) setArchiveOpen(false);
@@ -395,6 +397,9 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
             reaction: x.feedback === "aborted" ? "stop" : x.feedback,
           })));
           setThread(r.thread_id || undefined);
+          setQuizConversation(!!r.thread_id && r.items.some(
+            item => item.thread_id === r.thread_id && isQuizQuestion(item),
+          ));
           setJob(r.job_id || undefined);
         }
       })
@@ -439,6 +444,8 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
       }
       setItems(conv.map(x => ({ id: x.id, question: x.question.split("\n\n[함께 보내는 퀴즈와 내 답안]")[0], answer: x.answer, error: x.answer ? undefined : x.error, at: x.created_at, quizName: quizNameOf(x) || undefined })));
       setThread(threadId || undefined);
+      setQuizAsk(null);
+      setQuizConversation(isQuizQuestion(target));
       const d = new Date(target.created_at);
       setPast({ label: Number.isNaN(d.getTime()) ? "이전" : new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" }).format(d), focus: Math.max(0, conv.findIndex(x => x.id === target.id)) });
       setTutorNote("");
@@ -537,6 +544,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
       setThreadConcept(conceptId);
       setArchiveOpen(false);
       setPast(null);
+      if (quizAsk) setQuizConversation(true);
       setQuizAsk(null);
       setTutorNote("");
       setItems(v => [...v, { id: r.resource_id, question, at: new Date().toISOString(), quizName: quizAsk ? quizAsk.name || "개념 퀴즈" : undefined }]);
@@ -562,6 +570,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
         setJob(undefined);
         setThread(undefined);
         setThreadConcept(undefined);
+        setQuizConversation(false);
         setTutorNote("대화를 중단했어요. 새로 질문하면 새 대화로 시작해요.");
       } else {
         setTutorNote("좋아요! 이해한 내용을 오늘의 퀴즈로 확인해 보세요.");
@@ -571,12 +580,13 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
     finally { feedbackRequest.current = false; setFeedbackBusy(false); }
   };
   // 이전 질문 내역 — AI 질문 화면에서는 왼쪽 '내 강의' 아래 자리(#chat-archive-slot)에 그려요. 자리가 없으면 대화 창 안에 그대로 둬요.
+  const isQuizChat = !!quizAsk || quizConversation;
   const archive = <QuestionArchive sectionId={sectionId} revision={archiveRevision} open={archiveOpen} onOpenChange={setArchiveOpen}
     onOpenItem={(item) => void openPast(item)} />;
   return (
-    <section className="panel chat chat-messenger">
+    <section className={`panel chat chat-messenger${isQuizChat ? " is-quiz-chat" : ""}`}>
       <div className="chat-heading">
-      <h2 className="chat-title">AI 질문 <span>수업 자료에서 답변의 근거를 함께 확인하세요.</span></h2>
+      <h2 className="chat-title">{isQuizChat ? "퀴즈 챗봇" : "학습 챗봇"} <span>수업 자료에서 답변의 근거를 함께 확인하세요.</span></h2>
       <div className="chat-heading-actions">
         <button
           type="button"
@@ -584,6 +594,8 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
           disabled={!!job || feedbackBusy || sending || pastLoading || historyLoading}
           onClick={() => {
             setItems([]);
+            setQuizAsk(null);
+            setQuizConversation(false);
             setThread(undefined);
             setThreadConcept(undefined);
             setPast(null);
@@ -718,7 +730,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
 
 /* 질문 칸에 돌아가며 보이는 예시 문구 (VanishPlaceholder) */
 const QUESTION_EXAMPLES = [
-  "궁금한 점을 적거나 마이크를 눌러 말해 보세요.",
+  "궁금한 점을 적어 질문해보세요.",
   "예: 리스트와 튜플은 뭐가 다른가요?",
   "예: 재귀 함수는 언제 멈추나요?",
   "예: 이번 주 강의에서 꼭 알아야 할 개념은 뭐예요?",

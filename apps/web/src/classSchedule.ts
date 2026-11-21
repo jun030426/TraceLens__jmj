@@ -28,3 +28,11 @@ export function scheduleName(days: string[], slots: Slot[]): string {
   if (name.length > MAX_NAME) throw new Error("수업 시간이 너무 많아요. 시간을 줄여 주세요.");
   return name;
 }
+
+/* 학기 시작일~종료일로 전체 주차 수를 계산해요 (예: 9/1~12/21 → 16주). 날짜가 없거나 이상하면 16주로 봐요. */
+export function termWeeks(startsOn?: string, endsOn?: string) {
+  const start = startsOn ? Date.parse(startsOn) : NaN;
+  const end = endsOn ? Date.parse(endsOn) : NaN;
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 16;
+  return Math.min(52, Math.max(1, Math.ceil((end - start + 86400000) / (7 * 86400000))));
+}

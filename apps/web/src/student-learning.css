@@ -284,3 +284,111 @@
     padding: 14px;
   }
 }
+
+#root main.app .progress-panel .learning-history-count {
+  flex-wrap: wrap;
+  margin: 8px 0 4px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  font-size: 15px !important;
+  font-weight: 650;
+}
+#root main.app .progress-panel :is(.learning-history-item, .student-practice-record) > time {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+#root .practice-history-sort {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  min-width: 116px;
+  font-size: 13px;
+}
+#root .practice-history-sort > button,
+#root .practice-history-sort-options > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 12px;
+  text-align: start;
+}
+#root main.app .practice-history-sort > button {
+  min-height: 44px;
+  padding: 8px 14px 8px 10px;
+  border: 1px solid #d9d9de;
+  border-radius: 10px;
+  background: var(--d-surface);
+  box-shadow: none;
+  color: var(--d-ink);
+  font-size: 14px;
+  font-weight: 400;
+}
+:root[data-theme="dark"] #root main.app .practice-history-sort > button {
+  border-color: #382f40;
+}
+#root .practice-history-sort-options {
+  position: absolute;
+  z-index: 3;
+  inset: calc(100% + 4px) 0 auto;
+  padding: 4px;
+  border: 1px solid var(--d-hair);
+  border-radius: 10px;
+  background: var(--d-surface, #fff);
+  box-shadow: 0 6px 18px #20122e20;
+}
+#root .practice-history-sort-options > button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+#root .practice-history-sort-options > button:is(:hover, [aria-pressed="true"]) {
+  background: color-mix(in srgb, var(--d-accent, #765587) 14%, transparent);
+}
+
+@supports (appearance: base-select) and selector(::picker(select)) {
+  #root main[data-learning-selects] select:not([multiple]):not([size]) {
+    appearance: base-select !important;
+    -webkit-appearance: base-select !important;
+  }
+  #root main[data-learning-selects] select:not([multiple]):not([size])::picker-icon {
+    display: none;
+  }
+  #root main[data-learning-selects] select:not([multiple]):not([size])::picker(select) {
+    appearance: base-select;
+    position-area: auto;
+    position-try-fallbacks: flip-block;
+    inset: calc(anchor(bottom) + 4px) auto auto anchor(left);
+    box-sizing: border-box;
+    min-width: anchor-size(width);
+    max-width: calc(100vw - 24px);
+    max-height: min(18rem, 40vh);
+    margin: 0;
+    padding: 4px;
+    overflow: auto;
+    border: 1px solid var(--d-hair);
+    border-radius: 10px;
+    background: var(--d-surface, #fff);
+    box-shadow: 0 6px 18px #20122e20;
+    color: var(--d-ink);
+  }
+  #root main[data-learning-selects="teacher"] select:not([multiple]):not([size])::picker(select) {
+    position-try-fallbacks: none;
+  }
+  #root main[data-learning-selects] select:not([multiple]):not([size]) option {
+    min-height: 38px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  #root main[data-learning-selects] select:not([multiple]):not([size]) option:not(:disabled):is(:hover, :focus-visible, :checked) {
+    background: color-mix(in srgb, var(--d-accent, #765587) 14%, transparent);
+  }
+  #root main[data-learning-selects] select:not([multiple]):not([size]) option::checkmark {
+    display: none;
+  }
+}

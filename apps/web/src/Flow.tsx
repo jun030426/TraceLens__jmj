@@ -16,6 +16,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { Auth } from "./Auth";
+import { termWeeks } from "./classSchedule";
 import { api, post, type Classroom, type Course, type Section, type Enrollment, type Term } from "./api";
 import { ErrorNotice, Notice, useLoad } from "./components";
 import { Chat, Materials } from "./Learning";
@@ -822,7 +823,7 @@ export function ProfessorWorkspace({
     {courses.data?.items.length === 0 && <div className="material-hub-empty"><h2>먼저 강의를 만들어 주세요.</h2><p>강의를 등록하면 이곳에서 수업 자료를 관리할 수 있어요.</p><Link to="/professor#create-course">강의 만들기 →</Link></div>}
     {selected && <>
       <div className="material-hub-course">{picker}<Link to={`/professor/courses/${selected.id}?tab=materials`}>이 강의실로 이동 ↗</Link></div>
-      <Materials key={selected.id} courseId={selected.id} teacher />
+      <Materials key={selected.id} courseId={selected.id} teacher totalWeeks={termWeeks(pickedTerm?.starts_on, pickedTerm?.ends_on)} />
     </>}
   </section>;
   return <section className="professor-material-hub professor-student-hub">

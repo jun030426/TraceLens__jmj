@@ -23,3 +23,55 @@
   border-radius: 999px;
   white-space: nowrap;
 }
+
+#root :is(.chat-messenger.is-quiz-chat, .qa-quiz-tab, .qa-quiz-name) {
+  --quiz-chat-question: #305ca0;
+  --quiz-chat-answer: #eaf2ff;
+  --quiz-chat-border: #c5d7f0;
+  --quiz-chat-input: #fafcff;
+  --quiz-chat-accent: #29518c;
+}
+:root[data-theme="dark"] #root :is(.chat-messenger.is-quiz-chat, .qa-quiz-tab, .qa-quiz-name) {
+  --quiz-chat-question: #345d98;
+  --quiz-chat-answer: #222f49;
+  --quiz-chat-border: #3a5077;
+  --quiz-chat-input: #1e2b44;
+  --quiz-chat-accent: #b2ceff;
+}
+#root main.app .chat-messenger.is-quiz-chat .is-me .chat-bubble {
+  background: var(--quiz-chat-question);
+}
+#root main.app .chat-messenger.is-quiz-chat .is-ai .chat-bubble {
+  background: var(--quiz-chat-answer);
+  border-color: var(--quiz-chat-border);
+}
+
+#root main.app .chat-messenger.is-quiz-chat .chat-heading {
+  border-color: var(--quiz-chat-border);
+}
+#root main.app .chat-messenger.is-quiz-chat :is(.chat-past-bar, .chat-new-conversation, .chat-quiz-context) {
+  background: var(--quiz-chat-answer);
+  border-color: var(--quiz-chat-border);
+  color: var(--quiz-chat-accent);
+}
+#root main.app .chat-messenger.is-quiz-chat :is(.chat-past-bar button, .chat-quiz-name, .chat-speaker, .chat-quiz-context__label, .chat-quiz-context__name, .chat-bubble a, .source-reference, .chat-send:not(:disabled)) {
+  color: var(--quiz-chat-accent);
+}
+#root main.app .chat-page .chat-messenger.is-quiz-chat .chat-input-label textarea {
+  background: var(--quiz-chat-input);
+  border-color: var(--quiz-chat-border);
+}
+#root main.app .chat-page .chat-messenger.is-quiz-chat .chat-input-label textarea:focus {
+  border-color: var(--quiz-chat-accent);
+  box-shadow: 0 0 0 3px var(--quiz-chat-border);
+}
+#root main.app .chat-archive .qa-tabs .qa-quiz-tab:is(.is-active, :hover) {
+  color: var(--quiz-chat-accent);
+}
+#root main.app .chat-archive .qa-tabs .qa-quiz-tab.is-active {
+  border-bottom-color: var(--quiz-chat-accent);
+}
+#root main.app .chat-archive .qa-item .qa-quiz-name {
+  background: var(--quiz-chat-answer);
+  color: var(--quiz-chat-accent);
+}

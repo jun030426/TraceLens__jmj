@@ -459,13 +459,24 @@
 .teacher-course-page .exam-manager .exam-range-editor > p {
   margin-bottom: 20px;
 }
-.teacher-course-page .exam-manager .exam-range-editor .form fieldset {
+.teacher-course-page .exam-manager .exam-range-editor .form > fieldset {
   gap: 20px;
 }
 .teacher-course-page .exam-manager .exam-range-editor .form-actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--d-line, #ededee);
+}
+.teacher-course-page .exam-manager .exam-range-editor .form .form-actions-beside {
+  display: block;
+  min-width: 0;
+  margin: 0 auto 0 0;
+  padding: 0;
+  border: 0;
 }
 .teacher-course-page .exam-manager .exam-range-editor .form-actions > button {
   min-height: 42px;
@@ -482,7 +493,12 @@
   min-height: 44px;
 }
 .teacher-course-page .exam-manager .exam-publish-field {
-  padding-top: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.teacher-course-page .exam-manager .exam-publish-field strong {
+  font-size: 16px;
 }
 .teacher-course-page
   .exam-manager
