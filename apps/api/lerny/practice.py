@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Header, Response
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from lerny.auth import Input
 from lerny.automatic import eligible
@@ -385,6 +385,17 @@ def help_used(section_id: str, body: HelpInput, session: Db, actor: Actor):
         state["explanation"] = explanation(exercise)
         state["answers"] = list(exercise.blanks.values()) if exercise.kind == "blank" else [exercise.reference]
     return state
+
+
+@router.get("/my/practice-submission-count")
+def practice_submission_count(session: Db, actor: Actor):
+    if actor.role != "student":
+        deny(403)
+    # Each daily practice session belongs to one student and class section.
+    submissions = select(PracticeAttempt.practice_session_id, PracticeAttempt.exercise_id).where(
+        PracticeAttempt.student_id == actor.id,
+    ).distinct().subquery()
+    return {"submitted": session.scalar(select(func.count()).select_from(submissions))}
 
 
 @router.get("/sections/{section_id}/practice/attempts")

@@ -167,7 +167,7 @@ function Shell() {
           }
         }}
         className={
-          "app-header " + (headerHidden && !menuOpen ? "is-scroll-hidden " : "") + (/^\/classrooms\/[^/]+\/practice$/.test(pathname) ? "is-autohide " : "") + (classroom
+          "app-header " + (headerHidden && !menuOpen ? "is-scroll-hidden " : "") + (classroom
             ? "ln-header lesson-header"
             : isLanding || isStudentHome
               ? "ln-header"

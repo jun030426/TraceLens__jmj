@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { api } from "./api";
 import { computeXp, GRADES, XP_RULES, type StreakInfo, type TheoryRecord, type XpSummary } from "./xp/xpRules";
-import { practiceCounts, XP_CHANGED } from "./xp/practiceXp";
+import { XP_CHANGED } from "./xp/practiceXp";
 import "./xp-badge.css";
 
 // 등급마다 움직임이 달라요 — 높은 등급은 통통 뛰고, 낮은 등급은 느릿하게 출렁여요 (xp-badge.css)
@@ -26,7 +26,7 @@ async function loadTheory() {
 
 export function XpBadge({ userId }: { userId: string }) {
   const { pathname } = useLocation();
-  const [server, setServer] = useState<{ theory: TheoryRecord[]; streak?: StreakInfo }>();
+  const [server, setServer] = useState<{ theory: TheoryRecord[]; streak?: StreakInfo; practice: { submitted: number } }>();
   const [failed, setFailed] = useState(false);
   const [practiceRev, setPracticeRev] = useState(0);
   const [open, setOpen] = useState(false);
@@ -56,27 +56,30 @@ export function XpBadge({ userId }: { userId: string }) {
   useEffect(() => {
     let active = true;
     // 서버 기록 하나를 못 불러와도 캐릭터는 보이게, 불러온 것만으로 계산해요
-    Promise.allSettled([loadTheory(), api<StreakInfo>("/my/learning-streak")]).then(([theory, streak]) => {
+    Promise.allSettled([
+      loadTheory(),
+      api<StreakInfo>("/my/learning-streak"),
+      api<{ submitted: number }>("/my/practice-submission-count"),
+    ]).then(([theory, streak, practice]) => {
       if (!active) return;
-      setServer({
-        theory: theory.status === "fulfilled" ? theory.value : [],
-        streak: streak.status === "fulfilled" ? streak.value : undefined,
-      });
-      setFailed(theory.status === "rejected" && streak.status === "rejected");
+      setServer(previous => ({
+        theory: theory.status === "fulfilled" ? theory.value : previous?.theory ?? [],
+        streak: streak.status === "fulfilled" ? streak.value : previous?.streak,
+        practice: practice.status === "fulfilled" ? practice.value : previous?.practice ?? { submitted: 0 },
+      }));
+      setFailed([theory, streak, practice].some(result => result.status === "rejected"));
     });
     return () => {
       active = false;
     };
-  }, [userId, pathname]);
+  }, [userId, pathname, practiceRev]);
 
-  // 실습에서 정답을 맞히면 바로 다시 계산해요
+  // 실습 제출이 저장되면 서버 집계를 다시 읽어요.
   useEffect(() => {
     const bump = () => setPracticeRev((v) => v + 1);
     window.addEventListener(XP_CHANGED, bump);
-    window.addEventListener("storage", bump);
     return () => {
       window.removeEventListener(XP_CHANGED, bump);
-      window.removeEventListener("storage", bump);
     };
   }, []);
 
@@ -108,9 +111,8 @@ export function XpBadge({ userId }: { userId: string }) {
   }, [open]);
 
   const xp: XpSummary | null = server
-    ? computeXp(server.theory, server.streak, practiceCounts(userId))
+    ? computeXp(server.theory, server.streak, server.practice)
     : null;
-  void practiceRev;
 
   // 등급이 올라가면 배지가 한 번 통통 튀어요 (마지막으로 본 등급을 이 브라우저에 기억)
   useEffect(() => {
@@ -177,7 +179,7 @@ export function XpBadge({ userId }: { userId: string }) {
               {xp.grade.label} <small>{xp.total.toLocaleString()} XP</small>
             </strong>
             <p>{xp.grade.title}</p>
-            {failed && <p className="xp-badge-note">학습 기록을 불러오지 못해 실습 기록만 반영했어요.</p>}
+            {failed && <p className="xp-badge-note">일부 학습 기록을 불러오지 못했어요.</p>}
           </div>
         </div>
 

@@ -149,6 +149,7 @@ export function testResponse(path: string, role: string): unknown {
   if ((m = p.match(/^\/learning-sessions\/test-daily-([^/]+)$/))) return testDaily(m[1]);
   if (p === "/terms") return { items: [term] };
   if (p === "/courses") return { items: [course, course2] };
+  if (p === "/my/practice-submission-count") return { submitted: 0 };
   if (p === "/my/learning-streak") return { today_completed: false, current_streak: 4, total_days: records.length };
   if (p === "/my/learning-sessions") {
     const q = new URLSearchParams(path.split("?")[1]);

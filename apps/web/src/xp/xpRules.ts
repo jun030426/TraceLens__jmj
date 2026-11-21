@@ -3,10 +3,7 @@
    그래서 정답·오답에 따라 XP를 다르게 주지 않고, 제출과 연속 학습에만 XP를 줘요.
    - XP_RULES: 무엇을 하면 몇 XP를 주는지
    - GRADES: 몇 XP부터 어떤 등급(마스코트)인지 — 낮은 등급부터 순서대로 적어요
-   - computeXp(): 서버 기록(이론 퀴즈·연속 학습) + 이 브라우저의 실습 기록으로 XP를 계산해요.
-   서버(DB)에 XP를 따로 저장하지 않아요. 이미 서버에 있는 학습 기록에서 매번 다시 계산하므로
-   이론·연속 학습 XP는 어느 기기에서든 같아요. 실습 제출 결과는 서버에 저장되지만 학생 전체 기록을
-   한 번에 받아 오는 API가 없어서, 실습 XP는 제출할 때 이 브라우저(localStorage)에 남겨요 — practiceXp.ts 참고. */
+   - computeXp(): 서버의 이론·실습 제출과 연속 학습 기록으로 XP를 계산해요. */
 
 export const XP_RULES = {
   /** 오늘의 이론 퀴즈를 모두 제출했을 때 (맞았는지와 상관없이 같아요 · 하루 한 번) */
@@ -41,9 +38,9 @@ export const GRADES: Grade[] = [
   { label: "C0", min: 250, image: "/xp-grades/c-zero.webp", title: "조금씩 감을 잡고 있어요" },
   { label: "C+", min: 450, image: "/xp-grades/c-plus.webp", title: "궁금한 게 많아지는 중이에요" },
   { label: "B0", min: 700, image: "/xp-grades/b-zero.webp", title: "차분히 쌓아 가고 있어요" },
-  { label: "B+", min: 1000, image: "/xp-grades/b-plus.webp", title: "신나게 성장하고 있어요" },
-  { label: "A0", min: 1400, image: "/xp-grades/a-zero.webp", title: "자신감이 꽉 찼어요" },
-  { label: "A+", min: 1900, image: "/xp-grades/a-plus.webp", title: "최고 등급이에요!" },
+  { label: "B+", min: 900, image: "/xp-grades/b-plus.webp", title: "신나게 성장하고 있어요" },
+  { label: "A0", min: 1200, image: "/xp-grades/a-zero.webp", title: "자신감이 꽉 찼어요" },
+  { label: "A+", min: 1600, image: "/xp-grades/a-plus.webp", title: "최고 등급이에요!" },
 ];
 
 /** /my/learning-sessions 한 줄 (서버가 주는 값) */
