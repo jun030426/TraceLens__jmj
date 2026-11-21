@@ -504,6 +504,16 @@ class UnifiedMultimodalRAG:
             raise ValueError("질문을 입력해주세요.")
 
         hits = self.retrieve(question, top_k=top_k)
+        if not hits and history:
+            # [방법 3: 직전 질문 결합 재검색]
+            prev_user_msgs = [h['content'] for h in history if h.get('role') == 'user']
+            if prev_user_msgs:
+                combined_query = f"{prev_user_msgs[-1]} {question}"
+                hits = self.retrieve(combined_query, top_k=top_k)
+        if not hits and getattr(self, 'corpus', None):
+            # [방법 2: 직전 슬라이드 근거 폴백]
+            hits = self.corpus[:top_k]
+
         if not hits:
             return {
                 'answerable': False,

@@ -180,6 +180,160 @@ class ClozeGenerator:
         return chosen
 
     @classmethod
+    def infer_dynamic_requirements(cls, code: str, slide_text: str = None) -> list[str]:
+        """임의의 어떤 파이썬 코드가 주어지더라도 AST 구문 분석을 통해
+        [1. 입력 선언 유지 -> 2. 도메인별 핵심 연산 정합화 -> 3. 출력/반환 서식 준수]
+        의 3단계 표준 문제 요구조건을 정답 코드 노출(스포일러) 없이 동적으로 자동 생성합니다."""
+        if not code or not code.strip():
+            return [
+                "시작 코드의 입력 변수 선언을 유지하세요.",
+                "문제에서 요구한 핵심 연산 및 처리 순서를 준수하세요.",
+                "출력 결과는 예시 출력 서식과 소수점 자릿수를 정확히 준수하세요."
+            ]
+
+        reqs = []
+        prefix = slide_text if slide_text else ""
+        combined_text = (prefix + "\n" + code).lower()
+
+        # 1. 입력 변수 및 함수 매개변수 동적 감지
+        input_vars = []
+        assign_targets = []
+        has_func = False
+        func_params = []
+        try:
+            tree = ast.parse(code)
+            for node in tree.body:
+                if isinstance(node, ast.Assign):
+                    val = node.value
+                    if isinstance(val, (ast.Constant, ast.Num, ast.Str, ast.List, ast.Tuple, ast.Dict)):
+                        for t in node.targets:
+                            if isinstance(t, ast.Name) and t.id not in input_vars:
+                                input_vars.append(t.id)
+                    elif isinstance(val, ast.Call):
+                        fname = getattr(val.func, "id", "")
+                        if fname in ("input", "int", "float", "list", "dict", "set"):
+                            for t in node.targets:
+                                if isinstance(t, ast.Name) and t.id not in input_vars:
+                                    input_vars.append(t.id)
+                        else:
+                            for t in node.targets:
+                                if isinstance(t, ast.Name) and t.id not in assign_targets:
+                                    assign_targets.append(t.id)
+                    else:
+                        for t in node.targets:
+                            if isinstance(t, ast.Name) and t.id not in assign_targets:
+                                assign_targets.append(t.id)
+                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    has_func = True
+                    func_params = [arg.arg for arg in node.args.args if arg.arg != "self"]
+        except Exception:
+            pass
+
+        if has_func and func_params:
+            reqs.append("함수의 입력 매개변수(" + ", ".join(func_params[:3]) + ")와 전달 인자 조건을 유지하세요.")
+        elif input_vars:
+            reqs.append("시작 코드의 입력 변수(" + ", ".join(input_vars[:3]) + ") 선언을 유지하세요.")
+        else:
+            reqs.append("시작 코드의 입력 변수 선언 및 초기화 상태를 유지하세요.")
+
+        # 2. 도메인별 핵심 연산 패턴 동적 감지 (정답 수식 노출 0건)
+        has_unit_scaling = bool(
+            re.search(r"/\s*100\b", code) or re.search(r"\*\s*1000\b", code) or
+            "cm" in combined_text or "센티미터" in combined_text or "미터" in combined_text or
+            ("height" in combined_text and "weight" in combined_text) or "단위" in combined_text
+        )
+        has_sum_avg = bool(
+            any(w in combined_text for w in ("total", "sum", "avg", "average", "mean", "합계", "평균")) or
+            ("score" in combined_text and ("+" in code or "sum" in code))
+        )
+        has_arithmetic = bool(
+            all(op in code for op in ("+", "-", "*")) or "사칙연산" in combined_text or
+            ("덧셈" in combined_text and "나눗셈" in combined_text)
+        )
+        has_pow_formula = bool("**" in code or "bmi" in combined_text or "^" in combined_text)
+        has_mod_parity = bool("% 2" in code or "짝수" in combined_text or "홀수" in combined_text)
+        has_condition = bool("if " in code)
+        has_search_sort = bool(
+            "binary_search" in combined_text or "sort" in combined_text or
+            re.search(r"while\s+\w+\s*<=\s*\w+", code) or "이진" in combined_text or "정렬" in combined_text
+        )
+        has_dsa = bool(
+            any(k in combined_text for k in ("stack", "queue", "pop", "push", "top", "rear", "front", "dequeue", "enqueue"))
+        )
+        has_string_ops = bool(
+            "len(" in code and ("str" in combined_text or "text" in combined_text or "@" in combined_text or "email" in combined_text)
+        )
+
+        if has_unit_scaling:
+            if "height" in combined_text and "weight" in combined_text:
+                reqs.append("키(cm)와 몸무게(kg)의 단위 체계를 공식에 맞추어 정합화하세요.")
+            else:
+                reqs.append("입력 데이터의 단위 체계를 공식 및 요구조건에 맞추어 적절히 환산·정합화하세요.")
+        elif has_search_sort:
+            reqs.append("탐색/정렬의 범위 갱신과 반복 종료(기저) 조건을 엄격히 준수하여 알고리즘을 완성하세요.")
+        elif has_dsa:
+            reqs.append("자료구조의 기저/경계 조건(언더플로우·오버플로우)을 방어하고 포인터 상태를 안전하게 갱신하세요.")
+        elif has_sum_avg:
+            reqs.append("주어진 데이터 목록을 순회하며 누적 연산(합계)을 수행하고, 이를 바탕으로 최종 결과(평균/비율)를 단계별로 산출하세요.")
+        elif has_arithmetic:
+            reqs.append("두 수에 대한 각 사칙연산(덧셈, 뺄셈, 곱셈, 실수 나눗셈) 결과를 각각 도출하세요.")
+        elif has_pow_formula:
+            reqs.append("문제에서 요구한 연산 우선순위와 거듭제곱(**) 및 나눗셈 비율을 올바르게 적용하세요.")
+        elif has_mod_parity:
+            reqs.append("나머지 연산자(%)를 활용하여 짝수/홀수 판별 조건을 올바르게 구성하세요.")
+        elif has_string_ops:
+            reqs.append("문자열 길이(len) 및 특정 문자 패턴 포함 여부를 올바르게 검사하세요.")
+        elif has_condition:
+            reqs.append("문제에서 요구한 분기 기준값과의 대소·일치 조건을 올바르게 비교 판별하세요.")
+        else:
+            # 규칙 기반 깡통 문장을 영구 퇴출하고 교안 지문(slide_text) 및 타깃 변수(assign_targets)를 분석하여 자연스러운 도메인 문장 동적 생성
+            inferred_action = ""
+            if slide_text and slide_text.strip():
+                clean_slide = slide_text.strip().split("\n")[0].split(".")[0].strip()
+                # 지문에서 핵심 변환/계산 목표 추출 (예: '섭씨(celsius) 온도를 입력받아 화씨(fahrenheit) 온도로 변환하여 출력합니다.')
+                m = re.search(r"(?:입력받아|주어졌을\s*때|활용하여)\s*(.+?)(?:하여\s*출력|하고\s*출력|출력합니다|구합니다|$)", clean_slide)
+                if m:
+                    candidate = m.group(1).strip()
+                    if candidate.endswith(("변환", "계산", "산출", "도출", "판별")):
+                        inferred_action = f"{candidate}하는 공식을 올바르게 적용하세요."
+                    elif candidate.endswith("로"):
+                        inferred_action = f"{candidate} 변환하는 공식을 올바르게 적용하세요."
+                    elif "온도" in candidate:
+                        inferred_action = f"{candidate} 변환 처리를 올바르게 구현하세요."
+                    else:
+                        inferred_action = f"{candidate} 연산을 올바르게 구현하세요."
+
+            if not inferred_action:
+                if assign_targets and input_vars:
+                    inferred_action = f"입력 변수({', '.join(input_vars[:2])})를 바탕으로 '{', '.join(assign_targets[:2])}' 변수의 계산 공식을 올바르게 적용하세요."
+                elif assign_targets:
+                    inferred_action = f"연산식을 완성하여 '{', '.join(assign_targets[:2])}' 변수에 올바른 결괏값을 도출하세요."
+                else:
+                    inferred_action = "주어진 입력 데이터를 바탕으로 요구된 연산 및 로직을 순서대로 올바르게 구현하세요."
+
+            reqs.append(inferred_action)
+
+        # 3. 출력 및 반환 서식 동적 감지
+        has_print = "print(" in code
+        has_return = "return " in code
+        has_float_fmt = bool(":.2f" in code or ":.1f" in code or "round(" in code or (has_unit_scaling and "bmi" in combined_text))
+        has_colon_label = bool(re.search(r"print\([^)]*[:：]", code))
+
+        if has_print:
+            if has_float_fmt:
+                reqs.append("출력 결과는 예시 출력 서식과 소수점 자릿수를 정확히 준수하세요.")
+            elif has_colon_label:
+                reqs.append("출력 형식의 라벨 문자열, 콜론(:), 공백 구분을 예시 출력과 정확히 일치시키세요.")
+            else:
+                reqs.append("요구된 예시 출력 형식에 맞추어 콘솔에 결과를 정확히 출력하세요.")
+        elif has_return:
+            reqs.append("계산된 최종 결괏값을 함수의 반환 규격(자료형 및 값)에 맞추어 return하세요.")
+        else:
+            reqs.append("최종 결과가 문제의 요구 형식과 일치하도록 완성하세요.")
+
+        return reqs
+
+    @classmethod
     def infer_problem_statement(cls, code: str, title: str = None, description: str = None,
                                 requirements: list = None, slide_text: str = None, concept_id: str = None) -> dict:
         """교안 슬라이드 텍스트 및 AST 함수 분석을 통해 실습 문제의 [제목, 글 지문, 요구조건]을 자동 생성합니다."""
@@ -268,36 +422,38 @@ class ClozeGenerator:
             },
             'bmi': {
                 'title': 'BMI 계산 프로그램 구현하기',
-                'description': '키(height)와 몸무게(weight)를 입력받아 체질량지수(BMI)를 계산하는 프로그램입니다. BMI 계산 공식은 (몸무게(kg) / (키(m) * 키(m)))이며, cm 단위 입력값을 m 단위로 변환한 뒤 소수점 둘째 자리까지 출력해야 합니다.',
+                'description': '키(height)와 몸무게(weight)를 입력받아 체질량지수를 구하는 BMI 계산 공식을 적용하고 소수점 둘째 자리까지 출력하는 프로그램입니다. (단, 입력된 키의 단위(cm)와 공식에 필요한 단위(m)의 차이에 유의하세요.)',
                 'requirements': [
-                    '입력받은 키(cm)를 100으로 나누어 미터(m) 단위로 변환해야 합니다.',
-                    'BMI 공식(weight / (height ** 2))을 적용하여 계산해야 합니다.',
-                    '소수점 둘째 자리까지 출력 형식(예: BMI : 22.49)을 맞춰야 합니다.'
+                    '시작 코드의 입력 변수 선언을 유지하세요.',
+                    '키(cm)와 몸무게(kg)의 단위 체계를 공식에 맞추어 정합화하세요.',
+                    '출력 결과는 예시 출력 서식과 소수점 자릿수를 정확히 준수하세요.'
                 ]
             },
             'arithmetic': {
                 'title': '사칙연산 프로그램 구현하기',
                 'description': '두 수(a, b)를 입력받아 덧셈, 뺄셈, 곱셈, 나눗셈 결과를 각각 계산하고 형식에 맞춰 출력하는 프로그램입니다.',
                 'requirements': [
-                    '두 수의 덧셈(+), 뺄셈(-), 곱셈(*), 나눗셈(/)을 올바르게 계산해야 합니다.',
-                    '나눗셈 결과는 실수(float) 형태로 출력되어야 합니다.',
-                    '출력 형식의 콜론(:)과 띄어쓰기를 예시 출력과 동일하게 맞춰야 합니다.'
+                    '시작 코드의 입력 변수 선언을 유지하세요.',
+                    '두 수의 사칙연산(덧셈, 뺄셈, 곱셈, 나눗셈 실수)을 각각 계산하세요.',
+                    '출력 형식의 콜론(:)과 공백을 예시 출력과 동일하게 맞추세요.'
                 ]
             },
             'email': {
                 'title': '이메일 유효성 및 문자열 분석 프로그램',
                 'description': '이메일 주소 문자열을 분석하여 특수문자(@)의 포함 여부와 전체 길이를 확인하는 프로그램입니다.',
                 'requirements': [
-                    '문자열의 길이를 len() 함수를 통해 계산해야 합니다.',
-                    '문자열 내 @ 기호의 존재 여부를 in 연산자로 확인해야 합니다.'
+                    '시작 코드의 입력 변수 선언을 유지하세요.',
+                    '문자열의 길이(len)와 특수문자(@) 포함 여부를 올바르게 판별하세요.',
+                    '출력 결과는 예시 출력 서식과 정확히 일치시키세요.'
                 ]
             },
             'average': {
                 'title': '성적 합계 및 평균 계산 프로그램',
                 'description': '여러 점수의 합계와 평균을 계산하여 출력하는 프로그램입니다.',
                 'requirements': [
-                    '모든 점수의 합계를 누적하여 계산해야 합니다.',
-                    '합계를 점수 개수로 나누어 평균을 계산해야 합니다.'
+                    '시작 코드의 입력 변수 선언을 유지하세요.',
+                    '모든 점수의 합계를 누적 합산하고, 이를 과목 수로 나누어 평균을 계산하세요.',
+                    '출력 결과는 예시 출력 서식과 소수점 자릿수를 정확히 준수하세요.'
                 ]
             }
         }
@@ -339,10 +495,7 @@ class ClozeGenerator:
         else:
             gen_desc = '제시된 코드의 핵심 알고리즘 로직이 정상 작동하도록 요구사항에 맞게 빈칸을 채우시오.'
 
-        gen_reqs = requirements if requirements is not None else [
-            '함수의 입출력 조건과 기저 조건을 올바르게 처리해야 합니다.',
-            '파이썬 표준 문법과 인덴트(들여쓰기) 규칙을 준수해야 합니다.'
-        ]
+        gen_reqs = requirements if requirements is not None else cls.infer_dynamic_requirements(code, slide_text=slide_text)
 
         return {'title': gen_title, 'description': gen_desc, 'requirements': gen_reqs}
 
@@ -952,21 +1105,21 @@ class ClozeGenerator:
             'steps': [
                 {
                     'step_number': 1,
-                    'title': '1️⃣ [단위 변환 - cm를 m로]',
-                    'action_story': '입력받은 키(height)는 cm 단위입니다. BMI 공식에 대입하기 위해 먼저 100으로 나누어 미터(m) 단위로 변환하세요.',
-                    'code_mnemonic': 'height = height / 100'
+                    'title': '1️⃣ [단위 변환 - 계산 단위 정합화]',
+                    'action_story': '입력받은 키(height)는 cm 단위입니다. BMI 공식에 대입하기 위해 먼저 미터(m) 단위로 환산하는 전처리 연산을 수행하세요.',
+                    'code_mnemonic': '[키] = [키] / [환산단위]'
                 },
                 {
                     'step_number': 2,
-                    'title': '2️⃣ [BMI 공식 계산]',
-                    'action_story': '몸무게(weight)를 키의 제곱(height ** 2)으로 나누어 bmi 변수에 저장하세요.',
-                    'code_mnemonic': 'bmi = weight / (height ** 2)'
+                    'title': '2️⃣ [체질량지수(BMI) 계산]',
+                    'action_story': '체질량지수는 몸무게를 키의 2제곱으로 나눈 비율입니다. 거듭제곱 연산자(**)와 나눗셈(/)을 조합하여 bmi 변수에 저장하세요.',
+                    'code_mnemonic': '[bmi] = [몸무게] / ([키] ** 2)'
                 },
                 {
                     'step_number': 3,
-                    'title': '3️⃣ [소수점 둘째 자리 출력]',
-                    'action_story': "f-string의 :.2f 서식을 활용하여 'BMI : 22.49' 형식으로 결과를 출력하세요.",
-                    'code_mnemonic': "print(f'BMI : {bmi:.2f}')"
+                    'title': '3️⃣ [소수점 서식 맞춤 출력]',
+                    'action_story': "f-string 또는 서식 지정자(:.2f)를 활용하여 예시 출력과 동일한 형식(소수점 둘째 자리)으로 결과를 화면에 출력하세요.",
+                    'code_mnemonic': "print(f'BMI : {[bmi]:.2f}')"
                 }
             ]
         },
@@ -977,20 +1130,20 @@ class ClozeGenerator:
                 {
                     'step_number': 1,
                     'title': '1️⃣ [두 수 준비]',
-                    'action_story': '계산 대상이 되는 두 변수 a와 b의 값을 확인하고 준비합니다.',
-                    'code_mnemonic': 'a, b = 10, 5'
+                    'action_story': '계산 대상이 되는 두 변수의 값을 확인하고 준비합니다.',
+                    'code_mnemonic': '[변수 준비]'
                 },
                 {
                     'step_number': 2,
                     'title': '2️⃣ [사칙연산 수행]',
                     'action_story': '덧셈(+), 뺄셈(-), 곱셈(*), 나눗셈(/) 연산자를 적용하여 각 연산을 계산합니다. (나눗셈은 실수 float로 계산됩니다)',
-                    'code_mnemonic': 'a + b, a - b, a * b, a / b'
+                    'code_mnemonic': '[변수] [연산자] [변수]'
                 },
                 {
                     'step_number': 3,
                     'title': '3️⃣ [형식에 맞춘 출력]',
                     'action_story': "예시 출력 형식에 맞추어 콜론(:)과 공백을 지키며 print() 함수로 결과를 출력하세요.",
-                    'code_mnemonic': "print('덧셈 :', a + b, ...)"
+                    'code_mnemonic': "print('[라벨] :', [연산결과])"
                 }
             ]
         },
@@ -1002,19 +1155,49 @@ class ClozeGenerator:
                     'step_number': 1,
                     'title': '1️⃣ [문자열 변수 확인]',
                     'action_story': '분석 대상이 되는 문자열 변수를 확인합니다.',
-                    'code_mnemonic': 'text = ...'
+                    'code_mnemonic': '[문자열 변수 확인]'
                 },
                 {
                     'step_number': 2,
                     'title': '2️⃣ [len() 함수 적용]',
                     'action_story': '공백과 특수문자를 포함한 모든 글자의 개수를 len() 함수로 구합니다.',
-                    'code_mnemonic': 'length = len(text)'
+                    'code_mnemonic': '[길이변수] = len([문자열])'
                 },
                 {
                     'step_number': 3,
                     'title': '3️⃣ [결과 출력]',
                     'action_story': '계산된 글자 수를 요구된 형식에 맞춰 출력합니다.',
-                    'code_mnemonic': 'print(length)'
+                    'code_mnemonic': 'print([길이변수])'
+                }
+            ]
+        },
+        'grade_average': {
+            'flow_title': '🎬 성적 처리 프로그램을 완성하는 4단계 행동 흐름',
+            'metaphor': '과목별 점수를 모아 총점을 내고, 평균을 산출하여 출력하기',
+            'steps': [
+                {
+                    'step_number': 1,
+                    'title': '1️⃣ [입력 준비 및 점수 변수 확인]',
+                    'action_story': '각 과목의 점수 변수가 선언되어 있는지 확인합니다.',
+                    'code_mnemonic': '[과목 점수 확인]'
+                },
+                {
+                    'step_number': 2,
+                    'title': '2️⃣ [총점 합산 - 누적 덧셈]',
+                    'action_story': '모든 과목의 점수를 덧셈(+) 연산자로 더하여 total 변수에 합산 저장하세요.',
+                    'code_mnemonic': '[총점변수] = [과목1] + [과목2] + ...'
+                },
+                {
+                    'step_number': 3,
+                    'title': '3️⃣ [평균 계산 - 나눗셈 연산]',
+                    'action_story': '앞서 구한 총점(total)을 과목 수로 나눗셈(/)하여 평균 avg 변수를 계산하세요.',
+                    'code_mnemonic': '[평균변수] = [총점변수] / [과목수]'
+                },
+                {
+                    'step_number': 4,
+                    'title': '4️⃣ [형식에 맞춘 결과 출력]',
+                    'action_story': '요구된 예시 출력 형식에 맞추어 print() 함수 또는 f-string으로 총점과 평균을 정확히 출력하세요.',
+                    'code_mnemonic': 'print(f"[라벨] : {[변수]}")'
                 }
             ]
         }
@@ -1050,6 +1233,213 @@ class ClozeGenerator:
             }
         ]
     }
+
+    @classmethod
+    def generate_dynamic_action_flow(cls, code: str, title: str = None) -> dict:
+        """임의의 파이썬 코드를 AST로 분석하여 해당 문제 맞춤형 3~4단계 Action Flow를 동적 생성합니다."""
+        steps = []
+        code_str = (code or "").strip()
+        lines = [l.strip() for l in code_str.splitlines() if l.strip() and not l.strip().startswith("#")]
+
+        # 변수 및 구문 요소 추출
+        init_vars = []
+        calc_stmts = []
+        cond_stmts = []
+        loop_stmts = []
+        output_stmts = []
+        return_stmts = []
+        all_vars = []
+        all_ops = []
+
+        try:
+            tree = ast.parse(code_str)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Name) and node.id not in ("print", "len", "int", "float", "str", "True", "False", "None"):
+                    all_vars.append(node.id)
+                elif isinstance(node, ast.Add):
+                    all_ops.append("덧셈(+)")
+                elif isinstance(node, (ast.Div, ast.FloorDiv)):
+                    all_ops.append("나눗셈(/)")
+                elif isinstance(node, ast.Mult):
+                    all_ops.append("곱셈(*)")
+                elif isinstance(node, ast.Pow):
+                    all_ops.append("거듭제곱(**)")
+                elif isinstance(node, ast.Sub):
+                    all_ops.append("뺄셈(-)")
+                elif isinstance(node, ast.Mod):
+                    all_ops.append("나머지(%)")
+
+            # 순차적 문장 순회
+            body = tree.body
+            if body and isinstance(body[0], ast.FunctionDef):
+                body = body[0].body
+
+            for stmt in body:
+                if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+                    target_names = []
+                    if isinstance(stmt, ast.Assign):
+                        for t in stmt.targets:
+                            if isinstance(t, ast.Name):
+                                target_names.append(t.id)
+                            elif isinstance(t, ast.Attribute):
+                                target_names.append(f"{ast.unparse(t.value)}.{t.attr}" if hasattr(ast, "unparse") else t.attr)
+                    elif hasattr(stmt, "target") and isinstance(stmt.target, ast.Name):
+                        target_names.append(stmt.target.id)
+
+                    val = getattr(stmt, "value", None)
+                    if isinstance(val, (ast.Constant, ast.Num, ast.Str)):
+                        init_vars.extend(target_names)
+                    elif isinstance(val, ast.Call) and getattr(val.func, "id", "") == "input":
+                        init_vars.extend(target_names)
+                    else:
+                        calc_stmts.append((target_names, val, stmt))
+                elif isinstance(stmt, ast.AugAssign):
+                    t_name = getattr(stmt.target, "id", "")
+                    calc_stmts.append(([t_name], stmt.value, stmt))
+                elif isinstance(stmt, ast.If):
+                    cond_stmts.append(stmt)
+                elif isinstance(stmt, (ast.For, ast.While)):
+                    loop_stmts.append(stmt)
+                elif isinstance(stmt, ast.Return):
+                    return_stmts.append(stmt)
+                elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+                    fname = getattr(stmt.value.func, "id", getattr(stmt.value.func, "attr", ""))
+                    if fname == "print":
+                        output_stmts.append(stmt)
+                    else:
+                        calc_stmts.append(([], stmt.value, stmt))
+        except Exception:
+            pass
+
+        init_vars = list(dict.fromkeys(init_vars))
+        all_vars = list(dict.fromkeys(all_vars))
+        all_ops = list(dict.fromkeys(all_ops))
+
+        # 1단계: 입력 및 상태 준비
+        if cond_stmts and not init_vars:
+            cond_node = cond_stmts[0]
+            cond_str = ast.unparse(cond_node.test) if hasattr(ast, "unparse") else "조건식"
+            steps.append({
+                'step_number': 1,
+                'title': '1️⃣ [안전 확인 - 경계/예외 조건 점검]',
+                'action_story': f'연산을 시작하기 전, 예외가 발생할 수 있는 경계 조건(`if {cond_str}`)을 먼저 점검하고 방어합니다.',
+                'code_mnemonic': f'if {cond_str}:'
+            })
+        elif init_vars:
+            steps.append({
+                'step_number': 1,
+                'title': '1️⃣ [입력 준비 및 변수 확인]',
+                'action_story': f'시작에 필요한 입력 변수({", ".join(init_vars[:4])})가 선언되어 있는지 확인하고 준비합니다.',
+                'code_mnemonic': f'{", ".join(init_vars[:3])} 값 확인'
+            })
+        else:
+            steps.append({
+                'step_number': 1,
+                'title': '1️⃣ [입력 데이터 및 시작 조건 준비]',
+                'action_story': '문제에서 주어진 입력값과 사용할 변수의 역할을 확인하고 준비합니다.',
+                'code_mnemonic': '입력값 및 변수 초기화'
+            })
+
+        # 2단계: 핵심 연산 / 반복 / 조건 처리
+        if loop_stmts:
+            loop_node = loop_stmts[0]
+            loop_str = ast.unparse(loop_node) if hasattr(ast, "unparse") else "반복문"
+            loop_hdr = loop_str.splitlines()[0] if loop_str else "for / while"
+            steps.append({
+                'step_number': 2,
+                'title': '2️⃣ [반복 탐색 및 누적 연산]',
+                'action_story': f'반복문(`{loop_hdr}`)을 통해 데이터 원소를 순회하며 목표 연산을 수행합니다.',
+                'code_mnemonic': loop_hdr
+            })
+        elif calc_stmts:
+            first_targets, first_val, first_stmt = calc_stmts[0]
+            t_str = ", ".join(first_targets) if first_targets else "목표 변수"
+            unparsed = ast.unparse(first_stmt) if hasattr(ast, "unparse") else f"{t_str} 계산"
+            op_str = f" ({', '.join(all_ops)})" if all_ops else ""
+            steps.append({
+                'step_number': 2,
+                'title': '2️⃣ [핵심 계산 - 공식 및 연산자 적용]',
+                'action_story': f'주어진 조건과 연산자{op_str}를 활용하여 `{t_str}`의 값을 계산합니다.',
+                'code_mnemonic': cls.build_abstract_skeleton(unparsed) or f"[{t_str}] = [연산식]"
+            })
+        elif cond_stmts:
+            cond_node = cond_stmts[0]
+            cond_str = ast.unparse(cond_node.test) if hasattr(ast, "unparse") else "조건 비교"
+            steps.append({
+                'step_number': 2,
+                'title': '2️⃣ [조건 판별 및 분기 실행]',
+                'action_story': f'조건(`if {cond_str}`)의 참/거짓 여부를 판별하여 상황에 맞는 처리를 수행합니다.',
+                'code_mnemonic': f'if [조건식]:'
+            })
+        else:
+            steps.append({
+                'step_number': 2,
+                'title': '2️⃣ [핵심 알고리즘 로직 처리]',
+                'action_story': '요구조건에 맞추어 변수들 사이의 연산과 처리를 수행합니다.',
+                'code_mnemonic': '[변수] = [연산식]'
+            })
+
+        # 3단계: 상태 갱신 / 후속 계산
+        if len(calc_stmts) > 1:
+            sec_targets, sec_val, sec_stmt = calc_stmts[1]
+            sec_t_str = ", ".join(sec_targets) if sec_targets else "후속 변수"
+            sec_unparsed = ast.unparse(sec_stmt) if hasattr(ast, "unparse") else f"{sec_t_str} 계산"
+            steps.append({
+                'step_number': 3,
+                'title': '3️⃣ [결과 계산 및 상태 갱신]',
+                'action_story': f'앞서 구한 연산 결과를 활용하여 `{sec_t_str}` 값을 추가로 계산하거나 포인터/상태를 갱신합니다.',
+                'code_mnemonic': cls.build_abstract_skeleton(sec_unparsed) or f"[{sec_t_str}] = [연산식]"
+            })
+        elif any("self." in l for l in lines):
+            steps.append({
+                'step_number': 3,
+                'title': '3️⃣ [자료구조 상태 및 포인터 갱신]',
+                'action_story': '연산 결과에 맞추어 인덱스 위치나 포인터 변수의 값을 한 칸 이동하여 상태를 갱신합니다.',
+                'code_mnemonic': '포인터 위치 갱신'
+            })
+
+        # 4단계 (또는 최종 단계): 출력 또는 반환
+        if output_stmts:
+            out_node = output_stmts[0]
+            out_str = ast.unparse(out_node) if hasattr(ast, "unparse") else "print(...)"
+            steps.append({
+                'step_number': len(steps) + 1,
+                'title': f'{len(steps) + 1}️⃣ [형식에 맞춘 결과 출력]',
+                'action_story': f'예시 출력 서식(콜론, 공백, 소수점 등)에 맞추어 `print()` 함수로 계산된 결과를 콘솔에 출력합니다.',
+                'code_mnemonic': cls.build_abstract_skeleton(out_str) or "print('[라벨] :', [출력변수])"
+            })
+        elif return_stmts:
+            ret_node = return_stmts[0]
+            ret_str = ast.unparse(ret_node) if hasattr(ast, "unparse") else "return 결과"
+            steps.append({
+                'step_number': len(steps) + 1,
+                'title': f'{len(steps) + 1}️⃣ [최종 결과 반환]',
+                'action_story': f'준비된 결과값을 호출한 곳으로 `return`하며 함수의 실행을 정상적으로 마칩니다.',
+                'code_mnemonic': 'return [결과값]'
+            })
+        else:
+            steps.append({
+                'step_number': len(steps) + 1,
+                'title': f'{len(steps) + 1}️⃣ [최종 결과 전달 및 마무리]',
+                'action_story': '계산된 최종 결과가 문제의 요구사항과 일치하는지 점검하고 출력을 완성합니다.',
+                'code_mnemonic': '결과 출력 또는 반환'
+            })
+
+        # 3~4단계 규격 보정
+        for i, s in enumerate(steps, 1):
+            s['step_number'] = i
+            # 제목 번호 일치
+            clean_t = re.sub(r'^[1-9]️⃣\s*', '', s['title'])
+            num_emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣']
+            emoji = num_emojis[i - 1] if i <= len(num_emojis) else f'{i}단계'
+            s['title'] = f"{emoji} {clean_t}"
+
+        prob_name = title or "알고리즘"
+        return {
+            'flow_title': f'🎬 {prob_name} 구현을 완성하는 {len(steps)}단계 행동 흐름',
+            'metaphor': f'{prob_name}의 논리적 실행 단계',
+            'steps': steps
+        }
 
     @classmethod
     def resolve_mnemonic_flow(cls, exercise_id: str = '', target_code: str = '', metaphor: str = None, flow_steps: list = None) -> dict:
@@ -1095,8 +1485,17 @@ class ClozeGenerator:
             matched_key = 'arithmetic'
         elif 'email' in eid or 'len' in eid or 'string' in eid or 'len(' in tcode:
             matched_key = 'string_len'
+        elif '성적' in eid or 'grade' in eid or 'score' in eid or ('total' in tcode and 'avg' in tcode) or ('kor' in tcode and 'eng' in tcode):
+            matched_key = 'grade_average'
 
-        base = cls.MNEMONIC_FLOW_CATALOG.get(matched_key, cls.GENERIC_ACTION_FLOW)
+        if matched_key and matched_key in cls.MNEMONIC_FLOW_CATALOG:
+            base = cls.MNEMONIC_FLOW_CATALOG[matched_key]
+        elif target_code and target_code.strip():
+            # 카탈로그에 없는 임의의 문제도 코드의 AST를 분석하여 살아있는 동적 Action Flow 자동 생성!
+            base = cls.generate_dynamic_action_flow(target_code, title=exercise_id)
+        else:
+            base = cls.GENERIC_ACTION_FLOW
+
         flow_copy = {
             'flow_title': base['flow_title'],
             'metaphor': metaphor or base['metaphor'],
@@ -1123,51 +1522,271 @@ class ClozeGenerator:
                                          current_code, client, flow)
 
     @classmethod
-    def practice_hint_flow(cls, exercise_id, mode, target_code, metaphor=None, flow_steps=None):
-        # 빈칸 모드의 세 단계와 풀코딩 행동 흐름을 웹 API와 엔진에서 함께 사용한다.
-        if mode == 'cloze':
-            step1_story = "이 빈칸은 프로그램의 핵심 처리 단계 중 하나입니다. 전체 실행 흐름에서 이 줄이 계산해야 할 목표가 무엇인지 먼저 파악하세요."
-            step2_story = "이 처리에 필요한 입력 변수들과 연산 기호를 떠올려 보세요."
-            step3_story = "문법 규칙과 들여쓰기에 맞게 코드를 완성하세요. 정답을 직접 타이핑하여 검증받아야 합니다."
+    def _build_recursive_skeleton(cls, node) -> str:
+        """AST 노드를 재귀적으로 탐색하여 실제 괄호와 연산자 구조를 완벽히 보존한 추상 골격을 생성합니다."""
+        if isinstance(node, ast.BinOp):
+            left_s = cls._build_recursive_skeleton(node.left)
+            right_s = cls._build_recursive_skeleton(node.right)
+            op_s = ("+" if isinstance(node.op, ast.Add) else
+                    "-" if isinstance(node.op, ast.Sub) else
+                    "*" if isinstance(node.op, ast.Mult) else
+                    "/" if isinstance(node.op, ast.Div) else
+                    "//" if isinstance(node.op, ast.FloorDiv) else
+                    "%" if isinstance(node.op, ast.Mod) else
+                    "**" if isinstance(node.op, ast.Pow) else "연산자")
+            # 복합 수식의 우선순위 괄호 보존
+            if isinstance(node.left, ast.BinOp):
+                left_s = f"({left_s})"
+            if isinstance(node.right, ast.BinOp):
+                right_s = f"({right_s})"
+            return f"{left_s} {op_s} {right_s}"
+        elif isinstance(node, ast.Name):
+            return f"[{node.id}]"
+        elif isinstance(node, (ast.Constant, ast.Num, ast.Str)):
+            val = getattr(node, "value", getattr(node, "n", getattr(node, "s", "")))
+            if isinstance(val, (int, float)):
+                return "[상수값]"
+            return "\"[문자열]\""
+        elif isinstance(node, ast.Call):
+            fname = getattr(node.func, "id", getattr(node.func, "attr", "함수"))
+            args_s = ", ".join(cls._build_recursive_skeleton(a) for a in node.args)
+            return f"{fname}({args_s})"
+        elif isinstance(node, ast.Compare):
+            left_s = cls._build_recursive_skeleton(node.left)
+            ops_map = {ast.Eq: "==", ast.NotEq: "!=", ast.Gt: ">", ast.Lt: "<", ast.GtE: ">=", ast.LtE: "<="}
+            op_s = " ".join(ops_map.get(type(o), "비교") for o in node.ops)
+            comp_s = ", ".join(cls._build_recursive_skeleton(c) for c in node.comparators)
+            return f"{left_s} {op_s} {comp_s}"
+        elif isinstance(node, ast.JoinedStr):
+            parts = []
+            for v in node.values:
+                if isinstance(v, ast.FormattedValue):
+                    val_s = cls._build_recursive_skeleton(v.value)
+                    fmt_s = f":{v.format_spec.values[0].value}" if v.format_spec else ""
+                    parts.append(f"{{{val_s}{fmt_s}}}")
+                elif isinstance(v, ast.Constant):
+                    parts.append(str(v.value))
+            return f"f\"{''.join(parts)}\""
+        elif isinstance(node, ast.Subscript):
+            val_s = cls._build_recursive_skeleton(node.value)
+            slice_s = cls._build_recursive_skeleton(node.slice)
+            return f"{val_s}[{slice_s}]"
+        return "[연산식]"
 
-            # 문법 특성에 따른 마이크로 팁 자동 부착
-            target_str = target_code or ''
-            if "print(" in target_str:
-                step2_story += " (💡 팁: 출력 결과를 맞출 때는 print('라벨 :', 변수) 또는 f-string 포맷 형식을 점검하세요.)"
-            elif any(op in target_str for op in ["**", "/", "//", "%"]):
-                step2_story += " (💡 팁: 필요한 수학 연산자(거듭제곱 **, 나눗셈 /, 나머지 %)를 점검하세요.)"
-            elif any(fn in target_str for fn in ["int(", "float("]):
-                step2_story += " (💡 팁: 숫자의 형태를 바꾸는 자료형 변환 int() 또는 float() 함수를 점검하세요.)"
-            elif any(kw in target_str for kw in ["if ", "elif "]):
-                step2_story += " (💡 팁: 조건 비교 연산자(==, !=, >, <)와 판별 기준값을 점검하세요.)"
-            elif any(kw in target_str for kw in ["self.top", "self.rear", "self.head"]):
-                step2_story += " (💡 팁: 자료구조 포인터 인스턴스 변수(top, rear 등)의 위치 증감을 점검하세요.)"
+    @classmethod
+    def build_abstract_skeleton(cls, line: str) -> str:
+        """코드 한 줄에서 정답 코드(실제 수식, 상수값 등)를 직접 노출하지 않고
+        문법적 구조와 괄호, 연산자, 변수 역할만 완벽히 드러내는 구조화된 추상 골격(Abstract Skeleton)으로 변환합니다."""
+        clean = line.split("#")[0].strip()
+        if not clean:
+            return ""
+        try:
+            tree = ast.parse(clean)
+            if not tree.body:
+                return "[코드 작성]"
+            stmt = tree.body[0]
+            if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+                target_str = ""
+                if isinstance(stmt, ast.Assign):
+                    t = stmt.targets[0]
+                    target_str = ast.unparse(t) if hasattr(ast, "unparse") else "결과변수"
+                elif hasattr(stmt, "target"):
+                    target_str = ast.unparse(stmt.target) if hasattr(ast, "unparse") else "결과변수"
+
+                val_skel = cls._build_recursive_skeleton(stmt.value)
+                return f"[{target_str}] = {val_skel}"
+            elif isinstance(stmt, ast.AugAssign):
+                target_str = ast.unparse(stmt.target) if hasattr(ast, "unparse") else "변수"
+                op_sym = ("+=" if isinstance(stmt.op, ast.Add) else
+                          "-=" if isinstance(stmt.op, ast.Sub) else
+                          "*=" if isinstance(stmt.op, ast.Mult) else
+                          "/=" if isinstance(stmt.op, ast.Div) else "대입연산")
+                val_skel = cls._build_recursive_skeleton(stmt.value)
+                return f"[{target_str}] {op_sym} {val_skel}"
+            elif isinstance(stmt, ast.Expr):
+                return cls._build_recursive_skeleton(stmt.value)
+            elif isinstance(stmt, ast.If):
+                test_skel = cls._build_recursive_skeleton(stmt.test)
+                return f"if {test_skel}:"
+            elif isinstance(stmt, ast.For):
+                t_str = ast.unparse(stmt.target) if hasattr(ast, "unparse") else "변수"
+                iter_skel = cls._build_recursive_skeleton(stmt.iter)
+                return f"for [{t_str}] in {iter_skel}:"
+            elif isinstance(stmt, ast.While):
+                test_skel = cls._build_recursive_skeleton(stmt.test)
+                return f"while {test_skel}:"
+            elif isinstance(stmt, ast.Return):
+                if stmt.value:
+                    return f"return {cls._build_recursive_skeleton(stmt.value)}"
+                return "return"
+        except Exception:
+            pass
+        return "[변수] = [연산식]"
+
+    @classmethod
+    def practice_hint_flow(cls, exercise_id, mode, target_code, metaphor=None, flow_steps=None):
+        # 1. 빈칸 모드: 빈칸 대상 코드에 대한 0-스포일러 3단계 순차적 비계 힌트 (1: 목적 ➔ 2: 변수/문법 ➔ 3: 추상 골격)
+        if mode == 'cloze':
+            target_str = (target_code or '').strip()
+            eid = (exercise_id or '').lower()
+            lines = [l.strip() for l in target_str.splitlines() if l.strip() and not l.strip().startswith('#')]
+
+            # AST 기반 범용 동적 요소 추출
+            source_vars = []
+            target_vars = []
+            operators = []
+            skeletons = []
+            has_print = False
+            has_pow = False
+            has_div = False
+            has_mod = False
+            has_if = False
+            has_func = []
+
+            for line in lines:
+                skel = cls.build_abstract_skeleton(line)
+                if skel:
+                    skeletons.append(skel)
+                try:
+                    tree = ast.parse(line.split('#')[0].strip())
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.Name) and node.id not in ("print", "len", "int", "float", "str", "True", "False", "None"):
+                            source_vars.append(node.id)
+                        elif isinstance(node, ast.Add):
+                            operators.append("덧셈(+)")
+                        elif isinstance(node, (ast.Div, ast.FloorDiv)):
+                            operators.append("나눗셈(/)")
+                            has_div = True
+                        elif isinstance(node, ast.Mult):
+                            operators.append("곱셈(*)")
+                        elif isinstance(node, ast.Pow):
+                            operators.append("거듭제곱(**)")
+                            has_pow = True
+                        elif isinstance(node, ast.Sub):
+                            operators.append("뺄셈(-)")
+                        elif isinstance(node, ast.Mod):
+                            operators.append("나머지(%)")
+                            has_mod = True
+                        elif isinstance(node, ast.Compare):
+                            operators.append("비교 연산자")
+                        elif isinstance(node, ast.Call):
+                            fname = getattr(node.func, "id", getattr(node.func, "attr", ""))
+                            if fname:
+                                has_func.append(fname)
+                            if fname == "print":
+                                has_print = True
+                        elif isinstance(node, ast.If):
+                            has_if = True
+
+                    for stmt in tree.body:
+                        if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+                            if isinstance(stmt, ast.Assign):
+                                for t in stmt.targets:
+                                    if isinstance(t, ast.Name):
+                                        target_vars.append(t.id)
+                            elif hasattr(stmt, "target") and isinstance(stmt.target, ast.Name):
+                                target_vars.append(stmt.target.id)
+                except Exception:
+                    pass
+
+            source_vars = list(dict.fromkeys(source_vars))
+            target_vars = list(dict.fromkeys(target_vars))
+            operators = list(dict.fromkeys(operators))
+            all_vars = list(dict.fromkeys(source_vars + target_vars))
+            has_func = list(dict.fromkeys(has_func))
+
+            # [1단계: 목적 파악 - 0-스포일러 연산 목표 동적 합성]
+            # 정답 코드를 직접 노출하지 않고, 변수와 연산 특성으로부터 의도 중심 설명 생성
+            if 'bmi' in eid or '체질량' in eid or ('height' in all_vars and 'weight' in all_vars):
+                step1_story = "이 빈칸은 입력된 키(cm)를 공식에 필요한 미터(m) 단위로 환산한 후, 체질량지수 공식(몸무게 / 키²)에 따라 연산을 수행하여 결과를 산출하고 서식에 맞추어 출력하는 핵심 목표를 가집니다."
+            elif '성적' in eid or 'grade' in eid or 'score' in eid or ('total' in all_vars and 'avg' in all_vars) or ('kor' in all_vars and 'eng' in all_vars):
+                step1_story = "이 빈칸은 과목 점수들을 합산하여 총점을 구하고, 이를 과목 수로 나누어 평균을 도출한 뒤 결과 서식에 맞추어 출력하는 핵심 목표를 가집니다."
+            elif '사칙연산' in eid or 'arithmetic' in eid:
+                step1_story = "이 빈칸은 두 입력값 간의 사칙연산(덧셈, 뺄셈, 곱셈, 나눗셈)을 각각 계산하여 결과 변수에 저장하고 지정된 서식에 맞게 출력하는 핵심 목표를 가집니다."
+            elif 'email' in eid or '이메일' in eid or 'len' in has_func or 'string' in eid:
+                step1_story = "이 빈칸은 문자열의 길이 및 구성 문자를 점검하여 유효성을 판별하고 결과를 출력하는 핵심 목표를 가집니다."
+            elif '스택' in eid or 'stack' in eid or any(f in ('push', 'pop', 'peek') for f in has_func) or 'self.top' in target_str:
+                step1_story = "이 빈칸은 스택의 경계 조건을 확인하고, 최상단(top) 데이터를 안전하게 입출력한 뒤 포인터 위치를 갱신하는 핵심 목표를 가집니다."
+            elif '큐' in eid or 'queue' in eid or any(f in ('enqueue', 'dequeue') for f in has_func):
+                step1_story = "이 빈칸은 큐의 경계 조건을 확인하고, front/rear 포인터를 원형 회전 이동시키며 데이터를 입출력하는 핵심 목표를 가집니다."
+            else:
+                # 기계적 템플릿 비문을 제거하고 구문 분석 기반의 자연스러운 한국어 목적 문장 생성
+                pure_inputs = [v for v in source_vars if v not in target_vars]
+                s_desc = f"입력 변수(`{', '.join(pure_inputs[:2])}`)" if pure_inputs else "주어진 변수"
+                t_desc = f"결과 변수(`{', '.join(target_vars[:2])}`)" if target_vars else "목표 결과값"
+                
+                if target_vars and pure_inputs:
+                    step1_story = f"이 빈칸은 {s_desc}의 값을 연산식에 대입하여 {t_desc}의 최종 결괏값을 도출하는 핵심 목표를 가집니다."
+                elif target_vars:
+                    step1_story = f"이 빈칸은 주어진 연산 조건에 맞추어 {t_desc}에 올바른 계산 결과를 완성하는 핵심 목표를 가집니다."
+                elif has_if:
+                    step1_story = f"이 빈칸은 {s_desc}를 조건식으로 비교 판별하여 프로그램의 분기 흐름을 제어하는 핵심 목표를 가집니다."
+                elif has_print:
+                    step1_story = f"이 빈칸은 계산된 결괏값을 문제에서 요구한 예시 출력 서식에 맞추어 콘솔에 표시하는 핵심 목표를 가집니다."
+                else:
+                    step1_story = f"이 빈칸은 주어진 조건에 맞추어 {t_desc}를 계산하고 핵심 알고리즘 로직을 완성하는 목표를 가집니다."
+
+            # [2단계: 변수와 문법 팁 - 사용 도구 점검]
+            # 정답 수식은 숨기고, 필요한 변수와 연산자 도구 안내
+            var_part = f"다룰 변수(`{', '.join(all_vars[:5])}`)" if all_vars else "관련 변수"
+            op_part = f"연산 기호({', '.join(operators)})" if operators else "필요한 연산 기호"
+            tips = []
+            if has_pow or "**" in target_str:
+                tips.append("거듭제곱 ** 연산자(예: `x ** 2`는 x의 2제곱)")
+            if has_div or "/" in target_str:
+                tips.append("나눗셈 / 연산자(결과는 float 실수)")
+            if has_mod or "%" in target_str or "//" in target_str:
+                tips.append("정수 몫 // 연산자 또는 나머지 % 연산자")
+            if has_print or "print(" in target_str:
+                tips.append("출력 형식 맞추기: print('라벨 :', 변수) 또는 f-string(예: `f'라벨 : {변수}'`)의 공백 및 콜론 일치")
+            if has_if or "if " in target_str:
+                tips.append("조건식 끝의 콜론(:) 및 비교 연산자(==, !=, >, <)")
+            if "len" in has_func or "len(" in target_str:
+                tips.append("길이 측정 len() 함수")
+            if any(f in has_func for f in ("int", "float")):
+                tips.append("자료형 변환 함수 int() 또는 float()")
+            if any(kw in target_str for kw in ("self.top", "self.rear")):
+                tips.append("자료구조 포인터 인스턴스 변수의 증감")
+
+            tip_str = f" (💡 사용 도구 팁: {'; '.join(tips)})" if tips else ""
+            step2_story = f"이 처리에 필요한 {var_part}와 {op_part}를 떠올려 준비하세요.{tip_str}"
+
+            # [3단계: 문법 골격 조립 - 정답 코드 노출 방지 추상화 형태]
+            # 실제 정답 수치가 아닌 플레이스홀더 [...] 추상 골격으로 안내
+            if skeletons:
+                step_parts = [f"{i}단계: {s}" for i, s in enumerate(skeletons[:4], 1)]
+                step3_story = f"아래와 같은 추상화된 문법 골격 순서로 코드를 완성하세요:\n" + " ➔ ".join(step_parts) + "\n(※ 각 플레이스홀더 `[...]` 자리에 알맞은 변수와 연산자를 직접 채워 넣으세요.)"
+                code_mnemonic_3 = " ➔ ".join(skeletons[:3])
+            else:
+                step3_story = "좌변에 대상 변수명을 두고 대입 연산자(=)를 사용해 우변의 연산식을 완성하세요. (추상 형태: `[결과변수] = [연산식]`)"
+                code_mnemonic_3 = "[변수] = [연산식]"
 
             cloze_steps = [
                 {
                     'step_number': 1,
-                    'title': '1️⃣ [목적 파악 - 이 줄의 역할]',
+                    'title': '1️⃣ [목적 파악 - 해결할 연산 목표]',
                     'action_story': step1_story,
-                    'code_mnemonic': '연산 의도 파악'
+                    'code_mnemonic': '연산 의도 및 목표 파악'
                 },
                 {
                     'step_number': 2,
-                    'title': '2️⃣ [변수와 연산자 조합]',
+                    'title': '2️⃣ [변수와 문법 팁 - 사용 도구 점검]',
                     'action_story': step2_story,
-                    'code_mnemonic': '변수명 [연산자] 조합'
+                    'code_mnemonic': '변수명 [연산자] 조합 및 팁'
                 },
                 {
                     'step_number': 3,
-                    'title': '3️⃣ [문법 완성 및 제출]',
+                    'title': '3️⃣ [문법 골격 조립 - 추상화된 형태]',
                     'action_story': step3_story,
-                    'code_mnemonic': '완성 코드 타이핑'
+                    'code_mnemonic': code_mnemonic_3
                 }
             ]
             flow = {
-                'flow_title': '🎬 빈칸 채우기 핵심 포인트 가이드',
+                'flow_title': f'🎬 {exercise_id or "빈칸 채우기"} 3단계 비계 힌트',
                 'metaphor': metaphor or '핵심 코드 라인 연상',
                 'steps': cloze_steps
             }
+        # 2. 풀코딩 모드: 프로그램 전체 구현을 위한 1인칭 행동 흐름(Action Flow: 준비 -> 연산/반복 -> 상태갱신 -> 출력/반환)
         else:
             flow = cls.resolve_mnemonic_flow(exercise_id, target_code, metaphor=metaphor, flow_steps=flow_steps)
 

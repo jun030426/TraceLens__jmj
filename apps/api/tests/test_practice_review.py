@@ -35,11 +35,17 @@ async def test_answer_requires_owned_final_submission_and_preserves_frozen_attem
         progress_url = "/api/v1/my/practice-progress"
         assert (await client.get(progress_url)).json()["items"] == []
         assert not db.scalar(select(PracticeSession.id).where(PracticeSession.student_id == student.id))
+        # Yesterday's assignment contains another exercise from the same course.
+        other_ex = PracticeExercise(course_id=course["id"], version_id=version.id,
+            source_key="previous", position=2, kind=kind, language="python", title="이전 실습",
+            prompt=ex.prompt, template=ex.template, reference=code, blanks=ex.blanks,
+            tests=ex.tests, sources=ex.sources, status="retired")
+        db.add(other_ex); db.flush()
         plan = PracticeSession(student_id=student.id, section_id=sec.id, day=today(), week=1, exercise_ids=[ex.id])
-        old = PracticeSession(student_id=student.id, section_id=sec.id, day=today()-timedelta(days=1), week=1, exercise_ids=[ex.id])
+        old = PracticeSession(student_id=student.id, section_id=sec.id, day=today()-timedelta(days=1), week=1, exercise_ids=[other_ex.id])
         db.add_all([plan, old]); db.flush()
         db.add(PracticeAttempt(student_id=student.id, section_id=sec.id, practice_session_id=old.id,
-            exercise_id=ex.id, source=code, status="held", independent=True))
+            exercise_id=other_ex.id, source=code, status="held", independent=True))
         db.commit()
         assert (await client.get(progress_url, params={"session_id": old.id})).json()["items"] == []
         current_progress = {"session_id": plan.id}
@@ -52,7 +58,7 @@ async def test_answer_requires_owned_final_submission_and_preserves_frozen_attem
         invalid = await client.post(base + "/submit", json={"exercise_id": ex.id, "source": "[[빈칸]]"})
         assert invalid.status_code == 422
         if use_hints:
-            for step in range(1, (4 if kind == "full" else 3) + 1):
+            for step in range(1, 4):
                 result = (await help("hint", step=step)).json()
                 assert not result["can_view_answer"] and "answers" not in result
         assert (await help("answer")).status_code == 409
@@ -64,9 +70,11 @@ async def test_answer_requires_owned_final_submission_and_preserves_frozen_attem
             json={"exercise_id": ex.id, "source": code})
         assert submitted.status_code == 202, submitted.text
         aid = submitted.json()["id"]
+        assert (await client.post(base + "/submit", headers={"Idempotency-Key": "another-key"},
+            json={"exercise_id": ex.id, "source": "print(0)"})).status_code == 409
         assert (await client.get(xp_count_url)).json() == {"submitted": 2}
         db.add(PracticeAttempt(student_id=student.id, section_id=sec.id,
-            practice_session_id=old.id, exercise_id=ex.id, source=code,
+            practice_session_id=old.id, exercise_id=other_ex.id, source=code,
             status="graded", independent=False))
         db.commit()
         assert (await client.get(xp_count_url)).json() == {"submitted": 2}

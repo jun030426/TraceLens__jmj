@@ -161,6 +161,17 @@ def generate_job(session, job):
             raise ValueError("INVALID_CRITERIA")
         if len({" ".join(source_map[key][1].split()).casefold() for key in item.criteria}) != len(item.criteria):
             raise ValueError("INVALID_CRITERIA")
+        hint_val = getattr(item, "hint", None) or ""
+        if not hint_val or any(kw in hint_val for kw in ["```", "def ", "class ", "import ", "print("]):
+            role_hints = {
+                1: f"{concept.name}의 핵심 정의와 기본 키워드를 떠올려 보세요.",
+                2: f"{concept.name}의 동작 원리와 규칙을 차근차근 떠올려 보세요.",
+                3: f"초보자가 흔히 저지르는 오개념이나 예외 상황(에러)을 주의 깊게 살펴보세요.",
+                4: f"주어진 짧은 연산 과정과 값의 변화를 한 단계씩 추적해 보세요.",
+                5: f"{concept.name}의 특징과 다른 개념과의 차이점을 비교해 보세요."
+            }
+            hint_val = role_hints.get(position, f"{concept.name}의 핵심 개념을 떠올려 보세요.")
+
         q = Question(
             course_id=job.course_id,
             generation_id=job.payload.get("generation_id"),
@@ -176,7 +187,8 @@ def generate_job(session, job):
             solution={
                 "answer_index": item.answer_index,
                 "explanation": item.explanation,
-                **({"hint": item.hint, "quiz_position": position} if mcq_count == 5 else {}),
+                "hint": hint_val,
+                "quiz_position": position,
                 "criteria": [source_map[key][1] for key in item.criteria],
             },
         )
