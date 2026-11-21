@@ -420,7 +420,10 @@ def record_theory_help(learning_id: str, question_id: str, session: Db, actor: A
     if attempt and attempt.status != "graded":
         attempt.independent = False
     session.commit()
-    return {"recorded": True, "hint": quote}
+    concept_hint = (question.solution.get("hint")
+                    or question.solution.get("explanation")
+                    or "핵심 개념의 정의와 연산 순서를 차근차근 떠올려 보세요.")
+    return {"recorded": True, "hint": concept_hint}
 
 
 @router.post("/learning-sessions/{learning_id}/questions/{question_id}/submit", status_code=202)

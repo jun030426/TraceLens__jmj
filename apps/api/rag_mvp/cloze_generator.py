@@ -265,10 +265,45 @@ class ClozeGenerator:
                     '탐색 범위를 결정하는 기저 조건(low <= high)을 올바르게 설정해야 합니다.',
                     '타깃과의 비교 결과에 따라 low 또는 high 포인터를 갱신해야 합니다.'
                 ]
+            },
+            'bmi': {
+                'title': 'BMI 계산 프로그램 구현하기',
+                'description': '키(height)와 몸무게(weight)를 입력받아 체질량지수(BMI)를 계산하는 프로그램입니다. BMI 계산 공식은 (몸무게(kg) / (키(m) * 키(m)))이며, cm 단위 입력값을 m 단위로 변환한 뒤 소수점 둘째 자리까지 출력해야 합니다.',
+                'requirements': [
+                    '입력받은 키(cm)를 100으로 나누어 미터(m) 단위로 변환해야 합니다.',
+                    'BMI 공식(weight / (height ** 2))을 적용하여 계산해야 합니다.',
+                    '소수점 둘째 자리까지 출력 형식(예: BMI : 22.49)을 맞춰야 합니다.'
+                ]
+            },
+            'arithmetic': {
+                'title': '사칙연산 프로그램 구현하기',
+                'description': '두 수(a, b)를 입력받아 덧셈, 뺄셈, 곱셈, 나눗셈 결과를 각각 계산하고 형식에 맞춰 출력하는 프로그램입니다.',
+                'requirements': [
+                    '두 수의 덧셈(+), 뺄셈(-), 곱셈(*), 나눗셈(/)을 올바르게 계산해야 합니다.',
+                    '나눗셈 결과는 실수(float) 형태로 출력되어야 합니다.',
+                    '출력 형식의 콜론(:)과 띄어쓰기를 예시 출력과 동일하게 맞춰야 합니다.'
+                ]
+            },
+            'email': {
+                'title': '이메일 유효성 및 문자열 분석 프로그램',
+                'description': '이메일 주소 문자열을 분석하여 특수문자(@)의 포함 여부와 전체 길이를 확인하는 프로그램입니다.',
+                'requirements': [
+                    '문자열의 길이를 len() 함수를 통해 계산해야 합니다.',
+                    '문자열 내 @ 기호의 존재 여부를 in 연산자로 확인해야 합니다.'
+                ]
+            },
+            'average': {
+                'title': '성적 합계 및 평균 계산 프로그램',
+                'description': '여러 점수의 합계와 평균을 계산하여 출력하는 프로그램입니다.',
+                'requirements': [
+                    '모든 점수의 합계를 누적하여 계산해야 합니다.',
+                    '합계를 점수 개수로 나누어 평균을 계산해야 합니다.'
+                ]
             }
         }
 
         matched = None
+        combined_probe = f"{concept_id or ''} {inferred_func or ''} {code} {slide_text or ''}".lower()
         if concept_id:
             for k in templates:
                 if k in concept_id.lower():
@@ -279,6 +314,15 @@ class ClozeGenerator:
                 if k in inferred_func.lower():
                     matched = templates[k]
                     break
+        if not matched:
+            if 'bmi' in combined_probe or ('height' in combined_probe and 'weight' in combined_probe):
+                matched = templates['bmi']
+            elif '사칙연산' in combined_probe or ('덧셈' in combined_probe and '나눗셈' in combined_probe):
+                matched = templates['arithmetic']
+            elif '이메일' in combined_probe or 'email' in combined_probe or ('len(' in combined_probe and '@' in combined_probe):
+                matched = templates['email']
+            elif '평균' in combined_probe or 'average' in combined_probe:
+                matched = templates['average']
 
         if matched:
             t = title or matched['title']
@@ -327,10 +371,17 @@ class ClozeGenerator:
                 from video_extraction.shared.gemini import obj, TEXT, STRINGS
                 from quiz_mvp.generation import call_json
 
+                step_schema = obj({
+                    'step_number': {'type': 'integer'},
+                    'title': TEXT,
+                    'action_story': TEXT,
+                    'code_mnemonic': TEXT
+                })
                 statement_schema = obj({
                     'title': TEXT,
                     'description': TEXT,
-                    'requirements': STRINGS
+                    'requirements': STRINGS,
+                    'flow_steps': {'type': 'array', 'items': step_schema}
                 })
 
                 system_prompt = (
@@ -338,9 +389,13 @@ class ClozeGenerator:
                     "from real lecture and lab code. Given the code and optional slide context/concept, generate a clear, "
                     "engaging, student-friendly problem statement in Korean.\n\n"
                     "Strict Requirements:\n"
-                    "1. title: Clear and concise problem title (e.g. '[스택] pop() 메서드 구현하기', '이진 탐색(Binary Search) 구현')\n"
-                    "2. description: Engaging explanation of the function/algorithm's purpose, rationale, and expected behavior (2~3 sentences)\n"
-                    "3. requirements: List of 2~3 concrete technical requirements (e.g. underflow/overflow check, pointer update, return value)\n"
+                    "1. title: Clear and concise problem title (e.g. '[스택] pop() 메서드 구현하기', 'BMI 계산 프로그램', '사칙연산 프로그램')\n"
+                    "2. description: Engaging explanation of the function/algorithm's purpose, rationale, and expected behavior (2~3 sentences).\n"
+                    "   * CRITICAL FORMULA & UNIT RULE: If the slide text, code, or comments contain mathematical formulas (e.g., BMI = weight / (height ** 2), average = total / count) "
+                    "     or required unit conversions (e.g., convert cm to m by dividing height by 100), you MUST explicitly include the exact calculation formula and unit conversion in the description!\n"
+                    "3. requirements: List of 2~3 concrete technical requirements (e.g., unit conversion, formula calculation, float formatting with :.2f).\n"
+                    "4. flow_steps: Exactly 3 logical step-by-step problem-solving actions for student guidance "
+                    "   (Step 1: unit conversion or input prep, Step 2: core calculation/formula, Step 3: formatting and output).\n"
                     "Return valid JSON matching the schema."
                 )
 
@@ -368,6 +423,7 @@ class ClozeGenerator:
                         'title': str(parsed['title']).strip(),
                         'description': str(parsed['description']).strip(),
                         'requirements': cleaned_reqs or ['알고리즘 입출력 및 제약 조건을 준수하세요.'],
+                        'flow_steps': parsed.get('flow_steps') or [],
                         'source': 'gemini'
                     }
             except Exception:
@@ -414,7 +470,7 @@ class ClozeGenerator:
             concept_id=concept_id
         )
 
-        helper_meta = cls.extract_available_helpers(code)
+        helper_meta = cls.extract_available_helpers(code, slide_text=slide_text)
 
         return {
             'title': problem_meta['title'],
@@ -422,6 +478,7 @@ class ClozeGenerator:
             'requirements': problem_meta['requirements'],
             'available_helpers': helper_meta['available_helpers'],
             'helpers_guide_text': helper_meta['helpers_guide_text'],
+            'flow_steps': problem_meta.get('flow_steps', []),
             'statement_source': problem_meta.get('source', 'rule_fallback'),
             'original_code': code,
             'masked_code': '\n'.join(masked_lines),
@@ -454,15 +511,52 @@ class ClozeGenerator:
     }
 
     @classmethod
-    def extract_available_helpers(cls, code: str, target_func_name: str = None) -> dict:
-        """클래스 코드 내에서 사용 가능한 헤더/보조 함수 및 인스턴스 변수를 자동 추출하여 참고용 가이드를 생성합니다."""
+    def extract_available_helpers(cls, code: str, target_func_name: str = None, slide_text: str = None) -> dict:
+        """클래스 코드 내 헤더/보조 함수뿐만 아니라 일반 절차형 스크립트의 내장 함수, 연산자,
+        슬라이드 내 수학 공식까지 감지하여 실습 안내 가이드라인을 생성합니다."""
+        helpers = []
+        guide_lines = []
+
+        # 1. 슬라이드 본문 및 주석에서 핵심 계산 공식 추출 (예: BMI, 총점, 평균 등)
+        combined_text = f"{slide_text or ''}\n{code or ''}"
+        formula_matches = re.findall(r'(\b[A-Za-z가-힣_]+\s*=\s*[^,\n\)\#]+)', combined_text)
+        found_formulas = []
+        for f in formula_matches:
+            f_clean = f.strip()
+            if any(k in f_clean for k in ['BMI', 'bmi', '총점', '평균', 'average', 'total', '/', '*', '**', '+', '-']):
+                if f_clean not in found_formulas and len(f_clean) > 4:
+                    found_formulas.append(f_clean)
+                    guide_lines.append(f"• 핵심 계산 공식: `{f_clean}`")
+
+        # 단위 변환 힌트 (예: cm -> m)
+        if any(w in combined_text for w in ['cm', '키(m)', '100', '단위']):
+            guide_lines.append("• 단위 변환 주의: cm 단위 입력값은 공식 대입 전 100으로 나누어 미터(m) 단위로 변환해야 합니다.")
+
+        # 2. 코드 내 사용된 파이썬 내장 도구 및 특수 연산자 감지
+        if "**" in code:
+            helpers.append({'kind': 'operator', 'name': '**', 'description': '거듭제곱 연산자 (예: height ** 2)'})
+        if "/" in code:
+            helpers.append({'kind': 'operator', 'name': '/', 'description': '나눗셈 연산자 (결과값은 float 실수)'})
+        if "//" in code:
+            helpers.append({'kind': 'operator', 'name': '//', 'description': '정수 나눗셈 몫 연산자'})
+        if "%" in code:
+            helpers.append({'kind': 'operator', 'name': '%', 'description': '나머지 연산자'})
+        if "round(" in code or ":.2f" in code or ":.1f" in code:
+            helpers.append({'kind': 'function', 'name': 'round() / :.2f', 'description': '소수점 자릿수 제한 포맷팅 도구'})
+        if "float(" in code or "int(" in code:
+            helpers.append({'kind': 'function', 'name': 'float() / int()', 'description': '문자열 또는 숫자의 자료형 변환 도구'})
+        if "len(" in code:
+            helpers.append({'kind': 'function', 'name': 'len()', 'description': '문자열 또는 시퀀스의 길이(글자 수) 반환'})
+        if "input(" in code:
+            helpers.append({'kind': 'function', 'name': 'input()', 'description': '사용자 입력 수신 함수 (문자열 반환)'})
+
+        # 3. 기존 클래스 메서드 및 인스턴스 속성 추출 로직
         try:
             tree = ast.parse(code)
             funcs = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
         except Exception:
-            return {'available_helpers': [], 'helpers_guide_text': ''}
+            funcs = []
 
-        helpers = []
         for f in funcs:
             if f.name not in ('__init__', target_func_name):
                 ds = ast.get_docstring(f)
@@ -487,17 +581,18 @@ class ClozeGenerator:
                         'description': desc
                     })
 
-        if not helpers:
+        if helpers:
+            guide_lines.append("• 권장 사용 도구 및 연산자:")
+            for h in helpers:
+                guide_lines.append(f"  - `{h['name']}`: {h['description']}")
+
+        if not guide_lines:
             return {'available_helpers': [], 'helpers_guide_text': ''}
 
-        guide_lines = ["💡 사용 가능한 헤더/보조 함수 및 변수 안내 (참고용)"]
-        for h in helpers:
-            guide_lines.append(f"• `{h['name']}`: {h['description']}")
-        guide_lines.append("*(위 항목들은 이미 클래스에 정의되어 있으므로 작성할 코드에서 자유롭게 호출·참조할 수 있습니다)*")
-
+        full_guide = "💡 [사용 권장 도구 및 공식 가이드라인]\n" + '\n'.join(guide_lines)
         return {
             'available_helpers': helpers,
-            'helpers_guide_text': '\n'.join(guide_lines)
+            'helpers_guide_text': full_guide
         }
 
     @classmethod
@@ -526,14 +621,16 @@ class ClozeGenerator:
                 code=code, client=client, slide_text=slide_text,
                 concept_id=concept_id, title=title, description=description, requirements=requirements
             )
+            helper_meta = cls.extract_available_helpers(code, slide_text=slide_text)
             return {
                 'target_function_name': None,
                 'target_signature': None,
                 'target_code': code,
                 'starter_code': '# 여기에 알고리즘 전체 코드를 작성하세요.\n',
                 'header_code': '',
-                'available_helpers': [],
-                'helpers_guide_text': '',
+                'available_helpers': helper_meta['available_helpers'],
+                'helpers_guide_text': helper_meta['helpers_guide_text'],
+                'flow_steps': problem_meta.get('flow_steps', []),
                 'title': problem_meta['title'],
                 'description': problem_meta['description'],
                 'requirements': problem_meta['requirements'],
@@ -591,7 +688,7 @@ class ClozeGenerator:
             requirements=requirements
         )
 
-        helper_meta = cls.extract_available_helpers(code, target_f.name)
+        helper_meta = cls.extract_available_helpers(code, target_f.name, slide_text=slide_text)
 
         return {
             'target_function_name': target_f.name,
@@ -601,6 +698,7 @@ class ClozeGenerator:
             'header_code': header_code,
             'available_helpers': helper_meta['available_helpers'],
             'helpers_guide_text': helper_meta['helpers_guide_text'],
+            'flow_steps': problem_meta.get('flow_steps', []),
             'title': problem_meta['title'],
             'description': problem_meta['description'],
             'requirements': problem_meta['requirements'],
@@ -833,6 +931,78 @@ class ClozeGenerator:
                     'code_mnemonic': 'return -1'
                 }
             ]
+        },
+        'bmi': {
+            'flow_title': '🎬 BMI 계산을 완성하는 3단계 행동 흐름',
+            'metaphor': '단위를 맞추고 공식에 대입하여 체질량지수 계산하기',
+            'steps': [
+                {
+                    'step_number': 1,
+                    'title': '1️⃣ [단위 변환 - cm를 m로]',
+                    'action_story': '입력받은 키(height)는 cm 단위입니다. BMI 공식에 대입하기 위해 먼저 100으로 나누어 미터(m) 단위로 변환하세요.',
+                    'code_mnemonic': 'height = height / 100'
+                },
+                {
+                    'step_number': 2,
+                    'title': '2️⃣ [BMI 공식 계산]',
+                    'action_story': '몸무게(weight)를 키의 제곱(height ** 2)으로 나누어 bmi 변수에 저장하세요.',
+                    'code_mnemonic': 'bmi = weight / (height ** 2)'
+                },
+                {
+                    'step_number': 3,
+                    'title': '3️⃣ [소수점 둘째 자리 출력]',
+                    'action_story': "f-string의 :.2f 서식을 활용하여 'BMI : 22.49' 형식으로 결과를 출력하세요.",
+                    'code_mnemonic': "print(f'BMI : {bmi:.2f}')"
+                }
+            ]
+        },
+        'arithmetic': {
+            'flow_title': '🎬 사칙연산 프로그램을 완성하는 3단계 행동 흐름',
+            'metaphor': '계산기 버튼을 순서대로 누르듯 각각의 연산 결과 도출하기',
+            'steps': [
+                {
+                    'step_number': 1,
+                    'title': '1️⃣ [두 수 준비]',
+                    'action_story': '계산 대상이 되는 두 변수 a와 b의 값을 확인하고 준비합니다.',
+                    'code_mnemonic': 'a, b = 10, 5'
+                },
+                {
+                    'step_number': 2,
+                    'title': '2️⃣ [사칙연산 수행]',
+                    'action_story': '덧셈(+), 뺄셈(-), 곱셈(*), 나눗셈(/) 연산자를 적용하여 각 연산을 계산합니다. (나눗셈은 실수 float로 계산됩니다)',
+                    'code_mnemonic': 'a + b, a - b, a * b, a / b'
+                },
+                {
+                    'step_number': 3,
+                    'title': '3️⃣ [형식에 맞춘 출력]',
+                    'action_story': "예시 출력 형식에 맞추어 콜론(:)과 공백을 지키며 print() 함수로 결과를 출력하세요.",
+                    'code_mnemonic': "print('덧셈 :', a + b, ...)"
+                }
+            ]
+        },
+        'string_len': {
+            'flow_title': '🎬 문자열 분석 프로그램을 완성하는 3단계 행동 흐름',
+            'metaphor': '기차 칸을 하나씩 세어 전체 길이를 파악하기',
+            'steps': [
+                {
+                    'step_number': 1,
+                    'title': '1️⃣ [문자열 변수 확인]',
+                    'action_story': '분석 대상이 되는 문자열 변수를 확인합니다.',
+                    'code_mnemonic': 'text = ...'
+                },
+                {
+                    'step_number': 2,
+                    'title': '2️⃣ [len() 함수 적용]',
+                    'action_story': '공백과 특수문자를 포함한 모든 글자의 개수를 len() 함수로 구합니다.',
+                    'code_mnemonic': 'length = len(text)'
+                },
+                {
+                    'step_number': 3,
+                    'title': '3️⃣ [결과 출력]',
+                    'action_story': '계산된 글자 수를 요구된 형식에 맞춰 출력합니다.',
+                    'code_mnemonic': 'print(length)'
+                }
+            ]
         }
     }
 
@@ -905,6 +1075,12 @@ class ClozeGenerator:
             matched_key = 'queue_enqueue'
         elif 'binary_search' in eid or 'binary_search' in tcode or 'mid' in tcode:
             matched_key = 'binary_search'
+        elif 'bmi' in eid or 'bmi' in tcode or ('height' in tcode and 'weight' in tcode):
+            matched_key = 'bmi'
+        elif '사칙연산' in eid or 'arithmetic' in eid or ('덧셈' in tcode and '나눗셈' in tcode):
+            matched_key = 'arithmetic'
+        elif 'email' in eid or 'len' in eid or 'string' in eid or 'len(' in tcode:
+            matched_key = 'string_len'
 
         base = cls.MNEMONIC_FLOW_CATALOG.get(matched_key, cls.GENERIC_ACTION_FLOW)
         flow_copy = {
@@ -928,31 +1104,48 @@ class ClozeGenerator:
           - 모든 단계를 끝까지 확인하거나 실행 3회 실패 시 [정답 보기] 활성화 (Ghost Text 워터마크 따라쓰기 강제)
           - 심리적 안전지대: student_weakness_weight = 0.0 (감점 0점)
         """
-        # 1. 빈칸 모드(Cloze) 특화 3단계 비계 힌트 (정답 코드 직접 노출 절대 금지, 단계적 유도)
+        # 1. 빈칸 모드(Cloze) 특화 3단계 비계 힌트 (정답 코드 직접 노출 절대 금지, 문법 큐 연계 유도)
         if mode == 'cloze':
+            step1_story = "이 빈칸은 프로그램의 핵심 처리 단계 중 하나입니다. 전체 실행 흐름에서 이 줄이 계산해야 할 목표가 무엇인지 먼저 파악하세요."
+            step2_story = "이 처리에 필요한 입력 변수들과 연산 기호를 떠올려 보세요."
+            step3_story = "문법 규칙과 들여쓰기에 맞게 코드를 완성하세요. 정답을 직접 타이핑하여 검증받아야 합니다."
+
+            # 문법 특성에 따른 마이크로 팁 자동 부착
+            target_str = target_code or ''
+            if "print(" in target_str:
+                step2_story += " (💡 팁: 출력 결과를 맞출 때는 print('라벨 :', 변수) 또는 f-string 포맷 형식을 점검하세요.)"
+            elif any(op in target_str for op in ["**", "/", "//", "%"]):
+                step2_story += " (💡 팁: 필요한 수학 연산자(거듭제곱 **, 나눗셈 /, 나머지 %)를 점검하세요.)"
+            elif any(fn in target_str for fn in ["int(", "float("]):
+                step2_story += " (💡 팁: 숫자의 형태를 바꾸는 자료형 변환 int() 또는 float() 함수를 점검하세요.)"
+            elif any(kw in target_str for kw in ["if ", "elif "]):
+                step2_story += " (💡 팁: 조건 비교 연산자(==, !=, >, <)와 판별 기준값을 점검하세요.)"
+            elif any(kw in target_str for kw in ["self.top", "self.rear", "self.head"]):
+                step2_story += " (💡 팁: 자료구조 포인터 인스턴스 변수(top, rear 등)의 위치 증감을 점검하세요.)"
+
             cloze_steps = [
                 {
                     'step_number': 1,
-                    'title': '1️⃣ [목적 파악 - 이 줄의 존재 이유]',
-                    'action_story': '이 빈칸 한 줄이 수행해야 하는 자료구조 연산의 근본적인 목적(예: 포인터 조정, 원소 추출, 경계 조건 판별)이 무엇인지 먼저 떠올려 보세요.',
-                    'code_mnemonic': '연산의 의도와 동작 방향 생각하기'
+                    'title': '1️⃣ [목적 파악 - 이 줄의 역할]',
+                    'action_story': step1_story,
+                    'code_mnemonic': '연산 의도 파악'
                 },
                 {
                     'step_number': 2,
-                    'title': '2️⃣ [변수와 연산자 조합 유도]',
-                    'action_story': '이 연산을 위해 필요한 인스턴스 변수(self.top, self.rear, len 등)와 연산자(+=, -=, %, ==)를 머릿속으로 조합해 보세요.',
-                    'code_mnemonic': '필요한 변수명과 연산자 기호 구체화'
+                    'title': '2️⃣ [변수와 연산자 조합]',
+                    'action_story': step2_story,
+                    'code_mnemonic': '변수명 [연산자] 조합'
                 },
                 {
                     'step_number': 3,
-                    'title': '3️⃣ [문법 골격 완성 유도]',
-                    'action_story': '거의 다 왔습니다! 앞서 떠올린 변수와 연산자를 공백 규칙에 맞게 연결하여 한 줄 코드로 완성해 보세요. (정답은 직접 타이핑하여 검증받아야 합니다!)',
-                    'code_mnemonic': '변수명 [연산자] 대상값 형태로 조립'
+                    'title': '3️⃣ [문법 완성 및 제출]',
+                    'action_story': step3_story,
+                    'code_mnemonic': '완성 코드 타이핑'
                 }
             ]
             flow = {
                 'flow_title': '🎬 빈칸 채우기 핵심 포인트 가이드',
-                'metaphor': metaphor or '자료구조 핵심 라인 연상',
+                'metaphor': metaphor or '핵심 코드 라인 연상',
                 'steps': cloze_steps
             }
         else:

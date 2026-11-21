@@ -8,11 +8,14 @@ import bisect
 import html
 import re
 from pathlib import Path
-from markdown_it import MarkdownIt
 
 
 def parser():
     # No raw HTML, images, typographic substitutions or automatic linkification.
+    try:
+        from markdown_it import MarkdownIt
+    except ImportError:
+        raise RuntimeError("MARKDOWN_IT_REQUIRED")
     return MarkdownIt('js-default', {'html':False,'linkify':False,'typographer':False}).disable('image')
 
 
