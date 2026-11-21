@@ -46,6 +46,9 @@ def synthetic_model(session, *, code=True):
     def generate(prompt, schema):
         data = json.loads(prompt.rsplit("\n", 1)[1])
         props = schema["properties"]
+        if any(key.startswith("Q") for key in props):
+            from quiz_provider_fixture import quiz_batch_response
+            return quiz_batch_response(data)
         if "assessment_task" in data or "single_correct" in props:
             from quiz_provider_fixture import quiz_response
             return quiz_response(data)

@@ -31,7 +31,10 @@ def synthetic_ai(fake_provider, monkeypatch):
             return fallback(path, payload, parse)
         data = json.loads(payload["input"].rsplit("\n", 1)[1])
         properties = payload["response_format"]["schema"].get("properties", {})
-        if "assessment_task" in data or "single_correct" in properties:
+        if any(key.startswith("Q") for key in properties):
+            from quiz_provider_fixture import quiz_batch_response
+            result = quiz_batch_response(data)
+        elif "assessment_task" in data or "single_correct" in properties:
             from quiz_provider_fixture import quiz_response
             result = quiz_response(data)
         elif "concepts" in properties:

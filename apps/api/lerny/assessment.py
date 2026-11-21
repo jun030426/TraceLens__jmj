@@ -118,7 +118,11 @@ def generate_job(session, job):
     schema["$defs"]["Source"]["properties"]["chunk_id"]["enum"] = list(source_map)
     schema["$defs"]["Generated"]["properties"]["criteria"]["items"]["enum"] = list(source_map)
     from lerny.config import settings
-    if mcq_count == 5:
+    weekly_batch = bool(mcq_count == 5 and job.payload.get("generation_id") and settings().ai_provider == "gemini")
+    if weekly_batch:
+        from lerny.weekly_quiz import generate_set
+        generated = generate_set(rows, concept, source_map, checked_model)
+    elif mcq_count == 5:
         from lerny.team_engine import five_questions
         generated = five_questions(rows, job.course_id, concept, source_map, evidence, checked_model, job.id)
     elif settings().ai_provider == "gemini":
@@ -176,6 +180,13 @@ def generate_job(session, job):
         )
         if not valid_sources(session, q, require_published=False):
             raise ValueError("INVALID_CITATION")
+        if weekly_batch:
+            # Each item already passed a blind four-option solve and a separate
+            # factual, explanation and hint check against its own exact passage.
+            session.add(q)
+            session.flush()
+            created.append(q.id)
+            continue
         item_evidence = ([{"chunk_id":ref.chunk_id, "text":source_map[ref.chunk_id][1]} for ref in item.sources]
                          if mcq_count == 5 else evidence)
         if item.kind == "mcq":
