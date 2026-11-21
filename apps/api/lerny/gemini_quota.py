@@ -6,6 +6,8 @@ The DB clock and committed state survive process restarts and worker changes.
 import hashlib
 import json
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, time as day_start, timedelta
 from zoneinfo import ZoneInfo
 
@@ -18,6 +20,24 @@ from lerny.db import engine
 from lerny.models import GeminiQuota, uid
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
+_verifying = ContextVar("gemini_verifying", default=False)
+
+
+@contextmanager
+def verification():
+    token = _verifying.set(True)
+    try:
+        yield
+    finally:
+        _verifying.reset(token)
+
+
+def request_purpose(path, config):
+    if path.endswith(":embedContent"):
+        return "embedding"
+    if path == "interactions" and _verifying.get() and config.gemini_review_quota_project:
+        return "review"
+    return "content"
 
 
 class ProviderDeferred(ValueError):
@@ -37,7 +57,11 @@ def scope(path, payload):
     # Google's retired alias shares the replacement model's quota.
     if model == "gemini-3.5-flash":
         model = "gemini-3.6-flash"
-    return hashlib.sha256(json.dumps([settings().gemini_quota_project, model]).encode()).hexdigest()
+    config = settings()
+    project = config.gemini_quota_project
+    if request_purpose(path, config) == "review":
+        project = config.gemini_review_quota_project
+    return hashlib.sha256(json.dumps([project, model]).encode()).hexdigest()
 
 
 def db_time(session):

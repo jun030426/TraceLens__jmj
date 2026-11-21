@@ -13,6 +13,7 @@ from rag_mvp.retrieval import fuse, keyword_search
 from rag_mvp.unified_rag import UnifiedMultimodalRAG
 
 from lerny.config import settings
+from lerny.gemini_quota import verification
 
 ENGINE_VERSION = "team-20261115"
 
@@ -216,7 +217,8 @@ def five_questions(rows, course_id, concept, source_map, evidence, checked_model
         fields = {k:v for k,v in schema['properties'].items() if k != 'quote'}
         fields['source_id'] = {'type':'string','enum':allowed}
         contract = {**schema,'properties':fields,'required':[k for k in schema['required'] if k != 'quote']}
-        output = checked_model(system+'\nSelect the source_id of the exact passage supporting the entire answer. '
+        run = verification()(checked_model) if verifying else checked_model
+        output = run(system+'\nSelect the source_id of the exact passage supporting the entire answer. '
             'The server attaches its verbatim text. Do not copy a quote.\n'+json.dumps(data,ensure_ascii=False), contract)
         selected = output.get('source_id')
         if selected not in allowed:
