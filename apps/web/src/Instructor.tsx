@@ -88,9 +88,14 @@ function InstructorContent({ room }: { room: Classroom }) {
         {infoTab==="관련 자료" && <div className="instructor-info-content"><h3>교수님이 공개한 원본 자료</h3><ResourceBrowser key={week} items={weekSources} label="관련 자료">{visible => <ul className="instructor-source-list">{visible.map(m => <li key={m.id}><span>{m.title}</span><Link to={m.view_url!}>자료 열기 ↗</Link></li>)}</ul>}</ResourceBrowser></div>}
       </section>
     </div><aside id="instructor-side-panel" className="instructor-curriculum" aria-label="주차별 개념 영상"><div id="instructor-list-panel">
-      <div className="instructor-curriculum-heading"><h2 id="instructor-curriculum-title">AI 강의 자료</h2><span>{items.length}개 영상 · {weeks.length}개 주차</span></div>
+      <div className="instructor-curriculum-heading">
+        <h2 id="instructor-curriculum-title">AI 강의 자료</h2>
+        <span>{items.length}개 영상 · {weeks.length}개 주차</span>
+        <button type="button" className="instructor-curriculum-refresh" onClick={() => { videos.reload(); player.current?.retryIfFailed(); }}>
+          목록 새로고침
+        </button>
+      </div>
       <p className="instructor-curriculum-note">강의자료의 개념 순서로 표시돼요. 준비 중인 영상은 완료 후 재생할 수 있어요.</p>
-      <button onClick={() => { videos.reload(); player.current?.retryIfFailed(); }}>목록 새로고침</button>
       <label className="material-week-search instructor-week-search"><span aria-hidden="true">⌕</span><input type="search" aria-label="AI 강의 자료 검색" value={search} onChange={e => setSearch(e.target.value)} placeholder="주차·개념·자료 이름 검색" /></label>
       {lastWeek > 9 && <div className="material-week-split instructor-week-split" role="group" aria-label="주차 묶음">
         {([[2, "전체 주차"], [0, "1–9주차"], [1, `10–${lastWeek}주차`]] as const).map(([id, label]) => <button key={id} type="button" aria-pressed={shownHalf === id} className={shownHalf === id ? "is-active" : ""} onClick={() => { setHalf(id); setSearch(""); }}>{label}{room.current_week != null && room.current_week > 0 && id !== 2 && (id === 0 ? room.current_week <= 9 : room.current_week > 9) && <span className="material-week-split-dot" aria-label="현재 진도 포함" />}</button>)}

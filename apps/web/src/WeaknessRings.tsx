@@ -1,4 +1,4 @@
-import { useId, useState, type CSSProperties, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { Classroom } from "./api";
 import { ErrorNotice, Notice, useLoad } from "./components";
@@ -113,6 +113,24 @@ export function WeaknessCard({
   const spot = s.rings.filter((r) => r.band === "weak").slice(0, 3);
   const pages = Math.max(1, Math.ceil(s.rings.length / 12));
   const currentPage = Math.min(page, pages - 1);
+  const mapRef = useRef<HTMLUListElement>(null);
+
+  useLayoutEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const overviews = [...map.querySelectorAll<HTMLElement>(".wk-map__overview")];
+    const alignEvidence = () => {
+      const height = Math.max(0, ...overviews.map((overview) => overview.offsetHeight));
+      map.style.setProperty("--wk-overview-height", `${height}px`);
+    };
+
+    alignEvidence();
+    const observer = new ResizeObserver(alignEvidence);
+    overviews.forEach((overview) => observer.observe(overview));
+    return () => observer.disconnect();
+  }, [items, currentPage]);
+
   return (
     <div className="wk">
       <section
@@ -134,7 +152,7 @@ export function WeaknessCard({
           </p>
           <ul className="student-signal-counts">
             {(Object.keys(BAND_LABEL) as Band[]).map((b) => (
-              <li key={b}>
+              <li key={b} className={s.counts[b] > 0 ? `has-count is-${b}` : undefined}>
                 <b>{s.counts[b]}개</b> {BAND_LABEL[b]}
               </li>
             ))}
@@ -182,11 +200,12 @@ export function WeaknessCard({
             <h4 id="wk-map-title">개념별 취약도 지도</h4>
             <p>복습 필요 → 표본 부족 → 추가 확인 순으로 보여요.</p>
           </div>
-          <ul className="wk-map student-weakness-map">
+          <ul ref={mapRef} className="wk-map student-weakness-map">
             {s.rings.slice(currentPage * 12, currentPage * 12 + 12).map((r) => (
-              <li key={r.id} className={`is-${r.band}`}>
+              <li key={r.id} className={`wk-map__card is-${r.band}`}>
                 <Link
                   to={reviewLink(byId.get(r.id), sectionId)}
+                  className="wk-map__overview"
                   title={`${r.concept} 답안·자료 보기`}
                 >
                   <Ring

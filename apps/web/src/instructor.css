@@ -71,9 +71,25 @@
 .instructor-question-link { display:inline-flex; align-items:center; text-decoration:none; padding:10px 18px; border-radius:24px; margin-top:16px; }
 .instructor-voice-note { font-size:10px; color:#787a7d; border:1px solid #dedfe2; border-radius:20px; padding:7px 10px; }
 .instructor-curriculum { border:1px solid #e3e4e5; border-radius:16px; background:#ffffff; overflow:hidden; }
-.instructor-curriculum-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:24px 22px 0; }
+.instructor-curriculum-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 24px 22px 0;
+}
+.instructor-curriculum-heading > h2,
+.instructor-curriculum-heading > span { grid-column: 1; }
+#root .instructor-curriculum-refresh {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
 .instructor-curriculum-heading .student-eyebrow { font-size:8px; letter-spacing:1.3px; }
-.instructor-curriculum-heading h2 { font-size:17px; margin:9px 0 0; }
+.instructor-curriculum-heading h2 { font-size:17px; margin:0; }
 .instructor-curriculum-heading>span { font-size:11px; color:#76787a; }
 #root .instructor-curriculum-note { padding:0 22px; font-size:11px; line-height:1.8; color:#767778!important; margin:14px 0 22px; }
 .instructor-week-list { max-height:480px; overflow:auto; }
