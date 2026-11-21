@@ -6,6 +6,7 @@ from typing import Annotated
 from uuid import NAMESPACE_URL, uuid5
 
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
@@ -22,6 +23,8 @@ class ReviewedShape(BaseModel):
     model_config = ConfigDict(extra="forbid")
     shape_id: Positive
     text_sha256: Digest
+    picture_sha256: Digest | None = None
+    transcription: str | None = Field(default=None, min_length=1, max_length=1800)
 
 
 class ReviewedPage(BaseModel):
@@ -39,6 +42,30 @@ class SlideReview(BaseModel):
     pages: list[ReviewedPage] = Field(min_length=1, max_length=300)
 
 
+def table_rows(shape):
+    """Repeat the origin value across a verified merged span to retain header associations."""
+    table = shape.table
+    cells = [[None] * len(table.columns) for _ in table.rows]
+    for row_index, row in enumerate(table.rows):
+        for column, cell in enumerate(row.cells):
+            if cell.is_spanned:
+                if cells[row_index][column] is None:
+                    raise ValueError("INVALID_REVIEW_TABLE")
+                continue
+            for r in range(row_index, row_index + cell.span_height):
+                for c in range(column, column + cell.span_width):
+                    if r >= len(cells) or c >= len(row.cells) or cells[r][c] is not None:
+                        raise ValueError("INVALID_REVIEW_TABLE")
+                    cells[r][c] = cell.text
+    return cells
+
+
+def native_value(shape):
+    if shape.has_table:
+        return "\n".join(" | ".join(row) for row in table_rows(shape))
+    return shape.text if shape.has_text_frame else ""
+
+
 def reviewed_text(path, review):
     if digest_file(path) != review.source_sha256:
         raise ValueError("SOURCE_CHANGED")
@@ -54,10 +81,16 @@ def reviewed_text(path, review):
         selected = {}
         for entry in item.shapes:
             shape = by_id.get(entry.shape_id)
-            if (entry.shape_id in selected or shape is None or not shape.has_text_frame
+            if (entry.shape_id in selected or shape is None
                     or shape._element.xpath('.//p:cNvPr[@hidden="1" or @hidden="true"]')):
                 raise ValueError("INVALID_REVIEW_SHAPE")
-            value = shape.text
+            if entry.transcription is not None or entry.picture_sha256 is not None:
+                if (shape.shape_type != MSO_SHAPE_TYPE.PICTURE or not entry.transcription
+                        or hashlib.sha256(shape.image.blob).hexdigest() != entry.picture_sha256):
+                    raise ValueError("INVALID_REVIEW_PICTURE")
+                value = entry.transcription
+            else:
+                value = native_value(shape)
             if (not value.strip() or len(value) > 1800
                     or hashlib.sha256(value.encode("utf-8")).hexdigest() != entry.text_sha256):
                 raise ValueError("REVIEW_TEXT_MISMATCH")
