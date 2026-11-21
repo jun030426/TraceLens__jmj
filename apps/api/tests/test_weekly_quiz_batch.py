@@ -28,18 +28,21 @@ def run(fault=None, persistent=False):
                 assert "answer_index" not in data[key] and "explanation" not in data[key]
                 options = data[key]["options"]
                 assert options[0] != "정답"
-                result[key] = dict(correct_indices=[options.index("정답")],supported=True,task_fits=True,reason="원문 근거")
+                assert data[key]["target_concept"] == "비교"
+                result[key] = dict(correct_indices=[options.index("정답")],supported=True,task_fits=True,concept_matches=True,reason="원문 근거")
                 if reject and key == "Q3":
                     result[key]["correct_indices"].append(options.index("오답1"))
             else:
                 result[key] = dict(supported=True,unambiguous=True,answer_correct=True,explanation_supported=True,
-                                   hint_appropriate=not (reject and key=="Q3"),reason="힌트 확인")
+                                   hint_appropriate=not (reject and key=="Q3"),concept_matches=True,distinct_objective=True,reason="힌트 확인")
+                if key == "Q3" and fault in ("concept_matches","distinct_objective") and (persistent or len([s for s,_ in calls if s=="review"]) == 1):
+                    result[key][fault] = False
         return result
     result = generate_set([(chunk,None,None)],SimpleNamespace(name="비교"),sources,model)
     return calls,result,sources,chunk
 
 
-@pytest.mark.parametrize("fault",[None,"draft","blind","review"])
+@pytest.mark.parametrize("fault",[None,"draft","blind","review","concept_matches","distinct_objective"])
 def test_only_verified_items_survive_all_checks(fault):
     calls, result, sources, chunk = run(fault)
     assert len(result.questions) == len(sources) == 5
@@ -48,7 +51,7 @@ def test_only_verified_items_survive_all_checks(fault):
     assert rounds == [["Q1","Q2","Q3","Q4","Q5"]]+([["Q3"]] if fault else [])
 
 
-@pytest.mark.parametrize("fault",["draft","blind","review"])
+@pytest.mark.parametrize("fault",["draft","blind","review","concept_matches","distinct_objective"])
 def test_persistent_failure_holds_entire_set(fault):
     with pytest.raises(ValueError,match="QUESTION_VALIDATION_FAILED"):
         run(fault,persistent=True)
