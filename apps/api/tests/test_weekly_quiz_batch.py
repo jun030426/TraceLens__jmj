@@ -7,7 +7,7 @@ from lerny.weekly_quiz import generate_set
 from lerny.gemini_quota import request_purpose, review_job
 
 
-def run(fault=None, persistent=False):
+def run(fault=None, persistent=False, *, verify_with_ai=True):
     chunk = SimpleNamespace(content="표에서 확인한 원문\n기호 == 와 != 를 구별합니다.")
     calls, sources = [], {}
 
@@ -44,8 +44,16 @@ def run(fault=None, persistent=False):
     config = SimpleNamespace(gemini_review_quota_project="paid-test",gemini_review_course_id="course",gemini_review_week=4)
     job = SimpleNamespace(course_id="course",kind="questions",payload={"generation_id":"synthetic"})
     with review_job(SimpleNamespace(scalar=lambda _:4),job,config):
-        result = generate_set([(chunk,None,None)],SimpleNamespace(name="비교"),sources,model)
+        result = generate_set([(chunk,None,None)],SimpleNamespace(name="비교"),sources,model,verify_with_ai=verify_with_ai)
     return calls,result,sources,chunk
+
+
+def test_instructor_review_retries_only_malformed_drafts():
+    calls, result, sources, chunk = run("draft", verify_with_ai=False)
+    assert calls == [("draft", ["Q1", "Q2", "Q3", "Q4", "Q5"]), ("draft", ["Q3"])]
+    assert all(sources[q.sources[0].chunk_id] == (chunk, chunk.content) for q in result.questions)
+    with pytest.raises(ValueError, match="QUESTION_VALIDATION_FAILED"):
+        run("draft", persistent=True, verify_with_ai=False)
 
 
 @pytest.mark.parametrize("fault",[None,"draft","blind","review","concept_matches","distinct_objective"])

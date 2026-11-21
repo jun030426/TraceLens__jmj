@@ -27,11 +27,12 @@ class DocumentStopped(RuntimeError):
 
 
 def eligible(job, version, material):
-    return bool(version and material and not material.deleted
-                and not job.payload.get("manual_text", False)
-                and Path(version.filename).suffix.lower() in FORMATS
-                and material.visibility == "public" and material.internal_use == "none"
-                and material.kind != "answer")
+    from lerny.material_policy import student_source
+    if not version or not material or material.deleted or job.payload.get("manual_text") or not student_source(material):
+        return False
+    suffix = Path(version.filename).suffix.lower()
+    return suffix in FORMATS and not (
+        suffix == ".pptx" and settings().instructor_reviews_week(material.course_id, material.week))
 
 
 def check_source(job_id, token, version_id, source_sha):

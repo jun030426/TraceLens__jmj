@@ -12,7 +12,7 @@ def text_field(minimum, maximum):
     return {"type":"string", "minLength":minimum, "maxLength":maximum}
 
 
-def generate_set(rows, concept, source_map, call):
+def generate_set(rows, concept, source_map, call, *, verify_with_ai=True):
     from lerny.assessment import Generated, GeneratedSet
 
     excerpts = {}
@@ -55,6 +55,8 @@ def generate_set(rows, concept, source_map, call):
 
     for attempt in range(3):
         pending = [key for key in tasks if key not in passed]
+        if not pending:
+            break
         requested = {key:tasks[key] for key in pending}
         drafts = batch("주어진 공개 원문만으로 지정된 각 과제에 맞는 서로 다른 한국어 4지선다 문항을 만든다. "
             "매 문항의 정답을 결정하는 핵심 원리는 반드시 그 문항의 target_concept여야 한다. "
@@ -81,6 +83,10 @@ def generate_set(rows, concept, source_map, call):
                 issues[key] = "질문과 보기를 명확하고 중복 없이 다시 작성한다."
                 continue
             stems.add(stem)
+            if not verify_with_ai:
+                passed[key] = item
+                issues.pop(key, None)
+                continue
             rotation = 1 + (int(key[1:]) % 3)
             rotations[key] = rotation
             candidates[key] = item

@@ -248,6 +248,26 @@ def test_site_upload_runs_common_gates_and_reuses_completed_results(site, synthe
     assert client.get(review_url).status_code in {403, 404}
 
 
+@pytest.mark.parametrize("course,week,suffix,remote", [
+    ("course", 4, ".pptx", True), ("course", 5, ".pptx", False),
+    ("course", 12, ".pptx", False), ("other", 5, ".pptx", True), ("course", 5, ".pdf", True),
+])
+def test_review_policy_uses_stored_material_and_limits_paid_verification(site, configured, monkeypatch, course, week, suffix, remote):
+    from lerny.gemini_quota import review_job, request_purpose, verification
+    monkeypatch.setattr(configured, "gemini_review_course_id", course)
+    monkeypatch.setattr(configured, "gemini_review_week", 4)
+    monkeypatch.setattr(configured, "gemini_review_quota_project", "paid-test")
+    monkeypatch.setattr(configured, "instructor_review_from_week", 5)
+    _, session, _ = site
+    job, version = upload(site, suffix)
+    session.get(Material, version.material_id).week = week
+    job.payload = {**job.payload, "week": 4}
+    session.flush()
+    assert needs_remote(session, job) is remote
+    with review_job(session, job, configured), verification():
+        assert request_purpose("interactions", configured) == "content"
+
+
 def test_model_approval_cannot_override_code_calculation_hold(site, synthetic_engine):
     synthetic_engine.unsafe = True
     _, session, _ = site

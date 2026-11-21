@@ -31,7 +31,7 @@ def review_job(session, job, config):
     allowed = False
     if (config.gemini_review_quota_project and config.gemini_review_week is not None
             and job.course_id == config.gemini_review_course_id):
-        if job.kind == "extract":
+        if job.kind == "extract" and config.instructor_review_from_week is None:
             week = session.scalar(select(Material.week)
                 .join(MaterialVersion, MaterialVersion.material_id == Material.id)
                 .where(MaterialVersion.id == job.payload.get("version_id"), Material.course_id == job.course_id))
