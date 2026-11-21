@@ -7,6 +7,7 @@ from lerny.config import settings
 from lerny.gemini_provider import PROFILE, available
 from lerny.jobs import idempotent
 from lerny.models import Course, Job, User
+from lerny.ppt_review import SlideReview
 from lerny.rag_index import indexed_ids
 from lerny.retrieval import public_rows
 from lerny.security import Actor, Db, deny, staff_access
@@ -64,6 +65,30 @@ def reindex(
     )
 
 
+@router.post("/courses/{course_id}/rag/versions/{version_id}/reviewed-slides", status_code=202)
+def index_reviewed_slides(course_id: str, version_id: str, review: SlideReview,
+                          session: Db, actor: Actor, idempotency_key: str | None = Header(default=None)):
+    """Queue only the PPT shapes an editor verified against the rendered source."""
+    from lerny.ppt_review import active_source
+
+    staff_access(session, actor, course_id)
+    if settings().ai_provider != "gemini":
+        deny(409, "현재 색인과 같은 임베딩 공급자가 필요합니다.")
+    payload = {"profile": PROFILE, "version_id": version_id, "ppt_review": review.model_dump()}
+
+    def make():
+        try:
+            active_source(session, course_id, version_id, review.source_sha256)
+        except ValueError:
+            deny(409, "공개 중인 PPT 버전과 원본을 확인해 주세요.")
+        job = Job(owner_id=actor.id, course_id=course_id, kind="rag_reindex", payload=payload)
+        session.add(job)
+        session.flush()
+        return {"job_id": job.id, "status": "queued", "poll_url": f"/api/v1/jobs/{job.id}"}
+
+    return idempotent(session, actor, "ppt_review:" + version_id, idempotency_key, payload, make)
+
+
 def reindex_job(session, job):
     from lerny.worker import embed_chunks
 
@@ -73,6 +98,9 @@ def reindex_job(session, job):
     course = staff_access(session, actor, job.course_id)
     if settings().ai_provider != "gemini" or job.payload["profile"] != PROFILE:
         raise ValueError("PROVIDER_CHANGED")
+    if "ppt_review" in job.payload:
+        from lerny.ppt_review import publish_review
+        return publish_review(session, job)
     if course.access_epoch != job.payload["access_epoch"]:
         raise ValueError("SOURCE_CHANGED")
     rows = public_rows(session, course.id)
