@@ -42,9 +42,8 @@ def test_student_practice_guidance_uses_source_and_protects_blank_answers():
     ex = SimpleNamespace(title="BMI", language="python", kind="full", reference=code, template="weight, height = 70, 175",
                          prompt="키(cm)와 체중으로 BMI를 계산하세요.", blanks={})
     guide = metadata(ex)
-    assert "100" in guide["helpers_guide_text"] and "**" in guide["helpers_guide_text"]
-    assert any("둘째 자리" in req for req in guide["requirements"])
-    assert "cm" in hints(ex)[0]
+    assert not guide["helpers_guide_text"] and guide["requirements"]
+    assert len(hints(ex)) == 3
     ex.kind, ex.blanks = "blank", {"1": "bmi = weight / (height ** 2)"}
-    assert len(hints(ex)) == 3 and "거듭제곱" in hints(ex)[1]
+    assert len(hints(ex)) == 3 and all(hints(ex))
     assert ex.blanks["1"] not in str(hints(ex)) and not metadata(ex)["helpers_guide_text"]

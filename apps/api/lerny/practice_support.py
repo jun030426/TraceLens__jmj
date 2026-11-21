@@ -66,8 +66,6 @@ def help_state(session, actor, plan, exercise):
         PracticeAttempt.status == "graded", PracticeAttempt.correct.is_(False))))
     submitted_query = select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
         PracticeAttempt.section_id == plan.section_id, PracticeAttempt.exercise_id == exercise.id)
-    if plan.day is not None:
-        submitted_query = submitted_query.where(PracticeAttempt.practice_session_id == plan.id)
     submitted = session.scalar(submitted_query.limit(1))
     return {"hints_used": used, "hints": steps[:used], "max_hint_steps": len(steps),
             "failed_attempts": len(wrong), "can_view_answer": submitted is not None,
@@ -182,11 +180,23 @@ def format_inline_comment(line: str) -> str:
     return "요구조건에 맞추어 연산 수행"
 
 
+def split_comment(line):
+    from io import StringIO
+    from tokenize import COMMENT, TokenError, generate_tokens
+    try:
+        for token in generate_tokens(StringIO(line).readline):
+            if token.type == COMMENT:
+                return line[:token.start[1]].rstrip(), token.string[1:].strip()
+    except (TokenError, IndentationError):
+        pass
+    return line, ""
+
+
 def clean_blank_answers(blanks: dict) -> list[str]:
     """빈칸 인풋창(Ghost Text) 안에 주석이 덮어써지지 않도록 순수 실행 코드만 추출합니다."""
     results = []
     for raw in blanks.values():
-        clean = raw.split("#")[0].strip()
+        clean = split_comment(raw)[0].strip()
         results.append(clean)
     return results
 
@@ -196,34 +206,16 @@ def build_annotated_blank_template(template: str, blanks: dict) -> str:
     if not template:
         return ""
     lines = template.splitlines()
-    raw_blanks = list(blanks.values())
-    blank_idx = 0
     new_lines = []
-
     for line in lines:
-        if "[[빈칸]]" in line:
-            orig_comment = line.split("#")[1].strip() if "#" in line else ""
-            clean_line = line.split("#")[0].rstrip()
-            indent = clean_line[:len(clean_line) - len(clean_line.lstrip())]
-            target_code = raw_blanks[blank_idx] if blank_idx < len(raw_blanks) else ""
-            blank_idx += 1
-
-            # 빈칸이 채워진 완전한 문맥 코드로 연산 의도 파악
-            combined_code = clean_line.replace("[[빈칸]]", target_code.split("#")[0].strip()).strip()
-
-            # 원본 라인 주석이 있으면 최우선 승격, 없으면 완전한 코드로부터 연산 의도 추출
-            comment = orig_comment or format_inline_comment(combined_code)
-
-            # 이전 줄이 빈 줄이 아니면 가독성을 위해 빈 줄 하나 삽입
-            if new_lines and new_lines[-1].strip() != "" and not new_lines[-1].strip().startswith("#"):
-                new_lines.append("")
-
-            if comment:
-                new_lines.append(f"{indent}# {comment}")
-            new_lines.append(clean_line)
-        else:
+        if "[[빈칸]]" not in line:
             new_lines.append(line)
-
+            continue
+        stripped, comment = split_comment(line)
+        indent = line[:len(line) - len(line.lstrip())]
+        if comment:
+            new_lines.append(indent + "# " + comment)
+        new_lines.append(stripped)
     return "\n".join(new_lines)
 
 
@@ -242,10 +234,9 @@ def explanation(exercise):
 
     # 모범 코드의 각 실행 줄 윗줄에 항상 눈에 띄는 주석(# ...) 배치
     ref_lines = []
-    blank_set = {b.strip().split("#")[0].strip() for b in raw_blanks}
 
     for line in exercise.reference.splitlines():
-        trimmed = line.strip().split("#")[0].strip()
+        trimmed = line.strip()
         indent = line[:len(line) - len(line.lstrip())]
         if not trimmed:
             ref_lines.append(line)
@@ -257,13 +248,13 @@ def explanation(exercise):
             continue
 
         # 빈칸 문제의 빈칸 줄이거나 본문 구현/출력 줄인 경우 윗줄 주석 배치
-        comment = format_inline_comment(line.strip())
+        comment = format_inline_comment(line.strip()) if exercise.language == "python" else ""
         if comment and (not ref_lines or not ref_lines[-1].strip().startswith("#")):
             if ref_lines and ref_lines[-1].strip() == "":
                 ref_lines[-1] = f"{indent}# {comment}"
             else:
                 ref_lines.append(f"{indent}# {comment}")
-        ref_lines.append(f"{indent}{trimmed}")
+        ref_lines.append(line)
 
     annotated_reference = "\n".join(ref_lines)
 
@@ -271,6 +262,6 @@ def explanation(exercise):
     # 에디터 화면의 윗줄 주석 + 회색 따라쓰기로만 깔끔하게 해설이 제공되도록 함
     return {"title": exercise.title, "kind": exercise.kind, "language": exercise.language,
             "description": exercise.prompt or "", "requirements": metadata(exercise)["requirements"],
-            "reference": annotated_reference,
+            "reference": exercise.reference, "annotated_reference": annotated_reference,
             "blanks": [],
             "example_input": sample["input"], "expected": sample["expected"]}

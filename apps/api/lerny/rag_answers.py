@@ -151,8 +151,8 @@ def answer_job(session, job):
                 .join(Material, MaterialVersion.material_id == Material.id)
                 .where(Chunk.id.in_(prev_chunk_ids))
             ).all()
-            if chunk_rows:
-                rows = [list(r) for r in chunk_rows]
+            rows = [row for row in chunk_rows
+                    if source_snapshot(session, job.course_id, row[0].id, published=True)[0] is not None]
 
     result = {
         "message_id": message.id,
@@ -200,10 +200,12 @@ def answer_job(session, job):
                 session, job.course_id, message.question,
                 source_ids=[c.id for c, _, _ in rows],
             )
-            # 2차 중복 LLM 검증(review_units)을 1차 고속 인용 일치 검사(citations_valid)로 갈음하여
-            # 응답 시간을 대폭 단축(12초 ➔ 3초)하고 "예시를 알려줘" 같은 후속 질문의 오판 기각을 원천 방지
-            # 비공개 평가 참조(references)가 존재하는 경우에만 안전성 검토(review_references) 수행
-            if review_references(units, references, checked_model):
+            # A verbatim claim is already supported by its verified quote. Interpretations
+            # still need the existing entailment check before being shown as grounded.
+            interpretations = [unit for unit, claim in zip(units, output.claims)
+                               if claim.text.strip() != claim.quote.strip()]
+            if ((not interpretations or review_units(interpretations, sources, checked_model))
+                    and review_references(units, references, checked_model)):
                 lookup = {c.id: (c, m, v) for c, m, v in rows}
                 result.update(
                     answer_kind="grounded",

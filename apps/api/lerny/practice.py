@@ -230,7 +230,7 @@ def exercise_view(session, exercise):
         return None
     from lerny.practice_support import metadata, build_annotated_blank_template
     template = exercise.template
-    if exercise.kind == "blank" and exercise.template and exercise.blanks:
+    if exercise.language == "python" and exercise.kind == "blank" and exercise.template and exercise.blanks:
         template = build_annotated_blank_template(exercise.template, exercise.blanks)
     return {**metadata(exercise), "id":exercise.id,"title":exercise.title,"description":exercise.prompt,"kind":exercise.kind,
             "language":exercise.language,"template":template,"expected":exercise.tests[0]["expected"],
@@ -247,37 +247,18 @@ def practice_progress(session: Db, actor: Actor, response: Response, session_id:
     enrolled = select(Enrollment.section_id).where(
         Enrollment.student_id == actor.id, Enrollment.status == "active")
     query = select(PracticeSession).where(
-        PracticeSession.student_id == actor.id,
-        PracticeSession.section_id.in_(enrolled))
+        PracticeSession.student_id == actor.id, PracticeSession.section_id.in_(enrolled))
     if session_id is not None:
-        query = query.where(PracticeSession.id == session_id)
+        query = query.where(PracticeSession.id == session_id, (PracticeSession.day == day) | PracticeSession.day.is_(None))
     else:
         query = query.where(PracticeSession.day == day)
     plans = session.scalars(query).all()
-    if not plans and session_id is None:
-        # 오늘 날짜의 세션이 아직 없더라도 학생의 가장 최근 주간 실습 세션 진행도를 표시
-        latest_plans = session.scalars(select(PracticeSession).where(
-            PracticeSession.student_id == actor.id,
-            PracticeSession.section_id.in_(enrolled)
-        ).order_by(PracticeSession.day.desc(), PracticeSession.created_at.desc())).all()
-        seen = set()
-        for p in latest_plans:
-            if p.section_id not in seen:
-                seen.add(p.section_id)
-                plans.append(p)
-    attempts = session.execute(select(PracticeAttempt.practice_session_id, PracticeAttempt.exercise_id)
-        .where(PracticeAttempt.student_id == actor.id,
-               PracticeAttempt.practice_session_id.in_([p.id for p in plans])).distinct())
-    submitted = {(plan_id, exercise_id) for plan_id, exercise_id in attempts}
     items = []
     for plan in plans:
         visible = [eid for eid in plan.exercise_ids if current_source(session, session.get(PracticeExercise, eid))]
-        if plan.day is None:
-            completed = set(session.scalars(select(PracticeAttempt.exercise_id).where(
-                PracticeAttempt.student_id == actor.id, PracticeAttempt.section_id == plan.section_id,
-                PracticeAttempt.exercise_id.in_(visible)).distinct()))
-        else:
-            completed = {eid for eid in visible if (plan.id, eid) in submitted}
+        completed = set(session.scalars(select(PracticeAttempt.exercise_id).where(
+            PracticeAttempt.student_id == actor.id, PracticeAttempt.section_id == plan.section_id,
+            PracticeAttempt.exercise_id.in_(visible)).distinct()))
         remaining = [eid for eid in visible if eid not in completed]
         item = {"section_id": plan.section_id, "session_id": plan.id,
                 "total": len(visible), "submitted": len(visible) - len(remaining)}
@@ -306,29 +287,17 @@ def daily(section_id: str, session: Db, actor: Actor):
                 "message":"교수자가 공개한 이번 주차 콘텐츠에는 실습이 없어요. 실행 가능한 예제 코드로 콘텐츠를 생성·검토한 뒤 공개하면 학습할 수 있어요."}
     all_exercise_ids = [e.id for e in candidates]
 
-    # 학생의 이번 주차 실습 세션 조회 (주차 전체 묶음 자유 풀이)
     plan = session.scalar(select(PracticeSession).where(
-        PracticeSession.student_id == actor.id,
-        PracticeSession.section_id == section.id,
-        PracticeSession.week == week
-    ).order_by(PracticeSession.day.desc(), PracticeSession.created_at.desc()).limit(1))
-
+        PracticeSession.student_id == actor.id, PracticeSession.section_id == section.id,
+        PracticeSession.day == today()))
     if not plan:
         plan = PracticeSession(student_id=actor.id, section_id=section.id, day=today(),
             week=week, exercise_ids=all_exercise_ids)
         session.add(plan)
         session.commit()
-    else:
-        # 이번 주차에 등록된 문제 전체를 풀 수 있도록 세션의 exercise_ids 동기화
-        current_ids = list(plan.exercise_ids or [])
-        updated = False
-        for eid in all_exercise_ids:
-            if eid not in current_ids:
-                current_ids.append(eid)
-                updated = True
-        if updated:
-            plan.exercise_ids = current_ids
-            session.commit()
+    elif plan.week != week or plan.exercise_ids != all_exercise_ids:
+        plan.week, plan.exercise_ids = week, all_exercise_ids
+        session.commit()
 
     items = []
     for eid in plan.exercise_ids:
@@ -336,8 +305,8 @@ def daily(section_id: str, session: Db, actor: Actor):
         view = exercise_view(session, exercise)
         if view:
             attempt = session.scalar(select(PracticeAttempt).where(PracticeAttempt.student_id == actor.id,
-                PracticeAttempt.practice_session_id == plan.id, PracticeAttempt.exercise_id == eid)
-                .order_by(PracticeAttempt.created_at.desc()).limit(1))
+                PracticeAttempt.section_id == section_id, PracticeAttempt.exercise_id == eid)
+                .order_by(PracticeAttempt.created_at, PracticeAttempt.id).limit(1))
             view["attempt"] = attempt_view(attempt) if attempt else None
             items.append(view)
     return {"id":plan.id,"items":items,"status":"ready","week":plan.week,"day":plan.day}
@@ -345,16 +314,16 @@ def daily(section_id: str, session: Db, actor: Actor):
 
 def assigned(session, actor, section_id, exercise_id, plan_id=None):
     section = section_student(session, actor, section_id)
+    query = select(PracticeSession).where(PracticeSession.student_id == actor.id,
+        PracticeSession.section_id == section_id)
+    if plan_id:
+        query = query.where(PracticeSession.id == plan_id, PracticeSession.day.is_(None))
+    else:
+        query = query.where(PracticeSession.day == today())
+    plan = session.scalar(query)
     exercise = session.get(PracticeExercise, exercise_id)
-    if not exercise or not current_source(session, exercise):
-        deny(404, "현재 공개된 실습을 찾을 수 없어요.")
-    # 주간 세션 및 최근 세션들 중 해당 실습이 포함된 학생의 세션 탐색
-    plans = session.scalars(select(PracticeSession).where(
-        PracticeSession.student_id == actor.id,
-        PracticeSession.section_id == section_id,
-    ).order_by(PracticeSession.day.desc(), PracticeSession.created_at.desc())).all()
-    plan = next((p for p in plans if exercise_id in (p.exercise_ids or [])), None)
-    if not plan:
+    if (not plan or exercise_id not in plan.exercise_ids or not exercise
+            or exercise.course_id != section.course_id or not current_source(session, exercise)):
         deny(404, "배정된 공개 실습을 찾을 수 없어요.")
     return section, plan, exercise
 
@@ -380,18 +349,12 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
         assisted = session.scalar(select(AuditEvent.id).where(AuditEvent.actor_id == actor.id,
             AuditEvent.target_id == plan.id, AuditEvent.action == "practice_help",
             AuditEvent.detail["exercise_id"].as_string() == exercise.id).limit(1))
-        answered = session.scalar(select(AuditEvent.id).where(AuditEvent.actor_id == actor.id,
-            AuditEvent.target_id == plan.id, AuditEvent.action == "practice_help",
-            AuditEvent.detail["exercise_id"].as_string() == exercise.id,
-            AuditEvent.detail["kind"].as_string() == "answer").limit(1))
-        if answered:
-            deny(409, "답지·해설을 확인한 문제는 다시 제출할 수 없어요.")
         previous = session.scalar(select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
-            PracticeAttempt.exercise_id == exercise.id, PracticeAttempt.status == "graded").limit(1))
+            PracticeAttempt.section_id == section_id, PracticeAttempt.exercise_id == exercise.id).limit(1))
         if previous:
-            deny(409, "이미 최종 제출을 완료한 실습 문제예요.")
+            deny(409, "이미 제출한 실습이에요. 내 코드와 해설을 확인해 주세요.")
         attempt = PracticeAttempt(student_id=actor.id, section_id=section_id, exercise_id=exercise.id,
-            practice_session_id=plan.id, source=body.source, independent=not bool(assisted or previous))
+            practice_session_id=plan.id, source=body.source, independent=assisted is None)
         session.add(attempt)
         session.flush()
         job = Job(owner_id=actor.id, course_id=section.course_id, kind="practice_grade",
@@ -460,7 +423,7 @@ def practice_submission_count(session: Db, actor: Actor, section_id: str | None 
 
 
 @router.get("/sections/{section_id}/practice/attempts")
-def attempts(section_id: str, session: Db, actor: Actor, plan_id: str | None = None):
+def attempts(section_id: str, session: Db, actor: Actor, plan_id: str | None = None, by_exercise: bool = False):
     section_student(session, actor, section_id)
     query = select(PracticeAttempt).where(PracticeAttempt.student_id == actor.id,
         PracticeAttempt.section_id == section_id)
@@ -470,12 +433,16 @@ def attempts(section_id: str, session: Db, actor: Actor, plan_id: str | None = N
         if not plan or plan.section_id != section_id or plan.student_id != actor.id:
             return {"items": []}
         archive = plan.day is None
-        if archive:
+        if by_exercise or archive:
             query = query.where(PracticeAttempt.exercise_id.in_(plan.exercise_ids))
         else:
             query = query.where(PracticeAttempt.practice_session_id == plan_id)
-    query = query.order_by(PracticeAttempt.created_at.desc(), PracticeAttempt.id.desc())
-    rows = session.scalars(query if archive else query.limit(100))
+    if plan_id and by_exercise:
+        rows = session.scalars(query.distinct(PracticeAttempt.exercise_id)
+            .order_by(PracticeAttempt.exercise_id, PracticeAttempt.created_at, PracticeAttempt.id))
+    else:
+        query = query.order_by(PracticeAttempt.created_at.desc(), PracticeAttempt.id.desc())
+        rows = session.scalars(query if archive else query.limit(100))
     return {"items":[{**attempt_view(a),"source":a.source,"exercise":exercise_view(session,
         session.get(PracticeExercise,a.exercise_id))} for a in rows]}
 
@@ -530,7 +497,8 @@ def grade(session, job):
     session.flush()
     plan = session.get(PracticeSession, attempt.practice_session_id)
     graded = set(session.scalars(select(PracticeAttempt.exercise_id).where(
-        PracticeAttempt.practice_session_id == plan.id, PracticeAttempt.status == "graded")))
+        PracticeAttempt.student_id == actor.id, PracticeAttempt.section_id == attempt.section_id,
+        PracticeAttempt.exercise_id.in_(plan.exercise_ids), PracticeAttempt.status == "graded")))
     if set(plan.exercise_ids).issubset(graded):
         record_completion(session, actor.id, attempt.section_id, "practice", plan.id, now())
     return attempt_view(attempt)

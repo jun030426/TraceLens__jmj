@@ -12,7 +12,7 @@ from test_personal_pipeline import prepared
 
 
 @pytest.mark.asyncio
-async def test_weekly_archive_resumes_retries_and_opens_every_published_exercise(app_db, monkeypatch):
+async def test_archive_opens_all_exercises_and_first_answers_are_read_only(app_db, monkeypatch):
     app, db = app_db
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
         course, section, material, version, chunk, student = await prepared(c, db, monkeypatch)
@@ -56,13 +56,22 @@ async def test_weekly_archive_resumes_retries_and_opens_every_published_exercise
         route = f"/api/v1/learning-sessions/{opened['id']}/questions/{question['id']}"
         assert (await c.post(route + "/submit", json={"answer": "1"},
                              headers={"Idempotency-Key": "original"})).status_code == 202
-        for _ in range(2):
-            assert (await c.post(route + "/retake", json={"answer": "0"},
-                                 headers={"Idempotency-Key": "retry"})).status_code == 202
+        assert (await c.post(route + "/retake", json={"answer": "0"})).status_code == 409
+        assert (await c.post(route + "/submit", json={"answer": "0"},
+                             headers={"Idempotency-Key": "different-key"})).status_code == 409
         saved = (await c.post(archive + "/3/days/2", params={"session_id": opened["id"]})).json()
         row = next(q for q in saved["items"] if q["id"] == question["id"])
-        assert row["attempt"]["correct"] is False and row["retakes"][0]["correct"] is True
-        assert len(row["retakes"]) == 1 and db.scalar(select(func.count()).select_from(Attempt)) == 1
+        assert row["attempt"]["correct"] is False
+        assert row["submitted_answer"] == question["options"][1] and row["explanation"]
+        assert db.scalar(select(func.count()).select_from(Attempt)) == 1
+        assigned = LearningSession(student_id=student.id, section_id=section.id,
+                                   day=start, question_ids=[question["id"]])
+        db.add(assigned)
+        db.commit()
+        repeated = (await c.post(archive + "/3/days/1", params={"session_id": assigned.id})).json()
+        assert repeated["items"][0]["attempt"] == row["attempt"]
+        assert (await c.post(f"/api/v1/learning-sessions/{assigned.id}/questions/{question['id']}/submit",
+                             json={"answer": "0"}, headers={"Idempotency-Key": "another-day"})).status_code == 409
         assert (await c.get(archive + "/3/days")).json()["days"][1]["submitted"] == 1
         assert (await c.post(archive + "/13/days/1")).status_code == 404
         assert (await c.post(archive + "/3/days/7", params={"session_id": opened["id"]})).status_code == 404
@@ -75,9 +84,9 @@ async def test_weekly_archive_resumes_retries_and_opens_every_published_exercise
         body = {"exercise_id": exercises[0].id, "plan_id": weekly["id"]}
         assert (await c.post(api + "/practice/help", json={**body, "kind": "answer"})).status_code == 200
         assert (await c.post(api + "/practice/submit", headers={"Idempotency-Key": "archive-practice"},
-                             json={**body, "source": "print(2)"})).status_code == 202
+                             json={**body, "source": "print(2)"})).status_code == 409
         history = (await c.get(api + "/practice/attempts", params={"plan_id": weekly["id"]})).json()["items"]
-        assert [a["source"] for a in history] == ["print(2)", "print(1)"]
+        assert [a["source"] for a in history] == ["print(1)"]
         other = db.scalar(select(User).where(User.login_id == "student2"))
         db.add(Enrollment(student_id=other.id, course_id=course["id"], section_id=section.id, status="active"))
         db.commit()
@@ -92,12 +101,11 @@ async def test_weekly_archive_resumes_retries_and_opens_every_published_exercise
         assert (await c.post(archive + "/3/practice")).json()["items"] == []
         assert (await c.post(archive + "/3/days/4")).status_code == 404
         assert (await c.post(route + "/retake", json={"answer": "0"})).status_code == 409
-        assert db.scalar(select(func.count()).select_from(TheoryRetake)) == 1
+        assert db.scalar(select(func.count()).select_from(TheoryRetake)) == 0
 
 
 @pytest.mark.asyncio
-async def test_essay_retake_uses_grading_worker_without_changing_first_answer(app_db, monkeypatch):
-    from lerny.assessment import grade_job
+async def test_essay_only_enqueues_first_submission(app_db, monkeypatch):
     from test_learning import seed
 
     app, db = app_db
@@ -108,11 +116,8 @@ async def test_essay_retake_uses_grading_worker_without_changing_first_answer(ap
         path = f"/api/v1/learning-sessions/{daily['id']}/questions/{question['id']}"
         first = await c.post(path + "/submit", json={"answer": "첫 답안"}, headers={"Idempotency-Key": "first"})
         retry = await c.post(path + "/retake", json={"answer": "다시 쓴 답안"}, headers={"Idempotency-Key": "retry"})
-        assert retry.status_code == 202
-        job = db.scalar(select(Job).where(Job.payload["attempt_id"].as_string() == retry.json()["id"]))
-        monkeypatch.setattr("lerny.worker.model_json", lambda *_: {"certain": True, "criteria": {
-            k: {"score": 100, "answer_source_ids": ["A1"]} for k in ("C1", "C2")}})
-        assert grade_job(db, job)["status"] == "graded"
+        assert first.status_code == 202 and retry.status_code == 409
         original = db.get(Attempt, first.json()["attempt_id"])
         assert original.status == "pending" and original.answer == "첫 답안"
-        assert db.get(TheoryRetake, retry.json()["id"]).correct
+        assert len(list(db.scalars(select(Job).where(Job.kind == "grade")))) == 1
+        assert not db.scalar(select(TheoryRetake.id))
