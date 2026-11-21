@@ -3,8 +3,8 @@ import { api, post } from "./api";
 
 type HelpState = { hints_used: number; hints: string[]; max_hint_steps: number; can_view_answer: boolean };
 
-export function PracticeHints({ sectionId, exerciseId, onBusyChange }: {
-  sectionId: string; exerciseId: string; onBusyChange: (busy: boolean) => void;
+export function PracticeHints({ sectionId, exerciseId, onBusyChange, planId }: {
+  planId?: string; sectionId: string; exerciseId: string; onBusyChange: (busy: boolean) => void;
 }) {
   const [state, setState] = useState<HelpState>();
   const [busy, setBusy] = useState(false);
@@ -16,17 +16,17 @@ export function PracticeHints({ sectionId, exerciseId, onBusyChange }: {
   useEffect(() => {
     let cancelled = false;
     active.current = true; setState(undefined); setError("");
-    api<HelpState>(`/sections/${sectionId}/practice/help`, post({ exercise_id: exerciseId, kind: "state" }))
+    api<HelpState>(`/sections/${sectionId}/practice/help`, post({ exercise_id: exerciseId, plan_id: planId, kind: "state" }))
       .then(result => { if (!cancelled) { setState(result); } })
       .catch(e => { if (!cancelled) setError((e as Error).message); });
     return () => { cancelled = true; active.current = false; };
-  }, [sectionId, exerciseId, revision]);
+  }, [sectionId, exerciseId, planId, revision]);
   const next = async () => {
     if (!state || busy) return;
     setBusy(true); onBusyChange(true); setError("");
     try {
       const result = await api<HelpState>(`/sections/${sectionId}/practice/help`, post({
-        exercise_id: exerciseId, kind: "hint", step: state.hints_used + 1,
+        exercise_id: exerciseId, plan_id: planId, kind: "hint", step: state.hints_used + 1,
       }));
       if (active.current) { setState(result); }
     } catch (e) { if (active.current) setError((e as Error).message); }

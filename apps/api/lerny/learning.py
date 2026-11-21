@@ -66,12 +66,14 @@ def streak_summary(days, current_day):
 
 
 @router.get("/my/learning-streak")
-def learning_streak(session: Db, actor: Actor):
+def learning_streak(session: Db, actor: Actor, section_id: str | None = None):
     if actor.role != "student":
         deny(403)
-    days = session.scalars(select(LearningCompletion.day).where(
-        LearningCompletion.student_id == actor.id))
-    return streak_summary(days, today())
+    days = select(LearningCompletion.day).where(LearningCompletion.student_id == actor.id)
+    if section_id is not None:
+        section_student(session, actor, section_id)
+        days = days.where(LearningCompletion.section_id == section_id)
+    return streak_summary(session.scalars(days.distinct()), today())
 
 
 @router.get("/my/learning-sessions")
@@ -116,6 +118,8 @@ def learning_history(
                 "day": record.day,
                 "total": len(record.question_ids),
                 "submitted": len(attempts),
+                **({"answered": len(first_answers(session, actor.id, record.section_id, record.question_ids))}
+                   if record.day == today() else {}),
                 "pending": sum(a.status in ("pending", "held") for a in attempts),
                 "valid": len(valid),
                 "correct": sum(bool(a.correct) for a in valid),
@@ -263,20 +267,24 @@ def question_state(
     return question_view(q, True)
 
 
+def first_answers(session, student_id, section_id, question_ids):
+    rows = session.scalars(select(Attempt).where(Attempt.student_id == student_id,
+        Attempt.section_id == section_id, Attempt.question_id.in_(question_ids))
+        .distinct(Attempt.question_id).order_by(Attempt.question_id, Attempt.created_at, Attempt.id))
+    return {row.question_id: row for row in rows}
+
+
 def session_view(session, learning):
     items = []
     target_count = 5
+    answers = first_answers(session, learning.student_id, learning.section_id, learning.question_ids)
     for question_id in learning.question_ids:
         q = session.get(Question, question_id)
         if q.purpose == "daily":
             target_count = 4
         elif q.kind == "essay":
             target_count = len(learning.question_ids)
-        attempt = session.scalar(
-            select(Attempt).where(
-                Attempt.learning_session_id == learning.id, Attempt.question_id == question_id
-            )
-        )
+        attempt = answers.get(question_id)
         available = q.student_id in (None, learning.student_id) and q.status == "active" and valid_sources(session, q)
         item = (
             question_view(q)
@@ -381,7 +389,8 @@ def apply_review(session, attempt):
     if attempt.review_applied or attempt.status != "graded":
         return
     lock_student(session, attempt.student_id)
-    day = session.get(LearningSession, attempt.learning_session_id).day
+    assigned_day = session.get(LearningSession, attempt.learning_session_id).day
+    day = max(assigned_day, (attempt.created_at + timedelta(hours=9)).date())
     review = session.scalar(
         select(Review)
         .where(Review.student_id == attempt.student_id, Review.concept_id == attempt.concept_id)
@@ -429,8 +438,17 @@ def record_theory_help(learning_id: str, question_id: str, session: Db, actor: A
     if attempt and attempt.status != "graded":
         attempt.independent = False
     session.commit()
-    concept_hint = question.solution.get("hint") or quote
-    return {"recorded": True, "hint": concept_hint}
+    hint = question.solution.get("hint")
+    if not hint or any(kw in str(hint) for kw in ["```", "def ", "class ", "import "]) or str(hint).strip().startswith("print("):
+        # 문제에 생성된 hint가 없거나 코드 조각이 포함된 경우의 0-스포일러 동적 폴백
+        if quote and not any(kw in quote for kw in ["```", "def ", "class ", "=", "print(", "import "]) and len(quote) < 80:
+            hint = quote
+        elif question.prompt:
+            stem = question.prompt.split("\n")[0].replace("?", "").strip()
+            hint = f"{stem}의 핵심 원리와 동작 규칙을 차근차근 떠올려 보세요." if len(stem) <= 35 else "핵심 개념의 정의와 동작 원리를 차근차근 떠올려 보세요."
+        else:
+            hint = "핵심 개념의 정의와 동작 원리를 차근차근 떠올려 보세요."
+    return {"recorded": True, "hint": hint}
 
 
 @router.post("/learning-sessions/{learning_id}/questions/{question_id}/submit", status_code=202)
@@ -452,19 +470,8 @@ def submit(
 
     def make():
         lock_student(session, actor.id)
-        existing = session.scalar(
-            select(Attempt).where(
-                Attempt.learning_session_id == learning_id, Attempt.question_id == question_id
-            )
-        )
-        if existing:
-            deny(409, "이미 제출한 문제예요.")
-        # Reusing a previously disclosed question cannot establish independent mastery.
-        prior = session.scalar(
-            select(Attempt.id)
-            .where(Attempt.student_id == actor.id, Attempt.question_id == question_id)
-            .limit(1)
-        )
+        if first_answers(session, actor.id, learning.section_id, [question_id]):
+            deny(409, "이미 제출한 문제예요. 내 답안과 해설을 확인해 주세요.")
         helped = session.scalar(select(AuditEvent.id).where(AuditEvent.actor_id == actor.id,
             AuditEvent.action == "theory_help", AuditEvent.target_id == learning.id,
             AuditEvent.detail["question_id"].as_string() == question_id).limit(1))
@@ -475,7 +482,7 @@ def submit(
             question_id=q.id,
             concept_id=q.concept_id,
             answer=body.answer,
-            independent=prior is None and helped is None,
+            independent=helped is None,
         )
         session.add(attempt)
         session.flush()
@@ -501,8 +508,7 @@ def submit(
             session.add(job)
             session.flush()
             job_id = job.id
-        submitted_ids = set(session.scalars(select(Attempt.question_id).where(
-            Attempt.learning_session_id == learning_id)))
+        submitted_ids = first_answers(session, actor.id, learning.section_id, learning.question_ids).keys()
         if learning.question_ids and set(learning.question_ids) <= submitted_ids:
             record_completion(session, actor.id, learning.section_id, "theory", learning.id, now())
         return {"attempt_id": attempt.id, "job_id": job_id, "status": attempt.status}

@@ -35,7 +35,10 @@ def ppt_units(package, *, validate_tables=False):
           if r.get('TargetMode')!='External'}
     root=ET.fromstring(package.read('ppt/presentation.xml'))
     units=[];issues=[]
-    for page,sid in enumerate(root.findall('p:sldIdLst/p:sldId',NS),1):
+    slides = root.findall('p:sldIdLst/p:sldId',NS)
+    if not 0 < len(slides) <= 300:
+        raise ValueError('SLIDE_LIMIT')
+    for page,sid in enumerate(slides,1):
         target=rels[sid.attrib['{'+R+'}id']]
         part=posixpath.normpath(posixpath.join('ppt',target)) if not target.startswith('/') else target[1:]
         slide=ET.fromstring(package.read(part))
@@ -51,7 +54,7 @@ def ppt_units(package, *, validate_tables=False):
                     group_nv=ancestor.find('p:nvGrpSpPr/p:cNvPr',NS)
                     hidden_group |= group_nv is not None and group_nv.get('hidden') in ('1','true')
                 ancestor=parents.get(ancestor)
-            if hidden_group or nv.get('hidden') in ('1','true') or slide.get('show')=='0':
+            if hidden_group or nv.get('hidden') in ('1','true') or slide.get('show') in ('0','false'):
                 issues.append({'locator':locator,'reason':'hidden_source_content'});continue
             bodies=[]
             if node.find('p:txBody',NS) is not None:bodies=[(locator,node.find('p:txBody',NS))]

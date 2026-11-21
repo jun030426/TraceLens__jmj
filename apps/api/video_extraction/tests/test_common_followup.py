@@ -195,6 +195,35 @@ class PageLinkTests(unittest.TestCase):
         dl.verify(self.task,self.root,got,[self.rows[0],self.issue,self.rows[1]])
         changed=copy.deepcopy(self.rows);changed[0]['observed_text']='fabricated'
         with self.assertRaisesRegex(ValueError,'page_results_changed'):dl.verify(self.task,self.root,got,changed+[self.issue])
+    def test_large_evidence_is_bound_locally_and_both_reads_get_the_source_index(self):
+        self.rows[0]['native_document_text_reference'] = 'evidence' * 50000
+        self.rows[1]['bbox'] = [20, 30, 80, 90]
+        self.issue['raw_payload'] = {'page': 1, 'description': 'Does this table continue?'}
+        calls = []
+
+        class Client:
+            def call(_, stage, images, prompt, schema):
+                calls.append((stage, images, json.loads(prompt.split('DATA:\n', 1)[1])))
+                self.assertLess(len(prompt.encode()), 5000)
+                return copy.deepcopy(self.answer)
+
+        results = {self.pages[0]['id']: {'records': [self.rows[0], self.issue]},
+                   self.pages[1]['id']: {'records': [self.rows[1]]}}
+        output = dl.run(self.task, results, self.root, Client())
+        self.assertEqual([stage for stage, _, _ in calls], ['document-adjacent-read', 'document-adjacent-verify'])
+        for _, images, data in calls:
+            self.assertEqual(images, [self.image, self.image])
+            self.assertEqual([r['page'] for r in data['records']], [1, 2])
+            self.assertEqual(data['records'][1]['bbox'], self.rows[1]['bbox'])
+            self.assertEqual(data['issues'][0]['description'], self.issue['raw_payload']['description'])
+        self.assertTrue(output['records'][0]['eligible_for_chunking'])
+        self.assertEqual(dl.run(self.task, results, self.root, None), output)
+        rows = [self.rows[0], self.issue, self.rows[1]]
+        dl.verify(self.task, self.root, output, rows)
+        self.rows[0]['native_document_text_reference'] = 'changed after extraction'
+        with self.assertRaisesRegex(ValueError, 'page_results_changed'):
+            dl.verify(self.task, self.root, output, rows)
+
     def test_disagreement_is_preserved_not_dropped(self):
         other=copy.deepcopy(self.answer);other['links']=[];other['checks'][0]['decision']='uncertain'
         got=dl.selection(self.task,self.data,[self.answer,other]);self.assertFalse(got['records'][0]['eligible_for_chunking'])

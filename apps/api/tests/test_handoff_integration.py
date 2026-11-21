@@ -72,11 +72,11 @@ async def test_progressive_hints_survive_reload_and_do_not_leak_answers(app_db, 
         assert (await help("hint", step=1)).json()["hints_used"] == 1
         assert len(list(db.scalars(select(AuditEvent).where(AuditEvent.action == "practice_help")))) == 1
         state = (await help("state")).json()
-        assert state["max_hint_steps"] == 4 and "answers" not in state and not state["can_view_answer"]
+        assert state["max_hint_steps"] == 3 and "answers" not in state and not state["can_view_answer"]
         await help("hint", step=2)
         state = (await help("hint", step=3)).json()
         assert not state["can_view_answer"] and "answers" not in state
-        await help("hint", step=4)
+        assert (await help("hint", step=4)).status_code == 409
         assert (await help("answer")).status_code == 409
         submitted = await c.post(base + "/practice/submit", json={"exercise_id": ex.id, "source": code},
                                  headers={"Idempotency-Key": "hints-final"})

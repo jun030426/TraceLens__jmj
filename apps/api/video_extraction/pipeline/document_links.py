@@ -71,6 +71,19 @@ def selection(task,data,answers):
             'executed':['adjacent_original_pages','independent_relation_checks','table_shape_gate','no_text_merging']}
 
 
+def review_prompt(data):
+    # The two original page images accompany this index. Full audit trails stay
+    # in the source-bound proof for replay and local eligibility checks.
+    fields = ('id', 'unit_id', 'kind', 'observed_text', 'bbox', 'description', 'related_record_ids')
+    records = [{'page': row['location']['page'], **{key: row[key] for key in fields if key in row}}
+               for row in data['records']]
+    issues = [{'id': row['id'], 'page': row['location']['page'],
+               'description': (row.get('raw_payload') or {}).get('description', '')}
+              for row in data['issues']]
+    request = {'pages': data['pages'], 'records': records, 'issues': issues}
+    return PROMPT + json.dumps(request, ensure_ascii=False, separators=(',', ':'))
+
+
 def run(task,results,folder,client):
     pages=task['pages'];records=[r for u in pages for r in results[u['id']]['records']]
     issues=[r for r in records if 'pdf_cross_page_connection_requires_review' in r.get('reasons',[])]
@@ -90,7 +103,7 @@ def run(task,results,folder,client):
                 if saved['binding']!=binding:raise ValueError('page_link_partial_changed')
                 answer=saved['answer']
             else:
-                answer=client.call('document-adjacent-'+role,[Path(u['image']) for u in pages],PROMPT+json.dumps(data,ensure_ascii=False),SCHEMA)
+                answer=client.call('document-adjacent-'+role,[Path(u['image']) for u in pages],review_prompt(data),SCHEMA)
                 save(partial,{'binding':binding,'answer':answer})
             answers.append(answer)
         proof={'binding':binding,'data':data,'answers':answers};save(path,proof)

@@ -7,7 +7,7 @@ from pydantic import Field
 from sqlalchemy import func, select, text
 
 from lerny.auth import Input
-from lerny.models import Attempt, ChatMessage, Course, Enrollment, Idempotency, Job, Section, uid
+from lerny.models import ChatMessage, Course, Enrollment, Idempotency, Job, Section, grading_attempt, uid
 from lerny.security import Actor, Db, course_access, deny, digest, staff_access
 
 router = APIRouter(prefix="/api/v1")
@@ -61,6 +61,7 @@ class ChatInput(Input):
     mode: Literal["theory", "practice"] = "theory"
     concept_id: str | None = None
     exercise_id: str | None = None
+    plan_id: str | None = None
     practice_context: str = Field(default="", max_length=3000)
 
 
@@ -76,7 +77,7 @@ def ask(
     context = {"mode": body.mode}
     if body.mode == "practice":
         from lerny.practice import assigned
-        _, plan, exercise = assigned(session, actor, section_id, body.exercise_id)
+        _, plan, exercise = assigned(session, actor, section_id, body.exercise_id, body.plan_id)
         context.update(exercise_id=exercise.id, concept_id=exercise.concept_id,
                        practice_session_id=plan.id, student_context=body.practice_context,
                        practice_title=exercise.title, practice_week=plan.week)
@@ -196,7 +197,7 @@ def cancel(job_id: str, session: Db, actor: Actor):
         deny(409)
     job.status, job.lease_token = "cancelled", None
     if job.kind == "grade":
-        attempt = session.get(Attempt, job.payload["attempt_id"])
+        attempt = grading_attempt(session, job)
         attempt.status = "held"
         attempt.feedback = {"message": "채점 요청이 취소되어 검토 보류했어요."}
     if job.kind == "practice_grade":
@@ -227,7 +228,7 @@ def retry(job_id: str, session: Db, actor: Actor):
         version.status = "extracted" if job.kind == "embed" else "queued"
         version.error_code = None
     if job.kind == "grade":
-        attempt = session.get(Attempt, job.payload["attempt_id"])
+        attempt = grading_attempt(session, job)
         if attempt.status != "held":
             deny(409, "이미 처리된 답안은 다시 채점할 수 없습니다.")
         attempt.status = "pending"

@@ -40,13 +40,13 @@ def current_source(job_id, token):
         return job, version
 
 
-def service_transport(request, timeout=150):
+def service_transport(request, timeout=150, *, expected_model=None):
     """Use the existing cache, pause controls and shared quota for every model request."""
     from lerny.gemini_provider import request as generate
     if request.full_url != "https://generativelanguage.googleapis.com/v1beta/interactions":
         raise MediaStopped("UNSUPPORTED_MODEL_PROVIDER")
     payload = json.loads(request.data)
-    if payload.get("model") != settings().gemini_answer_model or payload.get("store") is not False:
+    if payload.get("model") != (expected_model or settings().gemini_answer_model) or payload.get("store") is not False:
         raise MediaStopped("MEDIA_MODEL_CONFIG_MISMATCH")
     try:
         result = generate("interactions", payload, lambda raw: raw)

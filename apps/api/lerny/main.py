@@ -22,14 +22,14 @@ from lerny.tracing import service as team_tracing
 from lerny import team_api
 from lerny import ingestion_api
 from lerny import course_videos
-from lerny import practice
+from lerny import practice, quiz_archive
 from lerny import learning_insights
 from lerny import admin_api
 from lerny import weekly_content, google_slides_auth, lecture_slides
 from lerny import material_previews
 from lerny import health
 
-SCHEMA_REVISION = "e83f529cc134"
+SCHEMA_REVISION = "f18ab47c9821"
 
 
 class Capabilities(BaseModel):
@@ -67,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(ingestion_api.router)
     app.include_router(course_videos.router)
     app.include_router(practice.router)
+    app.include_router(quiz_archive.router)
     app.include_router(learning_insights.router)
     app.include_router(weekly_content.router)
     app.include_router(google_slides_auth.router)

@@ -149,13 +149,16 @@ def prepare(session, job):
         found.extend(output.programs)
     original_quotes = {}
     if language == "python":
-        from lerny.practice_inputs import adapted_programs
-        adapted = adapted_programs(chunks, model_json)
+        from lerny.practice_inputs import adapted_programs, input_program_identity
+        versions = session.scalars(select(MaterialVersion).where(MaterialVersion.id.in_(version_ids)))
+        adapted = adapted_programs(chunks, model_json, versions)
         for program, quote in adapted:
             original_quotes[(program.source_id, program.code)] = quote
-        # Validate adapted numeric inputs first so the same original stdin example
-        # is not left held after its source-identical adaptation already succeeded.
-        found = [program for program, _ in adapted] + found
+        # A direct model proposal can repeat the stdin original using LF or
+        # omitting initial comments. Only its source-bound adaptation is runnable.
+        adapted_inputs = {input_program_identity(p.source_id, quote) for p, quote in adapted}
+        found = [p for p, _ in adapted] + [
+            p for p in found if input_program_identity(p.source_id, p.code) not in adapted_inputs]
     created, held = [], []
     for position, item in enumerate(found, 1):
         source = sources.get(item.source_id)
@@ -227,9 +230,12 @@ def exercise_view(session, exercise):
     material = current_source(session, exercise)
     if not material:
         return None
-    from lerny.practice_support import metadata
+    from lerny.practice_support import metadata, build_annotated_blank_template
+    template = exercise.template
+    if exercise.language == "python" and exercise.kind == "blank" and exercise.template and exercise.blanks:
+        template = build_annotated_blank_template(exercise.template, exercise.blanks)
     return {**metadata(exercise), "id":exercise.id,"title":exercise.title,"description":exercise.prompt,"kind":exercise.kind,
-            "language":exercise.language,"template":exercise.template,"expected":exercise.tests[0]["expected"],
+            "language":exercise.language,"template":template,"expected":exercise.tests[0]["expected"],
             "example_input":exercise.tests[0]["input"],
             "week":material.week,"source_title":material.title,"concept_id":exercise.concept_id}
 
@@ -243,19 +249,19 @@ def practice_progress(session: Db, actor: Actor, response: Response, session_id:
     enrolled = select(Enrollment.section_id).where(
         Enrollment.student_id == actor.id, Enrollment.status == "active")
     query = select(PracticeSession).where(
-        PracticeSession.student_id == actor.id, PracticeSession.day == day,
-        PracticeSession.section_id.in_(enrolled))
+        PracticeSession.student_id == actor.id, PracticeSession.section_id.in_(enrolled))
     if session_id is not None:
-        query = query.where(PracticeSession.id == session_id)
+        query = query.where(PracticeSession.id == session_id, (PracticeSession.day == day) | PracticeSession.day.is_(None))
+    else:
+        query = query.where(PracticeSession.day == day)
     plans = session.scalars(query).all()
-    attempts = session.execute(select(PracticeAttempt.practice_session_id, PracticeAttempt.exercise_id)
-        .where(PracticeAttempt.student_id == actor.id,
-               PracticeAttempt.practice_session_id.in_([p.id for p in plans])).distinct())
-    submitted = {(plan_id, exercise_id) for plan_id, exercise_id in attempts}
     items = []
     for plan in plans:
         visible = [eid for eid in plan.exercise_ids if current_source(session, session.get(PracticeExercise, eid))]
-        remaining = [eid for eid in visible if (plan.id, eid) not in submitted]
+        completed = set(session.scalars(select(PracticeAttempt.exercise_id).where(
+            PracticeAttempt.student_id == actor.id, PracticeAttempt.section_id == plan.section_id,
+            PracticeAttempt.exercise_id.in_(visible)).distinct()))
+        remaining = [eid for eid in visible if eid not in completed]
         item = {"section_id": plan.section_id, "session_id": plan.id,
                 "total": len(visible), "submitted": len(visible) - len(remaining)}
         if session_id is not None:
@@ -271,48 +277,61 @@ def daily(section_id: str, session: Db, actor: Actor):
     section = section_student(session, actor, section_id)
     sync_progress(session, section.course_id)
     lock_student(session, actor.id)
-    plan = session.scalar(select(PracticeSession).where(PracticeSession.student_id == actor.id,
-        PracticeSession.section_id == section.id, PracticeSession.day == today()))
+    context = learning_context(session, section, actor.id, today())
+    week = context["week"]
+
+    # 이번 주차에 교수자가 공개한 모든 실습 문제 목록 조회 (등록 순서 유지)
+    candidates = [e for e in session.scalars(select(PracticeExercise).where(
+        PracticeExercise.course_id == section.course_id).order_by(PracticeExercise.position, PracticeExercise.id))
+        if (m := current_source(session, e)) and m.week == week]
+    if not candidates:
+        return {"items":[], "status":"no_source_code", "week":week,
+                "message":"교수자가 공개한 이번 주차 콘텐츠에는 실습이 없어요. 실행 가능한 예제 코드로 콘텐츠를 생성·검토한 뒤 공개하면 학습할 수 있어요."}
+    all_exercise_ids = [e.id for e in candidates]
+
+    plan = session.scalar(select(PracticeSession).where(
+        PracticeSession.student_id == actor.id, PracticeSession.section_id == section.id,
+        PracticeSession.day == today()))
     if not plan:
-        context = learning_context(session, section, actor.id, today())
-        candidates = [e for e in session.scalars(select(PracticeExercise).where(
-            PracticeExercise.course_id == section.course_id).order_by(PracticeExercise.position, PracticeExercise.id))
-            if (m := current_source(session, e)) and m.week == context["week"]]
-        if not candidates:
-            return {"items":[], "status":"no_source_code", "week":context["week"],
-                    "message":"교수자가 공개한 이번 주차 콘텐츠에는 실습이 없어요. 실행 가능한 예제 코드로 콘텐츠를 생성·검토한 뒤 공개하면 학습할 수 있어요."}
-        weak = context["review_concepts"]
-        candidates.sort(key=lambda e: (e.concept_id not in weak,
-            hashlib.sha256((actor.id + str(today()) + e.source_key).encode()).hexdigest(), e.kind))
-        selected = [next((e.id for e in candidates if e.kind == kind), None) for kind in ("blank", "full")]
         plan = PracticeSession(student_id=actor.id, section_id=section.id, day=today(),
-            week=context["week"], exercise_ids=[e for e in selected if e])
+            week=week, exercise_ids=all_exercise_ids)
         session.add(plan)
         session.commit()
+    elif plan.week != week or plan.exercise_ids != all_exercise_ids:
+        plan.week, plan.exercise_ids = week, all_exercise_ids
+        session.commit()
+
     items = []
     for eid in plan.exercise_ids:
         exercise = session.get(PracticeExercise, eid)
         view = exercise_view(session, exercise)
         if view:
             attempt = session.scalar(select(PracticeAttempt).where(PracticeAttempt.student_id == actor.id,
-                PracticeAttempt.practice_session_id == plan.id, PracticeAttempt.exercise_id == eid)
-                .order_by(PracticeAttempt.created_at.desc()).limit(1))
+                PracticeAttempt.section_id == section_id, PracticeAttempt.exercise_id == eid)
+                .order_by(PracticeAttempt.created_at, PracticeAttempt.id).limit(1))
             view["attempt"] = attempt_view(attempt) if attempt else None
             items.append(view)
     return {"id":plan.id,"items":items,"status":"ready","week":plan.week,"day":plan.day}
 
 
-def assigned(session, actor, section_id, exercise_id):
+def assigned(session, actor, section_id, exercise_id, plan_id=None):
     section = section_student(session, actor, section_id)
-    plan = session.scalar(select(PracticeSession).where(PracticeSession.student_id == actor.id,
-        PracticeSession.section_id == section_id, PracticeSession.day == today()))
+    query = select(PracticeSession).where(PracticeSession.student_id == actor.id,
+        PracticeSession.section_id == section_id)
+    if plan_id:
+        query = query.where(PracticeSession.id == plan_id, PracticeSession.day.is_(None))
+    else:
+        query = query.where(PracticeSession.day == today())
+    plan = session.scalar(query)
     exercise = session.get(PracticeExercise, exercise_id)
-    if not plan or exercise_id not in plan.exercise_ids or not current_source(session, exercise):
-        deny(404, "오늘 배정된 공개 실습을 찾을 수 없어요.")
+    if (not plan or exercise_id not in plan.exercise_ids or not exercise
+            or exercise.course_id != section.course_id or not current_source(session, exercise)):
+        deny(404, "배정된 공개 실습을 찾을 수 없어요.")
     return section, plan, exercise
 
 
 class Submission(Input):
+    plan_id: str | None = None
     exercise_id: str
     source: str = Field(min_length=1, max_length=32000)
 
@@ -320,7 +339,7 @@ class Submission(Input):
 @router.post("/sections/{section_id}/practice/submit", status_code=202)
 def submit(section_id: str, body: Submission, session: Db, actor: Actor,
            idempotency_key: str | None = Header(default=None)):
-    section, plan, exercise = assigned(session, actor, section_id, body.exercise_id)
+    section, plan, exercise = assigned(session, actor, section_id, body.exercise_id, body.plan_id)
     if "[[빈칸]]" in body.source:
         deny(422, "빈칸을 모두 채워 주세요.")
     def make():
@@ -333,9 +352,11 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
             AuditEvent.target_id == plan.id, AuditEvent.action == "practice_help",
             AuditEvent.detail["exercise_id"].as_string() == exercise.id).limit(1))
         previous = session.scalar(select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
-            PracticeAttempt.exercise_id == exercise.id, PracticeAttempt.status == "graded").limit(1))
+            PracticeAttempt.section_id == section_id, PracticeAttempt.exercise_id == exercise.id).limit(1))
+        if previous:
+            deny(409, "이미 제출한 실습이에요. 내 코드와 해설을 확인해 주세요.")
         attempt = PracticeAttempt(student_id=actor.id, section_id=section_id, exercise_id=exercise.id,
-            practice_session_id=plan.id, source=body.source, independent=not bool(assisted or previous))
+            practice_session_id=plan.id, source=body.source, independent=assisted is None)
         session.add(attempt)
         session.flush()
         job = Job(owner_id=actor.id, course_id=section.course_id, kind="practice_grade",
@@ -348,6 +369,7 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
 
 
 class HelpInput(Input):
+    plan_id: str | None = None
     exercise_id: str
     kind: Literal["state", "hint", "chat", "answer"] = "hint"
     step: int | None = Field(default=None, ge=1)
@@ -357,7 +379,7 @@ class HelpInput(Input):
 def help_used(section_id: str, body: HelpInput, session: Db, actor: Actor):
     from lerny.practice_support import help_state
     lock_student(session, actor.id)
-    _, plan, exercise = assigned(session, actor, section_id, body.exercise_id)
+    _, plan, exercise = assigned(session, actor, section_id, body.exercise_id, body.plan_id)
     state = help_state(session, actor, plan, exercise)
     if body.kind == "state":
         return state
@@ -381,31 +403,48 @@ def help_used(section_id: str, body: HelpInput, session: Db, actor: Actor):
     state = help_state(session, actor, plan, exercise)
     session.commit()
     if body.kind == "answer":
-        from lerny.practice_support import explanation
-        state["explanation"] = explanation(exercise)
-        state["answers"] = list(exercise.blanks.values()) if exercise.kind == "blank" else [exercise.reference]
+        from lerny.practice_support import explanation, clean_blank_answers
+        expl = explanation(exercise)
+        state["explanation"] = expl
+        state["answers"] = clean_blank_answers(exercise.blanks) if exercise.kind == "blank" else [expl["reference"]]
     return state
 
 
 @router.get("/my/practice-submission-count")
-def practice_submission_count(session: Db, actor: Actor):
+def practice_submission_count(session: Db, actor: Actor, section_id: str | None = None):
     if actor.role != "student":
         deny(403)
     # Each daily practice session belongs to one student and class section.
     submissions = select(PracticeAttempt.practice_session_id, PracticeAttempt.exercise_id).where(
         PracticeAttempt.student_id == actor.id,
-    ).distinct().subquery()
-    return {"submitted": session.scalar(select(func.count()).select_from(submissions))}
+    )
+    if section_id is not None:
+        section_student(session, actor, section_id)
+        submissions = submissions.where(PracticeAttempt.section_id == section_id)
+    return {"submitted": session.scalar(select(func.count()).select_from(submissions.distinct().subquery()))}
 
 
 @router.get("/sections/{section_id}/practice/attempts")
-def attempts(section_id: str, session: Db, actor: Actor, plan_id: str | None = None):
+def attempts(section_id: str, session: Db, actor: Actor, plan_id: str | None = None, by_exercise: bool = False):
     section_student(session, actor, section_id)
     query = select(PracticeAttempt).where(PracticeAttempt.student_id == actor.id,
         PracticeAttempt.section_id == section_id)
+    archive = False
     if plan_id:
-        query = query.where(PracticeAttempt.practice_session_id == plan_id)
-    rows = session.scalars(query.order_by(PracticeAttempt.created_at.desc(), PracticeAttempt.id.desc()).limit(100))
+        plan = session.get(PracticeSession, plan_id)
+        if not plan or plan.section_id != section_id or plan.student_id != actor.id:
+            return {"items": []}
+        archive = plan.day is None
+        if by_exercise or archive:
+            query = query.where(PracticeAttempt.exercise_id.in_(plan.exercise_ids))
+        else:
+            query = query.where(PracticeAttempt.practice_session_id == plan_id)
+    if plan_id and by_exercise:
+        rows = session.scalars(query.distinct(PracticeAttempt.exercise_id)
+            .order_by(PracticeAttempt.exercise_id, PracticeAttempt.created_at, PracticeAttempt.id))
+    else:
+        query = query.order_by(PracticeAttempt.created_at.desc(), PracticeAttempt.id.desc())
+        rows = session.scalars(query if archive else query.limit(100))
     return {"items":[{**attempt_view(a),"source":a.source,"exercise":exercise_view(session,
         session.get(PracticeExercise,a.exercise_id))} for a in rows]}
 
@@ -460,7 +499,8 @@ def grade(session, job):
     session.flush()
     plan = session.get(PracticeSession, attempt.practice_session_id)
     graded = set(session.scalars(select(PracticeAttempt.exercise_id).where(
-        PracticeAttempt.practice_session_id == plan.id, PracticeAttempt.status == "graded")))
+        PracticeAttempt.student_id == actor.id, PracticeAttempt.section_id == attempt.section_id,
+        PracticeAttempt.exercise_id.in_(plan.exercise_ids), PracticeAttempt.status == "graded")))
     if set(plan.exercise_ids).issubset(graded):
         record_completion(session, actor.id, attempt.section_id, "practice", plan.id, now())
     return attempt_view(attempt)

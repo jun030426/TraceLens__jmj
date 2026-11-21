@@ -1,3 +1,5 @@
+import hashlib
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -31,6 +33,30 @@ def test_adaptation_preserves_source_and_calculation_suffix():
     assert quote == crlf and item.code.endswith(crlf[crlf.index('\r\n\r\n'):])
     assert item.input_statement == 'a = 2\nb = 4.0'
     assert '\n'.join(item.code.splitlines()).count(item.input_statement) == 1
+
+
+@pytest.mark.parametrize('combined', [True, False])
+def test_verified_ppt_shape_preserves_numeric_example(combined):
+    digest = hashlib.sha256(CODE.encode()).hexdigest()
+    engine = {'document_type':'pptx','source_sha256':'deck','slide_number':3}
+    page = {'page':3,'shapes':[{'shape_id':7,'text_sha256':digest}]}
+    version = SimpleNamespace(id='v',sha256='deck',extraction_report={'source_reviews':[
+        {'review':{'source_sha256':'deck','pages':[page]}}]})
+    if combined:
+        engine.update(quality='visually_reviewed_native_text_v1', reviewed_shape_ids=[7])
+        content = '실습 예제\n\n'+CODE+'\n\n[출력 결과]\n두 수의 합은 6'
+    else:
+        engine['source_region'] = {'kind':'text','text_sha256':digest,'source_sha256':'deck'}
+        content = CODE
+    chunk = SimpleNamespace(id='c',version_id='v',content=content,locator={'engine':engine})
+    def generate(prompt, _schema):
+        item = json.loads(prompt.split('\n',1)[1])['sources'][0]
+        assert item['code'] == CODE
+        return {'programs':[proposal(source_id=item['source_id'])]}
+    (item, quote), = adapted_programs([chunk],generate,[version])
+    assert quote == CODE and item.source_id == 'c' and quote in chunk.content
+    chunk.content = content.replace('total / 2','total * 2')
+    assert adapted_programs([chunk],generate,[version]) == []
 
 
 @pytest.mark.parametrize('code',[
@@ -90,9 +116,10 @@ def test_input_and_empty_lines_are_replaced_with_verified_calculation_lines():
         assert item.input_statement in '\n'.join(item.code.splitlines())
 
 
-def test_adapted_source_prevents_duplicate_stdin_hold(weekly,monkeypatch):
+@pytest.mark.parametrize("original", [CODE, "# numeric inputs\r\n\r\n" + CODE.replace("\n", "\r\n")])
+def test_adapted_source_prevents_duplicate_stdin_hold(weekly,monkeypatch,original):
     client,session,_ = weekly
-    session.add(Chunk(id='numeric',version_id='version',content='```python\n'+CODE+'\n```',locator={}))
+    session.add(Chunk(id='numeric',version_id='version',content='```python\n'+original+'\n```',locator={}))
     session.commit();gid=start(client)
     job=Job(owner_id='teacher',course_id='course',kind='practice_prepare',payload={'source_version_id':'version','generation_id':gid})
     old={'source_id':'numeric','concept_id':None,'code':CODE,'title':'합과 평균',
@@ -103,3 +130,13 @@ def test_adapted_source_prevents_duplicate_stdin_hold(weekly,monkeypatch):
     monkeypatch.setattr(practice,'output_of',lambda *a,**k: next(outputs))
     result=practice.prepare(session,job)
     assert len(result['exercise_ids'])==2 and result['held']==[]
+    rows = list(session.scalars(select(PracticeExercise).where(PracticeExercise.generation_id == gid)))
+    assert all(row.sources == [{'chunk_id':'numeric','quote':original}] for row in rows)
+
+
+def test_input_identity_preserves_source_and_logic():
+    from lerny.practice_inputs import input_program_identity
+    key = input_program_identity('source', CODE)
+    assert key != input_program_identity('different-source', CODE)
+    assert key != input_program_identity('source', CODE.replace('a + b', 'a - b'))
+    assert key != input_program_identity('source', CODE.replace('total =', '    total ='))

@@ -72,7 +72,7 @@ def site(integration, monkeypatch):
 
 @pytest.fixture
 def synthetic_engine(monkeypatch):
-    state = SimpleNamespace(calls=[], unsafe=False, failure=None, candidate_calls=0, text=TEXT, boundary_texts={})
+    state = SimpleNamespace(calls=[], roles=[], unsafe=False, failure=None, candidate_calls=0, text=TEXT, boundary_texts={})
     fallback = gemini_provider.request
 
     def render(path, folder, config, kind=None):
@@ -102,6 +102,8 @@ def synthetic_engine(monkeypatch):
         prompt = payload["input"][0]["text"]
         data = json.loads(prompt.split("DATA:\n", 1)[1])
         state.calls.append(payload)
+        from lerny.gemini_quota import request_purpose
+        state.roles.append(request_purpose(path, documents.settings()))
         if state.failure:
             raise state.failure
         if "native_inventory" in data:
@@ -147,9 +149,70 @@ def upload(site, suffix, visibility="public"):
     return session.get(Job, data["processing_job_id"]), session.get(MaterialVersion, data["version_id"])
 
 
-@pytest.mark.parametrize("suffix", [".pptx", ".pdf"])
-def test_site_upload_runs_common_gates_and_reuses_completed_results(site, synthetic_engine, suffix):
+def test_teacher_week_four_upload_recovers_native_region(site, synthetic_engine, monkeypatch):
+    from video_extraction.shared.gemini import Gemini
+    from lerny.ppt_source_index import POLICY
+    from lerny.rag_index import indexed_ids, store_vector
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    slide.shapes.add_textbox(0, 0, deck.slide_width, deck.slide_height // 3).text = TEXT
+    literal = "if x[0] > 10:\n    print('a  b')"
+    box = slide.shapes.add_textbox(0, deck.slide_height // 2, deck.slide_width, deck.slide_height // 3)
+    box.text = literal
+    stream = io.BytesIO()
+    deck.save(stream)
+    original_render = connected.base.adapters.prepare_source
+    original_call = Gemini.call
+    calls = []
+
+    def render(*args, **kwargs):
+        meta, units = original_render(*args, **kwargs)
+        units[0]["render_health"] = {"status": "checked"}
+        return meta, units
+
+    def call(self, stage, images, prompt, schema):
+        if stage == POLICY:
+            calls.append(stage)
+            assert len(images) == 2 and literal not in prompt
+            return {"regions": [{"id": str(box.shape_id), "text": literal, "complete": True, "clear": True}]}
+        return original_call(self, stage, images, prompt, schema)
+
+    monkeypatch.setattr(connected.base.adapters, "prepare_source", render)
+    monkeypatch.setattr(Gemini, "call", call)
+    client, session, _ = site
+    response = client.post("/api/v1/courses/course/materials",
+        data={"kind": "lecture", "week": "4", "visibility": "public"},
+        files={"file": ("native.pptx", stream.getvalue(), "application/octet-stream")})
+    assert response.status_code == 201, response.text
+    data = response.json()
+    assert worker.run_once(data["processing_job_id"])
+    session.expire_all()
+    v = session.get(MaterialVersion, data["version_id"])
+    assert v.status == "extracted", session.get(Job, data["processing_job_id"]).error_code
+    evidence = v.extraction_report["native_evidence"]["ppt_page_review"]
+    assert calls == [POLICY] and evidence["accepted"][0]["shape_id"] == box.shape_id
+    assert literal in v.extracted_text
+    def fake_embed(chunks, db):
+        for chunk in chunks:
+            store_vector(chunk, [1.0] + [0.0] * 767)
+    monkeypatch.setattr(worker, "embed_chunks", fake_embed)
+    job = session.scalar(select(Job).where(Job.kind == "embed", Job.payload["version_id"].as_string() == v.id))
+    assert worker.run_once(job.id)
+    session.expire_all()
+    chunks = list(session.scalars(select(Chunk).where(Chunk.version_id == v.id)))
+    assert v.status == "ready" and len(indexed_ids(chunks, validate_vectors=True)) == len(chunks)
+
+
+@pytest.mark.parametrize("suffix,course,week,role", [
+    (".pptx","course",3,"review"), (".pdf","course",3,"content"),
+    (".pptx","course",4,"content"), (".pptx","other",3,"content"),
+])
+def test_site_upload_runs_common_gates_and_reuses_completed_results(site, synthetic_engine, suffix, course, week, role, monkeypatch):
     client, session, tokens = site
+    config = documents.settings()
+    monkeypatch.setattr(config, "gemini_review_quota_project", "paid-test")
+    monkeypatch.setattr(config, "gemini_review_course_id", course)
+    monkeypatch.setattr(config, "gemini_review_week", week)
     before = [(c.id, c.content) for c in session.scalars(select(Chunk))]
     job, version = upload(site, suffix)
     assert needs_remote(session, job)
@@ -163,6 +226,10 @@ def test_site_upload_runs_common_gates_and_reuses_completed_results(site, synthe
     assert all(session.get(Chunk, i).content == text for i, text in before)
     assert session.scalar(select(Job).where(Job.kind == "embed", Job.payload["version_id"].as_string() == version.id))
     assert synthetic_engine.calls
+    assert set(synthetic_engine.roles) == {role}
+    expected = config.gemini_answer_model
+    assert {call["model"] for call in synthetic_engine.calls} == {expected}
+    assert version.extraction_report["native_evidence"]["model"] == expected
     cache = list(documents.settings().runtime_root.glob("document-materials/*/analysis-*/gemini-cache/*.json"))
     assert cache
     hashes = {p: digest_file(p) for p in cache}
@@ -179,6 +246,26 @@ def test_site_upload_runs_common_gates_and_reuses_completed_results(site, synthe
     assert client.get(review_url).status_code == 200
     client.cookies.set(COOKIE, tokens["student"][0])
     assert client.get(review_url).status_code in {403, 404}
+
+
+@pytest.mark.parametrize("course,week,suffix,remote", [
+    ("course", 4, ".pptx", True), ("course", 5, ".pptx", False),
+    ("course", 12, ".pptx", False), ("other", 5, ".pptx", True), ("course", 5, ".pdf", True),
+])
+def test_review_policy_uses_stored_material_and_limits_paid_verification(site, configured, monkeypatch, course, week, suffix, remote):
+    from lerny.gemini_quota import review_job, request_purpose, verification
+    monkeypatch.setattr(configured, "gemini_review_course_id", course)
+    monkeypatch.setattr(configured, "gemini_review_week", 4)
+    monkeypatch.setattr(configured, "gemini_review_quota_project", "paid-test")
+    monkeypatch.setattr(configured, "instructor_review_from_week", 5)
+    _, session, _ = site
+    job, version = upload(site, suffix)
+    session.get(Material, version.material_id).week = week
+    job.payload = {**job.payload, "week": 4}
+    session.flush()
+    assert needs_remote(session, job) is remote
+    with review_job(session, job, configured), verification():
+        assert request_purpose("interactions", configured) == "content"
 
 
 def test_model_approval_cannot_override_code_calculation_hold(site, synthetic_engine):

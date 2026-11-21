@@ -46,6 +46,9 @@ def synthetic_model(session, *, code=True):
     def generate(prompt, schema):
         data = json.loads(prompt.rsplit("\n", 1)[1])
         props = schema["properties"]
+        if any(key.startswith("Q") for key in props):
+            from quiz_provider_fixture import quiz_batch_response
+            return quiz_batch_response(data)
         if "assessment_task" in data or "single_correct" in props:
             from quiz_provider_fixture import quiz_response
             return quiz_response(data)
@@ -92,7 +95,16 @@ def test_upload_through_student_publication_without_video(weekly, configured, fa
     assert publish(client, old_id).status_code == 200
     old = copy.deepcopy(weekly_content.generation_view(session, session.get(ContentGeneration, old_id), True))
     monkeypatch.setattr(configured, "heygen_rendering_enabled", False)
-    monkeypatch.setattr(worker, "model_json", synthetic_model(session))
+    monkeypatch.setattr(configured, "gemini_review_course_id", "course")
+    monkeypatch.setattr(configured, "instructor_review_from_week", 5)
+    stages = []
+    model = synthetic_model(session)
+    def track_quiz(prompt, schema):
+        if "Q1" in schema["properties"]:
+            fields = schema["properties"]["Q1"]["properties"]
+            stages.append("draft" if "stem" in fields else "solve" if "correct_indices" in fields else "review")
+        return model(prompt, schema)
+    monkeypatch.setattr(worker, "model_json", track_quiz)
     # Never execute student code on the host; only the sandbox response is synthetic.
     monkeypatch.setattr(practice, "output_of", lambda lang, source, **kw:
         "3" if "[1, 2]" in source else "7" if "[3, 4]" in source else "0")
@@ -111,6 +123,7 @@ def test_upload_through_student_publication_without_video(weekly, configured, fa
         embedding = session.scalar(select(Job).where(Job.kind == "embed",
             Job.payload["version_id"].as_string() == uploaded["version_id"]))
         finish(session, embedding)
+    assert bool(synthetic_engine.calls) == (week < 5 and week % 2 == 1)
     assert session.scalars(select(ContentGeneration)).all() == [session.get(ContentGeneration, old_id)]
     gid = start(client, week)
     assert start(client, week) == gid  # duplicate clicks reuse this draft
@@ -122,6 +135,7 @@ def test_upload_through_student_publication_without_video(weekly, configured, fa
         if job.status != "succeeded": finish(session, job)
     data = client.get(f"/api/v1/courses/course/content-generations/{gid}").json()
     assert data["can_publish"] and data["state"] == "ready" and data["video_mode"] == "none", data
+    assert stages == (["draft"] if week >= 5 else ["draft", "solve", "review"]) * concept_count
     assert data["counts"] == {"concepts":concept_count,"questions":5*concept_count,"practice":2*program_count,"videos":0,"videos_ready":0,"videos_deferred":0}
     assert {j["kind"] for j in data["jobs"]} == {"weekly_content","questions","practice_prepare"}
     assert {e["kind"] for e in data["practice"]} == {"blank","full"}
