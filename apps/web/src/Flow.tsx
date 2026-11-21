@@ -20,6 +20,7 @@ import { ErrorNotice, Notice, useLoad } from "./components";
 import { Chat, Materials } from "./Learning";
 import { type Daily } from "./Theory";
 import { TheoryHints } from "./TheoryHints";
+import { XP_CHANGED } from "./xp/practiceXp";
 import { ChatBubbleIcon } from "./ChatFab";
 import type { QuizAsk } from "./Learning";
 import { ArchivePeriodFilter, LearningHistory, LearningProgress } from "./LearningProgress";
@@ -289,6 +290,7 @@ export function QuizTakeFlow() {
         ...post({ answer: answers[item.id] }),
         headers: { "Idempotency-Key": `${daily.id}:${item.id}` },
       });
+      window.dispatchEvent(new Event(XP_CHANGED));
       setDaily(await api<Daily>(`/learning-sessions/${daily.id}`));
     } catch (e) {
       setError((e as Error).message);

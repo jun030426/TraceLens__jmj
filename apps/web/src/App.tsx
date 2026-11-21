@@ -167,7 +167,7 @@ function Shell() {
           }
         }}
         className={
-          "app-header " + (headerHidden && !menuOpen ? "is-scroll-hidden " : "") + (/^\/classrooms\/[^/]+\/practice$/.test(pathname) ? "is-autohide " : "") + (classroom
+          "app-header " + (headerHidden && !menuOpen ? "is-scroll-hidden " : "") + (classroom
             ? "ln-header lesson-header"
             : isLanding || isStudentHome
               ? "ln-header"
@@ -217,7 +217,9 @@ function Shell() {
                   : [["/admin", "운영 관리"]]
               ).map(([path, label]) => (
                 <Fragment key={path}>
-                  {classroom && label === "강의실" && <XpBadge key={user.id} userId={user.id} />}
+                  {classroom && label === "강의실" && (
+                    <XpBadge key={`${user.id}:${classroom.section.id}`} userId={user.id} sectionId={classroom.section.id} />
+                  )}
                 <NavLink
                   to={path}
                   end={

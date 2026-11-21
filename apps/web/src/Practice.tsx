@@ -1,4 +1,4 @@
-import { recordPracticeSubmit } from "./xp/practiceXp";
+import { notifyPracticeSubmit } from "./xp/practiceXp";
 import { isComposingInput } from "./inputKeyboard";
 import { practiceSubmitBody } from "./learningRequests";
 import { lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -147,7 +147,19 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
   const [explanations, setExplanations] = useState<Record<string, PracticeExplanation>>({});
   const submissions = useLoad<{ items: PracticeAttempt[] }>(`/sections/${sectionId}/practice/attempts`, true);
   const answerUnlocked = !!submissions.data?.items.some(a => a.practice_session_id === planId && a.exercise_id === quiz.id);
-  const showAnswer = !!answerShown[quiz.id];
+  const explanation = answerUnlocked && answerShown[quiz.id] ? explanations[quiz.id] : undefined;
+  const showAnswer = !!explanation;
+  const [copyFillsByQuiz, setCopyFillsByQuiz] = useState<Record<string, Record<number, string>>>({});
+  const copyFills = copyFillsByQuiz[quiz.id] ?? {};
+  const fillCopy = (number: number, text: string) => {
+    setCopyFillsByQuiz(previous => ({
+      ...previous,
+      [quiz.id]: { ...previous[quiz.id], [number]: text },
+    }));
+  };
+  const answerBlanks = explanation && Object.fromEntries(
+    explanation.blanks.map((answer, index) => [index + 1, answer]),
+  );
   const [submitting, setSubmitting] = useState(false);
   const [assistBusy, setAssistBusy] = useState(false);
   const [revealing, setRevealing] = useState(false);
@@ -187,7 +199,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
     try {
       if (!await confirm({ title: "최종 제출할까요?", message: "현재 작성한 코드를 저장하고 채점해요. 실행 화면의 출력 비교와 최종 채점 결과는 다를 수 있어요.", confirmLabel: "제출하기", cancelLabel: "더 풀어 볼게요" })) return;
       await api(`/sections/${sectionId}/practice/submit`, post(practiceSubmitBody(quiz.id, source)));
-      if (user) recordPracticeSubmit(user.id, sectionId, quiz.id);
+      notifyPracticeSubmit();
       setLocalPending(true); submissions.reload();
     } catch (e) { setSubmitError((e as Error).message); }
     finally { requestBusy.current = false; setSubmitting(false); }
@@ -275,20 +287,40 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
                     {revealing ? "답지 여는 중…" : showAnswer ? "답지·해설 숨기기" : answerUnlocked ? "답지·해설 보기" : "🔒 제출 후 답지·해설"}
                   </button>
                 </span>
-                <button type="button" onClick={execute} disabled={!!stage || submitting || (!canPreview && runnable.unfilled.length > 0)}>{stage ? "실행 중…" : "코드 실행"}</button>
-                <button type="button" className="primary" disabled={!complete || !!stage || pending || submitting || assistBusy || !submissions.data} onClick={() => void submitFinal()}>{submitting ? "제출 중…" : pending ? "채점 기다리는 중…" : <>최종 제출 <span className="go-arrow" aria-hidden="true">→</span></>}</button>
+                <button type="button" onClick={execute} disabled={showAnswer || !!stage || submitting || (!canPreview && runnable.unfilled.length > 0)}>{stage ? "실행 중…" : "코드 실행"}</button>
+                <button type="button" className="primary" disabled={showAnswer || !complete || !!stage || pending || submitting || assistBusy || !submissions.data} onClick={() => void submitFinal()}>{submitting ? "제출 중…" : pending ? "채점 기다리는 중…" : <>최종 제출 <span className="go-arrow" aria-hidden="true">→</span></>}</button>
               </div>
             </div>
             <p id="practice-answer-rule" className="practice-answer-rule">이 문제를 최종 제출한 뒤 답지·해설을 볼 수 있어요. 코드 실행과 힌트 사용만으로는 열리지 않아요.</p>
-  <div className="practice-file-bar"><span>{language === "Python" ? "main.py" : language === "Java" ? "Main.java" : "main.c"}</span><span aria-live="polite">{saved || (isFull ? `${fullCode.split("\n").length}줄` : `빈칸 ${filledCount}/${template.blanks.length} 채움`)}</span></div>
+  <div className="practice-file-bar"><span>{language === "Python" ? "main.py" : language === "Java" ? "Main.java" : "main.c"}</span><span aria-live="polite">{showAnswer ? "답지 따라쓰기" : saved || (isFull ? `${fullCode.split("\n").length}줄` : `빈칸 ${filledCount}/${template.blanks.length} 채움`)}</span></div>
   
-            {isFull ? <CodeEditor value={fullCode} onChange={v => fill(0, v)} onCommit={() => { setUserRan(true); setCommitted({ code: runnable.code, stopLines: {} }); }} ghost={fixShown ? fix!.code : undefined} fixes={fixShown ? fix!.fixes : undefined} vizLine={shownViz} label={`${language} 코드 작성`} syntax={syntaxIssue} /> : <BlankEditor template={template} fills={fills} onFill={fill} onCommit={() => { setUserRan(true); setCommitted({ code: runnable.code, stopLines: runnable.stopLines }); }} stopBlank={userRan && resultTab === "시각화" && vizLine?.kind === "blank" && run?.kind === "ran" && run.code === runnable.code ? run.blankStop?.blank : undefined} vizLine={shownViz} badBlanks={badBlanks} syntax={syntaxIssue} comments={lineComments} commentMark={commentMark} />}
-            {syntaxIssue && <p className="practice-syntax-note" role="status"><b>✕ {syntaxIssue.line ? `${syntaxIssue.line}번째 줄` : "문법"}</b> {syntaxIssue.message} <span>· 문법 오류는 시도 횟수에 들어가지 않아요</span></p>}
-            {fixShown && <button type="button" disabled={!!stage || submitting} onClick={() => { fill(0, fix!.code); resetRun(); setCommitted(null); setUserRan(false); }}>수정안 적용하기</button>}
+            {explanation ? (
+              isFull ? (
+                <CodeEditor
+                  key="answer-copy"
+                  value={copyFills[0] ?? ""}
+                  onChange={value => fillCopy(0, value)}
+                  onCommit={() => {}}
+                  ghost={explanation.reference}
+                  label="모범 코드 따라쓰기"
+                />
+              ) : (
+                <BlankEditor
+                  key="answer-copy"
+                  template={template}
+                  fills={copyFills}
+                  onFill={fillCopy}
+                  onCommit={() => {}}
+                  ghosts={answerBlanks}
+                />
+              )
+            ) : isFull ? <CodeEditor value={fullCode} onChange={v => fill(0, v)} onCommit={() => { setUserRan(true); setCommitted({ code: runnable.code, stopLines: {} }); }} ghost={fixShown ? fix!.code : undefined} fixes={fixShown ? fix!.fixes : undefined} vizLine={shownViz} label={`${language} 코드 작성`} syntax={syntaxIssue} /> : <BlankEditor template={template} fills={fills} onFill={fill} onCommit={() => { setUserRan(true); setCommitted({ code: runnable.code, stopLines: runnable.stopLines }); }} stopBlank={userRan && resultTab === "시각화" && vizLine?.kind === "blank" && run?.kind === "ran" && run.code === runnable.code ? run.blankStop?.blank : undefined} vizLine={shownViz} badBlanks={badBlanks} syntax={syntaxIssue} comments={lineComments} commentMark={commentMark} />}
+            {!showAnswer && syntaxIssue && <p className="practice-syntax-note" role="status"><b>✕ {syntaxIssue.line ? `${syntaxIssue.line}번째 줄` : "문법"}</b> {syntaxIssue.message} <span>· 문법 오류는 시도 횟수에 들어가지 않아요</span></p>}
+            {!showAnswer && fixShown && <button type="button" disabled={!!stage || submitting} onClick={() => { fill(0, fix!.code); resetRun(); setCommitted(null); setUserRan(false); }}>수정안 적용하기</button>}
             <div id="practice-vartable-slot" className="practice-vartable-slot" />
-            <p className="practice-editor-note">{isFull ? "코드를 다 쓴 뒤 '코드 실행'을 누르면 예시 출력을 비교해요. 최종 채점은 제출 후 확인해요." : canPreview ? "빈칸을 채우고 Enter를 누르면 다음 빈칸 앞까지 바로 실행돼요." : "빈칸을 모두 채운 뒤 실행할 수 있어요."}</p>
+            <p className="practice-editor-note">{showAnswer ? "회색 답안을 따라 쓰면 입력한 부분만큼 회색 글씨가 지워져요. 따라쓴 내용은 제출 답안에 반영되지 않아요." : isFull ? "코드를 다 쓴 뒤 '코드 실행'을 누르면 예시 출력을 비교해요. 최종 채점은 제출 후 확인해요." : canPreview ? "빈칸을 채우고 Enter를 누르면 다음 빈칸 앞까지 바로 실행돼요." : "빈칸을 모두 채운 뒤 실행할 수 있어요."}</p>
           </section>
-          {showAnswer && explanations[quiz.id] && <PracticeExplanationView focusOnOpen value={explanations[quiz.id]} />}
+          {explanation && <PracticeExplanationView value={explanation} />}
         </section>
       </div>
       <div className="practice-right">
