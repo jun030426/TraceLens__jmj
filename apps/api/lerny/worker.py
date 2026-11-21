@@ -517,9 +517,9 @@ def run_once(job_id=None):
                     version.status = "extracted" if job.kind == "embed" else "queued" if job.status == "queued" else "failed"
                     version.error_code = code
                 if job.kind == "grade" and job.status == "failed":
-                    from lerny.models import Attempt
+                    from lerny.models import grading_attempt
 
-                    attempt = session.get(Attempt, job.payload["attempt_id"])
+                    attempt = grading_attempt(session, job)
                     attempt.status = "held"
                     attempt.feedback = {
                         "message": "자동 채점이 완료되지 않아 보류했어요. 오답으로 처리하지 않아요."

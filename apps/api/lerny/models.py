@@ -374,10 +374,14 @@ class PracticeExercise(Identity, Base):
 
 class PracticeSession(Identity, Base):
     __tablename__ = "practice_sessions"
-    __table_args__ = (Index("uq_practice_student_section_day", "student_id", "section_id", "day", unique=True),)
+    __table_args__ = (
+        Index("uq_practice_student_section_day", "student_id", "section_id", "day", unique=True),
+        Index("uq_weekly_practice_archive", "student_id", "section_id", "week", unique=True,
+              postgresql_where=text("day IS NULL")),
+    )
     student_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     section_id: Mapped[str] = mapped_column(ForeignKey("sections.id"), index=True)
-    day: Mapped[date] = mapped_column(Date)
+    day: Mapped[date | None] = mapped_column(Date)
     week: Mapped[int] = mapped_column(Integer)
     exercise_ids: Mapped[list] = mapped_column(JSON)
 
@@ -425,6 +429,21 @@ class Attempt(Identity, Base):
     independent: Mapped[bool] = mapped_column(Boolean, default=True)
     review_applied: Mapped[bool] = mapped_column(Boolean, default=False)
     appealed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class TheoryRetake(Identity, Base):
+    __tablename__ = "theory_retakes"
+    original_id: Mapped[str] = mapped_column(ForeignKey("attempts.id"), index=True)
+    answer: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    score: Mapped[int | None] = mapped_column(Integer)
+    correct: Mapped[bool | None] = mapped_column(Boolean)
+    feedback: Mapped[dict | None] = mapped_column(JSON)
+
+
+def grading_attempt(session, job):
+    model = TheoryRetake if job.payload.get("retake") else Attempt
+    return session.get(model, job.payload["attempt_id"])
 
 
 class Review(Identity, Base):

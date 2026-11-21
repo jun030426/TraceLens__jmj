@@ -660,12 +660,14 @@ def job_action(
 
 
 def update_attempt(session, job, status):
-    from lerny.models import Attempt, PracticeAttempt
+    from lerny.models import PracticeAttempt, grading_attempt
 
-    model = {"grade": Attempt, "practice_grade": PracticeAttempt}.get(job.kind)
-    if not model:
+    if job.kind == "grade":
+        attempt = grading_attempt(session, job)
+    elif job.kind == "practice_grade":
+        attempt = session.get(PracticeAttempt, job.payload["attempt_id"])
+    else:
         return
-    attempt = session.get(model, job.payload["attempt_id"])
     if status == "pending" and attempt.status != "held":
         deny(409, "이미 처리된 답안은 다시 채점할 수 없어요.")
     attempt.status = status
