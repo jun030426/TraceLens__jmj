@@ -6,8 +6,8 @@ def quiz_batch_response(data):
                          source_id=next(iter(data['passages']))) for key in data['tasks']}
     if 'answer_index' in next(iter(data.values())):
         return {key:dict(supported=True,unambiguous=True,answer_correct=True,explanation_supported=True,
-                         hint_appropriate=True,reason="합성 근거") for key in data}
-    return {key:dict(correct_indices=[item['options'].index("첫 번째")],supported=True,task_fits=True,
+                         hint_appropriate=True,concept_matches=True,distinct_objective=True,reason="합성 근거") for key in data}
+    return {key:dict(correct_indices=[item['options'].index("첫 번째")],supported=True,task_fits=True,concept_matches=True,
                      reason="독립 합성 확인") for key,item in data.items()}
 
 
