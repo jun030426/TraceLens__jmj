@@ -119,7 +119,7 @@ def request_feature(path):
         return "content"
     if re.search(r"/(uploads|materials)(/[^/]+/versions)?$", path) or "/uploads/" in path:
         return "uploads"
-    if path.endswith(("/versions", "/transcript")) or "/rag/reindex" in path:
+    if path.endswith(("/versions", "/transcript", "/reviewed-slides")) or "/rag/reindex" in path:
         return "uploads"
     if "/concept-videos/" in path or "/narration" in path or "/lecture-" in path:
         return "videos"
