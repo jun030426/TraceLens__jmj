@@ -681,7 +681,7 @@ export function CourseWorkspace({ mode }: { mode: "chat" | "progress" }) {
         <div>
           {room ? (
             mode === "chat" ? (
-              <Chat key={room.section.id} sectionId={room.section.id} />
+              <Chat key={room.section.id} sectionId={room.section.id} courseId={room.course.id} />
             ) : (
               <section className="panel progress-panel">
                 <h2>{room.course.title.split(/\s+[—–]\s+/)[0]}</h2>

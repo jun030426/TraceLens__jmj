@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatFeedback, type FeedbackValue } from "./ChatFeedback";
 import { TypedAnswer } from "./TypedAnswer";
 import { api, post, type Answer, type Job } from "./api";
-import { sourceLabel } from "./sourceLabels";
+import { ChatCitation, useStudentHandouts } from "./ChatCitation";
 import type { BlankVerdict } from "./visualizer/blankCheck";
 import { circled, cleanFill, type BlankTemplate } from "./visualizer/blanks";
 import { VIZ_LINE_WORD, type VizLine } from "./visualization/vizLine";
@@ -77,14 +77,16 @@ export function suggestedQuestions(ctx: PracticeChatContext): string[] {
 type Item = { id?: string; question: string; withContext: boolean; answer?: Answer; error?: string; fresh?: boolean };
 /** 실습 질문 이력 한 줄 — AI 질문 화면과 따로, 서버에 저장된 실습 질문만 모아 보여 줘요 */
 type Saved = { id?: string; feedback?: FeedbackValue; at: string; week?: number | null; problem: string; question: string; answer: string; citations?: Answer["citations"] };
-export function PracticeChat({ sectionId, open, onClose, context, draftRequest }: {
+export function PracticeChat({ sectionId, courseId, open, onClose, context, draftRequest }: {
   sectionId: string;
+  courseId: string;
   open: boolean;
   onClose: () => void;
   context: PracticeChatContext;
   /** 바깥(예: 채점 결과)에서 질문 칸에 미리 적어 둘 내용 — 바뀔 때마다 적어요 */
   draftRequest?: { text: string; seq: number } | null;
 }) {
+  const handouts = useStudentHandouts(courseId, open);
   const [draft, setDraft] = useState("");
   const [sent, setSent] = useState<{ text: string; key: number }>();
   const [withContext, setWithContext] = useState(true);
@@ -209,7 +211,7 @@ export function PracticeChat({ sectionId, open, onClose, context, draftRequest }
             {item.answer ? <>
               <TypedAnswer text={item.answer.answer} animate={!!item.fresh}>
                 {item.answer.answer_kind === "insufficient" && <p className="practice-chat__tip">왼쪽의 단계별 힌트를 열거나, 질문을 개념 이름으로 바꿔 다시 물어보세요.</p>}
-                {item.answer.citations?.map((c, n) => <span className="source-reference" key={n}>{c.title} · {sourceLabel(c.locator)}</span>)}
+                {item.answer.citations?.map((c, n) => <ChatCitation key={n} citation={c} handouts={handouts} newTab />)}
                 {item.answer.follow_up && <p className="practice-chat__followup"><b>🤔 생각해 볼 질문</b>{item.answer.follow_up}</p>}
               </TypedAnswer>
             </> : item.error ? <p className="practice-chat__error" role="alert">{item.error}</p> : <p className="practice-chat__typing chat-typing" role="status"><span className="chat-dots" aria-hidden="true"><i /><i /><i /></span><span>AI 강사가 답변을 적고 있어요</span></p>}
@@ -250,7 +252,7 @@ export function PracticeChat({ sectionId, open, onClose, context, draftRequest }
               <small>{new Date(h.at).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} {new Date(h.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</small>
               <strong>{h.question}</strong>
             </button>
-            {openSaved === n && <div className="practice-chat__history-answer"><span>AI 강사</span><p>{h.answer}</p><ChatFeedback sectionId={sectionId} messageId={h.id} initial={h.feedback} />{h.citations?.map((c, k) => <span className="source-reference" key={k}>{c.title} · {sourceLabel(c.locator)}</span>)}<button type="button" className="practice-chat__ask-again" onClick={() => { setDraft(h.question); setShowHistory(null); setTimeout(() => input.current?.focus(), 60); }}>이 질문 다시 하기</button></div>}
+            {openSaved === n && <div className="practice-chat__history-answer"><span>AI 강사</span><p>{h.answer}</p><ChatFeedback sectionId={sectionId} messageId={h.id} initial={h.feedback} />{h.citations?.map((c, k) => <ChatCitation key={k} citation={c} handouts={handouts} newTab />)}<button type="button" className="practice-chat__ask-again" onClick={() => { setDraft(h.question); setShowHistory(null); setTimeout(() => input.current?.focus(), 60); }}>이 질문 다시 하기</button></div>}
           </li>)}</ul>
         </section>}
       </div>
