@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from lerny.evaluation import ensure_epoch, lock_course_for_artifact_commit
+from lerny.gemini_quota import verification
 from lerny.learning import apply_review, valid_sources
 from lerny.models import Attempt, Concept, Course, Question
 from lerny.retrieval import internal_validation_context, search_public
@@ -40,6 +41,7 @@ class Check(BaseModel):
     answer_correct: bool
 
 
+@verification()
 def verify_choice(question, evidence):
     from lerny.worker import model_json
 
@@ -193,7 +195,7 @@ def generate_job(session, job):
             verify_choice(item, item_evidence)
         ensure_epoch(session, job.course_id, epoch)
         check = Check.model_validate(
-            checked_model(
+            verification()(checked_model)(
                 "문항을 독립 검증하라. supported: 질문과 해설의 모든 사실이 자료에 있는가. "
                 "unambiguous: 질문이 명확하며 객관식은 정답이 정확히 하나인가. "
                 "answer_correct: 정답 또는 서술형 채점요소가 자료와 일치하는가. 조금이라도 불확실하면 false.\n"

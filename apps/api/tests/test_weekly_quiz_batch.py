@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from lerny.weekly_quiz import generate_set
+from lerny.gemini_quota import request_purpose
 
 
 def run(fault=None, persistent=False):
@@ -14,6 +15,8 @@ def run(fault=None, persistent=False):
         data = json.loads(prompt.rsplit("\n",1)[1])
         keys = list(schema["properties"])
         stage = "draft" if "tasks" in data else "review" if "answer_index" in data[keys[0]] else "blind"
+        purpose = request_purpose("interactions", SimpleNamespace(gemini_review_quota_project="paid-test"))
+        assert purpose == ("content" if stage == "draft" else "review")
         reject = (fault == stage and (persistent or not any(s == stage for s,_ in calls)))
         calls.append((stage,keys))
         result = {}

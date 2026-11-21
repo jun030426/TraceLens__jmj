@@ -78,6 +78,31 @@ def test_embedding_and_content_have_independent_limits(paced):
     assert quota.scope(PATH, {'model': 'gemini-3.5-flash'}) == quota.scope(PATH, {'model': 'gemini-3.6-flash'})
 
 
+def test_paid_verification_keeps_completed_responses_and_free_project_backoff(paced, monkeypatch):
+    config, clock, _ = paced
+    config.gemini_review_quota_project = "paid-test"
+    config.gemini_embedding_api_key = SecretStr("paid-test-key")
+    headers = []
+    def post(_client, _url, **kwargs):
+        headers.append(kwargs["headers"]["x-goog-api-key"])
+        return httpx.Response(200, json={"ok":True}, request=httpx.Request("POST", "https://test.invalid"))
+    monkeypatch.setattr(httpx.Client, "post", post)
+    with job_context(SimpleNamespace(id="test-route", payload={})):
+        provider.request(PATH, BODY, dict)
+        quota.block_until(PATH, BODY, "GEMINI_RATE_LIMITED", clock[0] + 3600)
+        changed = {**BODY, "input":"second synthetic request"}
+        with quota.verification():
+            provider.request(PATH, BODY, dict)
+            provider.request(PATH, changed, dict)
+            assert quota.request_purpose("models/test:embedContent", config) == "embedding"
+            config.gemini_embedding_api_key = SecretStr("")
+            with pytest.raises(ValueError, match="GEMINI_KEY_REQUIRED"):
+                provider.request(PATH, {**BODY,"input":"unavailable"}, dict)
+        with pytest.raises(quota.ProviderDeferred, match="GEMINI_RATE_LIMITED"):
+            provider.request(PATH, {**BODY,"input":"free"}, dict)
+    assert headers == ["synthetic-key","paid-test-key"]
+
+
 def test_minute_budget_includes_every_call_and_no_boundary_burst(paced):
     _, clock, _ = paced
     start = clock[0]

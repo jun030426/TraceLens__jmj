@@ -32,6 +32,16 @@ from test_lecture_specs import api  # noqa: F401
 TEXT = "Stack follows LIFO"
 
 
+def test_ppt_trial_is_pinned_to_upload_time_and_never_changes_pdf_model():
+    from datetime import datetime
+    from lerny.config import Settings
+    cutoff = datetime(2026,11,21,14,tzinfo=UTC)
+    cfg = Settings(gemini_review_quota_project="paid-test",gemini_ppt_31_from=cutoff)
+    assert documents.review_model(Path("old.pptx"),cutoff-timedelta(seconds=1),cfg) == cfg.gemini_answer_model
+    assert documents.review_model(Path("new.pptx"),cutoff,cfg) == "gemini-3.1-flash-lite"
+    assert documents.review_model(Path("new.pdf"),cutoff,cfg) == cfg.gemini_answer_model
+
+
 def source(suffix):
     stream = io.BytesIO()
     if suffix == ".pptx":
@@ -72,7 +82,7 @@ def site(integration, monkeypatch):
 
 @pytest.fixture
 def synthetic_engine(monkeypatch):
-    state = SimpleNamespace(calls=[], unsafe=False, failure=None, candidate_calls=0, text=TEXT, boundary_texts={})
+    state = SimpleNamespace(calls=[], roles=[], unsafe=False, failure=None, candidate_calls=0, text=TEXT, boundary_texts={})
     fallback = gemini_provider.request
 
     def render(path, folder, config, kind=None):
@@ -102,6 +112,8 @@ def synthetic_engine(monkeypatch):
         prompt = payload["input"][0]["text"]
         data = json.loads(prompt.split("DATA:\n", 1)[1])
         state.calls.append(payload)
+        from lerny.gemini_quota import request_purpose
+        state.roles.append(request_purpose(path, documents.settings()))
         if state.failure:
             raise state.failure
         if "native_inventory" in data:
@@ -202,8 +214,11 @@ def test_teacher_week_four_upload_recovers_native_region(site, synthetic_engine,
 
 
 @pytest.mark.parametrize("suffix", [".pptx", ".pdf"])
-def test_site_upload_runs_common_gates_and_reuses_completed_results(site, synthetic_engine, suffix):
+def test_site_upload_runs_common_gates_and_reuses_completed_results(site, synthetic_engine, suffix, monkeypatch):
     client, session, tokens = site
+    config = documents.settings()
+    monkeypatch.setattr(config, "gemini_review_quota_project", "paid-test")
+    monkeypatch.setattr(config, "gemini_ppt_31_from", now()-timedelta(days=1))
     before = [(c.id, c.content) for c in session.scalars(select(Chunk))]
     job, version = upload(site, suffix)
     assert needs_remote(session, job)
@@ -217,6 +232,10 @@ def test_site_upload_runs_common_gates_and_reuses_completed_results(site, synthe
     assert all(session.get(Chunk, i).content == text for i, text in before)
     assert session.scalar(select(Job).where(Job.kind == "embed", Job.payload["version_id"].as_string() == version.id))
     assert synthetic_engine.calls
+    assert set(synthetic_engine.roles) == ({"review"} if suffix == ".pptx" else {"content"})
+    expected = "gemini-3.1-flash-lite" if suffix == ".pptx" else config.gemini_answer_model
+    assert {call["model"] for call in synthetic_engine.calls} == {expected}
+    assert version.extraction_report["native_evidence"]["model"] == expected
     cache = list(documents.settings().runtime_root.glob("document-materials/*/analysis-*/gemini-cache/*.json"))
     assert cache
     hashes = {p: digest_file(p) for p in cache}
