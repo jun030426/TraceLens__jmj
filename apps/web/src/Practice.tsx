@@ -48,7 +48,19 @@ function PracticeOutput({ tab, run, stage, code, incomplete, blankLines = [], fi
   return <div className="practice-run"><Suspense fallback={<Notice>시각화 화면을 불러오는 중이에요…</Notice>}><CodeTracePlayer trace={run.trace} source={run.code} stale={run.code !== code} /></Suspense></div>;
 }
 type PracticeAttempt = { id: string; practice_session_id: string; exercise_id: string; status: string; correct: boolean | null; independent: boolean; source?: string; created_at: string; job_id?: string; feedback?: { message: string; passed?: number; total?: number }; exercise?: { title: string; kind: string } | null };
-type PracticeDaily = { id?: string; items: BlankQuiz[]; status: string; week: number; message?: string };
+type PracticeKind = "blank" | "full";
+type PracticeProblem = BlankQuiz & {
+  problem_id?: string;
+  variants?: Partial<Record<PracticeKind, { exercise_id: string; template: string; hint_steps: number }>>;
+  submitted_exercise_id?: string | null;
+  attempt?: PracticeAttempt | null;
+};
+type PracticeDaily = { id?: string; items: PracticeProblem[]; status: string; week: number; message?: string };
+
+function belongsToProblem(problem: PracticeProblem, exerciseId: string) {
+  return exerciseId === problem.id || exerciseId === problem.submitted_exercise_id
+    || Object.values(problem.variants ?? {}).some(v => v.exercise_id === exerciseId);
+}
 
 export function PracticeWorkspace() {
   const { sectionId = "" } = useParams();
@@ -82,7 +94,7 @@ export function PracticeWorkspace() {
   return <PracticeEditor key={`${sectionId}:${data.id}`} room={room} quizzes={data.items} planId={data.id!} week={week} />;
 }
 
-function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quizzes: BlankQuiz[]; planId: string; week: string | null }) {
+function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quizzes: PracticeProblem[]; planId: string; week: string | null }) {
   const sectionId = room.section.id;
   const archivePlan = week ? planId : undefined;
   const back = week ? archivePath(sectionId, week) : `/quiz?section=${sectionId}`;
@@ -91,13 +103,23 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   const language: Language = ({ python: "Python", java: "Java", c: "C" } as Record<string, Language>)[room.course.teaching_language.toLowerCase()] || "Python";
   const [quizIndex, setQuizIndex] = useState(0);
   const [confirm, confirmDialog] = useConfirm(); // 최종 제출·퀴즈 마침 확인창 (화면 안에 떠요)
-  const quiz = quizzes[Math.min(quizIndex, quizzes.length - 1)];
+  const current = Math.min(quizIndex, quizzes.length - 1);
+  const problem = quizzes[current];
   const submissions = useLoad<{ items: PracticeAttempt[] }>(
     `/sections/${sectionId}/practice/attempts?plan_id=${encodeURIComponent(planId)}&by_exercise=true`, true);
   const [justSubmitted, setJustSubmitted] = useState<PracticeAttempt>();
-  const latest = submissions.data?.items.find(a => a.exercise_id === quiz.id)
-    ?? (justSubmitted?.exercise_id === quiz.id ? justSubmitted : undefined);
-  const editable = !!submissions.data && !latest;
+  const attemptFor = (p: PracticeProblem) => submissions.data?.items.find(a => belongsToProblem(p, a.exercise_id))
+    ?? (justSubmitted && belongsToProblem(p, justSubmitted.exercise_id) ? justSubmitted : p.attempt);
+  const latest = attemptFor(problem);
+  const submittedId = latest?.exercise_id ?? problem.submitted_exercise_id;
+  const editable = !!submissions.data && !submittedId;
+  const [selectedKind, setSelectedKind] = useState<PracticeKind | null>(null);
+  const kinds = (["blank", "full"] as const).filter(kind => problem.variants
+    ? !!problem.variants[kind] : kind === (problem.kind ?? "blank"));
+  const shownKind = kinds.find(kind => problem.variants?.[kind]?.exercise_id === submittedId && submittedId)
+    ?? (selectedKind && kinds.includes(selectedKind) ? selectedKind : problem.kind ?? kinds[0]);
+  const variant = problem.variants?.[shownKind];
+  const quiz = variant ? { ...problem, kind: shownKind, id: variant.exercise_id, template: variant.template } : problem;
   // 문제 유형 — 빈칸 채우기 / 직접 작성(풀코딩). 직접 작성은 학생 코드 전체를 fills[0]에 담아 같은 저장·실행·채점 흐름을 써요.
   const isFull = quiz.kind === "full";
   const [fillsByQuiz, setFillsByQuiz] = useState<Record<string, Record<number, string>>>({});
@@ -133,7 +155,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   const [committed, setCommitted] = useState<{ code: string; stopLines: Record<number, number> } | null>(null);
   const lastAuto = useRef("");
   useEffect(() => {
-    if (!editable || !canPreview || !room || stage) return;
+    if (!editable || !canPreview || !room || stage || (isFull && !committed)) return;
     const target = committed ?? runnable;
     const sig = `${quiz.id}\n${target.code}`;
     if (lastAuto.current === sig) return;
@@ -186,11 +208,13 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   };
   const syntaxIssue: SyntaxIssue | null = runnable.unfilled.length === 0 && run?.kind === "syntax" && run.code === runnable.code
     ? { line: run.info.line ?? null, message: run.info.msg, name: run.info.name } : null;
-  const current = Math.min(quizIndex, quizzes.length - 1);
+  const resetEditor = () => {
+    resetRun(); setCommitted(null); lastAuto.current = ""; setUserRan(false); setVizLine(null);
+    setSubmitError(""); setSaved(""); setChatOpen(false); setChatDraft(null);
+  };
   const goToQuiz = (index: number) => {
     if (stage || submitting || assistBusy || index < 0 || index >= quizzes.length) return;
-    resetRun(); setCommitted(null); lastAuto.current = ""; setUserRan(false); setVizLine(null);
-    setSubmitError(""); setQuizIndex(index);
+    resetEditor(); setSelectedKind(null); setQuizIndex(index);
   };
   const [finishing, setFinishing] = useState(false);
   const finishQuiz = async () => {
@@ -204,8 +228,8 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
       );
       const plan = progress.items[0];
       if (plan) {
-        const remaining = quizzes.flatMap((quiz, index) =>
-          plan.remaining_exercise_ids.includes(quiz.id) ? [index + 1] : []);
+        const remaining = quizzes.flatMap((q, index) =>
+          plan.remaining_exercise_ids.some(id => belongsToProblem(q, id)) ? [index + 1] : []);
         if (remaining.length && !await confirm({
           title: "아직 제출하지 않은 문제가 있어요",
           message: `${remaining.join("·")}번 문제는 최종 제출하지 않았어요. 퀴즈 목록으로 돌아갈까요?`,
@@ -231,7 +255,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   const commentMark = language === "Python" ? "#" : "//";
   // 자동수정 안내는 학생이 실행한 뒤에만 — 고칠 곳을 학생이 직접 따라 쓰면 사라져요. 답지를 켜면 답지가 우선이에요.
   const fixShown = isFull && userRan && !!fix?.fixes.length;
-  const chatContext = useMemo<PracticeChatContext>(() => ({ exerciseId: quiz.id, number: quizzes.indexOf(quiz) + 1, language, title: quiz.title, description: quiz.description, template, fills, verdict, viz: shownViz, week: week ? Number(week) : room.current_week }), [week, language, quiz, quizzes, template, fills, verdict, shownViz, room?.current_week]);
+  const chatContext = useMemo<PracticeChatContext>(() => ({ exerciseId: quiz.id, number: current + 1, language, title: quiz.title, description: quiz.description, template, fills, verdict, viz: shownViz, week: week ? Number(week) : room.current_week }), [week, language, quiz.id, quiz.title, quiz.description, current, template, fills, verdict, shownViz, room?.current_week]);
   const askAbout = (text: string) => { setChatDraft(d => ({ text, seq: (d?.seq || 0) + 1 })); void logHelp("chat"); setChatOpen(true); };
   return <section className="student-home practice-page">
     {confirmDialog}
@@ -245,11 +269,17 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
       <div className="practice-left">
         <section className="practice-card">
           <div className="practice-tabbar">
-            <div className="practice-num-tabs" role="group" aria-label={week ? "주차 실습 문제" : "오늘의 문제"}>{quizzes.map((q, i) => <button key={q.id} type="button" disabled={!!stage || submitting || assistBusy} aria-pressed={q.id === quiz.id} title={q.title} onClick={() => goToQuiz(i)}>문제 {i + 1}{(submissions.data?.items.some(a => a.exercise_id === q.id) || justSubmitted?.exercise_id === q.id) && <span aria-label="제출 완료"> ✓</span>}</button>)}</div>
-            <div className="practice-types" aria-label="일일 실습 구성"><span className="practice-types__kind">{isFull ? "전체 구현" : "빈칸 채우기"}</span><span className="practice-types__count">{week ? "주차 전체" : "하루"} {quizzes.length}문제</span></div>
+            <div className="practice-num-tabs" role="group" aria-label={week ? "주차 실습 문제" : "오늘의 문제"}>{quizzes.map((q, i) => <button key={q.problem_id ?? q.id} type="button" disabled={!!stage || submitting || assistBusy} aria-pressed={i === current} title={q.title} onClick={() => goToQuiz(i)}>문제 {i + 1}{(attemptFor(q) || q.submitted_exercise_id) && <span aria-label="제출 완료"> ✓</span>}</button>)}</div>
+            <div className="practice-types" aria-label="일일 실습 구성"><span className="practice-types__count">{week ? "주차 전체" : "하루"} {quizzes.length}문제</span><div className="material-week-split practice-type-picker" role="group" aria-label="현재 문제의 실습 유형">
+              {kinds.map(kind => <button key={kind} type="button" aria-pressed={shownKind === kind}
+                disabled={!!submittedId || submitting || assistBusy || !!stage}
+                onClick={() => { if (kind !== shownKind) { resetEditor(); setSelectedKind(kind); } }}>
+                {kind === "blank" ? "빈칸 채우기" : "전체 구현"}
+              </button>)}
+            </div></div>
           </div>
           <div className="practice-q-head">
-            <h2>문제{quizzes.indexOf(quiz) + 1}. {quiz.title}</h2>
+            <h2>문제{current + 1}. {quiz.title}</h2>
           </div>
           <div className="practice-problem-description"><LearningText text={quiz.description} /></div>
           {!!quiz.requirements?.length && <ul className="practice-requirements">{quiz.requirements.map((text, i) => <li key={i}>{text}</li>)}</ul>}

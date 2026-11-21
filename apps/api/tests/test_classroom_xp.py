@@ -60,9 +60,9 @@ async def test_badge_activity_scoped_to_student_and_active_section(app_db):
             completed = sum(r["total"] > 0 and r["submitted"] == r["total"] for r in history.json()["items"])
             return completed, practice.json()["submitted"], streak.json()["total_days"], streak.json()["current_streak"]
 
-        assert await counts(first) == (1, 2, 3, 3)
+        assert await counts(first) == (1, 1, 3, 3)
         assert await counts(second) == (0, 1, 0, 0)
-        assert (await c.get(paths[1])).json()["submitted"] == 3
+        assert (await c.get(paths[1])).json()["submitted"] == 2
         # Another student joins the same first classroom and has no access to the second.
         other = db.scalar(select(User).where(User.login_id == "student2"))
         enrollment = db.scalar(select(Enrollment).where(Enrollment.section_id == first))

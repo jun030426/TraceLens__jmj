@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 
 from lerny.learning import today
 from lerny.models import (Attempt, ContentGeneration, Enrollment, Job, LearningSession, PracticeAttempt,
-                          PracticeExercise, PracticeSession, TheoryRetake, User)
+                          PracticeExercise, PracticeSession, TheoryRetake, User, now)
 from test_identity_courses import login
 from test_personal_pipeline import prepared
 
@@ -25,19 +25,28 @@ async def test_archive_opens_all_exercises_and_first_answers_are_read_only(app_d
         exercises = []
         for i in range(4):
             exercise = PracticeExercise(course_id=course["id"], generation_id=generation.id, version_id=version.id,
-                source_key=f"source-{i}", position=i, kind="blank", language="python", title=f"실습 {i}",
+                source_key=f"source-{i}", position=i, kind="full" if i == 3 else "blank", language="python", title="실습",
                 prompt="빈칸을 채우세요.", template="print([[빈칸]])", reference="print(1)", blanks={"1": "1"},
                 tests=[{"statement": "n=1", "input": "n=1", "expected": "1"}],
                 sources=[{"chunk_id": chunk.id, "quote": chunk.content}], status="ready")
             exercises.append(exercise)
             db.add(exercise)
+        full = PracticeExercise(course_id=course["id"], generation_id=generation.id, version_id=version.id,
+            source_key=exercises[0].source_key, position=0, kind="full", language="python", title="실습",
+            prompt="직접 구현하세요.", template="# 구현하세요.", reference="print(1)",
+            tests=exercises[0].tests, sources=exercises[0].sources, status="ready")
+        db.add(full)
         db.flush()
         previous = PracticeSession(student_id=student.id, section_id=section.id, week=3, day=start,
-                                   exercise_ids=[exercises[0].id])
+                                   exercise_ids=[exercises[0].id, full.id])
         db.add(previous)
         db.flush()
         db.add(PracticeAttempt(student_id=student.id, section_id=section.id, exercise_id=exercises[0].id,
-                               practice_session_id=previous.id, status="graded", source="print(1)", correct=True))
+                               practice_session_id=previous.id, status="graded", source="print(1)", correct=True,
+                               created_at=now() - timedelta(days=1)))
+        # Both submissions predate the group rule. Keep the originals and review the first.
+        db.add(PracticeAttempt(student_id=student.id, section_id=section.id, exercise_id=full.id,
+                               practice_session_id=previous.id, status="graded", source="print(2)", correct=False))
         db.commit()
         api = f"/api/v1/sections/{section.id}"
         archive = api + "/quiz-archive"
@@ -77,6 +86,9 @@ async def test_archive_opens_all_exercises_and_first_answers_are_read_only(app_d
         assert (await c.post(archive + "/3/days/7", params={"session_id": opened["id"]})).status_code == 404
         weekly = (await c.post(archive + "/3/practice")).json()
         assert [x["id"] for x in weekly["items"]] == [e.id for e in exercises]
+        assert [set(p["variants"]) for p in weekly["items"]] == [{"blank", "full"}, {"blank"}, {"blank"}, {"full"}]
+        assert weekly["items"][0]["submitted_exercise_id"] == exercises[0].id
+        assert weekly["items"][0]["attempt"]["source"] == "print(1)"
         assert (await c.post(archive + "/3/practice")).json()["id"] == weekly["id"]
         progress = "/api/v1/my/practice-progress"
         assert (await c.get(progress)).json()["items"] == []
@@ -86,7 +98,9 @@ async def test_archive_opens_all_exercises_and_first_answers_are_read_only(app_d
         assert (await c.post(api + "/practice/submit", headers={"Idempotency-Key": "archive-practice"},
                              json={**body, "source": "print(2)"})).status_code == 409
         history = (await c.get(api + "/practice/attempts", params={"plan_id": weekly["id"]})).json()["items"]
-        assert [a["source"] for a in history] == ["print(1)"]
+        assert [a["source"] for a in history] == ["print(2)", "print(1)"]
+        grouped = (await c.get(api + "/practice/attempts", params={"plan_id": weekly["id"], "by_exercise": True})).json()
+        assert [a["source"] for a in grouped["items"]] == ["print(1)"]
         other = db.scalar(select(User).where(User.login_id == "student2"))
         db.add(Enrollment(student_id=other.id, course_id=course["id"], section_id=section.id, status="active"))
         db.commit()

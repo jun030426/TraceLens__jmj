@@ -152,8 +152,9 @@ async def test_practice_uses_source_and_hidden_inputs_and_isolates_logs(app_db, 
         session.commit()
         base = f"/api/v1/sections/{sec.id}/practice"
         daily = (await c.post(base + "/daily")).json()
-        assert len(daily["items"]) == 2
+        assert len(daily["items"]) == 1
         exercise = daily["items"][0]
+        assert set(exercise["variants"]) == {"blank", "full"}
         assert all(k not in exercise for k in ("reference", "answers", "tests"))
         submitted = await c.post(base + "/submit", headers={"Idempotency-Key":"practice-1"},
             json={"exercise_id": exercise["id"], "source":"numbers = [1, 2]\nprint(3)"})

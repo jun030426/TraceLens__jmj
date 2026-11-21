@@ -13,7 +13,7 @@ import {
   type Term,
 } from "./api";
 import { Form, Input, Notice, ErrorNotice, field, useLoad } from "./components";
-import { WEEKDAYS, scheduleName, submittedSlots, type Slot } from "./classSchedule";
+import { WEEKDAYS, scheduleName, submittedSlots, termWeeks, type Slot } from "./classSchedule";
 import { ExamPlans } from "./ExamPrep";
 import { Materials } from "./Learning";
 import { QuestionBank, Analytics } from "./Theory";
@@ -317,6 +317,8 @@ export function TeacherCourse() {
   const concepts = useLoad<{ items: Concept[] }>(
     "/courses/" + courseId + "/concepts",
   );
+  const terms = useLoad<{ items: Term[] }>("/terms");
+  const term = terms.data?.items.find(item => item.id === course.data?.term_id);
   const [analysisSection, setAnalysisSection] = useState("");
   const [params, setParams] = useSearchParams();
   const requestedTab = params.get("tab") || "overview";
@@ -340,7 +342,7 @@ export function TeacherCourse() {
       {tab === "exams" && <ExamPlans courseId={courseId} />}
       {tab === "settings" && <section className="teacher-settings-page"><div className="teacher-tab-heading"><div><h2>수업 설정</h2><p>분반 운영과 학습 콘텐츠 설정을 관리하세요.</p></div></div><div className="teacher-settings-note"><p>공개 자료를 기준으로 학습 콘텐츠가 자동 준비됩니다. 수업 운영에 필요한 항목만 변경하세요.</p><button onClick={()=>setTab("materials")}>강의 자료 관리 →</button></div><div className="teacher-settings-section"><h3>수업 운영</h3><button className="teacher-settings-row" onClick={()=>setTab("sections")}><span><strong>분반·수강생 관리</strong><small>분반 등록, 수강 코드 발급과 신청 승인을 관리하세요.</small></span><span aria-hidden="true">↗</span></button></div><div className="teacher-settings-section"><div className="teacher-settings-section-title"><h3>학습 콘텐츠 조정</h3><span>필요할 때만</span></div><p>자동으로 준비된 내용에 교수님의 수업 의도를 더하고 싶을 때 사용하세요.</p><button className="teacher-settings-row" onClick={()=>setTab("concepts")}><span><strong>분반 학습 범위</strong><small>자료 기준 자동 적용을 확인하거나, 다룬 개념을 직접 지정하세요.</small></span><span aria-hidden="true">↗</span></button><button className="teacher-settings-row" onClick={()=>setTab("questions")}><span><strong>생성 문항 관리</strong><small>준비된 문항을 확인하고, 추가 생성하거나 사용을 중지하세요.</small></span><span aria-hidden="true">↗</span></button></div></section>}
 
-      {tab === "materials" && <Materials courseId={courseId} teacher />}
+      {tab === "materials" && <Materials courseId={courseId} teacher totalWeeks={termWeeks(term?.starts_on, term?.ends_on)} />}
       {tab === "overview" && <TeacherCourseOverview sections={sections.data?.items} error={sections.error} setTab={setTab} />}
       {tab === "questions" && (
         <QuestionBank
@@ -503,7 +505,11 @@ function SectionPanel({
   return (
     <section className="card teacher-section-panel">
       <div className="teacher-section-panel-heading"><h2>{section.title}</h2><span>{roster.data ? `${roster.data.items.filter(e => e.status === "active").length}명 수강 중` : "현황 확인 중"}</span></div>
-      <details className="teacher-join-settings"><summary>수강 코드 발급·입장 설정</summary><p>새 코드를 발급하면 기존 코드는 만료됩니다.</p>
+      <details className="teacher-join-settings">
+        <summary>
+          <span>수강 코드 발급·입장 설정</span>
+          <span className="teacher-join-expiry">새 코드를 발급하면 기존 코드는 만료됩니다.</span>
+        </summary>
       <Form
         label="새 수강 코드 발급"
         onSubmit={async (f) => {
@@ -526,7 +532,7 @@ function SectionPanel({
         </Notice>
       )}
       </details>
-      <div className="teacher-roster-heading"><h3>수강생{roster.data && <small> · {items.filter(e => e.status === "active").length}명 수강 중</small>}</h3><button type="button" onClick={roster.reload}>새로고침</button></div>
+      <div className="teacher-roster-heading"><h3>수강생{roster.data && <small> · {items.filter(e => e.status === "active").length}명 수강 중</small>}</h3><button type="button" className="teacher-roster-refresh" onClick={roster.reload} aria-label="수강생 목록 새로고침" title="새로고침"><span aria-hidden="true">↻</span></button></div>
       <div className="teacher-roster-tools">
         <label className="teacher-roster-search"><span className="sr-only">학생 이름 검색</span><input type="search" placeholder="이름·학번·학과 검색" value={query} onChange={e => { setQuery(e.target.value); if (e.target.value.trim()) setOpen(true); }} /></label>
         <label className="teacher-roster-target"><span className="sr-only">이동할 분반</span><select value={targetId} disabled={!others.length} onChange={e => setTarget(e.target.value)}>{others.length ? others.map(s => <option key={s.id} value={s.id}>{s.title}</option>) : <option value="">다른 분반 없음</option>}</select></label>
@@ -548,14 +554,16 @@ function SectionPanel({
                 : shown.length === 0 ? <div className="teacher-roster-empty">검색한 이름의 학생이 없어요.</div>
                 : shown.map((e) => (
                 <div className="roster" key={e.id}>
-                  {e.status === "active" && others.length ? (
-                    <label className="teacher-roster-pick"><input type="checkbox" checked={picked.includes(e.id)} onChange={ev => setPicked(p => ev.target.checked ? [...p, e.id] : p.filter(x => x !== e.id))} /><strong>{e.display_name}</strong></label>
-                  ) : <strong>{e.display_name}</strong>}
+                  <div className="teacher-roster-person">
+                    {e.status === "pending" && (
+                      <button className="primary" onClick={() => void action(() => api("/enrollments/" + e.id + "/approve", post({})))}>승인</button>
+                    )}
+                    {e.status === "active" && others.length ? (
+                      <label className="teacher-roster-pick"><input type="checkbox" checked={picked.includes(e.id)} onChange={ev => setPicked(p => ev.target.checked ? [...p, e.id] : p.filter(x => x !== e.id))} /><strong>{e.display_name}</strong></label>
+                    ) : <strong>{e.display_name}</strong>}
+                  </div>
                   <span className="teacher-roster-profile"><span>{e.student_number || "학번 미등록"}</span><span>{e.major || "학과 미등록"}</span></span>
-                  <span className="teacher-roster-status">{statusLabel(e.status)}</span>
-                  {e.status === "pending" && (
-                    <button className="primary" onClick={() => void action(() => api("/enrollments/" + e.id + "/approve", post({})))}>승인</button>
-                  )}
+                  <span className="teacher-roster-status" data-status={e.status}>{statusLabel(e.status)}</span>
                 </div>
               ))}
             </div>
@@ -644,7 +652,7 @@ export function StudentClass() {
         <div className="classroom-materials-intro">
           <p>교수님이 공유한 자료를 확인하고, 수업의 맥락 안에서 학습하세요.</p>
         </div>
-        <Materials key={room.section.id} courseId={room.course.id} currentWeek={room.current_week} totalWeeks={termWeeks(room.term.starts_on, room.term.ends_on)} />
+        <Materials key={room.section.id} courseId={room.course.id} currentWeek={room.current_week} totalWeeks={Math.min(20, termWeeks(room.term.starts_on, room.term.ends_on))} />
       </section>
       <p className="classroom-bottom">
         하나의 수업, 이어지는 학습. 궁금한 순간에는 언제든 질문으로 돌아오세요.
@@ -677,12 +685,4 @@ function ExamShortcut({ courseId }: { courseId: string }) {
       <p>시험 범위와 연습문제를 확인해요.</p>
     </Link>
   );
-}
-
-/* 학기 시작일~종료일로 전체 주차 수를 계산해요 (예: 9/1~12/21 → 16주). 날짜가 없거나 이상하면 16주로 봐요. */
-function termWeeks(startsOn?: string, endsOn?: string) {
-  const start = startsOn ? Date.parse(startsOn) : NaN;
-  const end = endsOn ? Date.parse(endsOn) : NaN;
-  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 16;
-  return Math.min(20, Math.max(1, Math.ceil((end - start + 86400000) / (7 * 86400000))));
 }

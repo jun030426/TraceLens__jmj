@@ -4925,10 +4925,13 @@ header.lesson-header nav button {
 .exam-manager .exam-range-editor { margin-bottom:24px; padding:28px; border:1px solid #e3e4e5; border-radius:16px; box-shadow:none; background:#ffffff; }
 .exam-range-editor > h3 { margin:0 0 10px; font-size:18px; color:#45464a; }
 .exam-range-editor > p { font-size:13px; color:#87888a; margin:0 0 24px; }
-.exam-range-editor .form fieldset { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,.65fr); gap:24px; }
+.exam-range-editor .form > fieldset { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,.65fr); gap:24px; }
 .exam-manager .exam-range-editor input:not([type=checkbox]) { background:#ffffff; color:#525355; border-color:#e2e2e3; }
 .exam-manager .exam-range-editor label { color:#7b7d80; font-size:13px; }
 .exam-week-fields { display:grid; grid-template-columns:1fr 18px 1fr; align-items:end; gap:12px; }
+.exam-week-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px; min-width: 0; }
+.exam-week-field > label { min-width: 0; }
+.exam-week-field > label > input { width: 100%; min-width: 0; }
 .exam-week-fields > span { align-self:end; padding-bottom:12px; color:#b2b4b6; text-align:center; }
 .exam-manager .exam-publish-field { grid-column:1/-1; display:flex; align-items:center; gap:12px; padding-top:18px; border-top:1px solid #ededee; }
 .exam-publish-field input { width:16px; height:16px; accent-color:var(--lerny-action); }
@@ -4958,7 +4961,7 @@ header.lesson-header nav button {
 @media(max-width:700px) {
  .exam-manager .teacher-tab-heading { align-items:flex-start; gap:16px; }
  .exam-manager .exam-add { font-size:12px; padding:11px 15px; }
- .exam-range-editor .form fieldset { grid-template-columns:1fr; }
+ .exam-range-editor .form > fieldset { grid-template-columns:1fr; }
  .exam-range-row { grid-template-columns:1fr auto; padding:22px; gap:18px; }
  .exam-range-actions { grid-column:1/-1; justify-content:flex-end; border-top:1px solid #ededee; padding-top:14px; }
  .exam-manager .exam-empty { padding:45px 22px; }

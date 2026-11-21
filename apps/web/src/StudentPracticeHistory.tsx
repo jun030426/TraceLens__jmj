@@ -1,5 +1,4 @@
-import { DropSelect } from "./DropSelect";
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { Classroom } from "./api";
 import { ErrorNotice, Notice, useLoad } from "./components";
 import { ListPager } from "./StudentLists";
@@ -49,6 +48,9 @@ export function StudentPracticeHistory({
 }) {
   const [page, setPage] = useState(0);
   const [order, setOrder] = useState("desc");
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortTrigger = useRef<HTMLButtonElement>(null);
+  const sortOptionsId = useId();
   const query = periodQuery(period);
   query.set("offset", String(page * 10));
   query.set("limit", "10");
@@ -106,10 +108,38 @@ export function StudentPracticeHistory({
       </p>
       <div className="concept-section-heading">
         <h3>최근 실습 제출</h3>
-        <span role="status">총 {total}건</span>
-        <DropSelect label="날짜 정렬" value={order} onChange={value => { setOrder(value); setPage(0); }}
-          options={[{ value: "desc", label: "최신순" }, { value: "asc", label: "오래된순" }]} />
+        <div className="practice-history-sort"
+          onBlur={event => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setSortOpen(false);
+          }}
+          onKeyDown={event => {
+            if (event.key !== "Escape" || !sortOpen) return;
+            setSortOpen(false);
+            sortTrigger.current?.focus();
+          }}>
+          <span>날짜 정렬</span>
+          <button ref={sortTrigger} type="button" aria-expanded={sortOpen}
+            aria-controls={sortOptionsId} aria-label={`날짜 정렬: ${order === "desc" ? "최신순" : "오래된순"}`}
+            onClick={() => setSortOpen(open => !open)}>
+            {order === "desc" ? "최신순" : "오래된순"}
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          <div id={sortOptionsId} className="practice-history-sort-options" hidden={!sortOpen}>
+            {([["desc", "최신순"], ["asc", "오래된순"]] as const).map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={value === order}
+                onClick={() => {
+                  setSortOpen(false);
+                  sortTrigger.current?.focus();
+                  setOrder(value);
+                  setPage(0);
+                }}>{label}</button>
+            ))}
+          </div>
+        </div>
       </div>
+      <p className="learning-history-count" role="status">
+        총 {total}건 · {period.from} ~ {period.to}
+      </p>
       {!items.length && (
         <Notice>
           이 기간에 제출한 실습이 없어요. 실습을 제출하면 코드와 채점 결과를

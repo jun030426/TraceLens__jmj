@@ -18,7 +18,9 @@ export function ExamPlans({ courseId }: { courseId: string }) {
     <div className="teacher-tab-heading"><div><h2>시험 대비</h2><p>주차 범위를 정하면, 준비된 복습 문항을 학생에게 모아 보여줘요.</p></div><button className="exam-add" aria-expanded={!!editor} aria-controls="exam-range-editor" onClick={() => { setEditor(editor ? null : "new"); setMessage(""); }}>{editor ? "설정 닫기" : "+ 시험 범위 추가"}</button></div>
     <ErrorNotice text={plans.error} />{message && <Notice>{message}</Notice>}
     {editor && <section id="exam-range-editor" className="panel exam-range-editor" ref={editorPanel} tabIndex={-1} aria-label={editing ? "시험 범위 수정" : "새 시험 범위"}><h3>{editing ? "시험 범위 수정" : "새 시험 범위"}</h3><p>이름과 범위를 확인한 뒤, 학생 공개 여부를 선택하세요.</p>
-      <Form key={editing?.id || "new"} label={editing ? "변경 저장" : "시험 범위 저장"} onCancel={() => setEditor(null)} onSubmit={async f => {
+      <Form key={editing?.id || "new"} label={editing ? "변경 저장" : "시험 범위 저장"} onCancel={() => setEditor(null)}
+        beside={<label className="exam-publish-field"><input type="checkbox" name="published" defaultChecked={editing?.published || false} /><span><strong>학생에게 공개</strong><small>선택하지 않으면 교수님만 볼 수 있어요.</small></span></label>}
+        onSubmit={async f => {
         const start = Number(field(f, "start")), end = Number(field(f, "end"));
         if (end < start) throw new Error("종료 주차는 시작 주차보다 같거나 커야 해요.");
         const body = { title: field(f, "title").trim(), start_week: start, end_week: end, published: f.has("published") };
@@ -28,8 +30,11 @@ export function ExamPlans({ courseId }: { courseId: string }) {
         setEditor(null); setMessage(body.published ? "시험 범위를 저장하고 학생에게 공개했어요." : "시험 범위를 비공개로 저장했어요."); plans.reload();
       }}>
         <label className="exam-title-field">시험 이름<input name="title" placeholder="예: 중간고사" maxLength={100} defaultValue={editing?.title || ""} required /></label>
-        <div className="exam-week-fields"><label>시작 주차<input name="start" type="number" min="1" max="52" defaultValue={editing?.start_week || 1} required /></label><span aria-hidden="true">—</span><label>종료 주차<input name="end" type="number" min="1" max="52" defaultValue={editing?.end_week || 8} required /></label></div>
-        <label className="exam-publish-field"><input type="checkbox" name="published" defaultChecked={editing?.published || false} /><span><strong>학생에게 공개</strong><small>선택하지 않으면 교수님만 볼 수 있어요.</small></span></label>
+        <div className="exam-week-fields">
+          <ExamWeekField name="start" label="시작 주차" initialWeek={editing?.start_week ?? 1} />
+          <span aria-hidden="true">—</span>
+          <ExamWeekField name="end" label="종료 주차" initialWeek={editing?.end_week ?? 8} />
+        </div>
       </Form>
     </section>}
     {!plans.data && !plans.error && <Notice>시험 범위를 불러오는 중이에요…</Notice>}
@@ -38,6 +43,23 @@ export function ExamPlans({ courseId }: { courseId: string }) {
     <details className="exam-resource-help"><summary>기출·연습 자료도 함께 제공하고 싶다면</summary><p>강의 자료에서 해당 주차에 기출 또는 과제 안내 자료를 올려 공개하세요. 시험 범위에 포함된 자료를 학생이 확인할 수 있어요. 정답·해설은 비공개로 보관할 수 있습니다.</p><Link to={`/professor/courses/${courseId}?tab=materials`}>강의 자료로 이동 →</Link></details>
   </div>;
 }
+const examWeeks = Array.from({ length: 52 }, (_, index) => index + 1);
+
+function ExamWeekField({ name, label, initialWeek }: { name: string; label: string; initialWeek: number }) {
+  const [week, setWeek] = useState(String(initialWeek));
+  return <div className="exam-week-field">
+    <label>
+      {label}
+      <input name={name} type="number" min="1" max="52" required value={week}
+        onChange={event => setWeek(event.target.value)} />
+    </label>
+    <select aria-label={`${label} 목록`} value="" onChange={event => setWeek(event.target.value)}>
+      <option value="" disabled>선택</option>
+      {examWeeks.map(option => <option key={option} value={option}>{option}주차</option>)}
+    </select>
+  </div>;
+}
+
 export function StudentExamPrep() {
   const [params] = useSearchParams();
   const courseId = params.get("course") || "";

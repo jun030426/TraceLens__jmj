@@ -10,7 +10,7 @@ from lerny.jobs import section_student
 from lerny.learning import daily, five_daily_questions, lock_student, session_view, today, valid_sources
 from lerny.models import (Attempt, Course, DailyPlan, LearningSession, PracticeExercise, PracticeSession,
                           Question)
-from lerny.practice import exercise_view
+from lerny.practice import problem_items, week_exercises
 from lerny.security import Actor, Db, deny
 from lerny.weekly_content import published_generations
 
@@ -41,8 +41,8 @@ def assignments(session, actor, section, starts):
     return by_week
 
 
-def available_counts(session, model, generations, *filters):
-    return dict(session.execute(select(model.generation_id, func.count()).where(
+def available_counts(session, model, generations, *filters, count=None):
+    return dict(session.execute(select(model.generation_id, count if count is not None else func.count()).where(
         model.generation_id.in_(generations), *filters).group_by(model.generation_id)).all())
 
 
@@ -53,7 +53,8 @@ def weeks(section_id: str, session: Db, actor: Actor):
     records = assignments(session, actor, section, starts)
     generations = {g.id: g.week for g in published_generations(session, section.course_id) if g.week <= current}
     theory = available_counts(session, Question, generations, Question.status == "active", Question.student_id.is_(None))
-    practice = available_counts(session, PracticeExercise, generations, PracticeExercise.status == "ready")
+    practice = available_counts(session, PracticeExercise, generations, PracticeExercise.status == "ready",
+                                count=func.count(PracticeExercise.source_key.distinct()))
     by_week = {w: (theory.get(g, 0), practice.get(g, 0)) for g, w in generations.items()}
     items = []
     for week in range(1, 16):
@@ -163,14 +164,11 @@ def open_practice(section_id: str, session: Db, actor: Actor, week: int = Path(g
     _, current = calendar(session, section)
     if week > current:
         deny(404)
-    generations = [g.id for g in published_generations(session, section.course_id) if g.week == week]
     lock_student(session, actor.id)
-    items = [view for exercise in session.scalars(select(PracticeExercise).where(
-        PracticeExercise.generation_id.in_(generations), PracticeExercise.status == "ready")
-        .order_by(PracticeExercise.position, PracticeExercise.id)) if (view := exercise_view(session, exercise))]
-    if not items:
+    exercises = week_exercises(session, section.course_id, week)
+    if not exercises:
         return {"week": week, "status": "empty", "items": [], "message": "이 주차에는 공개된 실습이 없어요."}
-    ids = [item["id"] for item in items]
+    ids = [exercise.id for exercise, _ in exercises]
     plan = session.scalar(select(PracticeSession).where(PracticeSession.student_id == actor.id,
         PracticeSession.section_id == section_id, PracticeSession.week == week, PracticeSession.day.is_(None)))
     if not plan:
@@ -178,5 +176,6 @@ def open_practice(section_id: str, session: Db, actor: Actor, week: int = Path(g
         session.add(plan)
     elif plan.exercise_ids != ids:
         plan.exercise_ids = ids
+    items = problem_items(session, actor.id, section_id, exercises)
     session.commit()
     return {"id": plan.id, "week": week, "items": items, "status": "ready"}

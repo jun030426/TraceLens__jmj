@@ -1,0 +1,43 @@
+{
+  "id": "44d1f91d-1599-4793-a3e4-3201a5e22ec7",
+  "week": 3,
+  "items": [
+    {
+      "requirements": [
+        "시작 코드의 입력 변수(n) 선언을 유지하세요.",
+        "주어진 입력 데이터를 바탕으로 요구된 연산 및 로직을 순서대로 올바르게 구현하세요.",
+        "요구된 예시 출력 형식에 맞추어 콘솔에 결과를 정확히 출력하세요."
+      ],
+      "helpers_guide_text": "",
+      "available_helpers": [],
+      "hint_steps": 3,
+      "id": "f5d234d4-528d-4400-bd65-b3fac2a69070",
+      "title": "다음 정수 출력하기",
+      "description": "주어진 정수보다 1 큰 수를 출력하세요.",
+      "kind": "blank",
+      "language": "python",
+      "template": "n = 3\n[[빈칸]]",
+      "expected": "4",
+      "example_input": "n = 3",
+      "week": 3,
+      "source_title": "lecture",
+      "concept_id": null,
+      "problem_id": "2bbfce2c-ef35-40b4-9fcd-e1b10e4250cc:9520b95b392b3708bc1e2627061aa2957fedba309c7feb08106ce6fe8b190d9c",
+      "variants": {
+        "full": {
+          "exercise_id": "72d75b50-c05a-4f19-bc68-2780f18b84a4",
+          "template": "n = 3\n# 여기에 구현하세요.",
+          "hint_steps": 3
+        },
+        "blank": {
+          "exercise_id": "f5d234d4-528d-4400-bd65-b3fac2a69070",
+          "template": "n = 3\n[[빈칸]]",
+          "hint_steps": 3
+        }
+      },
+      "submitted_exercise_id": null,
+      "attempt": null
+    }
+  ],
+  "status": "ready"
+}
