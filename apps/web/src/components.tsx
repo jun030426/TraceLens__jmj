@@ -110,6 +110,7 @@ export function Form({
       <ErrorNotice text={error} />
       {onCancel ? (
         <div className="form-actions">
+          {beside && <fieldset className="form-actions-beside" disabled={busy || disabled}>{beside}</fieldset>}
           <button
             className={
               actionRole === "primary" ? "primary" : `action-${actionRole}`

@@ -59,7 +59,7 @@
 :root[data-theme="dark"] .learning-view-tabs { border-bottom: 1px solid #322b39; }
 :root[data-theme="dark"] .learning-view-tabs button { border: 0; background: transparent; color: #837d8a; }
 :root[data-theme="dark"] .learning-view-tabs button[aria-pressed="true"] { color: #ada7b4; border-bottom: 2px solid #7c7582; }
-:root[data-theme="dark"] .learning-progress .concept-section-heading h3 { color: #c8c2cf; }
+:root[data-theme="dark"] :is(.learning-progress, .student-practice-history) .concept-section-heading h3 { color: #c8c2cf; }
 :root[data-theme="dark"] .concept-section-heading > span, :root[data-theme="dark"] .concept-section-heading h3 > span { color: #837d8a; }
 :root[data-theme="dark"] .concept-kicker { color: #837d8a; }
 :root[data-theme="dark"] .learning-progress .concept-recommendations { background: #201926; border: 1px solid #342c3b; }

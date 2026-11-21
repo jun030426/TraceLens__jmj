@@ -4,11 +4,12 @@ import { matchesSearch } from "./listNavigation";
 
 type CourseChoice = { value: string; label: string };
 
-export function CourseCombo({ label, value, options, onChange }: {
+export function CourseCombo({ label, value, options, onChange, numericInput }: {
   label: string;
   value: string;
   options: CourseChoice[];
   onChange: (value: string) => void;
+  numericInput?: { id: string; disabled: boolean; max: number };
 }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -35,12 +36,16 @@ export function CourseCombo({ label, value, options, onChange }: {
   }
 
   return <div className="course-combo question-combo">
-    <input role="combobox" aria-label={label} aria-autocomplete="list" autoComplete="off"
+    <input id={numericInput?.id} disabled={numericInput?.disabled} required={!!numericInput}
+      inputMode={numericInput ? "numeric" : undefined}
+      pattern={numericInput ? options.map(option => option.value).join("|") : undefined}
+      title={numericInput ? `1부터 ${numericInput.max}까지의 주차를 입력하세요.` : undefined}
+      role="combobox" aria-label={label} aria-autocomplete="list" autoComplete="off"
       aria-expanded={open} aria-controls={open ? listId : undefined} aria-activedescendant={activeId}
-      placeholder={label} value={query ?? selected?.label ?? ""}
+      placeholder={label} value={numericInput ? value : query ?? selected?.label ?? ""}
       onFocus={event => { event.currentTarget.select(); setOpen(true); }}
       onClick={() => setOpen(true)} onBlur={close}
-      onChange={event => { setQuery(event.target.value); setIndex(-1); setOpen(true); }}
+      onChange={event => { setQuery(event.target.value); if (numericInput) onChange(event.target.value); setIndex(-1); setOpen(true); }}
       onKeyDown={event => {
         if (isComposingInput(event.nativeEvent)) return;
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -62,7 +67,7 @@ export function CourseCombo({ label, value, options, onChange }: {
       {matches.map(option => <li key={option.value} id={listId + "-" + option.value} role="option"
         aria-selected={option.value === value} className={(active ?? selected)?.value === option.value ? "is-active" : ""}
         onMouseDown={event => event.preventDefault()} onClick={() => choose(option)}>{option.label}</li>)}
-      {!matches.length && <li role="option" aria-selected={false} aria-disabled="true" className="is-empty">맞는 수업이 없어요.</li>}
+      {!matches.length && <li role="option" aria-selected={false} aria-disabled="true" className="is-empty">{numericInput ? "선택할 수 있는 주차가 없어요." : "맞는 수업이 없어요."}</li>}
     </ul>}
   </div>;
 }

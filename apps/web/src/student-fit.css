@@ -352,6 +352,10 @@
 #root main.app.student-main .teacher-materials article.material > div:first-child h3 { order: -1; margin: 0 !important; }
 #root main.app.student-main .teacher-materials article.material { padding-top: 13px !important; padding-bottom: 13px !important; align-items: center !important; }
 /* 자료 검색·필터: 라벨을 칸 왼쪽에 */
+#root main.app .teacher-materials .material-list-tools .design-picker select {
+  align-items: center;
+  padding-block: 0 !important;
+}
 #root main.app.student-main .teacher-materials .material-list-tools label { flex-direction: row !important; align-items: center !important; gap: 10px !important; white-space: nowrap; font-size: 13px !important; }
 #root main.app.student-main .teacher-materials .material-list-tools label > :is(input, select) { flex: 1; min-width: 0; }
 #root main.app.student-main .teacher-materials .materials-heading p { margin-top: 4px !important; }
@@ -730,9 +734,32 @@
 #root .practice-tabbar .practice-types { display: flex; gap: 6px; flex: none; margin: 0 0 0 auto; }
 #root .practice-tabbar .practice-types span { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
 #root .practice-tabbar .practice-types .practice-types__kind { background: #6b3f78; color: #ffffff; }
-#root .practice-tabbar .practice-types .practice-types__count { background: #f1e6f4; color: #5b2f63; box-shadow: inset 0 0 0 1px #dcc4e2; }
+#root .practice-tabbar .practice-types .practice-types__count { padding: 0; align-self: center; background: transparent; color: #5b2f63; white-space: nowrap; }
 :root[data-theme="dark"] #root .practice-tabbar .practice-types .practice-types__kind { background: #d29ad8; color: #1f1221; }
-:root[data-theme="dark"] #root .practice-tabbar .practice-types .practice-types__count { background: #3a2c40; color: #ecd7ef; box-shadow: inset 0 0 0 1px #5b4762; }
+:root[data-theme="dark"] #root .practice-tabbar .practice-types .practice-types__count { color: #ecd7ef; }
+#root main.app .student-home.practice-page .practice-type-picker {
+  gap: 3px;
+  margin: 0;
+  padding: 3px;
+}
+#root main.app .student-home.practice-page .practice-type-picker > button {
+  height: 28px !important;
+  padding-inline: 8px !important;
+  font-size: 13px !important;
+  white-space: nowrap;
+}
+#root main.app .student-home.practice-page .practice-type-picker > button[aria-pressed="true"] {
+  background: #6b3f78 !important;
+  color: #fff !important;
+}
+:root[data-theme="dark"] #root main.app .student-home.practice-page .practice-type-picker > button[aria-pressed="true"] {
+  background: #d29ad8 !important;
+  color: #1f1221 !important;
+}
+#root .practice-type-picker > button:focus-visible {
+  outline: 2px solid #9a679f;
+  outline-offset: -2px;
+}
 #root .practice-num-tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 #root .practice-num-tabs::-webkit-scrollbar { display: none; }
 #root .practice-num-tabs > button { position: relative; display: inline-flex; align-items: baseline; gap: 6px; flex: none; min-width: 0; min-height: 0 !important; margin: 0 !important; padding: 12px 12px 11px !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; color: #8b7f92 !important; font-size: 13.5px !important; font-weight: 600; white-space: nowrap; box-shadow: none !important; cursor: pointer; transition: color .15s ease; }
@@ -746,6 +773,7 @@
 #root .practice-card > * { flex: none; }
 #root .practice-q-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px 4px; }
 #root .practice-q-head h2 { margin: 0; font-size: 18px !important; line-height: 1.4; color: #34303a; }
+#root .practice-card .practice-variant-notice { margin: 12px 20px 16px; color: var(--d-ink-2, #656668); font-size: 14px; }
 #root .practice-q-head .practice-types { display: flex; gap: 6px; flex: none; }
 #root .practice-q-head .practice-types span { padding: 4px 10px; font-size: 12px; }
 #root main.app .practice-page .practice-card > .practice-problem-description { margin: 0 !important; padding: 2px 20px 12px; font-size: 14.5px !important; line-height: 1.65 !important; border-bottom: 1px solid #f0eaf2; }
@@ -1681,11 +1709,13 @@
    - 현재 주차: 강의명 옆 '현재 N주차', 탭의 점, 해당 자료 옆 '현재 주차' */
 #root main.app .teacher-materials .material-week-toolbar { margin: 2px 0 10px !important; }
 #root main.app .teacher-materials .materials { margin-top: 0 !important; padding: 4px 0 !important; overflow: hidden; }
-#root main.app .teacher-materials .teacher-material-list > article.material {
+#root main.app .teacher-materials .teacher-material-list > article.material,
+#root main.app .teacher-materials .materials > .student-paged-list > article.material {
   background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
   margin: 0 !important; padding: 14px 24px !important; border-bottom: 1px solid var(--v-line) !important;
 }
-#root main.app .teacher-materials .teacher-material-list > article.material:last-child { border-bottom: 0 !important; }
+#root main.app .teacher-materials .teacher-material-list > article.material:last-child,
+#root main.app .teacher-materials .materials > .student-paged-list > article.material:last-of-type { border-bottom: 0 !important; }
 #root main.app .teacher-materials .teacher-material-list > article.material:hover { background: rgba(133, 99, 159, 0.04) !important; }
 #root main.app .teacher-materials .teacher-material-list > .student-list-empty { margin: 0; padding: 22px 24px; }
 #root main.app .teacher-materials .material-current-week { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(133, 99, 159, 0.12); color: #5e3f78; font-size: 11px; font-weight: 600; }
@@ -3695,5 +3725,54 @@ details.signup-privacy:not([open]) > summary.signup-privacy-title { margin-botto
   #root .prof-analysis .teacher-analysis-toolbar > span {
     font-size: .95rem;
     line-height: 1.5;
+  }
+}
+
+#root main.app.student-main .teacher-section-panel .teacher-roster-list .roster {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+#root .teacher-section-panel .teacher-roster-person,
+#root .teacher-section-panel .teacher-roster-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+#root .teacher-section-panel .teacher-roster-person > button {
+  flex-shrink: 0;
+  margin: 0;
+  white-space: nowrap;
+}
+#root .teacher-section-panel .teacher-roster-pick input {
+  flex: 0 0 16px;
+}
+#root .teacher-section-panel .teacher-roster-person strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#root main.app .teacher-section-panel .roster > .teacher-roster-profile {
+  justify-content: center;
+  font-size: 14px;
+  text-align: center;
+}
+#root main.app .teacher-section-panel .roster > .teacher-roster-status {
+  justify-self: end;
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+#root .teacher-section-panel .teacher-roster-status[data-status="active"] { color: #23754b; }
+#root .teacher-section-panel .teacher-roster-status[data-status="pending"] { color: #9b591b; }
+:root[data-theme="dark"] #root .teacher-section-panel .teacher-roster-status[data-status="active"] { color: #82d7a7; }
+:root[data-theme="dark"] #root .teacher-section-panel .teacher-roster-status[data-status="pending"] { color: #f3b97d; }
+
+@media (max-width: 640px) {
+  #root main.app.student-main .teacher-section-panel .teacher-roster-list .roster {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  #root .teacher-section-panel .roster > .teacher-roster-status {
+    grid-area: 1 / 2;
   }
 }

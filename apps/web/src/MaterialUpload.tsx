@@ -1,19 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   api,
   uploadMaterial,
   type UploadCheckpoint,
   type UploadConfig,
 } from "./api";
+import { CourseCombo } from "./CourseCombo";
 import { ErrorNotice } from "./components";
 import "./material-upload.css";
 
 export const MATERIAL_ACCEPT = ".pdf,.pptx,.docx,.txt,.md,.c,.java,.py,.mp4";
 const kinds = [
-  ["lecture", "강의 자료"],
+  ["lecture", "일반 강의 자료"],
   ["example", "예제 코드"],
   ["assignment", "과제 안내"],
-  ["transcript", "녹취록"],
+  ["transcript", "강의자료"],
   ["past_exam", "기출"],
   ["answer", "정답·해설"],
 ];
@@ -27,6 +28,7 @@ type Item = {
   id: string;
   file: File;
   kind: string;
+  week: string;
   visibility: string;
   state: "pending" | "uploading" | "done" | "failed";
   message: string;
@@ -34,23 +36,29 @@ type Item = {
 
 export function MaterialUpload({
   courseId,
+  totalWeeks,
   blocked,
   onChange,
   onBusy,
 }: {
   courseId: string;
+  totalWeeks: number;
   blocked: string;
   onChange: () => void;
   onBusy: (value: boolean) => void;
 }) {
   const [items, setItems] = useState<Item[]>([]);
-  const [week, setWeek] = useState("1");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [over, setOver] = useState(false);
   const [config, setConfig] = useState<UploadConfig>();
   const checkpoints = useRef(new Map<string, UploadCheckpoint>());
   const input = useRef<HTMLInputElement>(null);
+  const weekInputPrefix = useId();
+  const weekOptions = Array.from({ length: totalWeeks }, (_, index) => ({
+    value: String(index + 1),
+    label: `${index + 1}주차`,
+  }));
   useEffect(() => {
     let active = true;
     api<UploadConfig>("/uploads/config")
@@ -108,6 +116,7 @@ export function MaterialUpload({
         id: crypto.randomUUID(),
         file,
         kind: "",
+        week: "1",
         visibility: "private",
         state: "pending",
         message: "자료 종류 선택 필요",
@@ -136,6 +145,10 @@ export function MaterialUpload({
             setError("모든 파일의 자료 종류를 선택해 주세요.");
             return;
           }
+          if (pending.some(item => !weekOptions.some(option => option.value === item.week))) {
+            setError(`등록할 주차를 1~${totalWeeks}주차 사이로 지정해 주세요.`);
+            return;
+          }
           setBusy(true);
           onBusy(true);
           setError("");
@@ -149,7 +162,7 @@ export function MaterialUpload({
               form.set("file", item.file);
               form.set("kind", item.kind);
               form.set("visibility", item.visibility);
-              form.set("week", week);
+              form.set("week", item.week);
               try {
                 await uploadMaterial(courseId, form, undefined, {
                   checkpoint: checkpoints.current.get(item.id),
@@ -221,18 +234,6 @@ export function MaterialUpload({
               }}
             />
           </label>
-          <label className="batch-week">
-            등록할 주차
-            <input
-              type="number"
-              min="1"
-              max="52"
-              required
-              value={week}
-              disabled={items.some((x) => x.state !== "pending")}
-              onChange={(e) => setWeek(e.target.value)}
-            />
-          </label>
           {config && (
             <p className="batch-help">
               MP4 최대 {size(config.limits?.[".mp4"] ?? config.max_file_bytes)} · 문서 {size(config.max_file_bytes)} · 텍스트 10MB · 예제
@@ -268,6 +269,13 @@ export function MaterialUpload({
                       <span>{size(item.file.size)}</span>
                     </div>
                     <div className="batch-file-options">
+                      <div className="batch-week">
+                        <label htmlFor={weekInputPrefix + item.id}>등록할 주차</label>
+                        <CourseCombo label="등록할 주차" options={weekOptions} value={item.week}
+                          numericInput={{ id: weekInputPrefix + item.id, max: totalWeeks, disabled: item.state !== "pending" }}
+                          onChange={week => update(item.id, { week })}
+                        />
+                      </div>
                       <label>
                         자료 종류 (필수)
                         <select

@@ -89,6 +89,10 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
   const quiz = quizzes[Math.min(quizIndex, quizzes.length - 1)];
   // 문제 유형 — 빈칸 채우기 / 직접 작성(풀코딩). 직접 작성은 학생 코드 전체를 fills[0]에 담아 같은 저장·실행·채점 흐름을 써요.
   const isFull = quiz.kind === "full";
+  const assignedKind = isFull ? "full" : "blank";
+  const [selectedKind, setSelectedKind] = useState<"blank" | "full" | null>(null);
+  const shownKind = selectedKind ?? assignedKind;
+  const assignedVariantSelected = shownKind === assignedKind;
   const [fillsByQuiz, setFillsByQuiz] = useState<Record<string, Record<number, string>>>({});
   const fills = fillsByQuiz[quiz.id] || {};
   const fullCode = isFull ? (fills[0] ?? quiz.template) : "";
@@ -210,7 +214,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
   const goToQuiz = (index: number) => {
     if (stage || submitting || assistBusy || revealing || index < 0 || index >= quizzes.length) return;
     resetRun(); setCommitted(null); lastAuto.current = ""; setUserRan(false); setVizLine(null);
-    setSubmitError(""); setQuizIndex(index);
+    setSubmitError(""); setSelectedKind(null); setQuizIndex(index);
   };
   const [finishing, setFinishing] = useState(false);
   const finishQuiz = async () => {
@@ -266,11 +270,15 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
         <section className="practice-card">
           <div className="practice-tabbar">
             <div className="practice-num-tabs" role="group" aria-label="오늘의 문제">{quizzes.map((q, i) => <button key={q.id} type="button" disabled={!!stage || submitting || assistBusy || revealing} aria-pressed={q.id === quiz.id} title={q.title} onClick={() => goToQuiz(i)}>문제 {i + 1}</button>)}</div>
-            <div className="practice-types" aria-label="일일 실습 구성"><span className="practice-types__kind">{isFull ? "전체 구현" : "빈칸 채우기"}</span><span className="practice-types__count">하루 {quizzes.length}문제</span></div>
+            <div className="practice-types" aria-label="일일 실습 구성"><span className="practice-types__count">하루 {quizzes.length}문제</span><div className="material-week-split practice-type-picker" role="group" aria-label="현재 문제의 실습 유형">
+              <button type="button" aria-pressed={shownKind === "blank"} onClick={() => setSelectedKind("blank")}>빈칸 채우기</button>
+              <button type="button" aria-pressed={shownKind === "full"} onClick={() => setSelectedKind("full")}>전체 구현</button>
+            </div></div>
           </div>
           <div className="practice-q-head">
             <h2>문제{quizzes.indexOf(quiz) + 1}. {quiz.title}</h2>
           </div>
+          {assignedVariantSelected ? <>
           <div className="practice-problem-description"><LearningText text={quiz.description} /></div>
           {!!quiz.requirements?.length && <ul className="practice-requirements">{quiz.requirements.map((text, i) => <li key={i}>{text}</li>)}</ul>}
           {quiz.helpers_guide_text
@@ -321,6 +329,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
             <p className="practice-editor-note">{showAnswer ? "회색 답안을 따라 쓰면 입력한 부분만큼 회색 글씨가 지워져요. 따라쓴 내용은 제출 답안에 반영되지 않아요." : isFull ? "코드를 다 쓴 뒤 '코드 실행'을 누르면 예시 출력을 비교해요. 최종 채점은 제출 후 확인해요." : canPreview ? "빈칸을 채우고 Enter를 누르면 다음 빈칸 앞까지 바로 실행돼요." : "빈칸을 모두 채운 뒤 실행할 수 있어요."}</p>
           </section>
           {explanation && <PracticeExplanationView value={explanation} />}
+          </> : <p className="practice-variant-notice" role="status">이 문제에는 {shownKind === "full" ? "전체 구현" : "빈칸 채우기"} 버전이 아직 배정되지 않았어요.</p>}
         </section>
       </div>
       <div className="practice-right">
@@ -332,6 +341,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
             : <button type="button" className="practice-quiz-nav__go practice-quiz-nav__finish" disabled={finishing || submitting || !!stage} onClick={() => void finishQuiz()}>퀴즈 마침 ✓</button>}
         </nav>
 
+        {assignedVariantSelected && <>
         {latest && <Notice><strong>마지막 제출 결과 · </strong>{latest.status === "pending" ? "답안을 저장했고 격리 환경에서 검증 중이에요." : latest.feedback?.message || "제출 결과를 확인하고 있어요."}
           {latest.feedback?.total != null && ` (${latest.feedback.passed}/${latest.feedback.total})`}
           {!latest.independent && " · 도움을 받은 풀이"}
@@ -347,15 +357,17 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
             {verdict.kind === "wrong" && <dl className="blank-verdict__cmp"><div><dt>출력 값</dt><dd><code>{verdict.expected}</code></dd></div><div><dt>내 출력</dt><dd><code>{verdict.actual}</code></dd></div></dl>}
             {verdict.kind !== "correct" && <button type="button" className="blank-verdict__ask" onClick={() => askAbout(verdict.kind === "syntax" ? (verdict.badBlanks.length ? `빈칸 ${verdict.badBlanks.map(circled).join("·")}에 쓴 코드가 왜 문법에 맞지 않나요?` : "코드가 왜 문법에 맞지 않는지 알려 주세요.") : verdict.kind === "runtime" ? "실행 중에 오류가 난 이유가 궁금해요." : verdict.kind === "endless" ? "반복이 끝나지 않는 이유가 뭘까요?" : "실행은 됐는데 결과가 왜 기대와 다르게 나왔나요?")}>이 결과에 대해 질문하기 →</button>}
           </div>}</section>
+        </>}
       </div>
     </div><p className="practice-mobile-note">실습 코드 작성은 넓은 데스크톱 화면에서 이용하면 더 편리해요.</p>
+    {assignedVariantSelected && <>
     <PracticeChat key={`${sectionId}:${quiz.id}`} sectionId={sectionId} courseId={room.course.id} open={chatOpen} onClose={() => setChatOpen(false)} context={chatContext} draftRequest={chatDraft} />
     {/* 질문 창은 오른쪽 아래 둥근 아이콘으로 열고 닫아요 — 지금 문제·코드·채점 상황은 그대로 함께 보내요 */}
     <button type="button" className={`practice-chat-fab ${chatOpen ? "is-open" : ""}`} onClick={() => setChatOpen(v => !v)} aria-expanded={chatOpen} aria-label={chatOpen ? "질문 창 닫기" : "이 문제 질문하기"}>
       {chatOpen ? <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
         : <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6c-.5.4-1.3.1-1.3-.6V16A2.5 2.5 0 0 1 4 13.5z" fill="currentColor" /><circle cx="8.5" cy="9.6" r="1.1" fill="var(--fab-dot, #fff)" /><circle cx="12" cy="9.6" r="1.1" fill="var(--fab-dot, #fff)" /><circle cx="15.5" cy="9.6" r="1.1" fill="var(--fab-dot, #fff)" /></svg>}
       <span className="practice-chat-fab__label" aria-hidden="true">이 문제 질문하기</span>
-    </button></>
+    </button></>}</>
   </section>;
 }
 

@@ -42,11 +42,12 @@ export function PracticeHints({ sectionId, exerciseId, onBusyChange }: {
         {Array.from({length: total}, (_, i) => <span key={i} className={`hint-meter__pip is-tone-${tone(i + 1)} ${i < used ? "is-used" : ""} ${i === used ? "is-next" : ""}`} />)}
       </span><span className="hint-left">{!state ? "불러오는 중…" : used < total ? <>남은 힌트 <b>{total - used}</b></> : "힌트를 모두 열었어요"}</span>
     </div><div className="step-hints-actions">
+      {error && !state && <button type="button" onClick={() => setRevision(v => v + 1)}>다시 불러오기</button>}
       {used > 0 && <button type="button" className="step-hints-fold" aria-expanded={!allHidden} onClick={() => { setFolded(!allHidden); if (allHidden) setClosed([]); }}>{allHidden ? "전체 펼치기" : "전체 접기"}</button>}
       {state && used < total && <button type="button" className={`step-hints-next is-tone-${tone(used + 1)}`} disabled={busy} onClick={() => { setFolded(false); void next(); }}>{busy ? "불러오는 중…" : `힌트 ${used + 1} 보기`}</button>}
     </div></div>
     {!folded && !!state?.hints.length && <ol className="step-hints-list">{state.hints.map((hint, i) => closed.includes(i) ? null : <li className={`is-step-${tone(i + 1)} ${i + 1 === used ? "is-latest" : ""}`} key={i}><b>힌트 {i + 1}</b><div>{hint}</div><button type="button" className="step-hints-close" aria-label={"힌트 " + (i + 1) + " 닫기"} onClick={() => setClosed(prev => [...prev, i])}>×</button></li>)}</ol>}
     <p className="muted">힌트는 순서대로 열 수 있어요. 답지·해설은 이 문제를 최종 제출한 뒤 공개돼요.</p>
-    {error && <p role="alert">{error} {!state && <button onClick={() => setRevision(v => v + 1)}>다시 불러오기</button>}</p>}
+    {error && <p role="alert">{error}</p>}
   </section>;
 }

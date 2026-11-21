@@ -270,6 +270,7 @@ function Shell() {
 
       <ServiceBanner />
       <main
+        data-learning-selects={user?.role === "student" || user?.role === "teacher" ? user.role : undefined}
         className={
           isLanding
             ? "app ln-main"

@@ -4,12 +4,6 @@
   margin: 0;
   min-width: 0;
 }
-.batch-week {
-  display: grid;
-  gap: 6px;
-  max-width: 220px;
-  margin: 16px 0;
-}
 .batch-help {
   color: var(--d-ink-3);
   font-size: 13px;
@@ -48,17 +42,36 @@
 .batch-file-options {
   display: flex;
   flex-wrap: wrap;
+  padding-inline-start: clamp(0px, 2vw, 24px);
   align-items: end;
   gap: 12px;
   margin-top: 12px;
 }
-.batch-file-options label {
+.batch-file-options > :is(label, .batch-week) {
+  flex: 1 1 148px;
+  min-width: 0;
   display: grid;
   gap: 5px;
   font-size: 13px;
 }
-.batch-file-options select {
-  max-width: 100%;
+.batch-file-options > label:nth-child(2) {
+  flex-basis: 210px;
+}
+.batch-file-options > button {
+  flex: 1 1 140px;
+}
+.batch-file-options :is(input[role="combobox"], select) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+#root main.app .batch-file-options :is(input[role="combobox"], select, button) {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+#root main.app .batch-file-options select {
+  align-items: center;
+  padding-block: 0;
 }
 .batch-file-status {
   font-size: 13px;
@@ -78,6 +91,7 @@
 }
 .batch-actions {
   display: flex;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 16px;
@@ -95,8 +109,23 @@
   .batch-file {
     padding: 12px;
   }
-  .batch-file-options label {
-    flex: 1;
-    min-width: 120px;
+  .batch-file-options { padding-inline-start: 0; }
+  .batch-file-options > :is(label, .batch-week) {
+    flex-basis: 140px;
   }
+}
+
+.batch-files:has(.batch-week [aria-expanded="true"]) {
+  max-height: none;
+  overflow: visible;
+}
+.batch-week > label { font-size: 13px; }
+.batch-week .course-combo { position: relative; }
+#root main.app .batch-week .course-combo input { padding-inline: 12px 32px; }
+.batch-week .course-combo-caret {
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
 }

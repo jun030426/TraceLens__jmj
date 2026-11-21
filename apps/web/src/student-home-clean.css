@@ -615,11 +615,11 @@
 :root:not([data-theme="dark"]) #root main.app .student-home.classroom-page .material-week.is-current > .material-week-content { background: #efe5f6 !important; }
 
 /* 강의 자료: 10주차 이상이면 '1–9주차 / 10주차~' 두 묶음 탭 (11-14) */
-#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split {
+#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page, .practice-page) .material-week-split {
   display: inline-flex !important; width: fit-content !important; gap: 4px; padding: 4px; margin: 0 0 12px;
   border-radius: 999px; background: rgba(133, 99, 159, 0.1);
 }
-#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split button {
+#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page, .practice-page) .material-week-split button {
   display: inline-flex !important; align-items: center; gap: 6px;
   min-height: 0 !important; height: 34px !important; padding: 0 16px !important;
   border: 0 !important; border-radius: 999px !important; box-shadow: none !important;
@@ -627,12 +627,12 @@
   font-size: 14px !important; font-weight: 600 !important; cursor: pointer; transform: none !important;
   transition: background-color 0.2s, color 0.2s;
 }
-#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split button:hover { color: #5e3f78 !important; }
-#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split button.is-active { background: #ffffff !important; color: #5e3f78 !important; box-shadow: 0 1px 3px rgba(58, 36, 56, 0.12) !important; }
-#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split-dot { width: 6px; height: 6px; border-radius: 50%; background: #85639f; }
-:root[data-theme="dark"] #root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split { background: rgba(255, 255, 255, 0.06); }
-:root[data-theme="dark"] #root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split button { color: #b3adba !important; }
-:root[data-theme="dark"] #root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page) .material-week-split button.is-active { background: #2e2636 !important; color: #e4dcec !important; }
+#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page, .practice-page) .material-week-split button:hover { color: #5e3f78 !important; }
+#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page, .practice-page) .material-week-split button:is(.is-active, [aria-pressed="true"]) { background: #ffffff !important; color: #5e3f78 !important; box-shadow: 0 1px 3px rgba(58, 36, 56, 0.12) !important; }
+#root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page, .practice-page) .material-week-split-dot { width: 6px; height: 6px; border-radius: 50%; background: #85639f; }
+:root[data-theme="dark"] #root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page, .practice-page) .material-week-split { background: rgba(255, 255, 255, 0.06); }
+:root[data-theme="dark"] #root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page, .practice-page) .material-week-split button { color: #b3adba !important; }
+:root[data-theme="dark"] #root main.app .student-home:is(.classroom-page, .instructor-page, .progress-page, .practice-page) .material-week-split button:is(.is-active, [aria-pressed="true"]) { background: #2e2636 !important; color: #e4dcec !important; }
 
 /* 강의 자료: 새로고침은 제목 옆 작은 ↻ 모양만, 누르면 한 바퀴 돌아요 (11-14) */
 #root main.app .student-home.classroom-page .materials-heading h2 { display: flex !important; align-items: center; gap: 8px; }
@@ -1335,7 +1335,7 @@
   background: #85639f !important; color: #fff !important; font-size: 13px !important; font-weight: 600 !important; box-shadow: none !important; cursor: pointer;
 }
 #root main.app .learning-history .history-range .history-range-apply:disabled { background: rgba(133, 99, 159, 0.25) !important; color: #fff !important; cursor: default; }
-#root main.app .learning-history .learning-history-count { font-size: 13px; color: #656668; margin: 4px 0 4px; }
+#root main.app :is(.learning-history, .student-practice-history) .learning-history-count { font-size: 13px; color: #656668; margin: 4px 0 4px; }
 :root[data-theme="dark"] #root main.app .learning-history .history-presets button { color: #b3adba !important; border-color: rgba(211, 184, 230, 0.22) !important; }
 :root[data-theme="dark"] #root main.app .learning-history .history-presets button.is-on { background: #b48fd0 !important; border-color: #b48fd0 !important; color: #1a1220 !important; }
 :root[data-theme="dark"] #root main.app .learning-history .history-order { background: rgba(211, 184, 230, 0.08); }
@@ -1344,7 +1344,7 @@
 :root[data-theme="dark"] #root main.app .learning-history .history-range { background: #1f1726; border-color: rgba(211, 184, 230, 0.22); }
 :root[data-theme="dark"] #root main.app .learning-history .history-range input[type="date"] { color: #e6e0ec !important; color-scheme: dark; }
 :root[data-theme="dark"] #root main.app .learning-history .history-range .history-range-apply { background: #b48fd0 !important; color: #1a1220 !important; }
-:root[data-theme="dark"] #root main.app .learning-history .learning-history-count { color: #9a93a1; }
+:root[data-theme="dark"] #root main.app :is(.learning-history, .student-practice-history) .learning-history-count { color: #9a93a1; }
 @media (max-width: 640px) {
   #root main.app .learning-history .history-range { border-radius: 16px; width: 100%; }
 }
@@ -1413,7 +1413,7 @@
 }
 #root main.app .learning-history .history-calendar .history-calendar-apply:disabled { background: rgba(133, 99, 159, 0.28) !important; cursor: default; }
 #root main.app .learning-history .history-search-error { margin: -4px 0 10px; font-size: 13px; color: #b5475b; }
-#root main.app .learning-history .learning-history-count { display: flex; align-items: center; gap: 8px; }
+#root main.app :is(.learning-history, .student-practice-history) .learning-history-count { display: flex; align-items: center; gap: 8px; }
 #root main.app .learning-history .history-range-chip { padding: 2px 10px; border-radius: 999px; background: rgba(133, 99, 159, 0.1); color: #85639f; font-weight: 600; }
 :root[data-theme="dark"] #root main.app .learning-history .history-search .history-search-text { color: #e6e0ec !important; }
 :root[data-theme="dark"] #root main.app .learning-history .history-search .history-search-go:disabled { background: #b48fd0 !important; }
@@ -1552,7 +1552,7 @@
 /* 목록 마지막 구분선 제거, 안내와 이어가기 링크는 박스 바깥에 배치 */
 #root main.app .progress-page .concept-browser .concept-list-item:last-child { border-bottom: 0; }
 #root main.app .progress-page .progress-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 12px; border: 0; margin: 6px 0 0; padding: 0 4px; }
-#root main.app .progress-page .progress-actions p { margin: 0; font-size: 10px; line-height: 1.6; color: var(--d-ink-3, #858789); }
+#root main.app .progress-page .progress-actions p { align-self: center; margin: 8px 0 0; font-size: 10px; line-height: 1.6; color: var(--d-ink-3, #858789); }
 #root main.app .progress-page .progress-actions .ln-cta { flex-shrink: 0; margin-left: auto; font-size: 12px; padding: 10px 16px; }
 
 /* 이론 날짜별 기록: 보기 탭 오른쪽에 검색창 배치 */

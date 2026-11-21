@@ -21,9 +21,11 @@ export function HeldMaterialReview({materialId,versionId,heldCount=0}:{materialI
   const visible=data?.version_id===versionId ? data : undefined;
   const source=`/api/v1/materials/${materialId}/file?version_id=${encodeURIComponent(versionId)}`;
   return <details className="held-source-panel" onToggle={e=>setOpen(e.currentTarget.open)}>
-    <summary>보류 내용 보기{heldCount>0 ? ` · ${heldCount}건` : ''}</summary>
+    <summary>
+      <strong>보류 내용 보기{heldCount>0 ? ` · ${heldCount}건` : ''}</strong>
+      <small className="held-source-explanation">보류된 내용은 검색·콘텐츠 생성에서 제외돼요. 정상 구간은 별도로 처리해요.</small>
+    </summary>
     {open && <div className="held-source-body">
-      <p>보류된 내용은 검색·콘텐츠 생성에서 제외돼요. 정상 구간은 별도로 처리해요.</p>
       <ErrorNotice text={error}/>
       <div className="held-source-tools"><label>구분<select value={modality} onChange={e=>{setModality(e.target.value);setOffset(0);setSelected(null);}}>
         <option value="all">전체</option><option value="audio">음성</option><option value="visual">영상 화면</option><option value="document">문서·코드</option>

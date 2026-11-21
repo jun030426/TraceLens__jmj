@@ -16,7 +16,7 @@ export function quizNameOf(x: HistoryItem) {
   if (x.quiz_title) return x.quiz_title;
   return x.question.includes("[함께 보내는 퀴즈와 내 답안]") ? "개념 퀴즈" : "";
 }
-const isQuizQuestion = (x: HistoryItem) => x.source ? x.source === "quiz" : x.question.includes(QUIZ_WORD) || !!quizNameOf(x);
+export const isQuizQuestion = (x: HistoryItem) => x.source ? x.source === "quiz" : x.question.includes(QUIZ_WORD) || !!quizNameOf(x);
 const PAGE = 5; // 한 페이지에 질문 5개씩, 옆으로 넘겨 봐요 (11-15)
 
 export function QuestionArchive({ sectionId, revision, open, onOpenChange, onOpenItem }: { sectionId: string; revision: number; open: boolean; onOpenChange: (open: boolean) => void; onOpenItem?: (item: HistoryItem) => void }) {
@@ -89,7 +89,7 @@ function Archive({ sectionId, onOpenItem }: { sectionId: string; onOpenItem?: (i
   return <div className="qa-archive">
     <div className="qa-tabs" role="tablist" aria-label="질문 종류">
       {([["all", "전체 질문"], ["quiz", "퀴즈 질문"]] as const).map(([key, label]) => (
-        <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? "is-active" : ""} onClick={() => { if (tab !== key) { setTab(key); setPage(0); } }}>{label}</button>
+        <button key={key} type="button" role="tab" aria-selected={tab === key} className={`${key === "quiz" ? "qa-quiz-tab " : ""}${tab === key ? "is-active" : ""}`.trim()} onClick={() => { if (tab !== key) { setTab(key); setPage(0); } }}>{label}</button>
       ))}
     </div>
     <form className="qa-search" role="search" onSubmit={e => { e.preventDefault(); setSearch(input.trim()); setPage(0); }}>

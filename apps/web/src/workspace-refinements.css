@@ -70,6 +70,9 @@
 #root .teacher-materials .material { grid-template-columns:minmax(0,1fr) 165px 112px; padding:16px 20px; gap:10px 20px; }
 #root .teacher-materials .material h3 { font-size:15px; line-height:1.5; margin:4px 0 0; }
 #root .teacher-materials .material-more summary { min-height:44px; padding:8px 10px; box-sizing:border-box; font-size:13px; }
+#root main.app .teacher-materials :is(.material-more, .teacher-processing-videos, .held-source-panel) > summary {
+  font-size: 14px;
+}
 #root .teacher-materials .material-more[open] { grid-column:1/-1; }
 #root .teacher-materials .material-detail-state { border-radius:10px; background:#f8f8f8; padding:12px 16px; margin-top:8px; }
 #root .teacher-materials .material-detail-state p { font-size:13px; line-height:1.7; margin:0 0 5px; }
@@ -120,3 +123,124 @@
 #root .quiz-results .result-answer-comparison strong { font-size:12px; }
 #root .quiz-results .result-feedback { font-size:14px; line-height:1.8; white-space:pre-wrap; margin:12px 0; }
 @media (max-width:600px) { #root .quiz-results .result-answer-comparison { grid-template-columns:1fr; } }
+
+#root .quiz-catalog .quiz-streak-summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+#root .quiz-catalog .quiz-streak-summary > p {
+  grid-column: 1;
+  grid-row: 1;
+}
+#root .quiz-catalog .quiz-streak-summary:has(.quiz-criteria-toggle[aria-expanded="true"]) {
+  border-radius: 20px;
+}
+#root .quiz-catalog .quiz-streak-summary .quiz-criteria-body:not([hidden]) {
+  grid-row: 2;
+  display: grid;
+  gap: 4px;
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--d-hair);
+}
+#root .quiz-catalog .quiz-criteria-body p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+#root .teacher-section-panel > .teacher-join-settings > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  list-style: none;
+  font-size: 15px;
+  font-weight: 650;
+}
+#root .teacher-section-panel > .teacher-join-settings > summary::-webkit-details-marker {
+  display: none;
+}
+#root .teacher-section-panel > .teacher-join-settings > summary::before {
+  content: "▸" / "";
+}
+#root .teacher-section-panel > .teacher-join-settings[open] > summary::before {
+  content: "▾" / "";
+}
+.teacher-join-expiry {
+  display: none;
+}
+.teacher-join-settings[open] .teacher-join-expiry {
+  display: inline;
+  margin-inline-start: auto;
+  color: var(--d-ink-2);
+  font-size: 13px;
+  font-weight: 400;
+}
+#root .teacher-section-panel > .teacher-join-settings > .form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 14px;
+}
+#root .teacher-section-panel .teacher-join-settings .form > fieldset {
+  grid-area: 1 / 1;
+}
+#root .teacher-section-panel .teacher-join-settings .form > .primary {
+  grid-area: 1 / 2;
+  margin: 0;
+}
+#root .teacher-section-panel .teacher-join-settings .form > .error {
+  grid-column: 1 / -1;
+}
+#root .teacher-section-panel .teacher-join-settings label.check {
+  font-size: 15px;
+}
+#root main.app .teacher-section-panel .teacher-roster-heading .teacher-roster-refresh {
+  min-width: 32px;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--d-accent) !important;
+  font-size: 21px !important;
+  line-height: 1;
+}
+
+#root main.app .teacher-materials .material-more > .actions {
+  justify-content: flex-end;
+  gap: 10px;
+}
+#root main.app .teacher-materials .material-more > .actions > :is(a, button) {
+  flex: 0 0 auto;
+}
+#root main.app .teacher-materials .material-more > .actions > .file-replace {
+  flex: 1 1 260px;
+  min-width: 0;
+  max-width: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 14px;
+  border: 1px dashed #92b6dc;
+  border-radius: 10px;
+  background: #edf6ff;
+  color: #244d75;
+  font-size: 13px;
+}
+#root main.app .teacher-materials .material-more > .actions > .file-replace > input {
+  flex: 1 1 150px;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  margin-inline-start: 12px;
+  color: inherit;
+  font-size: inherit;
+}
+:root[data-theme="dark"] #root main.app .teacher-materials .material-more > .actions > .file-replace {
+  border-color: #557ca4;
+  background: #202e42;
+  color: #c6dfff;
+}
