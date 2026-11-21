@@ -22,6 +22,7 @@ from lerny.models import GeminiQuota, uid
 PACIFIC = ZoneInfo("America/Los_Angeles")
 _verifying = ContextVar("gemini_verifying", default=False)
 _paid_job = ContextVar("gemini_paid_review_job", default=False)
+_paid_draft = ContextVar("gemini_paid_draft", default=False)
 
 
 @contextmanager
@@ -29,6 +30,7 @@ def review_job(session, job, config):
     from lerny.models import ContentGeneration, Material, MaterialVersion
 
     allowed = False
+    paid_draft = False
     if (config.gemini_review_quota_project and config.gemini_review_week is not None
             and job.course_id == config.gemini_review_course_id):
         if job.kind == "extract" and config.instructor_review_from_week is None:
@@ -36,14 +38,22 @@ def review_job(session, job, config):
                 .join(MaterialVersion, MaterialVersion.material_id == Material.id)
                 .where(MaterialVersion.id == job.payload.get("version_id"), Material.course_id == job.course_id))
             allowed = week == config.gemini_review_week
-        elif job.kind == "questions":
-            week = session.scalar(select(ContentGeneration.week).where(
-                ContentGeneration.id == job.payload.get("generation_id"), ContentGeneration.course_id == job.course_id))
-            allowed = week == config.gemini_review_week
+        elif job.kind in {"weekly_content", "questions", "practice_prepare"}:
+            generation_id = job.payload.get("generation_id")
+            selected = bool(generation_id and generation_id == config.gemini_paid_generation_id)
+            if job.kind == "questions" or selected:
+                week = session.scalar(select(ContentGeneration.week).where(
+                    ContentGeneration.id == generation_id, ContentGeneration.course_id == job.course_id,
+                    ContentGeneration.status == "draft"))
+                eligible = week == config.gemini_review_week
+                allowed = eligible and job.kind == "questions"
+                paid_draft = eligible and selected
     token = _paid_job.set(allowed)
+    draft_token = _paid_draft.set(paid_draft)
     try:
         yield
     finally:
+        _paid_draft.reset(draft_token)
         _paid_job.reset(token)
 
 
@@ -61,6 +71,8 @@ def request_purpose(path, config):
         return "embedding"
     if path == "interactions" and _verifying.get() and _paid_job.get() and config.gemini_review_quota_project:
         return "review"
+    if path == "interactions" and _paid_draft.get():
+        return "draft"
     return "content"
 
 
@@ -83,7 +95,7 @@ def scope(path, payload):
         model = "gemini-3.6-flash"
     config = settings()
     project = config.gemini_quota_project
-    if request_purpose(path, config) == "review":
+    if request_purpose(path, config) in {"review", "draft"}:
         project = config.gemini_review_quota_project
     return hashlib.sha256(json.dumps([project, model]).encode()).hexdigest()
 
