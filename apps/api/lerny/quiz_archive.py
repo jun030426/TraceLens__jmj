@@ -2,14 +2,14 @@
 from collections import defaultdict
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Header, Path
+from fastapi import APIRouter, Path
 from sqlalchemy import func, select
 
 from lerny.automatic import calendar_week, section_schedule
-from lerny.jobs import idempotent, section_student
-from lerny.learning import AnswerInput, daily, five_daily_questions, lock_student, session_view, today, valid_sources
-from lerny.models import (Attempt, Course, DailyPlan, Job, LearningSession, PracticeExercise, PracticeSession,
-                          Question, TheoryRetake)
+from lerny.jobs import section_student
+from lerny.learning import daily, five_daily_questions, lock_student, session_view, today, valid_sources
+from lerny.models import (Attempt, Course, DailyPlan, LearningSession, PracticeExercise, PracticeSession,
+                          Question)
 from lerny.practice import exercise_view
 from lerny.security import Actor, Db, deny
 from lerny.weekly_content import published_generations
@@ -90,8 +90,8 @@ def days(section_id: str, session: Db, actor: Actor, week: int = Path(ge=1, le=1
     records = assignments(session, actor, section, starts)
     own = records[week]
     occupied = {row.day for items in records.values() for _, row in items}
-    submitted = dict(session.execute(select(Attempt.learning_session_id, func.count()).where(
-        Attempt.learning_session_id.in_([r.id for _, r in own])).group_by(Attempt.learning_session_id)).all())
+    answered = set(session.scalars(select(Attempt.question_id).where(
+        Attempt.student_id == actor.id, Attempt.section_id == section.id).distinct()))
     bank = question_bank(session, section, week) if week <= current else []
     items = []
     for index in range(1, 8):
@@ -99,12 +99,13 @@ def days(section_id: str, session: Db, actor: Actor, week: int = Path(ge=1, le=1
         if rows:
             for row in rows:
                 items.append({"index": index, "date": row.day, "session_id": row.id,
-                              "total": len(row.question_ids), "submitted": submitted.get(row.id, 0)})
+                              "total": len(row.question_ids), "submitted": len(answered.intersection(row.question_ids))})
         else:
             when = starts[week] + timedelta(days=index - 1) if week in starts else None
             ready = when and when <= today() and when not in occupied
+            ids = day_questions(bank, index) if ready else []
             items.append({"index": index, "date": when, "session_id": None,
-                          "total": len(day_questions(bank, index)) if ready else 0, "submitted": 0})
+                          "total": len(ids), "submitted": len(answered.intersection(ids))})
     return {"days": items}
 
 
@@ -147,34 +148,13 @@ def open_day(section_id: str, session: Db, actor: Actor, week: int = Path(ge=1, 
     return session_view(session, learning)
 
 
-@router.post("/learning-sessions/{learning_id}/questions/{question_id}/retake", status_code=202)
-def retake(learning_id: str, question_id: str, body: AnswerInput, session: Db, actor: Actor,
-           idempotency_key: str | None = Header(default=None)):
-    original = session.scalar(select(Attempt).where(Attempt.learning_session_id == learning_id,
-        Attempt.question_id == question_id, Attempt.student_id == actor.id))
-    if not original:
+@router.post("/learning-sessions/{learning_id}/questions/{question_id}/retake")
+def retake(learning_id: str, question_id: str, session: Db, actor: Actor):
+    learning = session.get(LearningSession, learning_id)
+    if not learning or learning.student_id != actor.id or question_id not in learning.question_ids:
         deny(404)
-    section = section_student(session, actor, original.section_id)
-    q = session.get(Question, question_id)
-    if (q.course_id != section.course_id or q.student_id not in (None, actor.id)
-            or q.status != "active" or not valid_sources(session, q)):
-        deny(409, "현재 공개된 문제만 다시 풀 수 있어요.")
-
-    def save():
-        retry = TheoryRetake(original_id=original.id, answer=body.answer)
-        if q.kind == "mcq":
-            if body.answer not in {str(i) for i in range(len(q.options))}:
-                deny(422, "보기 중 하나를 선택해 주세요.")
-            retry.correct = int(body.answer) == q.solution["answer_index"]
-            retry.score, retry.status = (100 if retry.correct else 0), "graded"
-        session.add(retry)
-        session.flush()
-        if retry.status == "pending":
-            session.add(Job(owner_id=actor.id, course_id=q.course_id, kind="grade",
-                            payload={"attempt_id": retry.id, "retake": True}))
-        return {"id": retry.id, "status": retry.status}
-
-    return idempotent(session, actor, "retake:" + original.id, idempotency_key, body.model_dump(), save)
+    section_student(session, actor, learning.section_id)
+    deny(409, "문제는 한 번만 제출할 수 있어요. 내 답안과 해설을 확인해 주세요.")
 
 
 @router.post("/sections/{section_id}/quiz-archive/{week}/practice")

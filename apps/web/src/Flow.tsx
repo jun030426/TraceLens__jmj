@@ -36,6 +36,7 @@ type Record = {
   day: string;
   total: number;
   submitted: number;
+  answered?: number;
   pending: number;
   valid: number;
   correct: number;
@@ -120,7 +121,8 @@ export function QuizCatalog() {
           );
           const progress = practice.data?.items.find(item => item.section_id === r.section.id);
           const practiceDone = !!progress && progress.total > 0 && progress.submitted >= progress.total;
-          const done = record && record.total > 0 && record.submitted >= record.total;
+          const answered = record?.answered ?? record?.submitted ?? 0;
+          const done = record && record.total > 0 && answered >= record.total;
           return (
             <section className="quiz-course-group" key={r.section.id}>
               <header className="quiz-course-heading">
@@ -138,7 +140,7 @@ export function QuizCatalog() {
                     <p className="quiz-progress-status">{done
                       ? "오늘 제출 완료 · 눌러서 결과·해설 보기"
                       : record
-                        ? `${record.submitted}/${record.total}문항 제출${record.pending ? ` · 채점·검토 대기 ${record.pending}건` : ""}`
+                        ? `${answered}/${record.total}문항 풀이${record.pending ? ` · 채점·검토 대기 ${record.pending}건` : ""}`
                         : "아직 시작하지 않았어요."}</p>
                   </div>
                 </Link>
@@ -202,8 +204,6 @@ export function QuizTakeFlow() {
 function QuizQuestions({ sectionId, path, week, dayIndex }: { sectionId: string; path: string; week?: string; dayIndex?: string }) {
   const back = week ? archivePath(sectionId, week) + "/theory" : `/quiz?section=${sectionId}`;
   const heading = week ? `${week}주차 · ${dayIndex}일차 개념 퀴즈` : "오늘의 이론";
-  const [retrying, setRetrying] = useState("");
-  const [retryKey, setRetryKey] = useState("");
   const { user } = useContext(Auth);
   const [daily, setDaily] = useState<Daily>();
   const [error, setError] = useState("");
@@ -280,7 +280,6 @@ function QuizQuestions({ sectionId, path, week, dayIndex }: { sectionId: string;
     }
   };
   const move = (next: number) => {
-    setRetrying("");
     setError("");
     setIndex(next);
     if (daily)
@@ -297,26 +296,24 @@ function QuizQuestions({ sectionId, path, week, dayIndex }: { sectionId: string;
   const checkOne = async () => {
     if (!daily) return;
     const item = daily.items[index];
-    const isRetake = !!item && retrying === item.id;
-    if (!item || (item.attempt && !isRetake) || item.status === "unavailable") return;
+    if (!item || item.attempt || item.status === "unavailable") return;
     if (!answers[item.id]?.trim()) { setError("답을 고르거나 적은 뒤 정답을 확인해 주세요."); return; }
     setError("");
     setBusy(true);
     try {
-      await api(`/learning-sessions/${daily.id}/questions/${item.id}/${isRetake ? "retake" : "submit"}`, {
+      await api(`/learning-sessions/${daily.id}/questions/${item.id}/submit`, {
         ...post({ answer: answers[item.id] }),
-        headers: { "Idempotency-Key": isRetake ? retryKey : `${daily.id}:${item.id}` },
+        headers: { "Idempotency-Key": `${daily.id}:${item.id}` },
       });
       window.dispatchEvent(new Event(XP_CHANGED));
       setDaily(await api<Daily>(`/learning-sessions/${daily.id}`));
-      setRetrying("");
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   };
-  const pendingId = daily?.items.some((it) => it.attempt?.status === "pending" || it.retakes?.some(r => r.status === "pending")) ? daily.id : "";
+  const pendingId = daily?.items.some((it) => it.attempt?.status === "pending") ? daily.id : "";
   useEffect(() => {
     if (!pendingId) return;
     let active = true;
@@ -326,7 +323,7 @@ function QuizQuestions({ sectionId, path, week, dayIndex }: { sectionId: string;
         const fresh = await api<Daily>(`/learning-sessions/${pendingId}`);
         if (!active) return;
         setDaily(fresh); setError("");
-        if (!fresh.items.some(q => q.attempt?.status === "pending" || q.retakes?.some(r => r.status === "pending"))) return;
+        if (!fresh.items.some(q => q.attempt?.status === "pending")) return;
       } catch (e) { if (active) setError((e as Error).message); }
       if (active) timer = setTimeout(poll, 3000);
     };
@@ -360,7 +357,7 @@ function QuizQuestions({ sectionId, path, week, dayIndex }: { sectionId: string;
       <Link to={back}>← {week ? "날짜 목록" : "퀴즈 목록"}</Link>
       <div className="theory-title-row"><h1>{heading}</h1><span>{daily.items.filter(item => item.attempt).length} / {daily.items.length}문항 확인</span></div>
       <p>
-        한 문항씩 풀고 '정답 확인'을 누르면 바로 정답과 해설이 나와요. 모두 풀면
+        문항마다 한 번만 제출할 수 있어요. '정답 확인'을 누르면 내 답안이 저장돼요. 모두 풀면
         전체 문항의 답과 해설을 한 번에 볼 수 있어요.
       </p>
       {daily.shortage > 0 && (
@@ -387,20 +384,13 @@ function QuizQuestions({ sectionId, path, week, dayIndex }: { sectionId: string;
             {kindLabel(q.kind)}{q.quiz_role && ` · ${q.quiz_role}`}
           </small>
           <h2>{q.prompt}</h2>
-          {q.attempt && retrying !== q.id ? (
-            <>
-              <TheoryCheckResult q={q} index={index} sectionId={daily.section_id} />
-              {!!q.retakes?.length && <div className="qa-retakes"><strong>다시 푼 기록</strong>
-                <ol>{q.retakes.map(r => <li key={r.id}>{r.answer} · {r.status === "graded" ? r.correct ? "정답" : "오답" : r.status === "pending" ? "채점 중" : "검토 보류"}</li>)}</ol></div>}
-              {week && q.status !== "unavailable" && <button type="button" disabled={busy} onClick={() => {
-                choose(""); setRetryKey(crypto.randomUUID()); setRetrying(q.id); setError("");
-              }}>이 문제 다시 풀기</button>}
-            </>
+          {q.attempt ? (
+            <TheoryCheckResult q={q} index={index} sectionId={daily.section_id} />
           ) : q.status === "unavailable" ? (
             <Notice>이 문항은 변경되어 제출할 수 없어요.</Notice>
           ) : (
             <fieldset disabled={busy}>
-              <legend className="theory-answer-legend">{retrying === q.id ? "다시 풀기 · " : ""}{answerGuide(q.kind)}</legend>
+              <legend className="theory-answer-legend">{answerGuide(q.kind)}</legend>
               {isChoice(q.kind) ? (
                 q.options.map((option, i) => (
                   <label className={`answer-option ${answers[q.id] === String(i) ? "is-chosen" : ""}`} key={i}>
@@ -464,12 +454,10 @@ function QuizQuestions({ sectionId, path, week, dayIndex }: { sectionId: string;
               {/* 한 자리 버튼 (11-14): 답을 고르거나 쓰면 [정답 확인], 확인했거나 아직 안 풀었으면 [다음 문항],
                   마지막 문항에서 안 푼 문항이 남았으면 [남은 문항 풀기], 모두 풀면 [퀴즈 나가기]·[전체 답·해설 보기] */}
               {(() => {
-                const open = (!q.attempt || retrying === q.id) && q.status !== "unavailable";
+                const open = !q.attempt && q.status !== "unavailable";
                 const leftIndex = daily.items.findIndex((it, i) => i !== index && !it.attempt && it.status !== "unavailable");
                 if (open && answers[q.id]?.trim())
                   return <button className="primary theory-check-button" disabled={busy} onClick={() => void checkOne()}>{busy ? "확인 중…" : "정답 확인"}</button>;
-                if (retrying === q.id)
-                  return <button onClick={() => setRetrying("")}>지난 결과 보기</button>;
                 if (complete)
                   return <>
                     <Link className="link-button" to={back}>퀴즈 나가기</Link>
@@ -483,7 +471,7 @@ function QuizQuestions({ sectionId, path, week, dayIndex }: { sectionId: string;
               })()}
             </div>
           </div>
-          {complete && !retrying && <p className="theory-all-done">모든 문항을 풀었어요. 답안은 문항마다 정답을 확인할 때 이미 제출됐어요. 퀴즈를 나가거나 전체 답과 해설을 한 번에 볼 수 있어요.</p>}
+          {complete && <p className="theory-all-done">모든 문항을 풀었어요. 답안은 문항마다 정답을 확인할 때 이미 제출됐어요. 퀴즈를 나가거나 전체 답과 해설을 한 번에 볼 수 있어요.</p>}
         </article>
       )}
     </section>

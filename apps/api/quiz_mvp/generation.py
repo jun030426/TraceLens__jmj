@@ -62,8 +62,18 @@ def question_schema(concepts):
 
 
 def checked_question(q, evidence, concept, difficulty, concepts=CONCEPTS):
-    if not q.get('hint') or not str(q['hint']).strip():
-        q['hint'] = '핵심 개념의 정의와 연산 순서를 차근차근 떠올려 보세요.'
+    hint = str(q.get('hint') or '').strip()
+    if not hint or any(kw in hint for kw in ["```", "def ", "class ", "import ", "print("]):
+        concept_name = concepts.get(concept, concept) if isinstance(concepts, dict) else str(concept)
+        if difficulty == "remember":
+            hint = f"{concept_name}의 핵심 정의와 주로 사용되는 목적을 떠올려 보세요."
+        elif difficulty == "understand":
+            hint = f"{concept_name}의 내부 동작 원리와 기본 규칙을 떠올려 보세요."
+        elif difficulty == "analyze":
+            hint = f"{concept_name}의 문법적 특성과 예외 상황을 비교해 보세요."
+        else:
+            hint = f"{concept_name}의 처리 흐름과 결과 형태를 차근차근 떠올려 보세요."
+    q['hint'] = hint
     validate(q, question_schema(concepts))
     if len(q['explanation']) > 80:
         raise ValueError('EXPLANATION_TOO_LONG')
@@ -142,6 +152,7 @@ def generate(rag, client, concept=None, progress=lambda message: None, *, genera
             'you MUST incorporate an everyday physical analogy at the beginning of the sentence.\n'
             '- Hint (hint): Provide exactly ONE Korean guiding hint of at most 80 characters. '
             'STRICT 0-SPOILER RULE: NEVER mention the correct option number or the direct final answer. '
+            'NEVER output raw source code, def, class, variable assignments, or print statements in the hint. '
             'Gently guide the student by reminding them of the key principle, rule, or intuitive real-world analogy.'
         )
         q = call_json(client, 'quiz_generate_v1',
