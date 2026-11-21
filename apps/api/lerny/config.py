@@ -34,6 +34,7 @@ class Settings(BaseModel):
     gemini_review_quota_project: str | None = Field(default=None, min_length=1, max_length=100)
     gemini_review_course_id: str | None = None
     gemini_review_week: int | None = Field(default=None, ge=1)
+    gemini_paid_generation_id: str | None = Field(default=None, min_length=1, max_length=36)
     # The same course can hand PPT and weekly question review to its instructor.
     instructor_review_from_week: int | None = Field(default=None, ge=1)
 
@@ -97,7 +98,7 @@ class Settings(BaseModel):
         return self.file_storage == "supabase" or self.deployment == "cloud"
 
     def gemini_key(self, purpose):
-        if purpose == "review":
+        if purpose in {"review", "draft"}:
             return self.gemini_embedding_api_key.get_secret_value()
         if purpose not in {"embedding", "content"}:
             raise ValueError("Unknown Gemini purpose")

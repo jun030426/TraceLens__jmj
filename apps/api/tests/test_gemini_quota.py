@@ -106,6 +106,43 @@ def test_paid_verification_keeps_completed_responses_and_free_project_backoff(pa
     assert headers == ["synthetic-key","paid-test-key"]
 
 
+@pytest.mark.parametrize("kind,course,week,gen,expected", [
+    ("weekly_content", "course", 4, "selected", "draft"),
+    ("questions", "course", 4, "selected", "draft"),
+    ("practice_prepare", "course", 4, "selected", "draft"),
+    ("weekly_content", "other", 4, "selected", "content"),
+    ("weekly_content", "course", 5, "selected", "content"),
+    ("weekly_content", "course", 4, "different", "content"),
+    ("weekly_content", "course", None, "selected", "content"),
+    ("narration_lesson", "course", 4, "selected", "content"),
+    ("grade", "course", 4, "selected", "content"),
+])
+def test_paid_generation_is_bound_to_one_draft(paced, monkeypatch, kind, course, week, gen, expected):
+    config, _, _ = paced
+    config.gemini_review_course_id = "course"
+    config.gemini_review_week = 4
+    config.gemini_review_quota_project = "paid-test"
+    config.gemini_paid_generation_id = "selected"
+    config.gemini_embedding_api_key = SecretStr("paid-test-key")
+    job = SimpleNamespace(id="job", kind=kind, course_id=course, payload={"generation_id":gen, "week":4})
+    sent = []
+    def post(_client, _url, **kwargs):
+        sent.append(kwargs["headers"]["x-goog-api-key"])
+        return httpx.Response(200, json={"ok":True}, request=httpx.Request("POST", "https://test.invalid"))
+    monkeypatch.setattr(httpx.Client, "post", post)
+    free_scope = quota.scope(PATH, BODY)
+    with job_context(job), quota.review_job(SimpleNamespace(scalar=lambda _:week), job, config):
+        assert quota.request_purpose(PATH, config) == expected
+        assert (quota.scope(PATH, BODY) != free_scope) == (expected == "draft")
+        assert quota.request_purpose("models/test:embedContent", config) == "embedding"
+        provider.request(PATH, BODY, dict)
+        if kind == "questions":
+            with quota.verification():
+                assert quota.request_purpose(PATH, config) == "review"
+    assert sent == ["paid-test-key" if expected == "draft" else "synthetic-key"]
+    assert quota.request_purpose(PATH, config) == "content"
+
+
 def test_minute_budget_includes_every_call_and_no_boundary_burst(paced):
     _, clock, _ = paced
     start = clock[0]
