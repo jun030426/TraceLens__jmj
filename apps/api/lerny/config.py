@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from sqlalchemy.engine import make_url
 
 from lerny.environment import cloud_environment, private_env_path, read_env, runtime_root
@@ -32,7 +32,8 @@ class Settings(BaseModel):
     gemini_quota_project: str = Field(default="lerny", min_length=1, max_length=100)
     # Set on the worker to opt in to verification billed to the embedding project.
     gemini_review_quota_project: str | None = Field(default=None, min_length=1, max_length=100)
-    gemini_ppt_31_from: AwareDatetime | None = None
+    gemini_review_course_id: str | None = None
+    gemini_review_week: int | None = Field(default=None, ge=1)
     gemini_content_requests_per_minute: int = Field(default=12, ge=1, le=6000)
     gemini_embedding_requests_per_minute: int = Field(default=12, ge=1, le=6000)
     gemini_content_tokens_per_minute: int = Field(default=200000, ge=1)

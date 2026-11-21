@@ -21,6 +21,30 @@ from lerny.models import GeminiQuota, uid
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
 _verifying = ContextVar("gemini_verifying", default=False)
+_paid_job = ContextVar("gemini_paid_review_job", default=False)
+
+
+@contextmanager
+def review_job(session, job, config):
+    from lerny.models import ContentGeneration, Material, MaterialVersion
+
+    allowed = False
+    if (config.gemini_review_quota_project and config.gemini_review_week is not None
+            and job.course_id == config.gemini_review_course_id):
+        if job.kind == "extract":
+            week = session.scalar(select(Material.week)
+                .join(MaterialVersion, MaterialVersion.material_id == Material.id)
+                .where(MaterialVersion.id == job.payload.get("version_id"), Material.course_id == job.course_id))
+            allowed = week == config.gemini_review_week
+        elif job.kind == "questions":
+            week = session.scalar(select(ContentGeneration.week).where(
+                ContentGeneration.id == job.payload.get("generation_id"), ContentGeneration.course_id == job.course_id))
+            allowed = week == config.gemini_review_week
+    token = _paid_job.set(allowed)
+    try:
+        yield
+    finally:
+        _paid_job.reset(token)
 
 
 @contextmanager
@@ -35,7 +59,7 @@ def verification():
 def request_purpose(path, config):
     if path.endswith(":embedContent"):
         return "embedding"
-    if path == "interactions" and _verifying.get() and config.gemini_review_quota_project:
+    if path == "interactions" and _verifying.get() and _paid_job.get() and config.gemini_review_quota_project:
         return "review"
     return "content"
 

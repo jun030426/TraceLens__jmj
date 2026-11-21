@@ -8,7 +8,6 @@ import os
 import shutil
 import sys
 import time
-from datetime import timezone
 from pathlib import Path
 
 from sqlalchemy import select
@@ -121,17 +120,7 @@ def selection(output, plan, source_sha, suffix, summary):
         "accuracy_pct": None, "scope": "model_source_review_and_calculation_gates_not_measured_accuracy"}}
 
 
-def review_model(path, uploaded_at, config):
-    cutoff = config.gemini_ppt_31_from
-    if path.suffix.lower() == ".pptx" and config.gemini_review_quota_project and cutoff:
-        # SQLite test timestamps are naive UTC; production uses timestamptz.
-        stamp = uploaded_at if uploaded_at.tzinfo else uploaded_at.replace(tzinfo=timezone.utc)
-        if stamp >= cutoff:
-            return "gemini-3.1-flash-lite"
-    return config.gemini_answer_model
-
-
-def process(path, folder, source_sha, check, report, *, model=None):
+def process(path, folder, source_sha, check, report):
     from lerny.gemini_provider import media_call_budget
     from lerny.gemini_quota import ProviderDeferred, verification
     from lerny.media_materials import MediaStopped, service_transport
@@ -139,7 +128,7 @@ def process(path, folder, source_sha, check, report, *, model=None):
     from video_extraction.shared.gemini import Blocked
     from video_extraction.shared.progress import reporting
     config = settings()
-    model = model or config.gemini_answer_model
+    model = config.gemini_answer_model
     if config.ai_provider != "gemini":
         raise ValueError("DOCUMENT_GEMINI_REQUIRED")
     if digest_file(path) != source_sha:
@@ -258,8 +247,7 @@ def extract_job(session, job, version, material):
         finally:
             temporary.unlink(missing_ok=True)
     check()
-    result = process(path, folder, version.sha256, check, reporter(job.id, job.lease_token, version.id),
-                     model=review_model(path, version.created_at, config))
+    result = process(path, folder, version.sha256, check, reporter(job.id, job.lease_token, version.id))
     check()
     return publish_extraction(session, job, version, material, {"source_sha256": version.sha256},
                               result["chunks"], result["held"], result["evidence"])
