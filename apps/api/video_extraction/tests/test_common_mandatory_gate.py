@@ -57,6 +57,33 @@ class MandatoryGateTests(unittest.TestCase):
             _,r=self.process(self.candidate(b,copy.deepcopy(b)))
             self.assertTrue(r['records'][0]['eligible_for_chunking']);self.assertEqual(r['changes'],[])
 
+    def test_reversed_initial_boxes_are_held_without_losing_verified_text(self):
+        from video_extraction.tests.test_vision_layers import block as text_block, visual
+
+        valid = text_block('title', 'Lesson title')
+        invalid = [dict(visual('diagram-x'), bbox=[830, 30, 120, 170]),
+                   dict(text_block('caption-y', 'unverified'), bbox=[210, 575, 450, 445])]
+        initial = {'blocks': [valid, invalid[1]], 'visuals': [invalid[0]], 'readable': True, 'notes': []}
+
+        class Client:
+            model = 'fixture'
+
+            def call(self, stage, media, prompt, schema):
+                if stage == 'layers_extract':
+                    return copy.deepcopy(initial)
+                if stage == 'layers_audit':
+                    return {'text_regions': [], 'visual_regions': [], 'complete_scan': True, 'notes': []}
+                raise AssertionError(stage)
+
+        result = m.process_visual(self.out, self.p, {**self.t, 'source_kind': 'ppt'}, Client(), [])
+        selected = [row['observed_text'] for row in result['records'] if row['eligible_for_chunking']]
+        self.assertEqual(selected, ['Lesson title'])
+        coverage = next(row for row in result['records'] if row['kind'] == 'coverage_issue')
+        self.assertFalse(coverage['eligible_for_chunking'])
+        self.assertCountEqual([h['observation'] for h in coverage['raw_findings']
+                               if h['reason'] == 'invalid_bbox'], invalid)
+        self.assertEqual(read(self.out/'model-candidates/vision/u/original.json'), initial)
+
     def test_supported_content_change_at_same_target_survives(self):
         _,r=self.process(self.candidate(block('VR TOUR','text'),block('MR TOUR','text')))
         self.assertEqual(r['records'][0]['observed_text'],'MR TOUR');self.assertTrue(r['records'][0]['eligible_for_chunking'])
