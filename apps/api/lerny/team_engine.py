@@ -189,14 +189,48 @@ def five_questions(rows, course_id, concept, source_map, evidence, checked_model
     from quiz_mvp.generation import generate
     from lerny.assessment import Generated, GeneratedSet
 
-    chunks = [source_item(row, course_id) for row in rows]
-    by_id = {row[0].id: row[0] for row in rows}
-    scoped = SimpleNamespace(concepts={concept.id: concept.name}, context={"subject_name": concept.name},
+    # A slide can contain both a table and an example. Give each exact source
+    # excerpt one ID, without exposing a competing material or version ID.
+    chunks, by_id = [], {}
+    for chunk, _, _ in rows:
+        for start in range(0, len(chunk.content), 1200):
+            quote = chunk.content[start:start+1200]
+            if len(quote.strip()) < 4:
+                continue
+            key = f'E{len(chunks)+1}'
+            chunks.append({'id':key,'text':quote})
+            by_id[key] = (chunk, quote)
+    if not chunks:
+        raise ValueError('NO_PUBLIC_EVIDENCE')
+    draft_source = None
+
+    def pick_source(prompt, schema):
+        nonlocal draft_source
+        system, raw = prompt.rsplit('\n', 1)
+        data = json.loads(raw)
+        verifying = 'single_correct' in schema['properties']
+        allowed = [draft_source] if verifying else list(by_id)
+        if verifying:
+            # Solve independently from the cited passage, without the draft key.
+            data['evidence'] = {'sources': [s for s in chunks if s['id'] == draft_source]}
+        fields = {k:v for k,v in schema['properties'].items() if k != 'quote'}
+        fields['source_id'] = {'type':'string','enum':allowed}
+        contract = {**schema,'properties':fields,'required':[k for k in schema['required'] if k != 'quote']}
+        output = checked_model(system+'\nSelect the source_id of the exact passage supporting the entire answer. '
+            'The server attaches its verbatim text. Do not copy a quote.\n'+json.dumps(data,ensure_ascii=False), contract)
+        selected = output.get('source_id')
+        if selected not in allowed:
+            raise ValueError('INVALID_CITATION')
+        if not verifying:
+            draft_source = selected
+        return {**output,'quote':by_id[selected][1]}
+
+    scoped = SimpleNamespace(concepts={concept.id: concept.name}, context={"subject_name": concept.name}, repair_items=True,
                              retrieve=lambda query: {"query": query, "sources": chunks})
-    quiz = generate(scoped, ServiceGoogle(checked_model), concept=concept.id, generation_id=job_id)
+    quiz = generate(scoped, ServiceGoogle(pick_source), concept=concept.id, generation_id=job_id)
     items = []
     for position, item in enumerate(quiz["questions"], 1):
-        source = by_id[item["source_id"]]
+        source, _ = by_id[item["source_id"]]
         quote = verbatim_source_quote(item["quote"], source.content)
         if not quote:
             raise ValueError("INVALID_CITATION")
