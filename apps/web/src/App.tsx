@@ -29,6 +29,7 @@ import {
   ProfessorWorkspace,
 } from "./Flow";
 import { api, post, type Classroom } from "./api";
+import { QuizArchive } from "./QuizArchive";
 import { PracticeWorkspace, PracticeResults } from "./Practice";
 import { StudentExamPrep } from "./ExamPrep";
 import { InstructorClass } from "./Instructor";
@@ -54,6 +55,7 @@ function useClassroomContext(userId?: string) {
     const path = location.pathname;
     const resultId = path.match(/^\/quiz\/results\/([^/]+)$/)?.[1];
     const sectionId =
+      path.match(/^\/quiz\/([^/]+)\/archive(?:\/|$)/)?.[1] ||
       path.match(/^\/(?:classrooms|quiz)\/([^/]+)$/)?.[1] ||
       path.match(/^\/classrooms\/([^/]+)\/(?:practice(?:\/results)?|lectures)$/)?.[1] ||
       (["/ai", "/quiz", "/attendance"].includes(path)
@@ -128,6 +130,7 @@ function Shell() {
       pathname === "/mypage" ||
       /^\/classrooms\/[^/]+\/lectures$/.test(pathname) ||
       /^\/classrooms\/[^/]+\/practice(?:\/results)?$/.test(pathname) ||
+      /^\/quiz\/[^/]+\/archive(?:\/|$)/.test(pathname) ||
       pathname === "/quiz" ||
       /^\/quiz\/(?:results\/)?[^/]+$/.test(pathname) ||
       /^\/classrooms\/[^/]+$/.test(pathname)) &&
@@ -283,6 +286,9 @@ function Shell() {
         }
       >
         <Routes>
+          <Route path="/quiz/:sectionId/archive/:week?" element={<Guard><StudentOnly><QuizArchive /></StudentOnly></Guard>} />
+          <Route path="/quiz/:sectionId/archive/:week/theory" element={<Guard><StudentOnly><QuizArchive theory /></StudentOnly></Guard>} />
+          <Route path="/quiz/:sectionId/archive/:week/theory/:dayIndex" element={<Guard><StudentOnly><QuizTakeFlow /></StudentOnly></Guard>} />
           <Route path="/materials/:materialId/view" element={<Guard><StudentOnly><MaterialViewer /></StudentOnly></Guard>} />
           <Route path="/classrooms/:sectionId/lectures" element={<Guard><StudentOnly><InstructorClass /></StudentOnly></Guard>} />
           <Route path="/classrooms/:sectionId/practice/results" element={<Guard><StudentOnly><PracticeResults /></StudentOnly></Guard>} />

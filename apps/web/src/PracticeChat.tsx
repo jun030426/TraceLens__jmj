@@ -77,7 +77,8 @@ export function suggestedQuestions(ctx: PracticeChatContext): string[] {
 type Item = { id?: string; question: string; withContext: boolean; answer?: Answer; error?: string; fresh?: boolean };
 /** 실습 질문 이력 한 줄 — AI 질문 화면과 따로, 서버에 저장된 실습 질문만 모아 보여 줘요 */
 type Saved = { id?: string; feedback?: FeedbackValue; at: string; week?: number | null; problem: string; question: string; answer: string; citations?: Answer["citations"] };
-export function PracticeChat({ sectionId, courseId, open, onClose, context, draftRequest }: {
+export function PracticeChat({ planId, sectionId, courseId, open, onClose, context, draftRequest }: {
+  planId?: string;
   sectionId: string;
   courseId: string;
   open: boolean;
@@ -167,7 +168,7 @@ export function PracticeChat({ sectionId, courseId, open, onClose, context, draf
     setBusy(true); setError("");
     try {
       const r = await api<{ job_id: string; thread_id: string; resource_id: string }>(`/sections/${sectionId}/chat/messages`, {
-        ...post(practiceChatBody(question, context.exerciseId, thread, withContext ? practiceContextText(context) : undefined)),
+        ...post({...practiceChatBody(question, context.exerciseId, thread, withContext ? practiceContextText(context) : undefined), plan_id: planId}),
         headers: { "Idempotency-Key": crypto.randomUUID() },
       });
       setThread(r.thread_id);

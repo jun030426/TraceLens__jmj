@@ -10,7 +10,7 @@ from sqlalchemy import select
 from lerny.evaluation import ensure_epoch, lock_course_for_artifact_commit
 from lerny.gemini_quota import verification
 from lerny.learning import apply_review, valid_sources
-from lerny.models import Attempt, Concept, Course, Question
+from lerny.models import Attempt, Concept, Course, Question, TheoryRetake, grading_attempt
 from lerny.retrieval import internal_validation_context, search_public
 
 
@@ -239,10 +239,11 @@ class Grade(BaseModel):
 def grade_job(session, job):
     from lerny.worker import model_json
 
-    attempt = session.get(Attempt, job.payload["attempt_id"])
-    if not attempt or attempt.student_id != job.owner_id:
+    attempt = grading_attempt(session, job)
+    original = session.get(Attempt, attempt.original_id) if isinstance(attempt, TheoryRetake) else attempt
+    if not original or original.student_id != job.owner_id:
         raise ValueError("ACCESS_REVOKED")
-    q = session.get(Question, attempt.question_id)
+    q = session.get(Question, original.question_id)
     if not q or q.course_id != job.course_id:
         raise ValueError("ACCESS_REVOKED")
     epoch = session.get(Course, job.course_id).access_epoch
@@ -358,5 +359,6 @@ def grade_job(session, job):
         if certain
         else [],
     }
-    apply_review(session, attempt)
+    if isinstance(attempt, Attempt):
+        apply_review(session, attempt)
     return {"attempt_id": attempt.id, "status": attempt.status}

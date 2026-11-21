@@ -1,3 +1,4 @@
+import { archivePath } from "./QuizArchive";
 import { notifyPracticeSubmit } from "./xp/practiceXp";
 import { isComposingInput } from "./inputKeyboard";
 import { practiceSubmitBody } from "./learningRequests";
@@ -51,6 +52,8 @@ type PracticeDaily = { id?: string; items: BlankQuiz[]; status: string; week: nu
 
 export function PracticeWorkspace() {
   const { sectionId = "" } = useParams();
+  const [params] = useSearchParams();
+  const week = params.get("week");
   const rooms = useLoad<{ items: Classroom[] }>("/classrooms");
   const room = rooms.data?.items.find(r => r.section.id === sectionId && r.status === "active");
   const [data, setData] = useState<PracticeDaily>();
@@ -61,7 +64,7 @@ export function PracticeWorkspace() {
     setData(undefined); setError("");
     const load = async () => {
       try {
-        const result = await api<PracticeDaily>(`/sections/${sectionId}/practice/daily`, post({}));
+        const result = await api<PracticeDaily>(week ? `/sections/${sectionId}/quiz-archive/${encodeURIComponent(week)}/practice` : `/sections/${sectionId}/practice/daily`, post({}));
         if (!active) return;
         setData(result);
         if (result.status === "preparing") timer = setTimeout(load, 7000);
@@ -69,18 +72,20 @@ export function PracticeWorkspace() {
     };
     if (room) void load();
     return () => { active = false; clearTimeout(timer); };
-  }, [sectionId, room?.section.id, reload]);
+  }, [sectionId, room?.section.id, week, reload]);
   if (!room || !data?.items.length) return <section className="student-home practice-page">
-    <Link to={`/quiz?section=${sectionId}`}>← 퀴즈 목록</Link><h1>오늘의 실습</h1>
+    <Link to={week ? archivePath(sectionId, week) : `/quiz?section=${sectionId}`}>← 퀴즈 목록</Link><h1>{week ? `${week}주차 실습 퀴즈` : "오늘의 실습"}</h1>
     <ErrorNotice text={rooms.error || error} />
-    <Notice>{data?.message || "이번 주 강의자료의 실습을 준비하고 있어요."}</Notice>
+    <Notice>{data?.message || (week ? "주차 실습을 불러오는 중이에요." : "이번 주 강의자료의 실습을 준비하고 있어요.")}</Notice>
     <button onClick={() => setReload(v => v + 1)}>다시 확인</button>
   </section>;
-  return <PracticeEditor key={`${sectionId}:${data.id}`} room={room} quizzes={data.items} planId={data.id!} />;
+  return <PracticeEditor key={`${sectionId}:${data.id}`} room={room} quizzes={data.items} planId={data.id!} week={week} />;
 }
 
-function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: BlankQuiz[]; planId: string }) {
+function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quizzes: BlankQuiz[]; planId: string; week: string | null }) {
   const sectionId = room.section.id;
+  const archivePlan = week ? planId : undefined;
+  const back = week ? archivePath(sectionId, week) : `/quiz?section=${sectionId}`;
   const navigate = useNavigate();
   const { user } = useContext(Auth);
   const language: Language = ({ python: "Python", java: "Java", c: "C" } as Record<string, Language>)[room.course.teaching_language.toLowerCase()] || "Python";
@@ -145,8 +150,8 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
   // Only a stored final submission unlocks the server-authorized explanation.
   const [answerShown, setAnswerShown] = useState<Record<string, boolean>>({});
   const [explanations, setExplanations] = useState<Record<string, PracticeExplanation>>({});
-  const submissions = useLoad<{ items: PracticeAttempt[] }>(`/sections/${sectionId}/practice/attempts`, true);
-  const answerUnlocked = !!submissions.data?.items.some(a => a.practice_session_id === planId && a.exercise_id === quiz.id);
+  const submissions = useLoad<{ items: PracticeAttempt[] }>(`/sections/${sectionId}/practice/attempts${week ? "?plan_id=" + planId : ""}`, true);
+  const answerUnlocked = !!submissions.data?.items.some(a => (!!week || a.practice_session_id === planId) && a.exercise_id === quiz.id);
   const explanation = answerUnlocked && answerShown[quiz.id] ? explanations[quiz.id] : undefined;
   const showAnswer = !!explanation;
   const [copyFillsByQuiz, setCopyFillsByQuiz] = useState<Record<string, Record<number, string>>>({});
@@ -166,7 +171,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
   const requestBusy = useRef(false);
   const [submitError, setSubmitError] = useState("");
   const [localPending, setLocalPending] = useState(false);
-  const latest = submissions.data?.items.find(a => a.exercise_id === quiz.id && a.practice_session_id === planId);
+  const latest = submissions.data?.items.find(a => a.exercise_id === quiz.id && (!!week || a.practice_session_id === planId));
   const editedSinceSubmission = latest?.source != null && latest.source.replace(/\r/g, "").trim() !== runnable.code.replace(/\r/g, "").trim();
   const pending = localPending || !!submissions.data?.items.some(a => a.status === "pending");
   useEffect(() => {
@@ -176,7 +181,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
   }, [pending, submissions.reload]);
   useEffect(() => { if (submissions.data) setLocalPending(false); }, [submissions.data]);
   const logHelp = async (kind: "chat") => {
-    try { await api(`/sections/${sectionId}/practice/help`, post({ exercise_id: quiz.id, kind })); }
+    try { await api(`/sections/${sectionId}/practice/help`, post({ exercise_id: quiz.id, kind, plan_id: archivePlan })); }
     catch (e) { setSubmitError((e as Error).message); }
   };
   const revealAnswer = async () => {
@@ -184,7 +189,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
     if (showAnswer) { setAnswerShown(v => ({...v, [quiz.id]: false})); return; }
     setRevealing(true); setSubmitError("");
     try {
-      const result = await api<{explanation: PracticeExplanation}>(`/sections/${sectionId}/practice/help`, post({exercise_id: quiz.id, kind: "answer"}));
+      const result = await api<{explanation: PracticeExplanation}>(`/sections/${sectionId}/practice/help`, post({exercise_id: quiz.id, kind: "answer", plan_id: archivePlan}));
       setExplanations(v => ({...v, [quiz.id]: result.explanation}));
       setAnswerShown(v => ({...v, [quiz.id]: true}));
     } catch (e) { setSubmitError((e as Error).message); }
@@ -198,7 +203,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
     const source = runnable.code;
     try {
       if (!await confirm({ title: "최종 제출할까요?", message: "현재 작성한 코드를 저장하고 채점해요. 실행 화면의 출력 비교와 최종 채점 결과는 다를 수 있어요.", confirmLabel: "제출하기", cancelLabel: "더 풀어 볼게요" })) return;
-      await api(`/sections/${sectionId}/practice/submit`, post(practiceSubmitBody(quiz.id, source)));
+      await api(`/sections/${sectionId}/practice/submit`, post({...practiceSubmitBody(quiz.id, source), plan_id: archivePlan}));
       notifyPracticeSubmit();
       setLocalPending(true); submissions.reload();
     } catch (e) { setSubmitError((e as Error).message); }
@@ -232,7 +237,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
           confirmLabel: "퀴즈 마치기", cancelLabel: "계속 풀기", tone: "warn",
         })) return;
       }
-      navigate(`/quiz?section=${encodeURIComponent(sectionId)}`);
+      navigate(back);
     } catch (error) {
       setSubmitError((error as Error).message);
     } finally {
@@ -251,12 +256,12 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
   const commentMark = language === "Python" ? "#" : "//";
   // 자동수정 안내는 학생이 실행한 뒤에만 — 고칠 곳을 학생이 직접 따라 쓰면 사라져요. 답지를 켜면 답지가 우선이에요.
   const fixShown = isFull && userRan && !!fix?.fixes.length;
-  const chatContext = useMemo<PracticeChatContext>(() => ({ exerciseId: quiz.id, number: quizzes.indexOf(quiz) + 1, language, title: quiz.title, description: quiz.description, template, fills, verdict, viz: shownViz, week: room?.current_week }), [language, quiz, quizzes, template, fills, verdict, shownViz, room?.current_week]);
+  const chatContext = useMemo<PracticeChatContext>(() => ({ exerciseId: quiz.id, number: quizzes.indexOf(quiz) + 1, language, title: quiz.title, description: quiz.description, template, fills, verdict, viz: shownViz, week: week ? Number(week) : room.current_week }), [week, language, quiz, quizzes, template, fills, verdict, shownViz, room?.current_week]);
   const askAbout = (text: string) => { setChatDraft(d => ({ text, seq: (d?.seq || 0) + 1 })); void logHelp("chat"); setChatOpen(true); };
   return <section className="student-home practice-page">
     {confirmDialog}
-    <Link className="cr-back" to={`/quiz?section=${sectionId}`}>← 퀴즈 목록</Link>
-    <div className="practice-heading"><div><h1>오늘의 실습</h1><p>{room?.course.title.split(/\s+[—–]\s+/)[0] || "실습"}{room ? ` · ${room.section.title}` : ""} · 수업 언어 {language}</p></div><div className="practice-heading-side"><span className="practice-draft-note">수업에 지정된 언어로 실습을 진행해요.</span></div></div>
+    <Link className="cr-back" to={back}>← {week ? `${week}주차 퀴즈` : "퀴즈 목록"}</Link>
+    <div className="practice-heading"><div><h1>{week ? `${week}주차 실습 퀴즈` : "오늘의 실습"}</h1><p>{room?.course.title.split(/\s+[—–]\s+/)[0] || "실습"}{room ? ` · ${room.section.title}` : ""} · 수업 언어 {language}</p></div><div className="practice-heading-side"><span className="practice-draft-note">수업에 지정된 언어로 실습을 진행해요.</span></div></div>
     <ErrorNotice text={submitError || submissions.error} />
     {submissions.error && <button onClick={submissions.reload}>제출 기록 다시 불러오기</button>}
     <>
@@ -265,8 +270,8 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
       <div className="practice-left">
         <section className="practice-card">
           <div className="practice-tabbar">
-            <div className="practice-num-tabs" role="group" aria-label="오늘의 문제">{quizzes.map((q, i) => <button key={q.id} type="button" disabled={!!stage || submitting || assistBusy || revealing} aria-pressed={q.id === quiz.id} title={q.title} onClick={() => goToQuiz(i)}>문제 {i + 1}</button>)}</div>
-            <div className="practice-types" aria-label="일일 실습 구성"><span className="practice-types__kind">{isFull ? "전체 구현" : "빈칸 채우기"}</span><span className="practice-types__count">하루 {quizzes.length}문제</span></div>
+            <div className="practice-num-tabs" role="group" aria-label={week ? "주차 실습 문제" : "오늘의 문제"}>{quizzes.map((q, i) => <button key={q.id} type="button" disabled={!!stage || submitting || assistBusy || revealing} aria-pressed={q.id === quiz.id} title={q.title} onClick={() => goToQuiz(i)}>문제 {i + 1}{week && submissions.data?.items.some(a => a.exercise_id === q.id) && <span aria-label="제출 완료"> ✓</span>}</button>)}</div>
+            <div className="practice-types" aria-label="일일 실습 구성"><span className="practice-types__kind">{isFull ? "전체 구현" : "빈칸 채우기"}</span><span className="practice-types__count">{week ? "주차 전체" : "하루"} {quizzes.length}문제</span></div>
           </div>
           <div className="practice-q-head">
             <h2>문제{quizzes.indexOf(quiz) + 1}. {quiz.title}</h2>
@@ -277,7 +282,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
             ? <div className="practice-problem-description"><LearningText text={quiz.helpers_guide_text} /></div>
             : !!quiz.available_helpers?.length && <p className="muted">사용 가능한 도구: {quiz.available_helpers.join(", ")}</p>}
           <div className="practice-example">{quiz.example_input && <div><h4>예시 입력 선언</h4><pre><code>{quiz.example_input}</code></pre></div>}<div><h4>예시 출력</h4><pre><code>{quiz.expected || "(출력 없음)"}</code></pre></div></div>
-          <details className="practice-hint-drawer" key={quiz.id}><summary>막힐 때 단계별 힌트 보기</summary><PracticeHints sectionId={sectionId} exerciseId={quiz.id} onBusyChange={setAssistBusy} /></details>
+          <details className="practice-hint-drawer" key={quiz.id}><summary>막힐 때 단계별 힌트 보기</summary><PracticeHints planId={archivePlan} sectionId={sectionId} exerciseId={quiz.id} onBusyChange={setAssistBusy} /></details>
           <section className="practice-editor-panel" aria-labelledby="practice-editor-title">
             <div className="practice-editor-toolbar">
               <div className="practice-editor-title"><h2 id="practice-editor-title">{isFull ? "코드 작성" : "빈칸 채우기"}</h2><PracticeGuide full={isFull} /></div>
@@ -337,7 +342,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
           {!latest.independent && " · 도움을 받은 풀이"}
           {editedSinceSubmission && <p>현재 편집한 코드의 결과는 최종 제출 후 확인해요.</p>}
           {latest.status === "held" && latest.job_id && <button onClick={async () => { try { await api(`/jobs/${latest.job_id}/retry`, post({})); submissions.reload(); } catch (e) { setSubmitError((e as Error).message); } }}>검증 다시 시도</button>}
-          <Link to={`/classrooms/${sectionId}/practice/results?plan=${encodeURIComponent(planId)}`}>제출 기록 보기</Link>
+          <Link to={`/classrooms/${sectionId}/practice/results?plan=${encodeURIComponent(planId)}${week ? "&week="+week : ""}`}>제출 기록 보기</Link>
         </Notice>}
         <section className="practice-output-panel"><div className="practice-output-tabs" role="tablist" aria-label="결과 보기">{["실행 결과", "시각화"].map(t => <button role="tab" id={`practice-tab-${t}`} aria-selected={resultTab === t} aria-controls="practice-output" key={t} onClick={() => setResultTab(t)}>{t}</button>)}</div><div id="practice-output" role="tabpanel" aria-labelledby={`practice-tab-${resultTab}`} aria-live="polite" className="practice-output-body"><VizLineContext.Provider value={setVizLine}><PracticeOutput tab={resultTab} run={run} stage={stage} code={runnable.code} incomplete={runnable.unfilled.length > 0} blankLines={template.blanks} fixes={fixShown ? fix!.fixes : undefined} /></VizLineContext.Provider></div>
           {isFull && resultTab === "실행 결과" && <div className="practice-expected"><span>출력 값</span><code>{quiz.expected}</code></div>}
@@ -349,7 +354,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
           </div>}</section>
       </div>
     </div><p className="practice-mobile-note">실습 코드 작성은 넓은 데스크톱 화면에서 이용하면 더 편리해요.</p>
-    <PracticeChat key={`${sectionId}:${quiz.id}`} sectionId={sectionId} courseId={room.course.id} open={chatOpen} onClose={() => setChatOpen(false)} context={chatContext} draftRequest={chatDraft} />
+    <PracticeChat planId={archivePlan} key={`${sectionId}:${quiz.id}`} sectionId={sectionId} courseId={room.course.id} open={chatOpen} onClose={() => setChatOpen(false)} context={chatContext} draftRequest={chatDraft} />
     {/* 질문 창은 오른쪽 아래 둥근 아이콘으로 열고 닫아요 — 지금 문제·코드·채점 상황은 그대로 함께 보내요 */}
     <button type="button" className={`practice-chat-fab ${chatOpen ? "is-open" : ""}`} onClick={() => setChatOpen(v => !v)} aria-expanded={chatOpen} aria-label={chatOpen ? "질문 창 닫기" : "이 문제 질문하기"}>
       {chatOpen ? <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
@@ -453,6 +458,7 @@ export function PracticeResults() {
   const { sectionId = "" } = useParams();
   const [params] = useSearchParams();
   const plan = params.get("plan");
+  const week = params.get("week");
   const result = useLoad<{ items: PracticeAttempt[] }>(`/sections/${sectionId}/practice/attempts${plan ? "?plan_id="+encodeURIComponent(plan) : ""}`);
   const rows = result.data?.items || [];
   const [selected, setSelected] = useState("");
@@ -464,10 +470,10 @@ export function PracticeResults() {
     return () => clearInterval(timer);
   }, [result.data, result.reload]);
   return <section className="student-home practice-results-page">
-    <Link className="cr-back" to={`/quiz?section=${sectionId}`}>← 퀴즈 목록</Link>
+    <Link className="cr-back" to={week ? archivePath(sectionId, week) : `/quiz?section=${sectionId}`}>← 퀴즈 목록</Link>
     <div className="result-titlebar"><h1>실습 결과와 복습</h1><p className="result-intro">제출한 코드와 검증 결과를 다시 확인하세요.</p></div>
     <ErrorNotice text={result.error} />
-    <section className="practice-result-summary"><h2>{plan ? "오늘 배정된 실습 제출 기록" : "내 실습 제출 기록"}</h2>
+    <section className="practice-result-summary"><h2>{week ? `${week}주차 실습 제출 기록` : plan ? "오늘 배정된 실습 제출 기록" : "내 실습 제출 기록"}</h2>
       <div className="practice-result-metrics"><div><span>제출한 답안</span><strong>{rows.length}</strong></div><div><span>검증 통과</span><strong>{rows.filter(r => r.correct).length}</strong></div><div><span>검증 대기·보류</span><strong>{rows.filter(r => r.status !== "graded").length}</strong></div></div>
     </section>
     {!rows.length && <Notice>{result.data ? "아직 최종 제출한 실습이 없어요." : "제출 기록을 불러오는 중이에요."}</Notice>}
@@ -476,6 +482,6 @@ export function PracticeResults() {
     </section><section className="practice-result-card">
       <div className="practice-output-tabs">{["테스트 결과", "제출 코드", "답지·해설"].map(t => <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>{t}</button>)}</div>
       {current && (tab === "답지·해설" ? <PracticeAttemptReview key={current.id} sectionId={sectionId} attemptId={current.id} /> : tab === "제출 코드" ? <pre><code>{current.source}</code></pre> : <><h3>{current.feedback?.message || "격리 실행 결과를 기다리고 있어요."}</h3><p>{current.feedback?.total != null && `${current.feedback.passed}/${current.feedback.total}개 입력 검증 통과`}</p><p>{current.independent ? "독립적으로 제출한 풀이" : "도움을 받은 풀이"}</p></>)}
-    </section></div><Link className="ln-cta" to={`/classrooms/${sectionId}/practice`}>실습 풀이로 이동 ↗</Link>
+    </section></div><Link className="ln-cta" to={`/classrooms/${sectionId}/practice${week ? "?week="+week : ""}`}>실습 풀이로 이동 ↗</Link>
   </section>;
 }
