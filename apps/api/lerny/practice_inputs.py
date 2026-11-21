@@ -1,5 +1,6 @@
 """Adapt numeric input prefixes to literal fixtures without executing source locally."""
 import ast
+import hashlib
 import json
 import math
 import re
@@ -7,9 +8,10 @@ import re
 
 def numeric_source(text):
     match = re.fullmatch(r'\s*```python\r?\n(.*?)\r?\n```\s*', text, re.S)
-    if not match:
-        return None
-    code = match[1]
+    return numeric_program(match[1]) if match else None
+
+
+def numeric_program(code):
     try:
         tree = ast.parse(code)
     except (SyntaxError, ValueError):
@@ -73,8 +75,48 @@ def literal_inputs(statement, variants):
     return values
 
 
-def adapted_programs(chunks, generate):
-    sources = {chunk.id: source for chunk in chunks if (source := numeric_source(chunk.content))}
+def reviewed_programs(chunk, page_shapes):
+    """Recover a complete, attested native shape even when a page also contains sample output."""
+    engine = (getattr(chunk, 'locator', None) or {}).get('engine', {})
+    if engine.get('document_type') != 'pptx':
+        return
+    region = engine.get('source_region', {})
+    hashes = set()
+    if region.get('kind') == 'text' and region.get('source_sha256') == engine.get('source_sha256'):
+        hashes.add(region.get('text_sha256'))
+    if engine.get('quality') == 'visually_reviewed_native_text_v1':
+        for shape_id in engine.get('reviewed_shape_ids', []):
+            hashes.add(page_shapes.get((chunk.version_id, engine.get('source_sha256'), engine.get('slide_number'), shape_id)))
+    hashes.discard(None)
+    if not hashes:
+        return
+    # Reviewed pages join native shapes with two line breaks. Interior blank
+    # lines are kept when reconstructing the exact hash-verified source.
+    blocks = chunk.content.split('\n\n')
+    for first, block in enumerate(blocks):
+        if not re.match(r'\s*\w+\s*=\s*(?:int|float)\s*\(', block):
+            continue
+        for end in range(first + 1, len(blocks) + 1):
+            code = '\n\n'.join(blocks[first:end])
+            digest = hashlib.sha256(code.encode()).hexdigest()
+            if digest in hashes and (source := numeric_program(code)):
+                yield digest, source
+
+
+def adapted_programs(chunks, generate, versions=()):
+    page_shapes = {(v.id, review['source_sha256'], page['page'], shape['shape_id']): shape['text_sha256']
+        for v in versions for entry in (v.extraction_report or {}).get('source_reviews', [])
+        if (review := entry.get('review', {})) and review.get('source_sha256') == v.sha256
+        for page in review.get('pages', []) for shape in page.get('shapes', []) if not shape.get('picture_sha256')}
+    sources, chunk_ids = {}, {}
+    for chunk in chunks:
+        if source := numeric_source(chunk.content):
+            sources[chunk.id] = source
+            chunk_ids[chunk.id] = chunk.id
+        for digest, source in reviewed_programs(chunk, page_shapes):
+            key = f'{chunk.id}/{digest[:16]}'
+            sources[key] = source
+            chunk_ids[key] = chunk.id
     if not sources:
         return []
     output = generate(
@@ -139,7 +181,7 @@ def adapted_programs(chunks, generate):
         if not numbers:
             raise ValueError('INVALID_PRACTICE_BLANK')
         program = SourceProgram.model_validate({
-            'source_id':proposal['source_id'],'concept_id':None,'code':adapted,
+            'source_id':chunk_ids[proposal['source_id']],'concept_id':None,'code':adapted,
             'input_statement':declarations[0],'variants':declarations[1:],
             'title':proposal.get('title'),'prompt':proposal.get('prompt'),
             'blank_lines':numbers,
