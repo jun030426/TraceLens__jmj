@@ -159,8 +159,11 @@ def test_upload_through_student_publication_without_video(weekly, configured, fa
     exercises = client.post("/api/v1/sections/section/practice/daily")
     assert exercises.status_code == 200, exercises.text
     assert exercises.json()["week"] == week
-    assert {e["kind"] for e in exercises.json()["items"]} == {"blank","full"}
-    assert all("reference" not in e and "solution" not in e for e in exercises.json()["items"])
+    problems = exercises.json()["items"]
+    assert len(problems) == program_count
+    assert all(set(p["variants"]) == {"blank", "full"} for p in problems)
+    assert {v["exercise_id"] for p in problems for v in p["variants"].values()} == {e["id"] for e in data["practice"]}
+    assert all("reference" not in v and "solution" not in v for p in problems for v in p["variants"].values())
     from lerny.retrieval import search_public
     assert search_public(session, "course", f"WeekConcept{week}", version_ids=[u["version_id"] for u in uploads], published_only=True)
     # Switching weeks must not mutate or replace the existing published version/assets.

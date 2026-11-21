@@ -1,9 +1,9 @@
 import uuid
 from datetime import UTC, date, datetime
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, event, func, text
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import event
 
 
 def now():
@@ -370,6 +370,16 @@ class PracticeExercise(Identity, Base):
     tests: Mapped[list] = mapped_column(JSON, default=list)
     sources: Mapped[list] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(20), default="pending")
+
+    @hybrid_property
+    def problem_id(self):
+        """Both variants of a published source share an ID; unlinked legacy rows stand alone."""
+        return f"{self.generation_id}:{self.source_key}" if self.generation_id is not None else self.id
+
+    @problem_id.inplace.expression
+    @classmethod
+    def _problem_id_expression(cls):
+        return func.coalesce(cls.generation_id + ":" + cls.source_key, cls.id)
 
 
 class PracticeSession(Identity, Base):

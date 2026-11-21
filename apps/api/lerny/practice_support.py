@@ -1,6 +1,24 @@
 """Progressive practice support. No code execution and no hidden answers in views."""
 import ast
 
+from sqlalchemy import select
+
+from lerny.models import AuditEvent, PracticeAttempt, PracticeExercise, PracticeSession
+
+
+def problem_attempts(student_id, section_id, *columns):
+    return select(*columns).select_from(PracticeAttempt).join(PracticeExercise).where(
+        PracticeAttempt.student_id == student_id, PracticeAttempt.section_id == section_id)
+
+
+def first_problem_attempts(session, student_id, section_id, problem_ids):
+    query = problem_attempts(student_id, section_id, PracticeExercise.problem_id, PracticeAttempt)
+    attempts = {}
+    for problem_id, attempt in session.execute(query.where(PracticeExercise.problem_id.in_(problem_ids))
+            .order_by(PracticeAttempt.created_at, PracticeAttempt.id)):
+        attempts.setdefault(problem_id, attempt)
+    return attempts
+
 
 def metadata(exercise):
     requirements = [
@@ -51,25 +69,28 @@ def hints(exercise):
     return result
 
 
-def help_state(session, actor, plan, exercise):
-    from sqlalchemy import select
-    from lerny.models import AuditEvent, PracticeAttempt
+def problem_help_events(student_id, section_id, exercise):
+    return select(AuditEvent).where(AuditEvent.actor_id == student_id, AuditEvent.action == "practice_help",
+        AuditEvent.target_id.in_(select(PracticeSession.id).where(PracticeSession.student_id == student_id,
+            PracticeSession.section_id == section_id)),
+        AuditEvent.detail["exercise_id"].as_string().in_(select(PracticeExercise.id)
+            .where(PracticeExercise.problem_id == exercise.problem_id)))
 
-    events = list(session.scalars(select(AuditEvent).where(AuditEvent.actor_id == actor.id,
-        AuditEvent.target_id == plan.id, AuditEvent.action == "practice_help",
-        AuditEvent.detail["exercise_id"].as_string() == exercise.id)))
-    used = max((int(e.detail.get("step", 0)) for e in events if e.detail.get("kind") == "hint"), default=0)
+
+def help_state(session, actor, plan, exercise):
+    events = list(session.scalars(problem_help_events(actor.id, plan.section_id, exercise)))
+    used = max((int(e.detail["step"]) for e in events if e.detail.get("kind") == "hint"
+                and e.detail.get("exercise_id") == exercise.id and e.detail.get("step")), default=0)
     steps = hints(exercise)
     used = min(len(steps), used)
     wrong = list(session.scalars(select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
         PracticeAttempt.exercise_id == exercise.id, PracticeAttempt.practice_session_id == plan.id,
         PracticeAttempt.status == "graded", PracticeAttempt.correct.is_(False))))
-    submitted_query = select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
-        PracticeAttempt.section_id == plan.section_id, PracticeAttempt.exercise_id == exercise.id)
-    submitted = session.scalar(submitted_query.limit(1))
+    first = first_problem_attempts(session, actor.id, plan.section_id, [exercise.problem_id]).get(exercise.problem_id)
+    submitted_id = first.exercise_id if first else None
     return {"hints_used": used, "hints": steps[:used], "max_hint_steps": len(steps),
-            "failed_attempts": len(wrong), "can_view_answer": submitted is not None,
-            "independent": not bool(events)}
+            "failed_attempts": len(wrong), "can_view_answer": submitted_id == exercise.id,
+            "submitted_exercise_id": submitted_id, "independent": first.independent if first else not bool(events)}
 
 
 def format_inline_comment(line: str) -> str:
