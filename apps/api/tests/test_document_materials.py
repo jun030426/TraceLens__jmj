@@ -147,6 +147,60 @@ def upload(site, suffix, visibility="public"):
     return session.get(Job, data["processing_job_id"]), session.get(MaterialVersion, data["version_id"])
 
 
+def test_teacher_week_four_upload_recovers_native_region(site, synthetic_engine, monkeypatch):
+    from video_extraction.shared.gemini import Gemini
+    from lerny.ppt_source_index import POLICY
+    from lerny.rag_index import indexed_ids, store_vector
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    slide.shapes.add_textbox(0, 0, deck.slide_width, deck.slide_height // 3).text = TEXT
+    literal = "if x[0] > 10:\n    print('a  b')"
+    box = slide.shapes.add_textbox(0, deck.slide_height // 2, deck.slide_width, deck.slide_height // 3)
+    box.text = literal
+    stream = io.BytesIO()
+    deck.save(stream)
+    original_render = connected.base.adapters.prepare_source
+    original_call = Gemini.call
+    calls = []
+
+    def render(*args, **kwargs):
+        meta, units = original_render(*args, **kwargs)
+        units[0]["render_health"] = {"status": "checked"}
+        return meta, units
+
+    def call(self, stage, images, prompt, schema):
+        if stage == POLICY:
+            calls.append(stage)
+            assert len(images) == 2 and literal not in prompt
+            return {"regions": [{"id": str(box.shape_id), "text": literal, "complete": True, "clear": True}]}
+        return original_call(self, stage, images, prompt, schema)
+
+    monkeypatch.setattr(connected.base.adapters, "prepare_source", render)
+    monkeypatch.setattr(Gemini, "call", call)
+    client, session, _ = site
+    response = client.post("/api/v1/courses/course/materials",
+        data={"kind": "lecture", "week": "4", "visibility": "public"},
+        files={"file": ("native.pptx", stream.getvalue(), "application/octet-stream")})
+    assert response.status_code == 201, response.text
+    data = response.json()
+    assert worker.run_once(data["processing_job_id"])
+    session.expire_all()
+    v = session.get(MaterialVersion, data["version_id"])
+    assert v.status == "extracted", session.get(Job, data["processing_job_id"]).error_code
+    evidence = v.extraction_report["native_evidence"]["ppt_page_review"]
+    assert calls == [POLICY] and evidence["accepted"][0]["shape_id"] == box.shape_id
+    assert literal in v.extracted_text
+    def fake_embed(chunks, db):
+        for chunk in chunks:
+            store_vector(chunk, [1.0] + [0.0] * 767)
+    monkeypatch.setattr(worker, "embed_chunks", fake_embed)
+    job = session.scalar(select(Job).where(Job.kind == "embed", Job.payload["version_id"].as_string() == v.id))
+    assert worker.run_once(job.id)
+    session.expire_all()
+    chunks = list(session.scalars(select(Chunk).where(Chunk.version_id == v.id)))
+    assert v.status == "ready" and len(indexed_ids(chunks, validate_vectors=True)) == len(chunks)
+
+
 @pytest.mark.parametrize("suffix", [".pptx", ".pdf"])
 def test_site_upload_runs_common_gates_and_reuses_completed_results(site, synthetic_engine, suffix):
     client, session, tokens = site

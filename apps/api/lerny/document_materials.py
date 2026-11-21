@@ -188,6 +188,13 @@ def process(path, folder, source_sha, check, report):
             report("document_finalize", summary["completed"], summary["tasks"])
             with connected.lock(output):
                 result = selection(output, plan, source_sha, path.suffix, summary)
+            if path.suffix.lower() == ".pptx":
+                from lerny.ppt_source_index import supplement
+                from video_extraction.shared.gemini import Gemini
+                supplement(path, plan, result, output / "source-regions",
+                           Gemini(output / "gemini-cache", config.gemini_answer_model, None,
+                                  max_calls=config.gemini_max_calls_per_job, delay=0, transport=transport), active)
+                active()
             save(output / "site-selection.json", result)
             return result
     except DocumentStopped as exc:
