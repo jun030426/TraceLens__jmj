@@ -149,14 +149,16 @@ def prepare(session, job):
         found.extend(output.programs)
     original_quotes = {}
     if language == "python":
-        from lerny.practice_inputs import adapted_programs
+        from lerny.practice_inputs import adapted_programs, input_program_identity
         versions = session.scalars(select(MaterialVersion).where(MaterialVersion.id.in_(version_ids)))
         adapted = adapted_programs(chunks, model_json, versions)
         for program, quote in adapted:
             original_quotes[(program.source_id, program.code)] = quote
-        # Validate adapted numeric inputs first so the same original stdin example
-        # is not left held after its source-identical adaptation already succeeded.
-        found = [program for program, _ in adapted] + found
+        # A direct model proposal can repeat the stdin original using LF or
+        # omitting initial comments. Only its source-bound adaptation is runnable.
+        adapted_inputs = {input_program_identity(p.source_id, quote) for p, quote in adapted}
+        found = [p for p, _ in adapted] + [
+            p for p in found if input_program_identity(p.source_id, p.code) not in adapted_inputs]
     created, held = [], []
     for position, item in enumerate(found, 1):
         source = sources.get(item.source_id)

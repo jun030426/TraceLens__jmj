@@ -4,6 +4,14 @@ import hashlib
 import json
 import math
 import re
+from itertools import dropwhile
+
+
+def input_program_identity(chunk_id, code):
+    """Compare duplicate proposals only. The stored citation keeps its original bytes."""
+    lines = code.replace('\r\n', '\n').rstrip('\n').split('\n')
+    body = dropwhile(lambda line: not line.strip() or line.lstrip().startswith('#'), lines)
+    return chunk_id, '\n'.join(body)
 
 
 def numeric_source(text):
