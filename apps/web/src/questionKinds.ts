@@ -1,4 +1,4 @@
-/* 이론 문항 유형 이름표. 오늘의 이론 퀴즈는 객관식 2문항 + 서술형 1문항이에요 (빈칸·OX는 예전 문항 표시용). */
+/* 이론 문항 유형 이름표. 오늘의 이론 퀴즈는 객관식 5문항이에요 (빈칸·OX는 예전 문항 표시용). */
 const KIND_LABELS: Record<string, string> = { mcq: "객관식", essay: "서술형", blank: "빈칸 채우기", ox: "OX" };
 
 export const kindLabel = (kind: string) => KIND_LABELS[kind] || "문항";

@@ -116,6 +116,71 @@ def custom_algo(x):
         self.assertEqual(res['blanks'][0]['score'], 200)
         self.assertEqual(res['blanks'][0]['category'], 'instructor_manual_override')
 
+    def test_extract_available_helpers_procedural_and_formulas(self):
+        code = '''
+height = float(input()) / 100
+weight = float(input())
+bmi = weight / (height ** 2)
+print(f"BMI : {bmi:.2f}")
+'''
+        slide_text = "문제2. BMI 계산 프로그램 (BMI = 몸무게 / (키(m) * 키(m))) 키(cm)와 몸무게를 입력받아 계산"
+        helpers_meta = ClozeGenerator.extract_available_helpers(code, slide_text=slide_text)
+        guide_text = helpers_meta['helpers_guide_text']
+        self.assertIn("BMI", guide_text)
+        self.assertIn("단위 변환", guide_text)
+        self.assertIn("**", guide_text)
+        self.assertIn("/", guide_text)
+        self.assertIn(":.2f", guide_text)
+
+        # Full coding problem for procedural script must include helpers and guide
+        prob = ClozeGenerator.generate_full_coding_problem(code, slide_text=slide_text)
+        self.assertIn("BMI", prob['helpers_guide_text'])
+        self.assertIn("단위 변환", prob['helpers_guide_text'])
+
+    def test_infer_problem_statement_bmi_formula_and_units(self):
+        code = '''
+height = float(input()) / 100
+weight = float(input())
+bmi = weight / (height ** 2)
+'''
+        slide_text = "실습5. BMI 계산기 (BMI = weight / (height(m) * height(m)))"
+        stmt = ClozeGenerator.infer_problem_statement(code, slide_text=slide_text)
+        self.assertIn("BMI", stmt['title'])
+        self.assertIn("BMI 계산 공식", stmt['description'])
+        self.assertIn("단위", stmt['description'])
+        self.assertTrue(any("100" in r for r in stmt['requirements']))
+
+    def test_cloze_dynamic_syntax_hints(self):
+        # 1. Print syntax cue in step 2
+        hint_print = ClozeGenerator.get_practice_hint(
+            exercise_id="py-arithmetic",
+            hint_step=2,
+            mode="cloze",
+            target_code="print('덧셈 :', a + b)"
+        )
+        self.assertIn("print('라벨 :'", hint_print['hint_text'])
+        self.assertNotIn("self.top", hint_print['hint_text'])
+
+        # 2. Arithmetic operator syntax cue in step 2
+        hint_op = ClozeGenerator.get_practice_hint(
+            exercise_id="py-arithmetic",
+            hint_step=2,
+            mode="cloze",
+            target_code="result = a ** 2 / b"
+        )
+        self.assertIn("거듭제곱 **", hint_op['hint_text'])
+        self.assertNotIn("self.top", hint_op['hint_text'])
+
+    def test_resolve_mnemonic_flow_bmi_and_arithmetic(self):
+        flow_bmi = ClozeGenerator.resolve_mnemonic_flow(exercise_id="bmi_calc", target_code="bmi = weight / (height ** 2)")
+        self.assertEqual(len(flow_bmi['steps']), 3)
+        self.assertIn("단위 변환", flow_bmi['steps'][0]['title'])
+        self.assertIn("BMI", flow_bmi['steps'][1]['title'])
+
+        flow_arith = ClozeGenerator.resolve_mnemonic_flow(exercise_id="사칙연산_실습", target_code="a + b")
+        self.assertEqual(len(flow_arith['steps']), 3)
+        self.assertIn("사칙연산", flow_arith['steps'][1]['title'])
+
 
 if __name__ == '__main__':
     unittest.main()

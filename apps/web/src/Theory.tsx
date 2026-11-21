@@ -18,6 +18,7 @@ type Attempt = {
 };
 type Question = {
   id: string;
+  quiz_role?: string;
   concept_id?: string;
   kind: string;
   prompt: string;

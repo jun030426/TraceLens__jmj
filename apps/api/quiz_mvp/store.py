@@ -190,7 +190,7 @@ class Store(CourseStore, ChatStore):
             db.execute('UPDATE attempts SET state=? WHERE id=?',(json.dumps(s),aid))
             result=self._view(db,db.execute('SELECT * FROM attempts WHERE id=?',(aid,)).fetchone())
             if feedback:result['feedback']=feedback
-            if kind=='hint':result['hint']=item['quote']
+            if kind=='hint':result['hint']=item.get('hint') or '핵심 개념의 정의와 연산 순서를 차근차근 떠올려 보세요.'
             db.execute('INSERT INTO events (attempt_id,event_id,payload_digest,response,offering_id) VALUES (?,?,?,?,?)',(aid,eid,signature(payload),json.dumps(result,ensure_ascii=False),offering_id))
             return result
 

@@ -261,7 +261,9 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
           </div>
           <div className="practice-problem-description"><LearningText text={quiz.description} /></div>
           {!!quiz.requirements?.length && <ul className="practice-requirements">{quiz.requirements.map((text, i) => <li key={i}>{text}</li>)}</ul>}
-          {!!quiz.available_helpers?.length && <p className="muted">사용 가능한 도구: {quiz.available_helpers.join(", ")}</p>}
+          {quiz.helpers_guide_text
+            ? <div className="practice-problem-description"><LearningText text={quiz.helpers_guide_text} /></div>
+            : !!quiz.available_helpers?.length && <p className="muted">사용 가능한 도구: {quiz.available_helpers.join(", ")}</p>}
           <div className="practice-example">{quiz.example_input && <div><h4>예시 입력 선언</h4><pre><code>{quiz.example_input}</code></pre></div>}<div><h4>예시 출력</h4><pre><code>{quiz.expected || "(출력 없음)"}</code></pre></div></div>
           <details className="practice-hint-drawer" key={quiz.id}><summary>막힐 때 단계별 힌트 보기</summary><PracticeHints sectionId={sectionId} exerciseId={quiz.id} onBusyChange={setAssistBusy} /></details>
           <section className="practice-editor-panel" aria-labelledby="practice-editor-title">

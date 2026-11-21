@@ -184,9 +184,29 @@ def question_view(q, teacher=False):
         "revision": q.revision,
         "status": q.status,
     }
+    position = q.solution.get("quiz_position")
+    roles = ("기억", "이해", "오개념 판별", "적용", "분석")
+    if type(position) is int and 1 <= position <= len(roles):
+        result["quiz_role"] = roles[position - 1]
     if teacher:
         result.update(solution=q.solution, sources=q.sources)
     return result
+
+
+def five_daily_questions(bank, concept_slots=()):
+    """Pick one published question per cognitive task, keeping the caller's ranking."""
+    chosen = []
+    for position in range(1, 6):
+        candidates = [q for q in bank if q.kind == "mcq" and q.solution.get("quiz_position") == position]
+        if not candidates:
+            candidates = [q for q in bank if q.kind == "mcq" and not q.solution.get("quiz_position")
+                          and q.id not in chosen]
+        if not candidates:
+            continue
+        preferred = concept_slots[(position - 1) % len(concept_slots)] if concept_slots else None
+        question = next((q for q in candidates if q.concept_id == preferred), candidates[0])
+        chosen.append(question.id)
+    return chosen
 
 
 class GenerateInput(Input):
@@ -245,12 +265,13 @@ def question_state(
 
 def session_view(session, learning):
     items = []
-    from lerny.config import settings
-    target_count = 4 if settings().automatic_learning_enabled else 3
+    target_count = 5
     for question_id in learning.question_ids:
         q = session.get(Question, question_id)
         if q.purpose == "daily":
             target_count = 4
+        elif q.kind == "essay":
+            target_count = len(learning.question_ids)
         attempt = session.scalar(
             select(Attempt).where(
                 Attempt.learning_session_id == learning.id, Attempt.question_id == question_id
@@ -333,19 +354,7 @@ def daily(section_id: str, session: Db, actor: Actor):
         )
         if valid_sources(session, q, max_week)
     ]
-    chosen = []
-    # One new item, then two review items; fallback to other eligible concepts.
-    for kind, prefer_review in [("mcq", False), ("mcq", True), ("essay", True)]:
-        candidates = [q for q in bank if q.kind == kind and q.id not in chosen]
-        candidates.sort(
-            key=lambda q: (
-                q.concept_id not in reviews if prefer_review else q.id in seen,
-                q.id in seen,
-                q.created_at,
-            )
-        )
-        if candidates:
-            chosen.append(candidates[0].id)
+    chosen = five_daily_questions(sorted(bank, key=lambda q: (q.id in seen, q.concept_id not in reviews)))
     if not chosen:
         deny(409, "현재 진도에 맞는 검증된 문항이 아직 없어요.")
     learning = LearningSession(
@@ -420,7 +429,8 @@ def record_theory_help(learning_id: str, question_id: str, session: Db, actor: A
     if attempt and attempt.status != "graded":
         attempt.independent = False
     session.commit()
-    return {"recorded": True, "hint": quote}
+    concept_hint = question.solution.get("hint") or quote
+    return {"recorded": True, "hint": concept_hint}
 
 
 @router.post("/learning-sessions/{learning_id}/questions/{question_id}/submit", status_code=202)

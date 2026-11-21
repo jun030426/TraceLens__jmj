@@ -184,7 +184,8 @@ def readiness(session, generation):
         blockers.append("문항의 공개 근거 또는 사용 상태를 확인해 주세요.")
     if not pending:
         mcq_count = (generation.options or {}).get("mcq_per_concept", 2)
-        required = ["essay"] + ["mcq"] * mcq_count if mcq_count in (2, 3) else []
+        required = ["mcq"] * 5 if mcq_count == 5 else (
+            ["essay"] + ["mcq"] * mcq_count if mcq_count in (2, 3) else [])
         if (not generation.concept_ids or not required
                 or len(questions) != len(required) * len(generation.concept_ids)
                 or any(sorted(q.kind for q in questions if q.concept_id == cid) != required
@@ -292,7 +293,7 @@ def generate(course_id: str, week: int, body: GenerateInput, session: Db, actor:
         mode = default_video_mode(session)
         generation = ContentGeneration(course_id=course_id,week=week,owner_id=actor.id,
             sources=sources,source_hash=body.source_hash,
-            options={"videos":mode != "none","video_mode":mode,"practice":True,"mcq_per_concept":3})
+            options={"videos":mode != "none","video_mode":mode,"practice":True,"mcq_per_concept":5})
         session.add(generation);session.flush()
         session.add(Job(owner_id=actor.id,course_id=course_id,kind="weekly_content",payload={"generation_id":generation.id}))
         audit(session,actor,"weekly_content_generated",generation.id,{"week":week,"sources":len(sources)})

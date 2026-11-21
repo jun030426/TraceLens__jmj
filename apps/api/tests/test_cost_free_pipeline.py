@@ -31,7 +31,10 @@ def synthetic_ai(fake_provider, monkeypatch):
             return fallback(path, payload, parse)
         data = json.loads(payload["input"].rsplit("\n", 1)[1])
         properties = payload["response_format"]["schema"].get("properties", {})
-        if "concepts" in properties:
+        if "assessment_task" in data or "single_correct" in properties:
+            from quiz_provider_fixture import quiz_response
+            result = quiz_response(data)
+        elif "concepts" in properties:
             result = {"concepts": [{"name": name, "quote": line, "version_id":data[0]["version_id"]}
                                    for name, line in zip(("stack", "queue"), SOURCE.splitlines())]}
         elif "programs" in properties:
@@ -134,8 +137,8 @@ def test_extract_embed_retrieve_review_bank_without_video_jobs(
     for job in question_jobs:
         run_job(session, job)
     questions = list(session.scalars(select(Question)))
-    assert len(questions) == 8  # Three MCQs + one essay per concept, still awaiting review.
-    assert sorted(q.kind for q in questions) == ["essay"] * 2 + ["mcq"] * 6
+    assert len(questions) == 10
+    assert all(q.kind == "mcq" and q.solution["hint"] for q in questions)
     assert all(q.sources and all(s["chunk_id"] in {c.id for c in chunks} for s in q.sources)
                for q in questions)
 
@@ -176,8 +179,8 @@ def test_question_bank_retrieves_within_upload_before_top_k(integration, synthet
     session.add(job)
     session.commit()
     result = run_job(session, job)
-    assert len(result.result["question_ids"]) == 4
-    assert sorted(session.get(Question, i).kind for i in result.result["question_ids"]) == ["essay", "mcq", "mcq", "mcq"]
+    assert len(result.result["question_ids"]) == 5
+    assert all(session.get(Question, i).kind == "mcq" for i in result.result["question_ids"])
     for question_id in result.result["question_ids"]:
         question = session.get(Question, question_id)
         assert question.sources

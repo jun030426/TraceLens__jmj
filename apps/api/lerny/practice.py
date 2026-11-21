@@ -350,7 +350,7 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
 class HelpInput(Input):
     exercise_id: str
     kind: Literal["state", "hint", "chat", "answer"] = "hint"
-    step: int | None = Field(default=None, ge=1, le=4)
+    step: int | None = Field(default=None, ge=1)
 
 
 @router.post("/sections/{section_id}/practice/help")

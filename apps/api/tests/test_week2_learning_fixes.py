@@ -49,10 +49,10 @@ def test_selected_summary_uses_concept_and_preserves_raw_evidence(weekly):
     login(client,tokens,"outsider")
     assert client.get("/api/v1/materials/material/lecture-summary?concept_id=lower").status_code==404
 
-def test_new_bank_requires_three_mcqs_and_keeps_one_essay(weekly):
+def test_new_bank_requires_five_mcqs(weekly):
     client, db, _ = weekly
     gid=start(client); g=completed(db,gid)
-    assert g.options["mcq_per_concept"]==3
+    assert g.options["mcq_per_concept"]==5
     assert weekly_content.readiness(db,g)["can_publish"]
     q=next(q for q in db.scalars(select(Question).where(Question.generation_id==gid)) if q.kind=="mcq")
     db.delete(q); db.commit()

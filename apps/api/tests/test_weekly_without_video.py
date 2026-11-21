@@ -46,6 +46,9 @@ def synthetic_model(session, *, code=True):
     def generate(prompt, schema):
         data = json.loads(prompt.rsplit("\n", 1)[1])
         props = schema["properties"]
+        if "assessment_task" in data or "single_correct" in props:
+            from quiz_provider_fixture import quiz_response
+            return quiz_response(data)
         if "concepts" in props:
             source = next((s for s in data if "WeekConcept" in s["text"]), None)
             if source is None:
@@ -112,14 +115,14 @@ def test_upload_through_student_publication_without_video(weekly, configured, fa
     gid = start(client, week)
     assert start(client, week) == gid  # duplicate clicks reuse this draft
     g = session.get(ContentGeneration, gid)
-    assert g.options == {"videos":False,"video_mode":"none","practice":True,"mcq_per_concept":3}
+    assert g.options == {"videos":False,"video_mode":"none","practice":True,"mcq_per_concept":5}
     root = next(j for j in weekly_content.generation_jobs(session, g) if j.kind == "weekly_content")
     finish(session, root)
     for job in weekly_content.generation_jobs(session, g):
         if job.status != "succeeded": finish(session, job)
     data = client.get(f"/api/v1/courses/course/content-generations/{gid}").json()
     assert data["can_publish"] and data["state"] == "ready" and data["video_mode"] == "none", data
-    assert data["counts"] == {"concepts":concept_count,"questions":4*concept_count,"practice":2*program_count,"videos":0,"videos_ready":0,"videos_deferred":0}
+    assert data["counts"] == {"concepts":concept_count,"questions":5*concept_count,"practice":2*program_count,"videos":0,"videos_ready":0,"videos_deferred":0}
     assert {j["kind"] for j in data["jobs"]} == {"weekly_content","questions","practice_prepare"}
     assert {e["kind"] for e in data["practice"]} == {"blank","full"}
     assert all(len(e["tests"]) == 3 for e in data["practice"])

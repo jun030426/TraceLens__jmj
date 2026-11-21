@@ -83,7 +83,7 @@ function InstructorContent({ room }: { room: Classroom }) {
       <div className="instructor-action-bar"><Link className="primary instructor-study-action" to={`/quiz?section=${room.section.id}`}>오늘의 문제 풀기 ↗</Link>
         {nextVideo && <button onClick={() => choose(nextVideo.week,nextVideo.id)}>다음 개념: {nextVideo.title} →</button>}</div>
       <section className="instructor-details"><div className="instructor-info-tabs" role="group" aria-label="강의 부가 정보">{["관련 자료","강의 안내","강의 자료 요약"].map(tab => <button key={tab} aria-pressed={infoTab===tab} onClick={() => setInfoTab(tab)}>{tab}</button>)}</div>
-        {infoTab==="강의 안내" && <div className="instructor-info-content"><h3>개념별 짧은 설명, 나에게 맞는 문제</h3><p>영상은 같은 강의실의 모든 학생에게 동일하게 제공돼요. 이론은 하루 4문항으로, 4일차부터 나의 오답과 취약 개념을 반영해 복습해요.</p></div>}
+        {infoTab==="강의 안내" && <div className="instructor-info-content"><h3>개념별 짧은 설명, 나에게 맞는 문제</h3><p>영상은 같은 강의실의 모든 학생에게 동일하게 제공돼요. 이론은 하루 5문항으로, 4일차부터 나의 오답과 취약 개념을 반영해 복습해요.</p></div>}
         {infoTab==="강의 자료 요약" && (summaryMaterialId ? <LectureSummary key={`${summaryMaterialId}:${selectedVideo?.concept_id || ""}`} materialId={summaryMaterialId} title={summaryTitle} viewUrl={weekSources.find(m => m.id === summaryMaterialId)?.view_url} conceptId={selectedVideo?.concept_id}/> : <Notice>공개된 자료가 아직 없어요.</Notice>)}
         {infoTab==="관련 자료" && <div className="instructor-info-content"><h3>교수님이 공개한 원본 자료</h3><ResourceBrowser key={week} items={weekSources} label="관련 자료">{visible => <ul className="instructor-source-list">{visible.map(m => <li key={m.id}><span>{m.title}</span><Link to={m.view_url!}>자료 열기 ↗</Link></li>)}</ul>}</ResourceBrowser></div>}
       </section>

@@ -5,7 +5,7 @@ export function TheoryHints({ storageKey, loadQuote }: { storageKey: string; loa
   const [quote, setQuote] = useState("");
   async function openHint() {
     const text = await loadQuote();
-    if (!text?.trim()) throw new Error("이 문항의 원문 인용을 확인할 수 없어요.");
+    if (!text?.trim()) throw new Error("이 문항의 힌트를 불러올 수 없어요.");
     setQuote(text);
   }
   return <StepHints storageKey={storageKey} onUsed={openHint} hints={[
