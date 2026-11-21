@@ -22,7 +22,7 @@ import { api, post, uploadMaterial, type Answer, type Job, type Material } from 
 import { RagTools } from "./RagTools";
 import { ErrorNotice, Form, Notice, field, useLoad } from "./components";
 import { materialWeeks } from "./studentOverview";
-import { sourceLabel } from "./sourceLabels";
+import { ChatCitation, useStudentHandouts } from "./ChatCitation";
 import { useSpeechOutput } from "./useSpeechOutput";
 import { useSpeechInput } from "./useSpeechInput";
 
@@ -325,7 +325,8 @@ function ChatTime({ iso }: { iso?: string }) {
 /** 개념 퀴즈 해설 아래 바로가기가 넘겨주는 문항 정보 (Flow.tsx QuizAskLink) */
 export type QuizAsk = { title: string; question: string; context: string; /** 퀴즈 이름 (없으면 날짜) */ name?: string; /** 이 문항의 개념 — 대화와 상태 버튼 기록을 이 개념의 취약도에 연결해요 */ conceptId?: string };
 
-export function Chat({ sectionId, speaker = "AI 강사" }: { sectionId: string; speaker?: string }) {
+export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId: string; courseId: string; speaker?: string }) {
+  const handouts = useStudentHandouts(courseId);
   const sendingRequest = useRef(false);
   const feedbackRequest = useRef(false);
   const [feedbackBusy, setFeedbackBusy] = useState(false);
@@ -708,7 +709,7 @@ export function Chat({ sectionId, speaker = "AI 강사" }: { sectionId: string; 
                   title="눌러서 바꾸기" aria-label={`내 상태: ${REACTIONS.find(r => r[0] === item.reaction)?.[2]} · 눌러서 바꾸기`} aria-expanded={reEdit === i}
                   onClick={() => setReEdit(reEdit === i ? null : i)}>{REACTIONS.find(r => r[0] === item.reaction)?.[1]}</button>}
                 {item.answer ? <TypedAnswer text={item.answer.answer} animate={!!item.fresh}>
-                  {item.answer.citations?.map((c, n) => <a key={n} href={"/api/v1/materials/" + c.material_id + "/file?version_id=" + c.version_id}>{c.title} · {sourceLabel(c.locator)} <span className="go-arrow" aria-hidden="true">→</span></a>)}
+                  {item.answer.citations?.map((c, n) => <ChatCitation key={n} citation={c} handouts={handouts} />)}
                 </TypedAnswer> : item.error ? <ErrorNotice text={item.error} /> : item.pending ? <p role="status">{item.pending}</p> : <p className="chat-typing" role="status"><span className="chat-dots" aria-hidden="true"><i /><i /><i /></span><span>{speaker}가 답변을 적고 있어요</span></p>}
                 {item.answer?.follow_up && <p className="chat-followup"><b>🤔 생각해 볼 질문</b>{item.answer.follow_up}</p>}
               </div>

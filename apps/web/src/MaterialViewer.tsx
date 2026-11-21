@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import type { Classroom } from "./api";
 import { ErrorNotice, Notice, useLoad } from "./components";
 import "./material-viewer.css";
@@ -19,7 +19,10 @@ function MaterialDocument({ materialId }: { materialId: string }) {
   const preview = useLoad<Preview>(`/materials/${materialId}/preview`, true);
   const rooms = useLoad<{ items: Classroom[] }>("/classrooms");
   const heading = useRef<HTMLHeadingElement>(null);
-  const preparing = preview.data?.status === "preparing";
+  const [params] = useSearchParams();
+  const version = params.get("version_id");
+  const versionChanged = Boolean(version && preview.data && version !== preview.data.version_id);
+  const preparing = !versionChanged && preview.data?.status === "preparing";
   useEffect(() => { heading.current?.focus(); }, []);
   useEffect(() => {
     if (!preparing || preview.error) return;
@@ -34,26 +37,35 @@ function MaterialDocument({ materialId }: { materialId: string }) {
     {preview.error && <button type="button" onClick={preview.reload}>다시 불러오기</button>}
     {!preview.data && !preview.error && <Notice>강의자료를 불러오는 중이에요…</Notice>}
     {preparing && <Notice>강의자료 화면을 준비하고 있어요. 준비가 끝나면 자동으로 표시됩니다. 잠시 후에도 표시되지 않으면 다시 방문해 주세요.</Notice>}
-    {preview.data?.status === "failed" && <Notice>{preview.data.message}</Notice>}
-    {preview.data?.status === "ready" && <DocumentPages key={preview.data.version_id} preview={preview.data} />}
+    {versionChanged && <Notice>강의자료가 교체되어 인용된 버전을 열 수 없어요. <Link to={`/materials/${materialId}/view`}>현재 강의자료 보기</Link></Notice>}
+    {!versionChanged && preview.data?.status === "failed" && <Notice>{preview.data.message}</Notice>}
+    {!versionChanged && preview.data?.status === "ready" && <DocumentPages key={preview.data.version_id} preview={preview.data} />}
   </section>;
 }
 
 function DocumentPages({ preview }: { preview: Preview }) {
-  const [index, setIndex] = useState(0);
+  const [params, setParams] = useSearchParams();
+  const requested = params.get("page");
+  const index = requested === null ? 0 : preview.pages.findIndex(p => String(p.number) === requested);
   const [zoom, setZoom] = useState(false);
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const page = preview.pages[index];
-  if (!page) return <Notice>표시할 페이지가 없어요.</Notice>;
+  function goTo(number: number) {
+    const next = new URLSearchParams(params);
+    next.set("page", String(number));
+    setParams(next, { replace: true, preventScrollReset: true });
+  }
+  if (!preview.pages.length) return <Notice>표시할 페이지가 없어요.</Notice>;
+  if (!page) return <><Notice>요청한 페이지가 이 자료에 없어요.</Notice><button type="button" onClick={() => goTo(preview.pages[0].number)}>첫 페이지 보기</button></>;
   const imageUrl = page.image_url ? `${page.image_url}?retry=${retry}` : "";
   return <>
     <nav className="material-viewer-toolbar" aria-label="강의자료 페이지 이동">
-      <button type="button" disabled={index === 0} onClick={() => setIndex(i => i - 1)}>← 이전</button>
-      <label>페이지 <select aria-label="강의자료 페이지" value={index} onChange={e => setIndex(Number(e.target.value))}>
-        {preview.pages.map((p, i) => <option key={p.number} value={i}>{p.number} / {preview.pages.length}</option>)}
+      <button type="button" disabled={index === 0} onClick={() => goTo(preview.pages[index - 1].number)}>← 이전</button>
+      <label>페이지 <select aria-label="강의자료 페이지" value={page.number} onChange={e => goTo(Number(e.target.value))}>
+        {preview.pages.map(p => <option key={p.number} value={p.number}>{p.number} / {preview.pages.length}</option>)}
       </select></label>
-      <button type="button" disabled={index === preview.pages.length - 1} onClick={() => setIndex(i => i + 1)}>다음 →</button>
+      <button type="button" disabled={index === preview.pages.length - 1} onClick={() => goTo(preview.pages[index + 1].number)}>다음 →</button>
       {page.image_url && <button type="button" aria-pressed={zoom} onClick={() => setZoom(z => !z)}>{zoom ? "화면에 맞추기" : "확대 보기"}</button>}
     </nav>
     <p className="material-viewer-page-status" role="status">{page.number} / {preview.pages.length} 페이지</p>

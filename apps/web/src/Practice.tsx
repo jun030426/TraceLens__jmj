@@ -317,7 +317,7 @@ function PracticeEditor({ room, quizzes, planId }: { room: Classroom; quizzes: B
           </div>}</section>
       </div>
     </div><p className="practice-mobile-note">실습 코드 작성은 넓은 데스크톱 화면에서 이용하면 더 편리해요.</p>
-    <PracticeChat key={`${sectionId}:${quiz.id}`} sectionId={sectionId} open={chatOpen} onClose={() => setChatOpen(false)} context={chatContext} draftRequest={chatDraft} />
+    <PracticeChat key={`${sectionId}:${quiz.id}`} sectionId={sectionId} courseId={room.course.id} open={chatOpen} onClose={() => setChatOpen(false)} context={chatContext} draftRequest={chatDraft} />
     {/* 질문 창은 오른쪽 아래 둥근 아이콘으로 열고 닫아요 — 지금 문제·코드·채점 상황은 그대로 함께 보내요 */}
     <button type="button" className={`practice-chat-fab ${chatOpen ? "is-open" : ""}`} onClick={() => setChatOpen(v => !v)} aria-expanded={chatOpen} aria-label={chatOpen ? "질문 창 닫기" : "이 문제 질문하기"}>
       {chatOpen ? <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
