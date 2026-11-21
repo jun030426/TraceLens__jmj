@@ -116,9 +116,10 @@ def test_input_and_empty_lines_are_replaced_with_verified_calculation_lines():
         assert item.input_statement in '\n'.join(item.code.splitlines())
 
 
-def test_adapted_source_prevents_duplicate_stdin_hold(weekly,monkeypatch):
+@pytest.mark.parametrize("original", [CODE, "# numeric inputs\r\n\r\n" + CODE.replace("\n", "\r\n")])
+def test_adapted_source_prevents_duplicate_stdin_hold(weekly,monkeypatch,original):
     client,session,_ = weekly
-    session.add(Chunk(id='numeric',version_id='version',content='```python\n'+CODE+'\n```',locator={}))
+    session.add(Chunk(id='numeric',version_id='version',content='```python\n'+original+'\n```',locator={}))
     session.commit();gid=start(client)
     job=Job(owner_id='teacher',course_id='course',kind='practice_prepare',payload={'source_version_id':'version','generation_id':gid})
     old={'source_id':'numeric','concept_id':None,'code':CODE,'title':'합과 평균',
@@ -129,3 +130,13 @@ def test_adapted_source_prevents_duplicate_stdin_hold(weekly,monkeypatch):
     monkeypatch.setattr(practice,'output_of',lambda *a,**k: next(outputs))
     result=practice.prepare(session,job)
     assert len(result['exercise_ids'])==2 and result['held']==[]
+    rows = list(session.scalars(select(PracticeExercise).where(PracticeExercise.generation_id == gid)))
+    assert all(row.sources == [{'chunk_id':'numeric','quote':original}] for row in rows)
+
+
+def test_input_identity_preserves_source_and_logic():
+    from lerny.practice_inputs import input_program_identity
+    key = input_program_identity('source', CODE)
+    assert key != input_program_identity('different-source', CODE)
+    assert key != input_program_identity('source', CODE.replace('a + b', 'a - b'))
+    assert key != input_program_identity('source', CODE.replace('total =', '    total ='))
