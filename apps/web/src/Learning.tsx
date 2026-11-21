@@ -304,7 +304,7 @@ function StudentMaterials({ items, currentWeek, totalWeeks }: { items: Material[
         <summary><span><strong>{week}주차</strong>{current && <span className="material-week-current">현재 진도</span>}</span><span className="material-week-count">자료 {materials.length}개 <span className="material-week-chevron" aria-hidden="true">⌄</span></span></summary>
         <div className="material-week-content">{materials.length ? <PagedList items={materials} label={`${week}주차 자료`} resetKey={search} className="material-week-list">{visible => visible.map(item => <article className="student-material" key={item.id}>
           <span className="student-material-icon" aria-hidden="true">▤</span><div><h3>{materialName(item.title)}</h3></div>
-          {item.view_url && <Link to={item.view_url} aria-label={`${item.title} 자료 열기`}>자료 열기 <span aria-hidden="true">↗</span></Link>}
+          {item.view_url && <Link to={item.view_url} aria-label={`${item.title} 자료 열기`}>자료 열기 <span aria-hidden="true">↓</span></Link>}
         </article>)}</PagedList> : <p>이 주차에 공개된 자료가 아직 없어요. 다른 주차의 자료도 확인할 수 있어요.</p>}</div>
       </details>;
     })}

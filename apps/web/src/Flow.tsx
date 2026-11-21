@@ -689,7 +689,7 @@ export function CourseWorkspace({ mode }: { mode: "chat" | "progress" }) {
                 <div className="progress-domain-tabs" aria-label="학습 유형">{(["theory", "practice", "weakness"] as const).map(d => <button key={d} aria-pressed={domain === d} onClick={() => setParams({ section: room.section.id, domain: d })}>{DOMAIN_LABEL[d]}</button>)}</div>
                 <div className="student-period">
                   <p><strong>조회 기간</strong> · {period.from} ~ {period.to} (한국 시간)</p>
-                  <details><summary>기간 변경</summary><PeriodFilter value={period} onChange={setPeriod} /></details>
+                  <details><summary>기간 변경</summary><PeriodFilter value={period} onChange={setPeriod} variant="calendar" /></details>
                   <small>이론·실습·취약도에 같은 기간을 적용해요. 교수자 화면과 동일한 기준이에요.</small>
                 </div>
                 {domain === "theory" ? <LearningProgress key={room.section.id} room={room} period={period} />
