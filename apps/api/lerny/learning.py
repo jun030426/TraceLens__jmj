@@ -429,8 +429,17 @@ def record_theory_help(learning_id: str, question_id: str, session: Db, actor: A
     if attempt and attempt.status != "graded":
         attempt.independent = False
     session.commit()
-    concept_hint = question.solution.get("hint") or quote
-    return {"recorded": True, "hint": concept_hint}
+    hint = question.solution.get("hint")
+    if not hint or any(kw in str(hint) for kw in ["```", "def ", "class ", "import "]) or str(hint).strip().startswith("print("):
+        # 문제에 생성된 hint가 없거나 코드 조각이 포함된 경우의 0-스포일러 동적 폴백
+        if quote and not any(kw in quote for kw in ["```", "def ", "class ", "=", "print(", "import "]) and len(quote) < 80:
+            hint = quote
+        elif question.prompt:
+            stem = question.prompt.split("\n")[0].replace("?", "").strip()
+            hint = f"{stem}의 핵심 원리와 동작 규칙을 차근차근 떠올려 보세요." if len(stem) <= 35 else "핵심 개념의 정의와 동작 원리를 차근차근 떠올려 보세요."
+        else:
+            hint = "핵심 개념의 정의와 동작 원리를 차근차근 떠올려 보세요."
+    return {"recorded": True, "hint": hint}
 
 
 @router.post("/learning-sessions/{learning_id}/questions/{question_id}/submit", status_code=202)

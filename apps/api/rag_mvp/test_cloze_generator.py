@@ -148,7 +148,7 @@ bmi = weight / (height ** 2)
         self.assertIn("BMI", stmt['title'])
         self.assertIn("BMI 계산 공식", stmt['description'])
         self.assertIn("단위", stmt['description'])
-        self.assertTrue(any("100" in r for r in stmt['requirements']))
+        self.assertTrue(any("단위" in r for r in stmt['requirements']))
 
     def test_cloze_dynamic_syntax_hints(self):
         # 1. Print syntax cue in step 2

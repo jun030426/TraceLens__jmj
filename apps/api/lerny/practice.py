@@ -227,9 +227,12 @@ def exercise_view(session, exercise):
     material = current_source(session, exercise)
     if not material:
         return None
-    from lerny.practice_support import metadata
+    from lerny.practice_support import metadata, build_annotated_blank_template
+    template = exercise.template
+    if exercise.kind == "blank" and exercise.template and exercise.blanks:
+        template = build_annotated_blank_template(exercise.template, exercise.blanks)
     return {**metadata(exercise), "id":exercise.id,"title":exercise.title,"description":exercise.prompt,"kind":exercise.kind,
-            "language":exercise.language,"template":exercise.template,"expected":exercise.tests[0]["expected"],
+            "language":exercise.language,"template":template,"expected":exercise.tests[0]["expected"],
             "example_input":exercise.tests[0]["input"],
             "week":material.week,"source_title":material.title,"concept_id":exercise.concept_id}
 
@@ -243,11 +246,24 @@ def practice_progress(session: Db, actor: Actor, response: Response, session_id:
     enrolled = select(Enrollment.section_id).where(
         Enrollment.student_id == actor.id, Enrollment.status == "active")
     query = select(PracticeSession).where(
-        PracticeSession.student_id == actor.id, PracticeSession.day == day,
+        PracticeSession.student_id == actor.id,
         PracticeSession.section_id.in_(enrolled))
     if session_id is not None:
         query = query.where(PracticeSession.id == session_id)
+    else:
+        query = query.where(PracticeSession.day == day)
     plans = session.scalars(query).all()
+    if not plans and session_id is None:
+        # 오늘 날짜의 세션이 아직 없더라도 학생의 가장 최근 주간 실습 세션 진행도를 표시
+        latest_plans = session.scalars(select(PracticeSession).where(
+            PracticeSession.student_id == actor.id,
+            PracticeSession.section_id.in_(enrolled)
+        ).order_by(PracticeSession.day.desc(), PracticeSession.created_at.desc())).all()
+        seen = set()
+        for p in latest_plans:
+            if p.section_id not in seen:
+                seen.add(p.section_id)
+                plans.append(p)
     attempts = session.execute(select(PracticeAttempt.practice_session_id, PracticeAttempt.exercise_id)
         .where(PracticeAttempt.student_id == actor.id,
                PracticeAttempt.practice_session_id.in_([p.id for p in plans])).distinct())
@@ -271,24 +287,42 @@ def daily(section_id: str, session: Db, actor: Actor):
     section = section_student(session, actor, section_id)
     sync_progress(session, section.course_id)
     lock_student(session, actor.id)
-    plan = session.scalar(select(PracticeSession).where(PracticeSession.student_id == actor.id,
-        PracticeSession.section_id == section.id, PracticeSession.day == today()))
+    context = learning_context(session, section, actor.id, today())
+    week = context["week"]
+
+    # 이번 주차에 교수자가 공개한 모든 실습 문제 목록 조회 (등록 순서 유지)
+    candidates = [e for e in session.scalars(select(PracticeExercise).where(
+        PracticeExercise.course_id == section.course_id).order_by(PracticeExercise.position, PracticeExercise.id))
+        if (m := current_source(session, e)) and m.week == week]
+    if not candidates:
+        return {"items":[], "status":"no_source_code", "week":week,
+                "message":"교수자가 공개한 이번 주차 콘텐츠에는 실습이 없어요. 실행 가능한 예제 코드로 콘텐츠를 생성·검토한 뒤 공개하면 학습할 수 있어요."}
+    all_exercise_ids = [e.id for e in candidates]
+
+    # 학생의 이번 주차 실습 세션 조회 (주차 전체 묶음 자유 풀이)
+    plan = session.scalar(select(PracticeSession).where(
+        PracticeSession.student_id == actor.id,
+        PracticeSession.section_id == section.id,
+        PracticeSession.week == week
+    ).order_by(PracticeSession.day.desc(), PracticeSession.created_at.desc()).limit(1))
+
     if not plan:
-        context = learning_context(session, section, actor.id, today())
-        candidates = [e for e in session.scalars(select(PracticeExercise).where(
-            PracticeExercise.course_id == section.course_id).order_by(PracticeExercise.position, PracticeExercise.id))
-            if (m := current_source(session, e)) and m.week == context["week"]]
-        if not candidates:
-            return {"items":[], "status":"no_source_code", "week":context["week"],
-                    "message":"교수자가 공개한 이번 주차 콘텐츠에는 실습이 없어요. 실행 가능한 예제 코드로 콘텐츠를 생성·검토한 뒤 공개하면 학습할 수 있어요."}
-        weak = context["review_concepts"]
-        candidates.sort(key=lambda e: (e.concept_id not in weak,
-            hashlib.sha256((actor.id + str(today()) + e.source_key).encode()).hexdigest(), e.kind))
-        selected = [next((e.id for e in candidates if e.kind == kind), None) for kind in ("blank", "full")]
         plan = PracticeSession(student_id=actor.id, section_id=section.id, day=today(),
-            week=context["week"], exercise_ids=[e for e in selected if e])
+            week=week, exercise_ids=all_exercise_ids)
         session.add(plan)
         session.commit()
+    else:
+        # 이번 주차에 등록된 문제 전체를 풀 수 있도록 세션의 exercise_ids 동기화
+        current_ids = list(plan.exercise_ids or [])
+        updated = False
+        for eid in all_exercise_ids:
+            if eid not in current_ids:
+                current_ids.append(eid)
+                updated = True
+        if updated:
+            plan.exercise_ids = current_ids
+            session.commit()
+
     items = []
     for eid in plan.exercise_ids:
         exercise = session.get(PracticeExercise, eid)
@@ -304,11 +338,17 @@ def daily(section_id: str, session: Db, actor: Actor):
 
 def assigned(session, actor, section_id, exercise_id):
     section = section_student(session, actor, section_id)
-    plan = session.scalar(select(PracticeSession).where(PracticeSession.student_id == actor.id,
-        PracticeSession.section_id == section_id, PracticeSession.day == today()))
     exercise = session.get(PracticeExercise, exercise_id)
-    if not plan or exercise_id not in plan.exercise_ids or not current_source(session, exercise):
-        deny(404, "오늘 배정된 공개 실습을 찾을 수 없어요.")
+    if not exercise or not current_source(session, exercise):
+        deny(404, "현재 공개된 실습을 찾을 수 없어요.")
+    # 주간 세션 및 최근 세션들 중 해당 실습이 포함된 학생의 세션 탐색
+    plans = session.scalars(select(PracticeSession).where(
+        PracticeSession.student_id == actor.id,
+        PracticeSession.section_id == section_id,
+    ).order_by(PracticeSession.day.desc(), PracticeSession.created_at.desc())).all()
+    plan = next((p for p in plans if exercise_id in (p.exercise_ids or [])), None)
+    if not plan:
+        deny(404, "배정된 공개 실습을 찾을 수 없어요.")
     return section, plan, exercise
 
 
@@ -332,8 +372,16 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
         assisted = session.scalar(select(AuditEvent.id).where(AuditEvent.actor_id == actor.id,
             AuditEvent.target_id == plan.id, AuditEvent.action == "practice_help",
             AuditEvent.detail["exercise_id"].as_string() == exercise.id).limit(1))
+        answered = session.scalar(select(AuditEvent.id).where(AuditEvent.actor_id == actor.id,
+            AuditEvent.target_id == plan.id, AuditEvent.action == "practice_help",
+            AuditEvent.detail["exercise_id"].as_string() == exercise.id,
+            AuditEvent.detail["kind"].as_string() == "answer").limit(1))
+        if answered:
+            deny(409, "답지·해설을 확인한 문제는 다시 제출할 수 없어요.")
         previous = session.scalar(select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
             PracticeAttempt.exercise_id == exercise.id, PracticeAttempt.status == "graded").limit(1))
+        if previous:
+            deny(409, "이미 최종 제출을 완료한 실습 문제예요.")
         attempt = PracticeAttempt(student_id=actor.id, section_id=section_id, exercise_id=exercise.id,
             practice_session_id=plan.id, source=body.source, independent=not bool(assisted or previous))
         session.add(attempt)
@@ -381,9 +429,10 @@ def help_used(section_id: str, body: HelpInput, session: Db, actor: Actor):
     state = help_state(session, actor, plan, exercise)
     session.commit()
     if body.kind == "answer":
-        from lerny.practice_support import explanation
-        state["explanation"] = explanation(exercise)
-        state["answers"] = list(exercise.blanks.values()) if exercise.kind == "blank" else [exercise.reference]
+        from lerny.practice_support import explanation, clean_blank_answers
+        expl = explanation(exercise)
+        state["explanation"] = expl
+        state["answers"] = clean_blank_answers(exercise.blanks) if exercise.kind == "blank" else [expl["reference"]]
     return state
 
 
