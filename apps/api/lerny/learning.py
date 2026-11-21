@@ -66,12 +66,14 @@ def streak_summary(days, current_day):
 
 
 @router.get("/my/learning-streak")
-def learning_streak(session: Db, actor: Actor):
+def learning_streak(session: Db, actor: Actor, section_id: str | None = None):
     if actor.role != "student":
         deny(403)
-    days = session.scalars(select(LearningCompletion.day).where(
-        LearningCompletion.student_id == actor.id))
-    return streak_summary(days, today())
+    days = select(LearningCompletion.day).where(LearningCompletion.student_id == actor.id)
+    if section_id is not None:
+        section_student(session, actor, section_id)
+        days = days.where(LearningCompletion.section_id == section_id)
+    return streak_summary(session.scalars(days.distinct()), today())
 
 
 @router.get("/my/learning-sessions")

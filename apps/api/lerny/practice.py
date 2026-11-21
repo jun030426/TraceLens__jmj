@@ -388,14 +388,17 @@ def help_used(section_id: str, body: HelpInput, session: Db, actor: Actor):
 
 
 @router.get("/my/practice-submission-count")
-def practice_submission_count(session: Db, actor: Actor):
+def practice_submission_count(session: Db, actor: Actor, section_id: str | None = None):
     if actor.role != "student":
         deny(403)
     # Each daily practice session belongs to one student and class section.
     submissions = select(PracticeAttempt.practice_session_id, PracticeAttempt.exercise_id).where(
         PracticeAttempt.student_id == actor.id,
-    ).distinct().subquery()
-    return {"submitted": session.scalar(select(func.count()).select_from(submissions))}
+    )
+    if section_id is not None:
+        section_student(session, actor, section_id)
+        submissions = submissions.where(PracticeAttempt.section_id == section_id)
+    return {"submitted": session.scalar(select(func.count()).select_from(submissions.distinct().subquery()))}
 
 
 @router.get("/sections/{section_id}/practice/attempts")

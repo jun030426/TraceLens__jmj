@@ -150,7 +150,14 @@ export function testResponse(path: string, role: string): unknown {
   if (p === "/terms") return { items: [term] };
   if (p === "/courses") return { items: [course, course2] };
   if (p === "/my/practice-submission-count") return { submitted: 0 };
-  if (p === "/my/learning-streak") return { today_completed: false, current_streak: 4, total_days: records.length };
+  if (p === "/my/learning-streak") {
+    const section = new URLSearchParams(path.split("?")[1]).get("section_id");
+    const days = new Set(records.filter(r => !section || r.section_id === section).map(r => r.day));
+    const todayCompleted = days.has(kst(0));
+    let streak = 0;
+    while (days.has(kst(streak + (todayCompleted ? 0 : 1)))) streak++;
+    return { today_completed: todayCompleted, current_streak: streak, total_days: days.size, days: [...days] };
+  }
   if (p === "/my/learning-sessions") {
     const q = new URLSearchParams(path.split("?")[1]);
     const from = q.get("date_from"), to = q.get("date_to"), section = q.get("section_id");

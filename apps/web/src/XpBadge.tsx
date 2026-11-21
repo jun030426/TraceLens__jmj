@@ -14,17 +14,17 @@ const tierOf = (label: string) => (["A+", "A0", "B+"].includes(label) ? "high" :
 
 type Page = { items: TheoryRecord[]; has_more?: boolean };
 
-async function loadTheory() {
+async function loadTheory(sectionQuery: string) {
   const items: TheoryRecord[] = [];
-  for (let offset = 0, i = 0; i < 20; i++, offset += 100) {
-    const page = await api<Page>(`/my/learning-sessions?limit=100&offset=${offset}`);
+  for (let offset = 0; ; offset += 100) {
+    const page = await api<Page>(`/my/learning-sessions?${sectionQuery}&limit=100&offset=${offset}`);
     items.push(...page.items);
     if (!page.has_more || page.items.length === 0) break;
   }
   return items;
 }
 
-export function XpBadge({ userId }: { userId: string }) {
+export function XpBadge({ userId, sectionId }: { userId: string; sectionId: string }) {
   const { pathname } = useLocation();
   const [server, setServer] = useState<{ theory: TheoryRecord[]; streak?: StreakInfo; practice: { submitted: number } }>();
   const [failed, setFailed] = useState(false);
@@ -56,10 +56,11 @@ export function XpBadge({ userId }: { userId: string }) {
   useEffect(() => {
     let active = true;
     // 서버 기록 하나를 못 불러와도 캐릭터는 보이게, 불러온 것만으로 계산해요
+    const scope = new URLSearchParams({section_id: sectionId}).toString();
     Promise.allSettled([
-      loadTheory(),
-      api<StreakInfo>("/my/learning-streak"),
-      api<{ submitted: number }>("/my/practice-submission-count"),
+      loadTheory(scope),
+      api<StreakInfo>(`/my/learning-streak?${scope}`),
+      api<{ submitted: number }>(`/my/practice-submission-count?${scope}`),
     ]).then(([theory, streak, practice]) => {
       if (!active) return;
       setServer(previous => ({
@@ -72,7 +73,7 @@ export function XpBadge({ userId }: { userId: string }) {
     return () => {
       active = false;
     };
-  }, [userId, pathname, practiceRev]);
+  }, [userId, sectionId, pathname, practiceRev]);
 
   // 실습 제출이 저장되면 서버 집계를 다시 읽어요.
   useEffect(() => {
@@ -117,7 +118,7 @@ export function XpBadge({ userId }: { userId: string }) {
   // 등급이 올라가면 배지가 한 번 통통 튀어요 (마지막으로 본 등급을 이 브라우저에 기억)
   useEffect(() => {
     if (!xp) return;
-    const key = `lerny-xp-seen-grade:${userId}`;
+    const key = `lerny-xp-seen-grade:${userId}:${sectionId}`;
     const now = GRADES.indexOf(xp.grade);
     try {
       const seen = localStorage.getItem(key);
@@ -127,7 +128,7 @@ export function XpBadge({ userId }: { userId: string }) {
     } catch {
       /* 저장이 막힌 브라우저 */
     }
-  }, [xp?.grade.label, userId]);
+  }, [xp?.grade.label, userId, sectionId]);
 
   if (!xp)
     return (
