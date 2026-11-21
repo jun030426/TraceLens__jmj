@@ -150,7 +150,8 @@ def prepare(session, job):
     original_quotes = {}
     if language == "python":
         from lerny.practice_inputs import adapted_programs
-        adapted = adapted_programs(chunks, model_json)
+        versions = session.scalars(select(MaterialVersion).where(MaterialVersion.id.in_(version_ids)))
+        adapted = adapted_programs(chunks, model_json, versions)
         for program, quote in adapted:
             original_quotes[(program.source_id, program.code)] = quote
         # Validate adapted numeric inputs first so the same original stdin example
