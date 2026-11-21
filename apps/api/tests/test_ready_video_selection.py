@@ -15,7 +15,7 @@ def draft(weekly):
     session.flush()
     g.concept_ids = [*g.concept_ids, 'other']
     g.concept_evidence = [*g.concept_evidence, {'id':'other','name':'Other','description':'Synthetic public stack rule 1','version_id':'version'}]
-    for i in range(g.options.get('mcq_per_concept', 2) + 1):
+    for i in range(g.options["mcq_per_concept"]):
         source = session.get(Question, f'{gid}-q{i}')
         session.add(Question(id=f'other-q{i}', course_id='course', generation_id=gid,
             concept_id='other', source_version_id='version', kind=source.kind, prompt=f'Other {i}',

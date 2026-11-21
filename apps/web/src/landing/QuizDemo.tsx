@@ -115,7 +115,7 @@ export default function QuizDemo({ progress }: { progress: number }) {
     </div>
     </div>
     </div>
-    <div className="v-quiz-footer"><span>오늘의 4문항을 마치면</span><button onClick={newQuiz}>추가 학습 이어가기 <IconArrowUpRight /></button></div>
+    <div className="v-quiz-footer"><span>오늘의 5문항을 마치면</span><button onClick={newQuiz}>추가 학습 이어가기 <IconArrowUpRight /></button></div>
     <span ref={cursorRef} aria-hidden="true" className={`v-md-cursor ${[2, 4, 6].includes(phase) ? 'press' : ''}`}>
       <svg width="33" height="33" viewBox="0 0 44 44"><path d="M40 4 L4 19 L19 25 L25 40 Z" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinejoin="round" /></svg><i />
     </span>

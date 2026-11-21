@@ -25,12 +25,13 @@ class Generated(BaseModel):
     options: list[str] = Field(max_length=4)
     answer_index: int = Field(ge=0, le=3)
     explanation: str = Field(min_length=1, max_length=2000)
+    hint: str = ""
     criteria: list[str] = Field(max_length=5)
     sources: list[Source] = Field(min_length=1, max_length=4)
 
 
 class GeneratedSet(BaseModel):
-    questions: list[Generated] = Field(min_length=3, max_length=4)
+    questions: list[Generated] = Field(min_length=3, max_length=5)
 
 
 class Check(BaseModel):
@@ -74,7 +75,7 @@ def generate_job(session, job):
     if job.payload.get("generation_id"):
         generation = generation_for_job(session, job)
         mcq_count = (generation.options or {}).get("mcq_per_concept", 2)
-    if mcq_count not in (2, 3):
+    if mcq_count not in (2, 3, 5):
         raise ValueError("INVALID_QUESTION_POLICY")
     concept = session.get(Concept, job.payload["concept_id"])
     epoch = session.get(Course, job.course_id).access_epoch
@@ -117,7 +118,10 @@ def generate_job(session, job):
     schema["$defs"]["Source"]["properties"]["chunk_id"]["enum"] = list(source_map)
     schema["$defs"]["Generated"]["properties"]["criteria"]["items"]["enum"] = list(source_map)
     from lerny.config import settings
-    if settings().ai_provider == "gemini":
+    if mcq_count == 5:
+        from lerny.team_engine import five_questions
+        generated = five_questions(rows, job.course_id, concept, source_map, evidence, checked_model, job.id)
+    elif settings().ai_provider == "gemini":
         from lerny.team_engine import generate_questions
         from types import SimpleNamespace
         topic = SimpleNamespace(name=concept.name, description=job.payload.get("concept_description",concept.description))
@@ -128,13 +132,14 @@ def generate_job(session, job):
         session, job.course_id, concept.name + " " + concept.description,
         source_ids=[row[0].id for row in rows],
     )
-    if sorted(q.kind for q in generated.questions) != ["essay"] + ["mcq"] * mcq_count:
+    expected = (["essay"] if mcq_count < 5 else []) + ["mcq"] * mcq_count
+    if sorted(q.kind for q in generated.questions) != expected:
         raise ValueError("INVALID_QUESTION_SET")
     stems = [re.sub(r"\W+", "", q.prompt).casefold() for q in generated.questions]
     if len(set(stems)) != len(stems):
         raise ValueError("DUPLICATE_QUESTION")
     created = []
-    for item in generated.questions:
+    for position, item in enumerate(generated.questions, 1):
         if (item.kind == "mcq" and (len(item.options) != 4 or len(set(item.options)) != 4)) or (
             item.kind == "essay" and (item.options or not 2 <= len(item.criteria) <= 4)
         ):
@@ -162,6 +167,7 @@ def generate_job(session, job):
             solution={
                 "answer_index": item.answer_index,
                 "explanation": item.explanation,
+                **({"hint": item.hint, "quiz_position": position} if mcq_count == 5 else {}),
                 "criteria": [source_map[key][1] for key in item.criteria],
             },
         )

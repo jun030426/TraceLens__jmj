@@ -183,6 +183,32 @@ def verbatim_source_quote(quote, text):
     return span if len(span) <= 4000 else None
 
 
+def five_questions(rows, course_id, concept, source_map, evidence, checked_model, job_id):
+    """Use the team's five-task generator with the job's authorized source rows."""
+    from types import SimpleNamespace
+    from quiz_mvp.generation import generate
+    from lerny.assessment import Generated, GeneratedSet
+
+    chunks = [source_item(row, course_id) for row in rows]
+    by_id = {row[0].id: row[0] for row in rows}
+    scoped = SimpleNamespace(concepts={concept.id: concept.name}, context={"subject_name": concept.name},
+                             retrieve=lambda query: {"query": query, "sources": chunks})
+    quiz = generate(scoped, ServiceGoogle(checked_model), concept=concept.id, generation_id=job_id)
+    items = []
+    for position, item in enumerate(quiz["questions"], 1):
+        source = by_id[item["source_id"]]
+        quote = verbatim_source_quote(item["quote"], source.content)
+        if not quote:
+            raise ValueError("INVALID_CITATION")
+        key = f"T{position}"
+        source_map[key] = (source, quote)
+        evidence.append({"chunk_id": key, "text": quote})
+        items.append(Generated(kind="mcq", prompt=item["stem"], options=item["options"],
+                               answer_index=item["answer_index"], explanation=item["explanation"],
+                               hint=item["hint"], criteria=[], sources=[{"chunk_id": key}]))
+    return GeneratedSet(questions=items)
+
+
 def generate_questions(rows, course_id, concept, source_map, evidence, generate, *, mcq_count=2):
     """Generate distinct reviewed MCQs and keep the existing essay contract."""
     from lerny.assessment import Generated, GeneratedSet

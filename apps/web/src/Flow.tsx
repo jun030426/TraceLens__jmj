@@ -131,7 +131,7 @@ export function QuizCatalog() {
                   aria-label={done ? "이론 결과·해설 보기" : record ? "이론 이어서 풀기" : "이론 풀기"}>
                   <div className="quiz-mode-top"><span className="quiz-mode-tag">이론</span><span className="quiz-mode-arrow go-arrow" aria-hidden="true">→</span></div>
                   <h4>배운 개념을 확인해요.</h4>
-                  <p className="quiz-mode-description">하루 4문항 · 주차별 7일 · 4일차부터 나의 오답 복습</p>
+                  <p className="quiz-mode-description">하루 5문항 · 주차별 7일 · 4일차부터 나의 오답 복습</p>
                   <div className="quiz-mode-footer">
                     <p className="quiz-progress-status">{done
                       ? "오늘 제출 완료 · 눌러서 결과·해설 보기"
@@ -364,7 +364,7 @@ export function QuizTakeFlow() {
         <article className="panel theory-question">
           <small>
             {index + 1} / {daily.items.length} ·{" "}
-            {kindLabel(q.kind)}
+            {kindLabel(q.kind)}{q.quiz_role && ` · ${q.quiz_role}`}
           </small>
           <h2>{q.prompt}</h2>
           {q.attempt ? (

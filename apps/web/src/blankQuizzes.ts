@@ -11,6 +11,7 @@ export type BlankQuiz = {
   example_input?: string;
   requirements?: string[];
   available_helpers?: string[];
+  helpers_guide_text?: string;
   hint_steps?: number;
   /** 로컬 예제용 답지. 실제 수업에서는 최종 제출 후 서버에서 별도로 받아요 */
   answers?: string[];

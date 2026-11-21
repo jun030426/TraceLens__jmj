@@ -123,7 +123,7 @@ class GenerationTests(unittest.TestCase):
             def request(self,stage,path,payload,parse):
                 if stage=='quiz_generate_v1':
                     q=outer.demo['questions'][self.count];self.count+=1
-                    result={k:q[k] for k in ['stem','options','answer_index','explanation','concept_id','difficulty','difficulty_reason','source_id','quote']}
+                    result={k:q[k] for k in ['stem','options','answer_index','explanation','hint','concept_id','difficulty','difficulty_reason','source_id','quote']}
                 else:
                     data=json.loads(payload['input'][0]['text'])
                     outer.assertNotIn('answer_index',data)
@@ -131,7 +131,7 @@ class GenerationTests(unittest.TestCase):
                     q=outer.demo['questions'][self.count-1]
                     result={'supported':not self.fail,'single_correct':True,'explanation_supported':True,
                             'difficulty_matches':True,'answer_index':q['answer_index'],'reason':'fixture',
-                            'explanation':q['explanation'],'source_id':q['source_id'],'quote':q['quote']}
+                            'hint':q['hint'],'explanation':q['explanation'],'source_id':q['source_id'],'quote':q['quote']}
                 return parse({'status':'completed','output_text':json.dumps(result)})
         q=generate(Rag(),Client());self.assertEqual(len(q['questions']),5);self.assertEqual(q['origin'],'gemini_rag')
         bad=Client();bad.fail=True

@@ -136,7 +136,7 @@ class CourseTests(unittest.TestCase):
                 else:
                     q=demo['questions'][self.number-1]
                     result={'supported':True,'single_correct':True,'explanation_supported':True,'difficulty_matches':True,
-                        'answer_index':q['answer_index'],'reason':'test fixture','explanation':q['explanation'],
+                        'answer_index':q['answer_index'],'reason':'test fixture','hint':q['hint'],'explanation':q['explanation'],
                         'source_id':q['source_id'],'quote':q['quote']}
                 return parse({'status':'completed','output_text':json.dumps(result)})
         with patch.object(rag,'retrieve',return_value={'offering_id':oid,'schema_version':1,'corpus_version':corpus['signature'],'sources':corpus['chunks']}):

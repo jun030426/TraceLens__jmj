@@ -8,6 +8,8 @@ from lerny.models import AuditEvent, PracticeAttempt
 
 def metadata(exercise):
     helpers = []
+    requirements = ["시작 코드의 입력 선언을 유지하세요.", "입력 값이 달라져도 같은 처리 순서로 결과를 구하세요."]
+    guide = ""
     if exercise.language == "python":
         # Only inspect already-visible starter code. Never publish reference bodies.
         try:
@@ -15,13 +17,24 @@ def metadata(exercise):
             helpers = [node.name for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
         except (SyntaxError, ValueError):
             pass
-    return {"requirements": ["시작 코드의 입력 선언을 유지하세요.",
-                             "입력 값이 달라져도 같은 처리 순서로 결과를 구하세요."],
+        if exercise.kind == "full":
+            from rag_mvp.cloze_generator import ClozeGenerator
+            statement = ClozeGenerator.infer_problem_statement(exercise.reference, slide_text=exercise.prompt)
+            requirements.extend(statement["requirements"])
+            guide = ClozeGenerator.extract_available_helpers(exercise.reference, slide_text=exercise.prompt)["helpers_guide_text"]
+    return {"requirements": requirements, "helpers_guide_text": guide,
             "available_helpers": list(dict.fromkeys(helpers)),
-            "hint_steps": 4 if exercise.kind == "full" else 3}
+            "hint_steps": len(hints(exercise))}
 
 
 def hints(exercise):
+    if exercise.language == "python":
+        from rag_mvp.cloze_generator import ClozeGenerator
+        mode = "cloze" if exercise.kind == "blank" else "full_coding"
+        code = "\n".join(exercise.blanks.values()) if mode == "cloze" else exercise.reference
+        flow = ClozeGenerator.practice_hint_flow(exercise.title, mode, code)
+        if mode == "cloze" or flow["flow_title"] != ClozeGenerator.GENERIC_ACTION_FLOW["flow_title"]:
+            return [step["title"] + "\n" + step["action_story"] for step in flow["steps"]]
     # The teammate's action-flow pedagogy is adapted to the actual source. Avoid
     # their hard-coded stack/queue answers for unrelated lecture implementations.
     actions = []
@@ -49,14 +62,15 @@ def help_state(session, actor, plan, exercise):
         AuditEvent.target_id == plan.id, AuditEvent.action == "practice_help",
         AuditEvent.detail["exercise_id"].as_string() == exercise.id)))
     used = max((int(e.detail.get("step", 0)) for e in events if e.detail.get("kind") == "hint"), default=0)
-    used = min(len(hints(exercise)), used)
+    steps = hints(exercise)
+    used = min(len(steps), used)
     wrong = list(session.scalars(select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
         PracticeAttempt.exercise_id == exercise.id, PracticeAttempt.practice_session_id == plan.id,
         PracticeAttempt.status == "graded", PracticeAttempt.correct.is_(False))))
     submitted = session.scalar(select(PracticeAttempt.id).where(
         PracticeAttempt.student_id == actor.id, PracticeAttempt.section_id == plan.section_id,
         PracticeAttempt.exercise_id == exercise.id, PracticeAttempt.practice_session_id == plan.id).limit(1))
-    return {"hints_used": used, "hints": hints(exercise)[:used], "max_hint_steps": len(hints(exercise)),
+    return {"hints_used": used, "hints": steps[:used], "max_hint_steps": len(steps),
             "failed_attempts": len(wrong), "can_view_answer": submitted is not None,
             "independent": not bool(events)}
 

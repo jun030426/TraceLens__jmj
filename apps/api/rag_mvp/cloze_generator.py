@@ -519,7 +519,20 @@ class ClozeGenerator:
 
         # 1. 슬라이드 본문 및 주석에서 핵심 계산 공식 추출 (예: BMI, 총점, 평균 등)
         combined_text = f"{slide_text or ''}\n{code or ''}"
-        formula_matches = re.findall(r'(\b[A-Za-z가-힣_]+\s*=\s*[^,\n\)\#]+)', combined_text)
+        # Keep balanced parentheses in formulas, including those embedded in slide prose.
+        formula_matches = []
+        for match in re.finditer(r'(\b[A-Za-z가-힣_]\w*\s*=\s*)([^,\n#]+)', combined_text):
+            expression = match[2]
+            depth = 0
+            for i, char in enumerate(expression):
+                if char == '(':
+                    depth += 1
+                elif char == ')':
+                    if depth == 0:
+                        expression = expression[:i]
+                        break
+                    depth -= 1
+            formula_matches.append(match[1] + expression)
         found_formulas = []
         for f in formula_matches:
             f_clean = f.strip()
@@ -529,7 +542,8 @@ class ClozeGenerator:
                     guide_lines.append(f"• 핵심 계산 공식: `{f_clean}`")
 
         # 단위 변환 힌트 (예: cm -> m)
-        if any(w in combined_text for w in ['cm', '키(m)', '100', '단위']):
+        if ('cm' in combined_text.lower() or '센티미터' in combined_text) and (
+                re.search(r'/\s*100\b', code) or '미터' in combined_text or '키(m)' in combined_text):
             guide_lines.append("• 단위 변환 주의: cm 단위 입력값은 공식 대입 전 100으로 나누어 미터(m) 단위로 변환해야 합니다.")
 
         # 2. 코드 내 사용된 파이썬 내장 도구 및 특수 연산자 감지
@@ -1104,7 +1118,13 @@ class ClozeGenerator:
           - 모든 단계를 끝까지 확인하거나 실행 3회 실패 시 [정답 보기] 활성화 (Ghost Text 워터마크 따라쓰기 강제)
           - 심리적 안전지대: student_weakness_weight = 0.0 (감점 0점)
         """
-        # 1. 빈칸 모드(Cloze) 특화 3단계 비계 힌트 (정답 코드 직접 노출 절대 금지, 문법 큐 연계 유도)
+        flow = cls.practice_hint_flow(exercise_id, mode, target_code, metaphor, flow_steps)
+        return cls._practice_hint_result(exercise_id, hint_step, mode, target_code, attempt_count,
+                                         current_code, client, flow)
+
+    @classmethod
+    def practice_hint_flow(cls, exercise_id, mode, target_code, metaphor=None, flow_steps=None):
+        # 빈칸 모드의 세 단계와 풀코딩 행동 흐름을 웹 API와 엔진에서 함께 사용한다.
         if mode == 'cloze':
             step1_story = "이 빈칸은 프로그램의 핵심 처리 단계 중 하나입니다. 전체 실행 흐름에서 이 줄이 계산해야 할 목표가 무엇인지 먼저 파악하세요."
             step2_story = "이 처리에 필요한 입력 변수들과 연산 기호를 떠올려 보세요."
@@ -1151,6 +1171,11 @@ class ClozeGenerator:
         else:
             flow = cls.resolve_mnemonic_flow(exercise_id, target_code, metaphor=metaphor, flow_steps=flow_steps)
 
+        return flow
+
+    @classmethod
+    def _practice_hint_result(cls, exercise_id, hint_step, mode, target_code, attempt_count,
+                              current_code, client, flow):
         steps = flow['steps']
         total_steps = len(steps)
         step = max(1, min(int(hint_step), total_steps))

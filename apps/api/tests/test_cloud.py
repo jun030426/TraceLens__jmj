@@ -119,7 +119,10 @@ def synthetic_response(task):
         return {"embeddings": [[1.0, 0.0] for _ in body["input"]]}
     schema = body["format"]
     properties = schema["properties"]
-    if "concepts" in properties:
+    if "stem" in properties or "single_correct" in properties:
+        from quiz_provider_fixture import quiz_response
+        value = quiz_response(json.loads(body["messages"][-1]["content"].rsplit("\n", 1)[1]))
+    elif "concepts" in properties:
         value = {"concepts": [{"name": "큐", "quote": "큐는 선입선출 자료구조입니다.","version_id":json.loads(body["messages"][-1]["content"].rsplit("\n",1)[1])[0]["version_id"]}]}
     elif "programs" in properties:
         value = {"programs": []}
@@ -287,7 +290,7 @@ async def test_inference_replay_generation_and_grading(cloud_db):
         assert response.status_code==202,response.text
         await drain(client, isolated, "questions")
         with Session(isolated) as session:
-            assert session.scalar(select(func.count()).select_from(Question)) == 4, (
+            assert session.scalar(select(func.count()).select_from(Question)) == 5, (
                 "Replays duplicated application writes"
             )
         with Session(isolated) as session:
@@ -303,7 +306,7 @@ async def test_inference_replay_generation_and_grading(cloud_db):
             await client.post("/api/v1/enrollments", json={"join_code": code})
         ).status_code == 201
         daily = (await client.post(f"/api/v1/sections/{section['id']}/daily", json={})).json()
-        assert len(daily["items"]) == 3  # Legacy non-personalized daily flow still selects two MCQs + one essay.
+        assert len(daily["items"]) == 5 and all(q["kind"] == "mcq" for q in daily["items"])
         for item in daily["items"]:
             submitted = await client.post(
                 f"/api/v1/learning-sessions/{daily['id']}/questions/{item['id']}/submit",
@@ -311,7 +314,6 @@ async def test_inference_replay_generation_and_grading(cloud_db):
                 headers={"Idempotency-Key": item["id"]},
             )
             assert submitted.status_code == 202, submitted.text
-        await drain(client, isolated, "grade")
         final = (await client.get(f"/api/v1/learning-sessions/{daily['id']}")).json()
         assert all(item["attempt"]["status"] == "graded" for item in final["items"])
 

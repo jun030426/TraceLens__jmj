@@ -73,7 +73,7 @@ def learning_context(session, section, student_id, day):
 
 def daily(session, actor, section, day):
     """Assign reviewed questions; personalization never creates unseen student content."""
-    from lerny.learning import lock_student, session_view, valid_sources
+    from lerny.learning import five_daily_questions, lock_student, session_view, valid_sources
     lock_student(session, actor.id)
     learning = session.scalar(select(LearningSession).where(
         LearningSession.student_id == actor.id, LearningSession.section_id == section.id,
@@ -88,16 +88,7 @@ def daily(session, actor, section, day):
     seen = set(session.scalars(select(Attempt.question_id).where(Attempt.student_id == actor.id)))
     bank.sort(key=lambda q: (q.id in seen,
         hashlib.sha256((actor.id + day.isoformat() + q.id).encode()).hexdigest()))
-    chosen = []
-    for cid in context["concept_slots"]:
-        candidate = next((q for q in bank if q.concept_id == cid and q.id not in chosen), None)
-        if candidate:
-            chosen.append(candidate.id)
-    for q in bank:
-        if len(chosen) >= 4:
-            break
-        if q.id not in chosen:
-            chosen.append(q.id)
+    chosen = five_daily_questions(bank, context["concept_slots"])
     if not chosen:
         deny(409, "교수자가 검토·공개한 이번 진도의 문항이 아직 없어요.")
     learning = LearningSession(student_id=actor.id,section_id=section.id,day=day,question_ids=chosen)

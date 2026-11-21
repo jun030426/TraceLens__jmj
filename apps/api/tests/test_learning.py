@@ -32,7 +32,7 @@ async def test_generation_rejects_answer_key_that_disagrees_with_independent_sol
     verify_choice(question, [{"text": "dequeue는 front의 원소를 꺼낸다."}])
 
 
-async def seed(client, session):
+async def seed(client, session, *, legacy_session=False):
     await login(client, "teacher1")
     course, section = await setup_course(client)
     concept = (
@@ -88,6 +88,12 @@ async def seed(client, session):
     ]
     await login(client, "student1")
     assert (await client.post("/api/v1/enrollments", json={"join_code": code})).status_code == 201
+    if legacy_session:
+        from lerny.models import User
+        student = session.scalar(select(User).where(User.login_id == "student1"))
+        ids = list(session.scalars(select(Question.id).where(Question.course_id == course["id"])))
+        session.add(LearningSession(student_id=student.id, section_id=section["id"], day=today(), question_ids=ids))
+        session.commit()
     return course, section, mat
 
 
@@ -100,7 +106,7 @@ async def test_daily_persistent_answer_hidden_and_submission_idempotent(app_db):
         route = f"/api/v1/sections/{section['id']}/daily"
         daily = (await c.post(route)).json()
         assert daily == (await c.post(route)).json()
-        assert len(daily["items"]) == 3
+        assert len(daily["items"]) == 2 and daily["shortage"] == 3
         assert all("solution" not in q and "sources" not in q for q in daily["items"])
         q = daily["items"][0]
         submit = f"/api/v1/learning-sessions/{daily['id']}/questions/{q['id']}/submit"
@@ -175,7 +181,7 @@ async def test_uncertain_essay_excluded_from_accuracy(app_db, monkeypatch):
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as c:
-        _, section, _ = await seed(c, session)
+        _, section, _ = await seed(c, session, legacy_session=True)
         daily = (await c.post(f"/api/v1/sections/{section['id']}/daily")).json()
         q = next(q for q in daily["items"] if q["kind"] == "essay")
         response = await c.post(
@@ -238,7 +244,7 @@ async def test_held_resolution_and_csv_are_permission_checked(app_db):
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as c:
-        course, section, _ = await seed(c, session)
+        course, section, _ = await seed(c, session, legacy_session=True)
         daily = (await c.post(f"/api/v1/sections/{section['id']}/daily")).json()
         q = next(q for q in daily["items"] if q["kind"] == "essay")
         result = (

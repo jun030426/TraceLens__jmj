@@ -71,10 +71,12 @@ def completed(session,gid):
     g=session.get(ContentGeneration,gid)
     g.concept_ids=["concept_stack"]
     g.concept_evidence=[{"id":"concept_stack","name":"stack","description":"Synthetic public stack rule 1","version_id":"version"}]
-    for i,kind in enumerate(["mcq"] * g.options.get("mcq_per_concept", 2) + ["essay"]):
+    for i in range(5):
+        kind = "mcq"
         session.add(Question(id=f"{gid}-q{i}",course_id="course",generation_id=gid,concept_id="concept_stack",
             source_version_id="version",kind=kind,prompt=f"Question {i}",options=["A","B","C","D"] if kind=="mcq" else [],
-            solution={"answer_index":0,"explanation":"Synthetic explanation","criteria":[]},
+            solution={"answer_index":0,"explanation":"Synthetic explanation","criteria":[],
+                      "hint":f"Concept hint {i + 1}","quiz_position":i + 1},
             sources=[{"chunk_id":"src_stack_01","quote":"Synthetic public stack rule 1"}]))
     for kind in ["questions","narration_lesson","practice_prepare"]:
         session.add(Job(owner_id="teacher",course_id="course",kind=kind,status="succeeded",payload={"generation_id":gid},result={"held":[]}))
@@ -167,7 +169,14 @@ def test_draft_hidden_then_publication_enables_students_and_retrieval(weekly,mon
     monkeypatch.setattr(worker,"model_json",no_ai)
     response=client.post("/api/v1/sections/section/daily")
     assert response.status_code==200,response.text
-    assert {q["id"] for q in response.json()["items"]}=={gid+"-q0",gid+"-q1",gid+"-q2"}
+    assert [q["id"] for q in response.json()["items"]] == [f"{gid}-q{i}" for i in range(5)]
+    assert response.json()["target_count"] == 5
+    first = response.json()["items"][0]
+    assert "explanation" not in first and "solution" not in first
+    route = f"/api/v1/learning-sessions/{response.json()['id']}/questions/{first['id']}"
+    assert client.post(route + "/help").json()["hint"] == "Concept hint 1"
+    assert client.post(route + "/submit", json={"answer": "0"}).status_code == 202
+    assert client.post("/api/v1/sections/section/daily").json()["items"][0]["explanation"] == "Synthetic explanation"
     assert client.post("/api/v1/sections/section/daily").json()["id"]==response.json()["id"]
     assert not any(j.kind=="daily_theory" for j in session.scalars(select(Job)))
 

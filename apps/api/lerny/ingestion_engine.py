@@ -150,13 +150,12 @@ class TeamIngestionEngine:
         for index, question in enumerate(quiz["questions"]):
             quizzes.append({"quiz_key": f"quiz-{index + 1:03}",
                             "concept_label": concepts[question["concept_id"]],
-                            "question_type": "principle" if question["difficulty"] == "basic" else
-                                             "trace" if question["difficulty"] == "apply" else "comparison",
+                            "question_type": ("principle", "principle", "scenario", "trace", "comparison")[index],
                             "difficulty": {"basic": "low", "apply": "medium", "reason": "high"}[question["difficulty"]],
                             "question": question["stem"], "options": question["options"],
                             "answer": {"answer_index": question["answer_index"], "validation": question["validation"]},
                             "explanation": question["explanation"],
-                            "hints": ["문항의 핵심 개념을 확인하세요.", "제시된 강의 근거와 각 선택지를 비교하세요.",
+                            "hints": [question["hint"], "제시된 강의 근거와 각 선택지를 비교하세요.",
                                       "원문의 조건을 모두 만족하는 선택지를 찾으세요."],
                             "evidence": [{"source_id": question["source_id"], "quote": question["quote"]}],
                             "generator_version": PIPELINE})

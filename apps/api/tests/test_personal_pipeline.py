@@ -26,7 +26,7 @@ async def prepared(client, session, monkeypatch):
     chunk = session.scalar(select(Chunk).where(Chunk.version_id == version.id))
     actor = session.scalar(select(User).where(User.login_id == "student1"))
     template=session.scalar(select(Question).where(Question.course_id==course["id"],Question.kind=="mcq"))
-    for i in range(2):
+    for i in range(3):
         session.add(Question(course_id=course["id"],concept_id=template.concept_id,generation_id=template.generation_id,
             kind="mcq",prompt=f"추가 검토 문항 {i}",options=template.options,solution=template.solution,sources=template.sources))
     session.commit()
@@ -50,7 +50,7 @@ def generator(monkeypatch, chunk, material, version):
     monkeypatch.setattr(worker, "model_json", model)
 
 
-async def test_daily_four_owned_frozen_and_help_audited(app_db, monkeypatch):
+async def test_daily_five_owned_frozen_and_help_audited(app_db, monkeypatch):
     app, session = app_db
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
         course, sec, material, version, chunk, actor = await prepared(c, session, monkeypatch)
@@ -58,9 +58,9 @@ async def test_daily_four_owned_frozen_and_help_audited(app_db, monkeypatch):
         def no_model(*a,**k): raise AssertionError("Daily assignment cannot create unseen questions")
         monkeypatch.setattr(worker,"model_json",no_model)
         ready=(await c.post(route)).json()
-        assert ready["target_count"]==4 and ready["status"]=="ready"
+        assert ready["target_count"]==5 and ready["status"]=="ready"
         assert (await c.post(route)).json()["id"]==ready["id"]
-        assert len(ready["items"])==4
+        assert len(ready["items"])==5
         assert not any("solution" in q or "correct_option" in q for q in ready["items"])
         assert all(session.get(Question,q["id"]).student_id is None for q in ready["items"])
         qid = ready["items"][0]["id"]
@@ -76,7 +76,7 @@ async def test_daily_four_owned_frozen_and_help_audited(app_db, monkeypatch):
         assert (await c.post(path + "/help", json={})).status_code == 404
         other_plan = (await c.post(route)).json()
         assert other_plan["id"] != ready["id"]
-        assert len(other_plan["items"]) == 4
+        assert len(other_plan["items"]) == 5
         material.visibility = "private"
         session.commit()
         await login(c, "student1")

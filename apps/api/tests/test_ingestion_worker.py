@@ -233,12 +233,12 @@ def test_team_generation_adapters_use_grounded_quiz_and_shorts(tmp_path, monkeyp
         if stage == "quiz_generate_v1":
             counter[0] += 1
             answer = {"stem": f"스택 문항 {counter[0]}", "options": ["가", "나", "다", "라"], "answer_index": 0,
-                      "explanation": "스택은 후입선출입니다.", "concept_id": data["concept_id"],
+                      "explanation": "스택은 후입선출입니다.", "hint": "맨 위 항목을 생각하세요.", "concept_id": data["concept_id"],
                       "difficulty": data["difficulty"], "difficulty_reason": "테스트 근거", "source_id": "c1",
                       "quote": "스택은 후입선출 구조입니다."}
         elif stage == "quiz_verify_v1":
             answer = {"supported": True, "single_correct": True, "explanation_supported": True,
-                      "difficulty_matches": True, "answer_index": 0, "reason": "합성 검증", "explanation": "근거 확인",
+                      "difficulty_matches": True, "answer_index": 0, "reason": "합성 검증", "explanation": "근거 확인", "hint": "맨 위 항목을 생각하세요.",
                       "source_id": "c1", "quote": "스택은 후입선출 구조입니다."}
         elif stage == "shorts_verify_v1":
             units = json.loads(data["prompt"].split("\n", 1)[1])["units"]
