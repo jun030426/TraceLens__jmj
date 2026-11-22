@@ -11,9 +11,9 @@ from lerny.config import settings
 SCHEMA_REVISION = "b60d9c84f210"
 
 
-def schema_revision_matches(connection: Connection, expected_revision: str) -> bool:
+def schema_revision_matches(connection: Connection, expected_revision: str, *additional_revisions: str) -> bool:
     revisions = connection.scalars(text("SELECT version_num FROM alembic_version")).all()
-    return revisions == [expected_revision]
+    return len(revisions) == 1 and revisions[0] in (expected_revision, *additional_revisions)
 
 
 @lru_cache

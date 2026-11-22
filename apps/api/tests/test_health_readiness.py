@@ -11,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 from lerny import health, storage
 from lerny.admin_models import OperationsState, OperationsWorker
 from lerny.config import settings
+from lerny.db import schema_revision_matches
 from lerny.main import SCHEMA_REVISION, create_app
 from lerny.models import Base, CodeWorker, now
 from lerny.tracing import queue
@@ -118,12 +119,14 @@ def test_operations_gates_are_reported(service, flag, reason, execution):
 @pytest.mark.parametrize(("revisions", "accepted"), [
     (["af3e227a01db"], False),
     (["b60d9c84f210"], True),
+    (["4ebad9697835"], True),
     (["e83f529cc134"], False),
     (["unknown"], False),
     ([], False),
     (["b60d9c84f210", "unknown"], False),
     (["af3e227a01db", "b60d9c84f210"], False),
-], ids=["previous", "current", "older", "unknown", "empty", "mixed-heads", "both-heads"])
+    (["b60d9c84f210", "4ebad9697835"], False),
+], ids=["previous", "current", "snapshot", "older", "unknown", "empty", "mixed-heads", "old-heads", "rollout-heads"])
 def test_required_schema_across_health_and_capabilities(service, revisions, accepted):
     client, _, _, engine = service
     with engine.begin() as connection:
@@ -131,6 +134,8 @@ def test_required_schema_across_health_and_capabilities(service, revisions, acce
         if revisions:
             connection.execute(text("INSERT INTO alembic_version VALUES (:revision)"),
                                [{"revision": revision} for revision in revisions])
+        # Shared-data tools continue to require their exact revision.
+        assert schema_revision_matches(connection, SCHEMA_REVISION) == (revisions == [SCHEMA_REVISION])
     status = 200 if accepted else 503
     database = "ready" if accepted else "migration_required"
     ready = client.get("/api/v1/health/ready")
