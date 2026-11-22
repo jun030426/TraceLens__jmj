@@ -8,6 +8,16 @@ PAGE_HOLD_REASONS = {
     "invalid_model_response", "source_followup_issue_mapping",
     "source_followup_audit_changed", "source_followup_mapping_repair_changed",
 }
+LINK_HOLD_REASONS = {"invalid_model_response", "page_link_issue_mapping",
+                     "duplicate_page_link", "page_link_wrong_scope"}
+
+
+def hold_reasons(task):
+    if task["kind"] == "visual" and task["unit"].get("source_kind") == "ppt":
+        return PAGE_HOLD_REASONS
+    if task["kind"] == "document_links" and all(p.get("source_kind") == "ppt" for p in task["pages"]):
+        return LINK_HOLD_REASONS
+    return ()
 
 
 def compatible(plan, current):
@@ -67,27 +77,34 @@ def hold_file(out, task):
     return out / "ppt-holds" / (signature(task["id"])[:24] + ".json")
 
 
-def bound_hold(plan_hash, task, retry_round, reason):
-    return {"binding": signature({"plan": plan_hash, "task": task}), "round": retry_round,
-            "page": task["unit"]["location"]["page"], "reason": reason}
+def bound_hold(plan_hash, task, retry_round, reason, results=None):
+    marker = {"binding": signature({"plan": plan_hash, "task": task}), "round": retry_round, "reason": reason}
+    if task["kind"] == "document_links":
+        marker["pages"] = [p["location"]["page"] for p in task["pages"]]
+        marker["page_receipts"] = [results[p["id"]]["payload_hash"] for p in task["pages"]]
+    else:
+        marker["page"] = task["unit"]["location"]["page"]
+    return marker
 
 
-def current_hold(out, plan_hash, task, retry_round):
+def current_hold(out, plan_hash, task, retry_round, results=None):
     path = hold_file(out, task)
     if not path.exists():
         return None
     data = read(path)
     reason = data.get("reason")
-    if reason not in PAGE_HOLD_REASONS:
+    if reason not in hold_reasons(task):
         raise ValueError("invalid_page_hold")
-    expected = bound_hold(plan_hash, task, data["round"], reason)
+    expected = bound_hold(plan_hash, task, data["round"], reason, results)
+    if "page_receipts" in expected and data.get("page_receipts") != expected["page_receipts"]:
+        return None
     if data != expected:
         raise ValueError("invalid_page_hold")
     return data if data["round"] == retry_round else None
 
 
 def classified_holds(out, plan, results, retry_round):
-    """Return holds only when every pending task is a held page or a dependent link."""
+    """Partial publication requires an explanation for every unfinished task."""
     missing = [t for t in plan["tasks"] if t["id"] not in results]
     held = {}
     plan_hash = signature(plan)
@@ -99,8 +116,36 @@ def classified_holds(out, plan, results, retry_round):
     for task in missing:
         if task["id"] in held:
             continue
-        if task["kind"] != "document_links" or not any(p["id"] in held for p in task["pages"]):
-            return []
-        if any(p["id"] not in results and p["id"] not in held for p in task["pages"]):
-            return []
+        if task["kind"] == "document_links":
+            parents = [p["id"] for p in task["pages"]]
+            if all(i in results for i in parents):
+                marker = current_hold(out, plan_hash, task, retry_round, results)
+                if marker:
+                    held[task["id"]] = marker
+                    continue
+            elif all(i in held or i in results for i in parents):
+                continue
+        return []
     return list(held.values())
+
+
+def hold_link_dependents(rows, pending_links):
+    """A missing pair cannot settle a coverage issue or support dependent records."""
+    if not pending_links:
+        return
+    page_ids = {p["id"] for task in pending_links for p in task["pages"]}
+    relation_prefixes = tuple(task["pages"][0]["id"] + ":page-link:" for task in pending_links)
+    blocked = {task["id"] for task in pending_links}
+    blocked.update(row["id"] for row in rows if row.get("unit_id") in page_ids
+                   and "pdf_cross_page_connection_requires_review" in row.get("reasons", []))
+    while True:
+        dependents = {r["id"] for r in rows if any(ref in blocked or ref.startswith(relation_prefixes)
+                      for ref in r.get("related_record_ids", []))}
+        if dependents <= blocked:
+            break
+        blocked.update(dependents)
+    for row in rows:
+        if row["id"] in blocked:
+            row.update(eligible_for_chunking=False, approved_for_rag=False, judgment="held")
+            row.pop("low_impact_warning", None)
+            row["reasons"] = sorted(set(row.get("reasons", [])) | {"page_link_review_pending"})

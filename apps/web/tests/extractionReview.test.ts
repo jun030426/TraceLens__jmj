@@ -5,6 +5,9 @@ import {materialProgress,type Processing} from '../src/materialProcessing.ts';
 import type {Material} from '../src/api.ts';
 test('held evidence explains uncertainty without claiming a confirmed content error',()=>{
   assert.match(heldReason('speech_without_transcript'),/실제 누락인지는 원음을/);
+  assert.match(heldReason('page_link_issue_mapping'), /빠지거나 중복/);
+  assert.match(heldReason('page_link_wrong_scope'), /두 원본 쪽/);
+  assert.match(heldReason('page_link_review_pending'), /검색에서 제외/);
   assert.equal(sourceTime(1915.8),'31:55');assert.equal(sourceTime(null),'');assert.equal(sourceTime(NaN),'');
 });
 test('partial publication remains searchable while making held content visible',()=>{

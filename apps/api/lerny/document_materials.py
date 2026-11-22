@@ -127,6 +127,11 @@ def selection(output, plan, source_sha, suffix, summary):
     for row in held:
         page = row.get("location", {}).get("page")
         row["source_locator"] = f"문서 {page}쪽" if page else "문서"
+    for marker in summary.get("held_links", []):
+        left, right = marker["pages"]
+        held.append({"id": f"{source_sha}:link-review:{left}:{right}", "kind": "coverage_issue",
+                     "location": {"page": left, "end_page": right}, "source_locator": f"문서 {left}→{right}쪽",
+                     "reasons": [marker["reason"]], "status": "held", "eligible_for_chunking": False})
     return {"chunks": chunks, "held": held, "evidence": {
         "pipeline": POLICY, "model": plan["source_plan"].get("gemini_model", settings().gemini_answer_model),
         "source_sha256": source_sha, "selection_manifest_sha256": digest_file(manifest),
@@ -221,7 +226,7 @@ def process(path, folder, source_sha, check, report, ppt_retry_round=0):
                                     delay=0, transport=transport,
                                     **({"ppt_retry_round": ppt_retry_round, "review_concurrency": parallelism,
                                         "request_budget": document_budget} if ppt else {}))
-            if not summary["all_tasks_processed"] and not summary.get("held_pages"):
+            if not (summary["all_tasks_processed"] or summary.get("held_pages") or summary.get("held_links")):
                 raise ValueError("DOCUMENT_VALIDATION_INCOMPLETE")
             active()
             if digest_file(path) != source_sha:
