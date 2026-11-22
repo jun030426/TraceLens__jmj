@@ -11,12 +11,13 @@ def problem_attempts(student_id, section_id, *columns):
         PracticeAttempt.student_id == student_id, PracticeAttempt.section_id == section_id)
 
 
-def first_problem_attempts(session, student_id, section_id, problem_ids):
-    query = problem_attempts(student_id, section_id, PracticeExercise.problem_id, PracticeAttempt)
+def first_exercise_attempts(session, student_id, section_id, problem_ids):
+    """Earliest attempt per exercise. Each variant of a problem is submitted independently."""
+    query = problem_attempts(student_id, section_id, PracticeAttempt)
     attempts = {}
-    for problem_id, attempt in session.execute(query.where(PracticeExercise.problem_id.in_(problem_ids))
+    for attempt in session.scalars(query.where(PracticeExercise.problem_id.in_(problem_ids))
             .order_by(PracticeAttempt.created_at, PracticeAttempt.id)):
-        attempts.setdefault(problem_id, attempt)
+        attempts.setdefault(attempt.exercise_id, attempt)
     return attempts
 
 

@@ -16,7 +16,7 @@ from lerny.learning import lock_student, record_completion, today
 from lerny.models import (AuditEvent, Chunk, Concept, Course, Enrollment, Job, Material, MaterialVersion,
     PracticeAttempt, PracticeExercise, PracticeSession, Section, User, now)
 from lerny.security import Actor, Db, deny
-from lerny.practice_support import first_problem_attempts, problem_attempts, problem_help_events
+from lerny.practice_support import first_exercise_attempts, problem_attempts, problem_help_events
 
 router = APIRouter(prefix="/api/v1")
 
@@ -266,19 +266,25 @@ def problem_items(session, student_id, section_id, exercises):
     for exercise, material in exercises:
         variants = groups.setdefault(exercise.problem_id, {})
         variants[exercise.kind] = exercise_view(session, exercise, material)
-    attempts = first_problem_attempts(session, student_id, section_id, list(groups))
+    attempts = first_exercise_attempts(session, student_id, section_id, list(groups))
+    def submitted(view):
+        attempt = attempts.get(view["id"])
+        return {**attempt_view(attempt), "source": attempt.source} if attempt else None
     items = []
     for problem_id, variants in groups.items():
-        attempt = attempts.get(problem_id)
+        # Variants are submitted independently. The top-level fields describe the variant
+        # submitted first and stay usable by clients that predate per-variant attempts.
+        attempt = min((a for v in variants.values() if (a := attempts.get(v["id"]))),
+                      key=lambda a: (a.created_at, a.id), default=None)
         submitted_id = attempt.exercise_id if attempt else None
-        # Keep the existing top-level exercise fields usable by deployed clients.
         default = variants.get("blank") or next(iter(variants.values()))
         selected = next((v for v in variants.values() if v["id"] == submitted_id), default)
         items.append({**selected, "problem_id": problem_id,
                       "variants": {kind: {"exercise_id": v["id"], "template": v["template"],
-                                          "hint_steps": v["hint_steps"]} for kind, v in variants.items()},
+                                          "hint_steps": v["hint_steps"], "attempt": submitted(v)}
+                                   for kind, v in variants.items()},
                       "submitted_exercise_id": submitted_id,
-                      "attempt": {**attempt_view(attempt), "source": attempt.source} if attempt else None})
+                      "attempt": submitted(selected) if attempt else None})
     return items
 
 
@@ -471,7 +477,7 @@ def attempts(section_id: str, session: Db, actor: Actor, plan_id: str | None = N
         elif not by_exercise:
             query = query.where(PracticeAttempt.practice_session_id == plan_id)
     if plan_id and by_exercise:
-        rows = first_problem_attempts(session, actor.id, section_id, plan_problems).values()
+        rows = first_exercise_attempts(session, actor.id, section_id, plan_problems).values()
     else:
         query = query.order_by(PracticeAttempt.created_at.desc(), PracticeAttempt.id.desc())
         rows = session.scalars(query if archive else query.limit(100))

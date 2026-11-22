@@ -54,10 +54,10 @@ export function previewPractice(path: string, options: RequestInit) {
   const exercise = all.find(q => q.id === String(body.exercise_id).replace(/-full$/, ""));
   if (!exercise) throw new Error("테스트 실습 문제를 찾지 못했어요.");
   const exerciseId = String(body.exercise_id);
+  // 유형(빈칸·전체 구현)마다 따로 한 번씩 제출해요.
   const key = `${plan}:${exerciseId}`;
-  const problemKey = `${plan}:${exercise.id}`;
-  const submitted = attempts.get(problemKey);
-  const canViewAnswer = submitted?.exercise_id === exerciseId;
+  const submitted = attempts.get(key);
+  const canViewAnswer = !!submitted;
   if (action === "help") {
     if (body.kind === "answer") {
       if (!canViewAnswer) throw new Error("최종 제출 후 답지를 확인할 수 있어요.");
@@ -88,6 +88,6 @@ export function previewPractice(path: string, options: RequestInit) {
     feedback: { message: "미리보기에서 제출을 확인했어요." },
     exercise: { title: exercise.title, kind: String(body.exercise_id).endsWith("-full") ? "full" as const : "blank" as const },
   };
-  attempts.set(problemKey, attempt);
+  attempts.set(key, attempt);
   return attempt;
 }

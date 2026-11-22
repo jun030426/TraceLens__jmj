@@ -27,12 +27,14 @@
         "full": {
           "exercise_id": "72d75b50-c05a-4f19-bc68-2780f18b84a4",
           "template": "n = 3\n# 여기에 구현하세요.",
-          "hint_steps": 3
+          "hint_steps": 3,
+          "attempt": null
         },
         "blank": {
           "exercise_id": "f5d234d4-528d-4400-bd65-b3fac2a69070",
           "template": "n = 3\n[[빈칸]]",
-          "hint_steps": 3
+          "hint_steps": 3,
+          "attempt": null
         }
       },
       "submitted_exercise_id": null,
