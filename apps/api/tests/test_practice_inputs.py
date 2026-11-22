@@ -112,8 +112,19 @@ def test_preparation_uses_isolated_runner_preserves_evidence_and_draft(weekly,mo
 def test_input_and_empty_lines_are_replaced_with_verified_calculation_lines():
     for selected in [[1],[2],[3],[999]]:
         item, _ = adapt(blank_lines=selected)[0]
-        assert item.blank_lines == [4,5,6]
+        assert item.blank_lines == [4]
         assert item.input_statement in '\n'.join(item.code.splitlines())
+
+
+def test_print_lines_are_blanks_only_when_no_calculation_line_exists():
+    # A model may pick an output line. With a calculation line available it is never a blank.
+    for selected in [[5],[4,5],[5,6]]:
+        item, _ = adapt(blank_lines=selected)[0]
+        assert item.blank_lines == [4]
+    assert adapt(blank_lines=[4])[0][0].blank_lines == [4]
+    only_output = 'a = int(input("첫 수: "))\nb = float(input("다음 수: "))\n\nprint("두 수의 합은", a + b)\nprint("평균은", (a + b) / 2)'
+    assert adapt(only_output, blank_lines=[5])[0][0].blank_lines == [5]
+    assert adapt(only_output, blank_lines=[1])[0][0].blank_lines == [4,5]
 
 
 @pytest.mark.parametrize("original", [CODE, "# numeric inputs\r\n\r\n" + CODE.replace("\n", "\r\n")])

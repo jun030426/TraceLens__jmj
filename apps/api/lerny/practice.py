@@ -16,7 +16,7 @@ from lerny.learning import lock_student, record_completion, today
 from lerny.models import (AuditEvent, Chunk, Concept, Course, Enrollment, Job, Material, MaterialVersion,
     PracticeAttempt, PracticeExercise, PracticeSession, Section, User, now)
 from lerny.security import Actor, Db, deny
-from lerny.practice_support import first_problem_attempts, problem_attempts, problem_help_events
+from lerny.practice_support import first_exercise_attempts, problem_attempts, problem_help_events
 
 router = APIRouter(prefix="/api/v1")
 
@@ -227,14 +227,21 @@ def attempt_view(attempt):
             "created_at":attempt.created_at.isoformat(),"job_id":attempt.job_id}
 
 
+def student_exercise_template(exercise):
+    from lerny.practice_support import build_annotated_blank_template, normalize_blanks_and_template
+
+    template, blanks = normalize_blanks_and_template(exercise)
+    if exercise.language == "python" and exercise.kind == "blank" and template and blanks:
+        return build_annotated_blank_template(template, blanks)
+    return template
+
+
 def exercise_view(session, exercise, material=None):
     material = material or current_source(session, exercise)
     if not material:
         return None
-    from lerny.practice_support import metadata, build_annotated_blank_template, normalize_blanks_and_template
-    template, blanks = normalize_blanks_and_template(exercise)
-    if exercise.language == "python" and exercise.kind == "blank" and template and blanks:
-        template = build_annotated_blank_template(template, blanks)
+    from lerny.practice_support import metadata
+    template = student_exercise_template(exercise)
     return {**metadata(exercise), "id":exercise.id,"title":exercise.title,"description":exercise.prompt,"kind":exercise.kind,
             "language":exercise.language,"template":template,"expected":exercise.tests[0]["expected"],
             "example_input":exercise.tests[0]["input"],
@@ -259,19 +266,25 @@ def problem_items(session, student_id, section_id, exercises):
     for exercise, material in exercises:
         variants = groups.setdefault(exercise.problem_id, {})
         variants[exercise.kind] = exercise_view(session, exercise, material)
-    attempts = first_problem_attempts(session, student_id, section_id, list(groups))
+    attempts = first_exercise_attempts(session, student_id, section_id, list(groups))
+    def submitted(view):
+        attempt = attempts.get(view["id"])
+        return {**attempt_view(attempt), "source": attempt.source} if attempt else None
     items = []
     for problem_id, variants in groups.items():
-        attempt = attempts.get(problem_id)
+        # Variants are submitted independently. The top-level fields describe the variant
+        # submitted first and stay usable by clients that predate per-variant attempts.
+        attempt = min((a for v in variants.values() if (a := attempts.get(v["id"]))),
+                      key=lambda a: (a.created_at, a.id), default=None)
         submitted_id = attempt.exercise_id if attempt else None
-        # Keep the existing top-level exercise fields usable by deployed clients.
         default = variants.get("blank") or next(iter(variants.values()))
         selected = next((v for v in variants.values() if v["id"] == submitted_id), default)
         items.append({**selected, "problem_id": problem_id,
                       "variants": {kind: {"exercise_id": v["id"], "template": v["template"],
-                                          "hint_steps": v["hint_steps"]} for kind, v in variants.items()},
+                                          "hint_steps": v["hint_steps"], "attempt": submitted(v)}
+                                   for kind, v in variants.items()},
                       "submitted_exercise_id": submitted_id,
-                      "attempt": {**attempt_view(attempt), "source": attempt.source} if attempt else None})
+                      "attempt": submitted(selected) if attempt else None})
     return items
 
 
@@ -368,8 +381,13 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
         deny(422, "빈칸을 모두 채워 주세요.")
     def make():
         lock_student(session, actor.id)
-        previous = session.scalar(problem_attempts(actor.id, section_id, PracticeAttempt.id)
-            .where(PracticeExercise.problem_id == exercise.problem_id).limit(1))
+        previous = session.scalar(
+            select(PracticeAttempt.id).where(
+                PracticeAttempt.student_id == actor.id,
+                PracticeAttempt.section_id == section_id,
+                PracticeAttempt.exercise_id == exercise.id,
+            ).limit(1)
+        )
         if previous:
             deny(409, "이미 제출한 실습이에요. 내 코드와 해설을 확인해 주세요.")
         pending = session.scalar(select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
@@ -421,10 +439,9 @@ def help_used(section_id: str, body: HelpInput, session: Db, actor: Actor):
     state = help_state(session, actor, plan, exercise)
     session.commit()
     if body.kind == "answer":
-        from lerny.practice_support import explanation, clean_blank_answers
-        expl = explanation(exercise)
-        state["explanation"] = expl
-        state["answers"] = clean_blank_answers(exercise.blanks) if exercise.kind == "blank" else [expl["reference"]]
+        from lerny.practice_support import answer_key, explanation
+        state["explanation"] = explanation(exercise)
+        state["answers"] = answer_key(exercise)
     return state
 
 
@@ -459,7 +476,7 @@ def attempts(section_id: str, session: Db, actor: Actor, plan_id: str | None = N
         elif not by_exercise:
             query = query.where(PracticeAttempt.practice_session_id == plan_id)
     if plan_id and by_exercise:
-        rows = first_problem_attempts(session, actor.id, section_id, plan_problems).values()
+        rows = first_exercise_attempts(session, actor.id, section_id, plan_problems).values()
     else:
         query = query.order_by(PracticeAttempt.created_at.desc(), PracticeAttempt.id.desc())
         rows = session.scalars(query if archive else query.limit(100))

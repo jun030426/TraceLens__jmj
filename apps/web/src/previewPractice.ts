@@ -53,23 +53,33 @@ export function previewPractice(path: string, options: RequestInit) {
   const body = JSON.parse(String(options.body ?? "{}"));
   const exercise = all.find(q => q.id === String(body.exercise_id).replace(/-full$/, ""));
   if (!exercise) throw new Error("테스트 실습 문제를 찾지 못했어요.");
-  const key = `${plan}:${exercise.id}`;
+  const exerciseId = String(body.exercise_id);
+  // 유형(빈칸·전체 구현)마다 따로 한 번씩 제출해요.
+  const key = `${plan}:${exerciseId}`;
+  const submitted = attempts.get(key);
+  const canViewAnswer = !!submitted;
   if (action === "help") {
     if (body.kind === "answer") {
-      if (!attempts.has(key)) throw new Error("최종 제출 후 답지를 확인할 수 있어요.");
-      return { answers: exercise.answers ?? [] };
+      if (!canViewAnswer) throw new Error("최종 제출 후 답지를 확인할 수 있어요.");
+      const answers = exercise.answers ?? [];
+      if (exerciseId.endsWith("-full")) {
+        let index = 0;
+        return { answers: [exercise.template.replace(/\[\[빈칸\]\]/g, () => answers[index++] ?? "")] };
+      }
+      return { answers };
     }
+    if (submitted && (body.kind === "hint" || body.kind === "chat")) throw new Error("이미 제출한 문제예요.");
     const hints = exercise.hints ?? hintsByExercise[exercise.id] ?? ["예시 출력과 코드가 처리해야 할 값을 비교해 보세요."];
     const used = hintsUsed.get(key) ?? 0;
     const next = body.kind === "hint" ? Math.min(used + 1, hints.length) : used;
     hintsUsed.set(key, next);
-    return { hints_used: next, hints: hints.slice(0, next), max_hint_steps: hints.length, can_view_answer: attempts.has(key) };
+    return { hints_used: next, hints: hints.slice(0, next), max_hint_steps: hints.length, can_view_answer: canViewAnswer };
   }
-  if (attempts.has(key)) throw new Error("이미 제출한 문제예요.");
+  if (submitted) throw new Error("이미 제출한 문제예요.");
   const attempt = {
     id: key,
     practice_session_id: plan,
-    exercise_id: String(body.exercise_id),
+    exercise_id: exerciseId,
     status: "submitted",
     correct: null,
     independent: !hintsUsed.get(key),

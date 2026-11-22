@@ -1,3 +1,6 @@
+import { SubmittedFullCode } from "./SubmittedFullCode";
+import { SubmittedBlankCode } from "./SubmittedBlankCode";
+import { parseTemplate } from "./visualizer/blanks";
 import { useId, useRef, useState } from "react";
 import type { Classroom } from "./api";
 import { ErrorNotice, Notice, useLoad } from "./components";
@@ -27,6 +30,7 @@ type PracticeHistory = {
     language: string;
     source_available: boolean;
     source: string;
+    template?: string | null;
     feedback: { message?: string; passed?: number; total?: number } | null;
   }[];
 };
@@ -204,8 +208,12 @@ export function StudentPracticeHistory({
                   </div>
                 )}
                 <strong>내 제출 코드</strong>
-                <pre>
-                  <code>{a.source}</code>
+                <pre className="practice-submitted-code">
+                  <code>{a.template && (a.kind === "blank" || a.kind === "cloze")
+                    ? <SubmittedBlankCode source={a.source} template={parseTemplate(a.template)} />
+                    : a.kind === "full" && a.template != null
+                      ? <SubmittedFullCode source={a.source} starter={a.template} />
+                      : a.source}</code>
                 </pre>
               </details>
             </article>

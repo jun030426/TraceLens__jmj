@@ -375,6 +375,7 @@
     box-shadow: 0 6px 18px #20122e20;
     color: var(--d-ink);
   }
+  #root main[data-learning-selects] :is(.student-record-archive, .progress-page) .learning-history .concept-section-heading select::picker(select),
   #root main[data-learning-selects="teacher"] select:not([multiple]):not([size])::picker(select) {
     position-try-fallbacks: none;
   }

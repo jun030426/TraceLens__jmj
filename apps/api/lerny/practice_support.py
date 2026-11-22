@@ -11,12 +11,13 @@ def problem_attempts(student_id, section_id, *columns):
         PracticeAttempt.student_id == student_id, PracticeAttempt.section_id == section_id)
 
 
-def first_problem_attempts(session, student_id, section_id, problem_ids):
-    query = problem_attempts(student_id, section_id, PracticeExercise.problem_id, PracticeAttempt)
+def first_exercise_attempts(session, student_id, section_id, problem_ids):
+    """Earliest attempt per exercise. Each variant of a problem is submitted independently."""
+    query = problem_attempts(student_id, section_id, PracticeAttempt)
     attempts = {}
-    for problem_id, attempt in session.execute(query.where(PracticeExercise.problem_id.in_(problem_ids))
+    for attempt in session.scalars(query.where(PracticeExercise.problem_id.in_(problem_ids))
             .order_by(PracticeAttempt.created_at, PracticeAttempt.id)):
-        attempts.setdefault(problem_id, attempt)
+        attempts.setdefault(attempt.exercise_id, attempt)
     return attempts
 
 
@@ -87,11 +88,17 @@ def help_state(session, actor, plan, exercise):
     wrong = list(session.scalars(select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
         PracticeAttempt.exercise_id == exercise.id, PracticeAttempt.practice_session_id == plan.id,
         PracticeAttempt.status == "graded", PracticeAttempt.correct.is_(False))))
-    first = first_problem_attempts(session, actor.id, plan.section_id, [exercise.problem_id]).get(exercise.problem_id)
-    submitted_id = first.exercise_id if first else None
+    attempt = session.scalar(
+        select(PracticeAttempt).where(
+            PracticeAttempt.student_id == actor.id,
+            PracticeAttempt.section_id == plan.section_id,
+            PracticeAttempt.exercise_id == exercise.id,
+        ).order_by(PracticeAttempt.created_at.asc()).limit(1)
+    )
+    submitted_id = attempt.exercise_id if attempt else None
     return {"hints_used": used, "hints": steps[:used], "max_hint_steps": len(steps),
             "failed_attempts": len(wrong), "can_view_answer": submitted_id == exercise.id,
-            "submitted_exercise_id": submitted_id, "independent": first.independent if first else not bool(events)}
+            "submitted_exercise_id": submitted_id, "independent": attempt.independent if attempt else not bool(events)}
 
 
 def format_inline_comment(line: str) -> str:
@@ -229,6 +236,48 @@ def clean_blank_answers(blanks: dict) -> list[str]:
     return results
 
 
+def ordered_blanks(blanks: dict) -> dict:
+    """빈칸 번호는 템플릿의 [[빈칸]] 순서와 같아요. 저장소가 키 순서를 바꿔 돌려줘도 번호순으로 맞춥니다."""
+    keys = list(blanks)
+    if all(str(key).isdigit() for key in keys):
+        keys.sort(key=lambda key: int(key))
+    return {key: blanks[key] for key in keys}
+
+
+def answer_key(exercise) -> list[str]:
+    """제출 뒤 회색 따라쓰기로 깔아 주는 답안. 학생 화면에 보이는 템플릿과 같은 기준으로 만듭니다."""
+    if exercise.kind == "blank":
+        # DB 원본 blanks가 아니라, 화면의 빈칸과 같은 정규화된 빈칸의 답을 줘야 번호가 어긋나지 않아요.
+        return clean_blank_answers(normalize_blanks_and_template(exercise)[1] or {})
+    return [full_answer_on_template(exercise)]
+
+
+def full_answer_on_template(exercise) -> str:
+    """전체 구현 답지를 시작 코드 위에 줄을 맞춰 얹습니다.
+
+    따라쓰기는 편집기와 답지를 같은 줄 번호끼리 겹쳐 그려요. 시작 코드의 안내 주석 줄을 그대로 두고
+    그 다음 줄부터 모범 코드의 본문이 오게 해야 글자가 겹치지 않습니다.
+    """
+    reference = (exercise.reference or "").replace("\r\n", "\n")
+    template_lines = (exercise.template or "").replace("\r\n", "\n").rstrip().split("\n")
+    comment = "#" if exercise.language == "python" else "//"
+    starter = [line.strip() for line in template_lines if line.strip() and not line.strip().startswith(comment)]
+    lines = reference.split("\n")
+    index = 0
+    for expected in starter:
+        while index < len(lines) and not lines[index].strip():
+            index += 1
+        if index >= len(lines) or lines[index].strip() != expected:
+            return reference  # 시작 코드가 모범 코드의 앞부분이 아니면 원문 그대로 둡니다.
+        index += 1
+    while index < len(lines) and not lines[index].strip():
+        index += 1
+    body = lines[index:]
+    if not any(template_lines) or not body:
+        return reference
+    return "\n".join(template_lines + body)
+
+
 def normalize_blanks_and_template(exercise):
     """
     기존 DB에 저장된 빈칸 문제 중 단순 print(...)나 input(...) 등 금지 줄이 빈칸으로 뚫려있거나
@@ -237,7 +286,7 @@ def normalize_blanks_and_template(exercise):
     실시간 정규화(Auto-remediation)하여 반환합니다.
     """
     template = getattr(exercise, "template", "") or ""
-    blanks = getattr(exercise, "blanks", {}) or {}
+    blanks = ordered_blanks(getattr(exercise, "blanks", {}) or {})
     language = getattr(exercise, "language", "") or ""
     kind = getattr(exercise, "kind", "") or ""
     reference = getattr(exercise, "reference", "") or ""
