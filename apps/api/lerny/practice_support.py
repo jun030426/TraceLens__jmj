@@ -45,8 +45,9 @@ def hints(exercise):
     if exercise.language == "python":
         from rag_mvp.cloze_generator import ClozeGenerator
         if exercise.kind == "blank":
-            # 빈칸 채우기: 빈칸 대상 슬롯(blanks)에 집중하여 3단계 비계(목적 -> 변수/문법 도구 -> 추상 골격) 힌트 생성
-            raw_blanks = list(exercise.blanks.values()) if exercise.blanks else []
+            # 빈칸 채우기: 정규화된 빈칸 대상 슬롯에 집중하여 3단계 비계(목적 -> 변수/문법 도구 -> 추상 골격) 힌트 동적 생성
+            norm_template, norm_blanks = normalize_blanks_and_template(exercise)
+            raw_blanks = list(norm_blanks.values()) if norm_blanks else []
             code = "\n".join(raw_blanks) if raw_blanks else (exercise.reference or "")
             flow = ClozeGenerator.practice_hint_flow(exercise.title, "cloze", code)
         else:
@@ -128,7 +129,8 @@ def format_inline_comment(line: str) -> str:
         return extracted_comment
 
     try:
-        tree = ast.parse(line)
+        line_to_parse = line + "\n    pass" if (line.endswith(":") and not line.endswith("pass")) else line
+        tree = ast.parse(line_to_parse)
         if not tree.body:
             return ""
         stmt = tree.body[0]
@@ -191,6 +193,11 @@ def format_inline_comment(line: str) -> str:
         elif isinstance(stmt, ast.Return):
             return "최종 계산 결과값을 반환"
         elif isinstance(stmt, ast.If):
+            test = stmt.test
+            if isinstance(test, ast.BoolOp):
+                return "논리 연산자(and/or)를 활용하여 복합 조건 일치 판별"
+            elif isinstance(test, ast.Compare):
+                return "분기 기준값과의 대소·일치 조건 비교 판별"
             return "조건 일치 여부에 따라 분기 실행"
         elif isinstance(stmt, ast.For):
             return "시퀀스 원소를 순회하며 반복 실행"
@@ -222,33 +229,99 @@ def clean_blank_answers(blanks: dict) -> list[str]:
     return results
 
 
+def normalize_blanks_and_template(exercise):
+    """
+    기존 DB에 저장된 빈칸 문제 중 단순 print(...)나 input(...) 등 금지 줄이 빈칸으로 뚫려있거나
+    교육학적 중요도(DSA_RULES) 기준에 맞지 않는 레거시 빈칸 문제를
+    사용자 합의 기준(ClozeGenerator.select_blanks: 최대 2개, 인접 방지, 기저/포인터/조건 최우선, print 완전 배제)으로
+    실시간 정규화(Auto-remediation)하여 반환합니다.
+    """
+    template = getattr(exercise, "template", "") or ""
+    blanks = getattr(exercise, "blanks", {}) or {}
+    language = getattr(exercise, "language", "") or ""
+    kind = getattr(exercise, "kind", "") or ""
+    reference = getattr(exercise, "reference", "") or ""
+
+    if language != "python" or kind != "blank" or not reference:
+        return template, blanks
+
+    # 블랙리스트(print, input 등) 검사
+    has_bad_blank = False
+    for b in blanks.values():
+        stripped = b.strip()
+        if stripped.startswith("print(") or stripped.startswith("print ") or stripped.startswith("input("):
+            has_bad_blank = True
+            break
+
+    # print문이 뚫려있거나 빈칸이 4개 초과로 뚫린 경우, 계획된 표준 ClozeGenerator.select_blanks로 재선정
+    if has_bad_blank or len(blanks) > 4:
+        try:
+            from rag_mvp.cloze_generator import ClozeGenerator
+            selected = ClozeGenerator.select_blanks(reference, min_score=80, max_blanks=4)
+            if selected:
+                ref_lines = reference.splitlines()
+                chosen_indices = {b['line_index'] for b in selected}
+                new_blanks = {}
+                for i, b in enumerate(selected, 1):
+                    new_blanks[str(i)] = b['answer']
+
+                new_template_lines = []
+                for idx, line in enumerate(ref_lines):
+                    if idx in chosen_indices:
+                        indent = line[:len(line) - len(line.lstrip())]
+                        new_template_lines.append(indent + "[[빈칸]]")
+                    else:
+                        new_template_lines.append(line)
+                return "\n".join(new_template_lines), new_blanks
+        except Exception:
+            pass
+
+    return template, blanks
+
+
 def build_annotated_blank_template(template: str, blanks: dict) -> str:
     """빈칸 바로 윗줄에 눈에 띄는 색으로 주석(# ...)을 배치하고, 빈칸 줄에서는 주석을 분리합니다."""
     if not template:
         return ""
     lines = template.splitlines()
+    raw_blanks = list(blanks.values()) if blanks else []
+    blank_idx = 0
     new_lines = []
     for line in lines:
         if "[[빈칸]]" not in line:
             new_lines.append(line)
             continue
         stripped, comment = split_comment(line)
+        clean_line = stripped.rstrip()
         indent = line[:len(line) - len(line.lstrip())]
+        target_code = raw_blanks[blank_idx] if blank_idx < len(raw_blanks) else ""
+        blank_idx += 1
+
+        # 빈칸이 채워진 완전한 문맥 코드로 연산 의도 파악
+        combined_code = clean_line.replace("[[빈칸]]", split_comment(target_code)[0].strip()).strip()
+
+        # 원본 라인 주석이 있으면 최우선 승격, 없으면 완전한 코드로부터 연산 의도 추출
+        comment = comment or format_inline_comment(combined_code)
+
+        if new_lines and new_lines[-1].strip() != "" and not new_lines[-1].strip().startswith("#"):
+            new_lines.append("")
+
         if comment:
             new_lines.append(indent + "# " + comment)
-        new_lines.append(stripped)
+        new_lines.append(clean_line)
     return "\n".join(new_lines)
 
 
 def explanation(exercise):
     """답지와 해설은 카드로 따로 만들지 않고, 에디터의 윗줄 주석달기 + 회색 코드 따라쓰기로 일원화하여 처리합니다."""
-    sample = exercise.tests[0]
-    raw_blanks = list(exercise.blanks.values()) if exercise.kind == "blank" else []
+    sample = exercise.tests[0] if exercise.tests else {"input": "", "expected": ""}
+    norm_template, norm_blanks = normalize_blanks_and_template(exercise)
+    raw_blanks = list(norm_blanks.values()) if exercise.kind == "blank" and norm_blanks else []
 
     # 시작 코드(선언부) 줄 파악
     starter_lines = set()
-    if exercise.template:
-        for t_line in exercise.template.splitlines():
+    if norm_template:
+        for t_line in norm_template.splitlines():
             clean_t = t_line.strip()
             if clean_t and "[[빈칸]]" not in clean_t and not clean_t.startswith("#"):
                 starter_lines.add(clean_t)
@@ -256,7 +329,7 @@ def explanation(exercise):
     # 모범 코드의 각 실행 줄 윗줄에 항상 눈에 띄는 주석(# ...) 배치
     ref_lines = []
 
-    for line in exercise.reference.splitlines():
+    for line in (exercise.reference or "").splitlines():
         trimmed = line.strip()
         indent = line[:len(line) - len(line.lstrip())]
         if not trimmed:
@@ -279,10 +352,18 @@ def explanation(exercise):
 
     annotated_reference = "\n".join(ref_lines)
 
-    # blanks는 빈 배열([])로 반환하여 하단의 중복 "빈칸별 답" 카드를 생성하지 않고
+    # 빈칸별 윗줄 주석 매핑 생성
+    blank_comments = {}
+    if exercise.kind == "blank" and norm_blanks:
+        for k, v in norm_blanks.items():
+            clean_code = split_comment(v)[0].strip()
+            comment = split_comment(v)[1].strip() or format_inline_comment(clean_code)
+            blank_comments[str(k)] = comment
+
     # 에디터 화면의 윗줄 주석 + 회색 따라쓰기로만 깔끔하게 해설이 제공되도록 함
     return {"title": exercise.title, "kind": exercise.kind, "language": exercise.language,
             "description": exercise.prompt or "", "requirements": metadata(exercise)["requirements"],
             "reference": exercise.reference, "annotated_reference": annotated_reference,
-            "blanks": [],
+            "blanks": clean_blank_answers(norm_blanks or {}),
+            "blank_comments": blank_comments,
             "example_input": sample["input"], "expected": sample["expected"]}

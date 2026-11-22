@@ -517,7 +517,7 @@ class UnifiedMultimodalRAG:
         if not hits:
             return {
                 'answerable': False,
-                'reply': '현재 검색된 강의 자료 중 질문과 관련된 내용을 찾지 못했습니다. 다른 키워드로 질문해주세요.',
+                'reply': '질문하신 내용은 현재 강의 자료에 나와 있지 않아요. 부정확한 정보로 인한 혼란을 막기 위해 AI가 임의로 추측해 답하지 않을게요.',
                 'citations': [],
                 'reason': 'no_relevant_sources_found',
                 'hits': []

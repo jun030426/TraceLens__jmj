@@ -20,17 +20,17 @@ def handle_menu(menu, stack):
         self.assertEqual(res['blank_count'], 2)
         blanks = res['blanks']
 
-        # Label (가) should be len(stack) > 0 (100점 언더플로우 검사)
+        # Label (가) should be len(stack) > 0 (80점 언더플로우 경계 방어)
         self.assertEqual(blanks[0]['label'], '(가)')
         self.assertIn('len(stack) > 0', blanks[0]['answer'])
         self.assertEqual(blanks[0]['category'], 'ds_underflow_check')
-        self.assertEqual(blanks[0]['score'], 100)
+        self.assertEqual(blanks[0]['score'], 80)
 
-        # Label (나) should be book = stack.pop() (80점 pop 연산)
+        # Label (나) should be book = stack.pop() (100점 핵심 연산)
         self.assertEqual(blanks[1]['label'], '(나)')
         self.assertIn('stack.pop()', blanks[1]['answer'])
         self.assertEqual(blanks[1]['category'], 'ds_stack_pop')
-        self.assertEqual(blanks[1]['score'], 80)
+        self.assertEqual(blanks[1]['score'], 100)
 
         # Masked code verification
         self.assertIn('[ (가) ____________________________ ]', res['masked_code'])
@@ -57,9 +57,9 @@ def binary_search(arr, target):
         self.assertEqual(res['blank_count'], 2)
         blanks = res['blanks']
 
-        # Check that loop invariant while low <= high (100점) or mid calc (90점) or low = mid + 1 (90점) are selected
+        # Check that loop invariant while low <= high (80점) or mid calc (90점) or low = mid + 1 (90점) are selected
         scores = [b['score'] for b in blanks]
-        self.assertTrue(all(s >= 90 for s in scores))
+        self.assertTrue(all(s >= 80 for s in scores))
         categories = [b['category'] for b in blanks]
         self.assertTrue(any('binary_search' in c or 'algorithm' in c for c in categories))
 
@@ -92,9 +92,9 @@ def fib(n):
         self.assertEqual(res['blank_count'], 2)
         blanks = res['blanks']
         self.assertIn('if n <= 1:', blanks[0]['answer'])
-        self.assertEqual(blanks[0]['score'], 100)
+        self.assertEqual(blanks[0]['score'], 80)
         self.assertIn('fib(n - 1) + fib(n - 2)', blanks[1]['answer'])
-        self.assertEqual(blanks[1]['score'], 90)
+        self.assertEqual(blanks[1]['score'], 100)
 
     def test_exclusion_patterns(self):
         # Ensure print, input, imports are NEVER selected as blanks
@@ -151,14 +151,14 @@ bmi = weight / (height ** 2)
         self.assertTrue(any("단위" in r for r in stmt['requirements']))
 
     def test_cloze_dynamic_syntax_hints(self):
-        # 1. Print syntax cue in step 2
+        # 1. No print format clutter in step 2 (print output format belongs to problem description)
         hint_print = ClozeGenerator.get_practice_hint(
             exercise_id="py-arithmetic",
             hint_step=2,
             mode="cloze",
             target_code="print('덧셈 :', a + b)"
         )
-        self.assertIn("print('라벨 :'", hint_print['hint_text'])
+        self.assertNotIn("출력 형식 맞추기", hint_print['hint_text'])
         self.assertNotIn("self.top", hint_print['hint_text'])
 
         # 2. Arithmetic operator syntax cue in step 2
@@ -171,6 +171,24 @@ bmi = weight / (height ** 2)
         self.assertIn("거듭제곱 **", hint_op['hint_text'])
         self.assertNotIn("self.top", hint_op['hint_text'])
 
+        # 3. If logical/comparison condition cue in step 2 and abstract skeleton in step 3
+        hint_if = ClozeGenerator.get_practice_hint(
+            exercise_id="py-condition",
+            hint_step=2,
+            mode="cloze",
+            target_code="if ((value >= 45 and value <= 65) or (value >= 75 and value <= 95)):"
+        )
+        self.assertIn("논리 연산자", hint_if['hint_text'])
+        self.assertIn("조건식 if", hint_if['hint_text'])
+
+        hint_skel = ClozeGenerator.get_practice_hint(
+            exercise_id="py-condition",
+            hint_step=3,
+            mode="cloze",
+            target_code="if ((value >= 45 and value <= 65) or (value >= 75 and value <= 95)):"
+        )
+        self.assertIn("if (([value] >= [상수값] and [value] <= [상수값]) or ([value] >= [상수값] and [value] <= [상수값])):", hint_skel['hint_text'])
+
     def test_resolve_mnemonic_flow_bmi_and_arithmetic(self):
         flow_bmi = ClozeGenerator.resolve_mnemonic_flow(exercise_id="bmi_calc", target_code="bmi = weight / (height ** 2)")
         self.assertEqual(len(flow_bmi['steps']), 3)
@@ -180,6 +198,27 @@ bmi = weight / (height ** 2)
         flow_arith = ClozeGenerator.resolve_mnemonic_flow(exercise_id="사칙연산_실습", target_code="a + b")
         self.assertEqual(len(flow_arith['steps']), 3)
         self.assertIn("사칙연산", flow_arith['steps'][1]['title'])
+
+    def test_dynamic_action_flow_zero_spoiler(self):
+        code = '''
+value = 50.0
+if ((value >= 45 and value <= 65) or (value >= 75 and value <= 95)):
+    result = "통과"
+else:
+    result = "재검사"
+print(f"검사할 수치값은 [{value}]이고, 결과는 [{result}] 입니다.")
+'''
+        flow = ClozeGenerator.generate_dynamic_action_flow(code, title="수치 판별")
+        for s in flow['steps']:
+            # Exact constants must not be spoiled in action_story
+            self.assertNotIn("45", s['action_story'])
+            self.assertNotIn("65", s['action_story'])
+            self.assertNotIn("75", s['action_story'])
+            self.assertNotIn("95", s['action_story'])
+            # Constants must be masked as [상수값] in code_mnemonic
+            if "if" in s['code_mnemonic']:
+                self.assertIn("[상수값]", s['code_mnemonic'])
+                self.assertNotIn("45", s['code_mnemonic'])
 
 
 if __name__ == '__main__':
