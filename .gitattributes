@@ -1,0 +1,2 @@
+# Keep text checkout and release archive bytes consistent on Windows and Linux.
+* text=auto eol=lf
