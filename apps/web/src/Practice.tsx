@@ -357,7 +357,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
         {(editable || latest) && <section className="practice-output-panel"><div className="practice-output-tabs" role="tablist" aria-label="결과 보기">{(latest ? ["내 제출 코드", "실행 결과", "시각화"] : ["실행 결과", "시각화"]).map(t => <button role="tab" id={`practice-tab-${t}`} aria-selected={resultTab === t} aria-controls="practice-output" key={t} onClick={() => setResultTab(t)}>{t}</button>)}</div>
           <div id="practice-output" role="tabpanel" aria-labelledby={`practice-tab-${resultTab}`} aria-live="polite" className="practice-output-body">
             {latest && resultTab === "내 제출 코드" && <section className="practice-explanation" aria-label="내 제출 코드">
-              <pre className="practice-submitted-code"><code><SubmittedCode source={latest.source ?? ""} snapshot={latest.submission_snapshot} /></code></pre>
+              <SubmittedCode source={latest.source ?? ""} snapshot={latest.submission_snapshot} />
             </section>}
             {resultTab !== "내 제출 코드" && <VizLineContext.Provider value={setVizLine}><PracticeOutput tab={resultTab} run={run} stage={stage} code={copyRan ? run?.code ?? "" : runnable.code} incomplete={!copyRan && runnable.unfilled.length > 0} blankLines={template.blanks} fixes={!copyRan && fixShown ? fix!.fixes : undefined} /></VizLineContext.Provider>}
             {resultTab === "시각화" && latest?.source && !stage && (run?.kind !== "ran" || !run.trace) &&
@@ -592,7 +592,7 @@ export function PracticeResults() {
       {rows.map(r => <button key={r.id} aria-pressed={current?.id === r.id} onClick={() => setSelected(r.id)}>{r.exercise && <b>{practiceKindLabel(r.exercise.kind)}</b>}{r.exercise?.title || "자료가 변경된 실습"} · {r.status === "graded" ? r.correct ? "검증 통과" : "복습 필요" : "검증 대기·보류"}<small>{new Date(r.created_at).toLocaleString("ko-KR")}</small></button>)}
     </section><section className="practice-result-card">
       <div className="practice-output-tabs">{["테스트 결과", "제출 코드", "답지·해설"].map(t => <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>{t}</button>)}</div>
-      {current && (tab === "답지·해설" ? <PracticeAttemptReview key={current.id} sectionId={sectionId} attemptId={current.id} /> : tab === "제출 코드" ? <pre><code>{current.source}</code></pre> : <><h3>{current.feedback?.message || "격리 실행 결과를 기다리고 있어요."}</h3><p>{current.feedback?.total != null && `${current.feedback.passed}/${current.feedback.total}개 입력 검증 통과`}</p><p>{current.independent ? "독립적으로 제출한 풀이" : "도움을 받은 풀이"}</p></>)}
+      {current && (tab === "답지·해설" ? <PracticeAttemptReview key={current.id} sectionId={sectionId} attemptId={current.id} /> : tab === "제출 코드" ? <SubmittedCode source={current.source ?? ""} snapshot={current.submission_snapshot} /> : <><h3>{current.feedback?.message || "격리 실행 결과를 기다리고 있어요."}</h3><p>{current.feedback?.total != null && `${current.feedback.passed}/${current.feedback.total}개 입력 검증 통과`}</p><p>{current.independent ? "독립적으로 제출한 풀이" : "도움을 받은 풀이"}</p></>)}
     </section></div><div className="practice-results-actions"><Link className="ln-cta" to={`/classrooms/${sectionId}/practice${week ? "?week="+week : ""}`}>실습 풀이로 이동 <span aria-hidden="true">→</span></Link></div>
   </section>;
 }

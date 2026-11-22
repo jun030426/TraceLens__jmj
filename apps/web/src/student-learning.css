@@ -211,14 +211,6 @@
   background: #f5f1fa;
   border-radius: 10px;
 }
-.student-practice-record pre {
-  max-width: 100%;
-  overflow: auto;
-  padding: 14px;
-  background: #201b2a;
-  color: #f4edf9;
-  border-radius: 10px;
-}
 [data-theme="dark"] .student-period,
 [data-theme="dark"] .student-practice-record {
   background: #272032;

@@ -10,13 +10,20 @@
 #root .practice-example > div { min-width: 0; }
 #root .practice-example h4, #root .practice-explanation h4 { margin: 12px 0 8px; }
 #root .practice-explanation { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border, #deded5); min-width: 0; }
-#root .practice-explanation pre, #root .practice-example pre { white-space: pre; overflow: auto; max-width: 100%; padding: 14px; border: 1px solid var(--border, #deded5); border-radius: 10px; background: var(--surface-soft, #f4f5ef); color: inherit; line-height: 1.7; }
+#root .practice-explanation pre:not(.practice-submitted-code), #root .practice-example pre { white-space: pre; overflow: auto; max-width: 100%; padding: 14px; border: 1px solid var(--border, #deded5); border-radius: 10px; background: var(--surface-soft, #f4f5ef); color: inherit; line-height: 1.7; }
+#root .practice-submitted-code {
+  max-width: 100%;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 10px;
+  line-height: 1.7;
+}
 #root .practice-submitted-code,
 #root .practice-submitted-code > code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-#root .practice-explanation code { font-family: ui-monospace, Consolas, monospace; }
+#root .practice-explanation code, #root .practice-submitted-code > code { font-family: ui-monospace, Consolas, monospace; }
 #root .practice-code-notes { padding-left: 24px; }
 #root .practice-code-notes li { margin: 16px 0; }
 #root .practice-code-notes code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; }
@@ -33,7 +40,7 @@
 #root .practice-card > .practice-hint-drawer { margin-inline: 20px; margin-top: 6px; }
 #root .practice-hint-drawer .step-hints { margin: 0; padding: 12px 0; background: transparent; box-shadow: none; }
 #root .practice-card .practice-answer-rule { padding-inline: 20px; }
-:root[data-theme="dark"] #root :is(.practice-explanation pre, .practice-example pre, .learning-text code, .practice-kind-buttons button[aria-pressed="true"]) { background: var(--d-surface, #231b2a); color: inherit; border-color: #54485b; }
+:root[data-theme="dark"] #root :is(.practice-explanation pre:not(.practice-submitted-code), .practice-example pre, .learning-text code, .practice-kind-buttons button[aria-pressed="true"]) { background: var(--d-surface, #231b2a); color: inherit; border-color: #54485b; }
 
 #root .practice-submitted-blank {
   margin-inline-start: 3px;
@@ -91,12 +98,12 @@
 #root .practice-output-body > .practice-explanation pre {
   margin-block: 0;
 }
-#root :is(.practice-right, .student-practice-record) {
+#root :is(.practice-right, .student-practice-record, .practice-result-card) {
   --practice-submission-bg: #eee4f5;
   --practice-submission-border: #d8c3e5;
   --practice-submission-ink: #432d50;
 }
-:root[data-theme="dark"] #root :is(.practice-right, .student-practice-record) {
+:root[data-theme="dark"] #root :is(.practice-right, .student-practice-record, .practice-result-card) {
   --practice-submission-bg: #392c43;
   --practice-submission-border: #584463;
   --practice-submission-ink: #eadbf2;
