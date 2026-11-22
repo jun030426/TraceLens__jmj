@@ -468,3 +468,46 @@ def test_unreadable_page_is_staff_only_and_never_supplemented(site, synthetic_en
     assert normalized(item, 0)["source_locator"] == "문서 1쪽"
     assert item["reasons"] == ["invalid_model_response"]
     assert report["native_evidence"]["ppt_page_review"]["accepted"] == [] and not synthetic_engine.calls
+
+
+def test_paid_ppt_pacing_and_supplement_share_one_run_budget(tmp_path, monkeypatch):
+    from contextlib import nullcontext
+    from urllib.request import Request
+    from lerny import gemini_quota, media_materials, ppt_source_index
+    from lerny.config import Settings
+    from video_extraction.shared.gemini import Gemini
+
+    config = Settings(ai_provider="gemini", gemini_review_concurrency=4,
+                      gemini_max_calls_per_job=1, gemini_review_quota_project="fixture")
+    monkeypatch.setattr(documents, "settings", lambda: config)
+    monkeypatch.setenv("LERNY_GEMINI_API_KEY","test-only")
+    deck = tmp_path/"test.pptx"
+    deck.write_bytes(source(".pptx"))
+    monkeypatch.setattr(connected, "prepare", lambda *_a,**_kw: {"source_plan": {}})
+    monkeypatch.setattr(connected, "hashes", lambda: {})
+    monkeypatch.setattr(connected, "lock", lambda *_: nullcontext())
+    monkeypatch.setattr(documents, "selection", lambda *_: {})
+    admissions = []
+    def gateway(req, timeout, expected_model):
+        admissions.append(1)
+        assert gemini_quota.request_purpose("interactions", config) == "review"
+        if len(admissions) == 1:
+            raise media_materials.MediaStopped("GEMINI_PACING_WAIT", time.time()+0.02)
+        return io.BytesIO(b'{"status":"completed","output_text":"true"}')
+    monkeypatch.setattr(media_materials, "service_transport", gateway)
+    def run(out, env, *, request_budget, review_concurrency, **kwargs):
+        assert review_concurrency == 4
+        request_budget(Request("https://fixture.invalid"), timeout=1).close()
+        return {"all_tasks_processed":True, "completed":1, "tasks":1}
+    monkeypatch.setattr(connected, "run", run)
+    def supplement(path, plan, result, folder, client, active):
+        assert isinstance(client, Gemini)
+        client.call("supplement", [], "synthetic", {"type":"boolean"})
+    monkeypatch.setattr(ppt_source_index, "supplement", supplement)
+    token = gemini_quota._paid_job.set(True)
+    try:
+        with pytest.raises(ProviderDeferred, match="DOCUMENT_CHECKPOINT_PENDING"):
+            documents.process(deck, tmp_path/"work", digest_file(deck), lambda:None, lambda *_:None)
+    finally:
+        gemini_quota._paid_job.reset(token)
+    assert len(admissions) == 2  # One pacing refusal, one actual dispatch, zero supplement dispatches.

@@ -51,6 +51,8 @@ def test_five_service_failures_stop_across_restarts_and_explicit_retry_keeps_suc
         assert provider.request(PATH, {**BODY, 'input': 'completed-step'}, lambda raw: raw)['ok']
         assert provider.request(PATH, BODY, lambda raw: raw)['ok']
     assert calls.count('completed-step') == 1 and len(calls) == 7
+    attempts = list(config.runtime_root.glob('gemini-calls/*/attempts/*.json'))
+    assert len(attempts) == len(calls) and sum(p.name.endswith('.retry.json') for p in attempts) == 5
 
 
 def test_diagnostics_do_not_log_echoed_secrets_or_source_text():

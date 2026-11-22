@@ -206,11 +206,20 @@ class GeminiQuota(Base):
     next_at: Mapped[float] = mapped_column(Float, default=0)
     active_until: Mapped[float] = mapped_column(Float, default=0)
     active_token: Mapped[str | None] = mapped_column(String(36))
+    active_leases: Mapped[dict | None] = mapped_column(JSON)
     blocked_until: Mapped[float] = mapped_column(Float, default=0)
     blocked_code: Mapped[str | None] = mapped_column(String(50))
     recent: Mapped[list] = mapped_column(JSON, default=list)
     day: Mapped[str] = mapped_column(String(10), default="")
     day_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class GeminiPaidCallBudget(Base):
+    """Durable admission count for one operator-limited material version."""
+    __tablename__ = "gemini_paid_call_budgets"
+    version_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    review: Mapped[int] = mapped_column(Integer, default=0)
+    embedding: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class AIWorker(Base):

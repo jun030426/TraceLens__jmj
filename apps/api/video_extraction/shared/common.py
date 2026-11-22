@@ -2,6 +2,7 @@ import hashlib
 import json
 import math
 import os
+import threading
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -25,7 +26,7 @@ def signature(data):
 def save(path, data):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + f'.{os.getpid()}.tmp')
+    tmp = path.with_name(f'.{os.getpid()}.{threading.get_ident()}.tmp')
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False), encoding='utf-8')
     tmp.replace(path)
 

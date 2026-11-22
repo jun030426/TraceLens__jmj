@@ -14,6 +14,7 @@ from lerny.db import engine
 from lerny.models import ModelCall
 
 _context = ContextVar("inference_job", default=None)
+_material_version = ContextVar("inference_material_version", default=None)
 _retry_round = ContextVar("inference_retry_round", default=0)
 
 
@@ -24,16 +25,22 @@ class ModelPending(Exception):
 @contextmanager
 def job_context(job):
     token = _context.set((job.id, job.payload.get("_ai_generation", 0)))
+    version_token = _material_version.set(job.payload.get("version_id"))
     retry_token = _retry_round.set(job.payload.get("_gemini_retry_round", 0))
     try:
         yield
     finally:
         _retry_round.reset(retry_token)
+        _material_version.reset(version_token)
         _context.reset(token)
 
 
 def current_job():
     return _context.get()
+
+
+def current_material_version():
+    return _material_version.get()
 
 
 def current_retry_round():

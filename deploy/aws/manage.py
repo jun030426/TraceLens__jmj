@@ -23,7 +23,7 @@ WORKER_POLICY_NAMES = (
     "LERNY_GEMINI_REVIEW_QUOTA_PROJECT", "LERNY_INSTRUCTOR_REVIEW_FROM_WEEK",
     "LERNY_GEMINI_PAID_FROM_WEEK", "LERNY_GEMINI_PAID_UPLOADS_SINCE",
     "LERNY_GEMINI_REVIEW_REQUESTS_PER_MINUTE", "LERNY_GEMINI_EMBEDDING_REQUESTS_PER_MINUTE",
-    "LERNY_GEMINI_CONTENT_REQUESTS_PER_MINUTE",
+    "LERNY_GEMINI_CONTENT_REQUESTS_PER_MINUTE", "LERNY_GEMINI_REVIEW_CONCURRENCY", "LERNY_GEMINI_PAID_CALL_BUDGET",
 )
 
 
@@ -77,6 +77,16 @@ def update_worker_policy(ssm, patch, expected_version, *, apply=False):
     for name, value in patch.items():
         if name.endswith("_REQUESTS_PER_MINUTE") and not (value.isdecimal() and 1 <= int(value) <= 6000):
             raise ValueError("Invalid RPM for " + name)
+        if name == "LERNY_GEMINI_REVIEW_CONCURRENCY" and not (value.isdecimal() and 1 <= int(value) <= 32):
+            raise ValueError("Review concurrency must be between 1 and 32")
+        if name == "LERNY_GEMINI_PAID_CALL_BUDGET":
+            budget = json.loads(value)
+            if budget is not None and (
+                not isinstance(budget, dict) or set(budget) != {"version_id", "max_new_calls"}
+                or not isinstance(budget["version_id"], str) or not 1 <= len(budget["version_id"]) <= 36
+                or type(budget["max_new_calls"]) is not int or not 0 <= budget["max_new_calls"] <= 10000
+            ):
+                raise ValueError("Invalid material version or paid call budget")
     current = ssm.get_parameter(Name=PARAMETER, WithDecryption=True)["Parameter"]
     if current["Type"] != "SecureString" or expected_version != current["Version"]:
         raise ValueError("Worker parameter type or version differs from the reviewed version")

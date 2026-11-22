@@ -12,7 +12,7 @@ import html
 import json
 import os
 import time
-import unicodedata
+import threading
 import urllib.error
 import urllib.request
 import uuid
@@ -153,16 +153,21 @@ class Budget:
     def __init__(self,out,maximum,delay,transport=urllib.request.urlopen):
         if maximum<1 or delay<0:raise ValueError('invalid_limits')
         self.out=out;self.maximum=maximum;self.delay=delay;self.transport=transport
+        self.admission = threading.Lock()
+        self.stopped = threading.Event()
         self.used=0;self.last=0;self.events=[];self.path=out/'runs'/(uuid.uuid4().hex+'.json')
     def __call__(self,req,timeout=150):
-        if self.used>=self.maximum:raise Blocked('total_request_budget_exhausted')
-        pause=max(0,self.delay-(time.monotonic()-self.last))
-        if pause:time.sleep(pause)
-        self.used+=1;self.last=time.monotonic()
-        provider='openai' if req.full_url.startswith('https://api.openai.com/') else 'gemini'
-        self.events.append({'attempt':self.used,'provider':provider,'at':now()})
-        # Record attempts BEFORE dispatch, including failures/retries; never secrets/audio.
-        save(self.path,{'maximum':self.maximum,'attempts':self.events})
+        with self.admission:
+            if self.stopped.is_set():
+                raise Blocked('interrupted')
+            if self.used>=self.maximum:raise Blocked('total_request_budget_exhausted')
+            pause=max(0,self.delay-(time.monotonic()-self.last))
+            if pause:time.sleep(pause)
+            self.used+=1;self.last=time.monotonic()
+            provider='openai' if req.full_url.startswith('https://api.openai.com/') else 'gemini'
+            self.events.append({'attempt':self.used,'provider':provider,'at':now()})
+            # Record attempts BEFORE dispatch, including failures/retries; never secrets/audio.
+            save(self.path,{'maximum':self.maximum,'attempts':self.events})
         return self.transport(req,timeout=timeout)
 
 def blind_transcribe(path,model,key,cache,transport):

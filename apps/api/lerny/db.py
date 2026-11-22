@@ -1,11 +1,19 @@
 from collections.abc import Generator
 from functools import lru_cache
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from lerny.config import settings
+
+SCHEMA_REVISION = "b60d9c84f210"
+
+
+def schema_revision_matches(connection: Connection, expected_revision: str) -> bool:
+    revisions = connection.scalars(text("SELECT version_num FROM alembic_version")).all()
+    return revisions == [expected_revision]
 
 
 @lru_cache

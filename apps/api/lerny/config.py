@@ -11,6 +11,12 @@ from sqlalchemy.engine import make_url
 from lerny.environment import cloud_environment, private_env_path, read_env, runtime_root
 
 
+class PaidCallBudget(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+    version_id: str = Field(min_length=1, max_length=36)
+    max_new_calls: int = Field(ge=0, le=10000)
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(hide_input_in_errors=True)
     database_url: str | None = Field(default=None, repr=False)
@@ -41,6 +47,8 @@ class Settings(BaseModel):
     # The same course can hand PPT and weekly question review to its instructor.
     instructor_review_from_week: int | None = Field(default=None, ge=1)
 
+    gemini_paid_call_budget: PaidCallBudget | None = None
+    gemini_review_concurrency: int = Field(default=1, ge=1, le=32)
     gemini_review_requests_per_minute: int | None = Field(default=None, ge=1, le=6000)
     gemini_content_requests_per_minute: int = Field(default=12, ge=1, le=6000)
     gemini_embedding_requests_per_minute: int = Field(default=12, ge=1, le=6000)
@@ -200,7 +208,7 @@ def settings() -> Settings:
             }):
                 continue
             if (value := source.get("LERNY_" + field.upper())) is not None and (value or not from_file):
-                values[field] = json.loads(value) if field in {"allowed_origins", "trace_sandbox_command"} else value
+                values[field] = json.loads(value) if field in {"allowed_origins", "trace_sandbox_command", "gemini_paid_call_budget"} else value
     if not cloud:
         apply(read_env(private_env_path(root)), from_file=True)
     if cloud:

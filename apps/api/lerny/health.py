@@ -1,22 +1,21 @@
 """Read-only readiness for published learning. Never invokes a model or starts a worker."""
 from datetime import timedelta
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from lerny import storage
 from lerny.admin_models import OperationsState, OperationsWorker
 from lerny.config import settings
-from lerny.db import engine
+from lerny.db import engine, schema_revision_matches
 from lerny.models import now
 from lerny.tracing import service as tracing
 
 
-def dependencies(supported_revisions: frozenset[str]):
+def dependencies(schema_revision: str):
     database, files = "unavailable", "local"
     try:
         with engine().connect() as connection:
-            revisions = connection.scalars(text("SELECT version_num FROM alembic_version")).all()
-            compatible = len(revisions) == 1 and revisions[0] in supported_revisions
+            compatible = schema_revision_matches(connection, schema_revision)
             database = "ready" if compatible else "migration_required"
     except (RuntimeError, SQLAlchemyError):
         pass
@@ -28,9 +27,9 @@ def dependencies(supported_revisions: frozenset[str]):
     return {"database": database, "storage": files}
 
 
-def learning_status(supported_revisions: frozenset[str]):
+def learning_status(schema_revision: str):
     config = settings()
-    deps = dependencies(supported_revisions)
+    deps = dependencies(schema_revision)
     maintenance = hold = False
     content = grading = True
     operations = "unavailable"

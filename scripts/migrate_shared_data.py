@@ -17,6 +17,7 @@ from sqlalchemy.pool import NullPool
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps/api"))
 from lerny import storage
 from lerny.config import Settings
+from lerny.db import SCHEMA_REVISION, schema_revision_matches
 from lerny.environment import read_env
 from lerny.models import Base
 
@@ -26,6 +27,11 @@ TRANSIENT = {"login_sessions", "login_attempts", "reset_tokens", "ai_workers", "
 
 class MigrationStopped(Exception):
     pass
+
+
+def require_current_schema(connection):
+    if not schema_revision_matches(connection, SCHEMA_REVISION):
+        raise MigrationStopped("SCHEMA_REVISION_MISMATCH")
 
 
 def canonical(value):
@@ -103,7 +109,7 @@ def migrate(args):
         connect_args={"connect_timeout": 10, "prepare_threshold": None})
     with source_engine.connect().execution_options(isolation_level="REPEATABLE READ") as source:
         source.execute(text("SET TRANSACTION READ ONLY"))
-        source_revision = source.scalar(text("SELECT version_num FROM alembic_version"))
+        require_current_schema(source)
         rows = snapshot(source, tables)
         transient_counts = {name: source.scalar(select(text("count(*)")).select_from(Base.metadata.tables[name]))
                             for name in sorted(TRANSIENT)}
@@ -123,8 +129,7 @@ def migrate(args):
         files[key] = (path, content_hash)
     with target_engine.connect() as target:
         target.execute(text("SET TRANSACTION READ ONLY"))
-        if target.scalar(text("SELECT version_num FROM alembic_version")) != source_revision:
-            raise MigrationStopped("SCHEMA_REVISION_MISMATCH")
+        require_current_schema(target)
         inspector = inspect(target)
         for table in tables:
             if set(table.c.keys()) != {column["name"] for column in inspector.get_columns(table.name, schema="public")}:
@@ -174,6 +179,7 @@ def migrate(args):
         target.execute(text("SET LOCAL lock_timeout = '5s'"))
         names = ", ".join('public."' + table.name + '"' for table in tables)
         target.execute(text("LOCK TABLE " + names + " IN SHARE ROW EXCLUSIVE MODE"))
+        require_current_schema(target)
         current = snapshot(target, tables)
         import_rows(target, tables, additions(tables, rows, current))
     with target_engine.connect() as target:

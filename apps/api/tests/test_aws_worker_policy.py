@@ -19,7 +19,7 @@ POLICY = {"LERNY_GEMINI_REVIEW_QUOTA_PROJECT": "lerny-paid-embedding",
           "LERNY_GEMINI_REVIEW_COURSE_ID": "course", "LERNY_GEMINI_REVIEW_WEEK": "4",
           "LERNY_INSTRUCTOR_REVIEW_FROM_WEEK": "5", "LERNY_GEMINI_PAID_FROM_WEEK": "5",
           "LERNY_GEMINI_PAID_UPLOADS_SINCE": "2026-11-22T03:07:10+00:00",
-          "LERNY_GEMINI_REVIEW_REQUESTS_PER_MINUTE": "60", "LERNY_GEMINI_EMBEDDING_REQUESTS_PER_MINUTE": "120"}
+          "LERNY_GEMINI_REVIEW_CONCURRENCY": "4", "LERNY_GEMINI_REVIEW_REQUESTS_PER_MINUTE": "60", "LERNY_GEMINI_EMBEDDING_REQUESTS_PER_MINUTE": "120"}
 
 
 def test_configuration_and_clean_ssm_only_launcher(tmp_path, monkeypatch):
@@ -49,6 +49,7 @@ def test_configuration_and_clean_ssm_only_launcher(tmp_path, monkeypatch):
     config = Settings(**{k.removeprefix("LERNY_").lower():os.environ[k] for k in POLICY})
     assert config.paid_upload_week("course",5) and not config.paid_upload_week("course",4)
     assert config.gemini_review_requests_per_minute == 60 and config.gemini_embedding_requests_per_minute == 120
+    assert config.gemini_review_concurrency == 4
     assert config.gemini_content_requests_per_minute == 12
 
 
@@ -86,3 +87,12 @@ def test_windows_release_matches_linux_engine_bytes(tmp_path):
     with tarfile.open(fileobj=archive) as out:
         assert out.extractfile(source.relative_to(tmp_path).as_posix()).read() == b"# fixture\n"
         assert out.extractfile(binary.relative_to(tmp_path).as_posix()).read() == b"fixture\r\n"
+
+
+@pytest.mark.parametrize("patch", [
+    {"LERNY_GEMINI_REVIEW_CONCURRENCY": "33"},
+    {"LERNY_GEMINI_PAID_CALL_BUDGET": '{"version_id":"test","max_new_calls":-1}'},
+])
+def test_invalid_parallel_policy_stops_before_ssm(patch):
+    with pytest.raises(ValueError):
+        manage.update_worker_policy(None, patch, 12)

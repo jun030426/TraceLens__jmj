@@ -104,15 +104,15 @@ def test_operations_gates_are_reported(service, flag, reason, execution):
 
 
 @pytest.mark.parametrize(("revisions", "accepted"), [
-    (["af3e227a01db"], True),
+    (["af3e227a01db"], False),
     (["b60d9c84f210"], True),
     (["e83f529cc134"], False),
     (["unknown"], False),
     ([], False),
-    (["af3e227a01db", "unknown"], False),
+    (["b60d9c84f210", "unknown"], False),
     (["af3e227a01db", "b60d9c84f210"], False),
-], ids=["current", "next", "older", "unknown", "empty", "mixed-heads", "both-heads"])
-def test_schema_transition_across_health_and_capabilities(service, revisions, accepted):
+], ids=["previous", "current", "older", "unknown", "empty", "mixed-heads", "both-heads"])
+def test_required_schema_across_health_and_capabilities(service, revisions, accepted):
     client, _, _, engine = service
     with engine.begin() as connection:
         connection.execute(text("DELETE FROM alembic_version"))

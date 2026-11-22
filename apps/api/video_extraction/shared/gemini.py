@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import time
+import threading
 import urllib.error
 import urllib.request
 
@@ -65,6 +66,8 @@ class Gemini:
         self.cache=Path(cache);self.model=model;self.env_file=env_file
         self.max_calls=max_calls;self.delay=delay;self.transport=transport or urllib.request.urlopen
         self.sleeper=sleeper;self.last=0.0
+        self.admission = threading.Lock()
+        self.request_locks = {}
         self.stats={'requests':0,'successes':0,'cache_hits':0,'usage':[]}
 
     def blocked(self, reason, detail=None):
@@ -75,12 +78,19 @@ class Gemini:
     def call(self, stage, images, prompt, schema):
         sig=signature({'version':2,'model':self.model,'system':SYSTEM,'stage':stage,
                        'images':[digest_file(p) for p in images],'prompt':prompt,'schema':schema})
+        with self.admission:
+            lock = self.request_locks.setdefault(sig, threading.Lock())
+        with lock:
+            return self._call(sig, stage, images, prompt, schema)
+
+    def _call(self, sig, stage, images, prompt, schema):
         path=self.cache/(sig+'.json')
         if path.exists():
             cached=read(path)
             if cached.get('signature')==sig:
                 value=validate(cached['parsed'],schema)
-                self.stats['cache_hits']+=1
+                with self.admission:
+                    self.stats['cache_hits']+=1
                 return value
         retry_round = getattr(self, 'ppt_retry_round', None)
         rejected = self.cache / (sig + '.invalid-0.json')
@@ -97,7 +107,8 @@ class Gemini:
                     if changes:
                         save(path, {'signature': sig, 'stage': stage, 'model': self.model, 'parsed': parsed,
                                     'normalization': changes, 'original_response_sha256': signature(previous['response'])})
-                        self.stats['cache_hits'] += 1
+                        with self.admission:
+                            self.stats['cache_hits'] += 1
                         return parsed
             # Change only the rejected request's gateway fingerprint. Good stages
             # retain their original signature and the job keeps its billing generation.
@@ -116,11 +127,13 @@ class Gemini:
                  'response_format':{'type':'text','mime_type':'application/json','schema':provider_schema(schema)},
                  'generation_config':{'max_output_tokens':14000,'thinking_level':'low'}}
         for attempt in range(3):
-            if self.stats['requests']>=self.max_calls:
-                raise Blocked('request_budget_exhausted')
-            pause=max(0,self.delay-(time.monotonic()-self.last))
-            if pause:self.sleeper(pause)
-            self.last=time.monotonic();self.stats['requests']+=1
+            with self.admission:
+                if self.stats['requests']>=self.max_calls:
+                    raise Blocked('request_budget_exhausted')
+                pause=max(0,self.delay-(time.monotonic()-self.last))
+                if pause:self.sleeper(pause)
+                self.last=time.monotonic();self.stats['requests']+=1
+                started = self.last
             req=urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/interactions',
                 data=json.dumps(payload).encode(),headers={'x-goog-api-key':key,'Content-Type':'application/json'})
             try:
@@ -151,10 +164,12 @@ class Gemini:
                 save(self.cache/(sig+f'.invalid-{attempt}.json'),{'stage':stage,'response':raw})
                 if retry_round is None and attempt<2:continue
                 raise Blocked('invalid_model_response') from None
-            self.stats['successes']+=1
-            usage=raw.get('usage',raw.get('usage_metadata',{}));self.stats['usage'].append(usage)
+            usage=raw.get('usage',raw.get('usage_metadata',{}))
+            with self.admission:
+                self.stats['successes']+=1
+                self.stats['usage'].append(usage)
             save(path,{'signature':sig,'stage':stage,'model':self.model,'parsed':parsed,'usage':usage,
-                       'seconds':time.monotonic()-self.last,
+                       'seconds':time.monotonic()-started,
                        **({'normalization': changes, 'original_response_sha256': signature(raw)} if changes else {})})
             return parsed
 

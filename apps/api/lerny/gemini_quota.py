@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from lerny.config import settings
 from lerny.db import engine
-from lerny.models import ContentGeneration, GeminiQuota, Material, MaterialVersion, uid
+from lerny.models import ContentGeneration, GeminiPaidCallBudget, GeminiQuota, Material, MaterialVersion, uid
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
 _verifying = ContextVar("gemini_verifying", default=False)
@@ -130,13 +130,45 @@ def db_time(session):
     return time.time()
 
 
-def locked_row(session, key):
+def insert_if_missing(session, model, **identity):
     if session.bind.dialect.name == "postgresql":
         from sqlalchemy.dialects.postgresql import insert
     else:
         from sqlalchemy.dialects.sqlite import insert
-    session.execute(insert(GeminiQuota).values(key=key).on_conflict_do_nothing(index_elements=["key"]))
+    session.execute(insert(model).values(**identity).on_conflict_do_nothing(index_elements=list(identity)))
+
+
+def locked_row(session, key):
+    insert_if_missing(session, GeminiQuota, key=key)
     return session.scalar(select(GeminiQuota).where(GeminiQuota.key == key).with_for_update())
+
+
+def reserve_paid_budget(session, policy, purpose):
+    from lerny.inference import current_material_version
+
+    if policy is None or purpose not in {"review", "embedding"} or current_material_version() != policy.version_id:
+        return
+    insert_if_missing(session, GeminiPaidCallBudget, version_id=policy.version_id)
+    budget = session.scalar(select(GeminiPaidCallBudget).where(
+        GeminiPaidCallBudget.version_id == policy.version_id).with_for_update())
+    if budget.review + budget.embedding >= policy.max_new_calls:
+        raise ValueError("GEMINI_PAID_CALL_BUDGET_EXCEEDED")
+    setattr(budget, purpose, getattr(budget, purpose) + 1)
+
+
+def live_leases(row, current):
+    leases = dict(row.active_leases or {})
+    # Adopt a live lease from a worker using the single-slot schema.
+    if row.active_token:
+        leases.setdefault(row.active_token, row.active_until)
+    return {token: expiry for token, expiry in leases.items() if expiry > current}
+
+
+def store_leases(row, leases):
+    row.active_leases = leases
+    # Older workers must keep waiting until all concurrent reservations expire.
+    token = max(leases, key=leases.get, default=None)
+    row.active_token, row.active_until = token, leases.get(token, 0)
 
 
 def reserve_slot(path, payload):
@@ -144,7 +176,10 @@ def reserve_slot(path, payload):
     config = settings()
     purpose = "embedding" if path.endswith(":embedContent") else "content"
     rpm = getattr(config, f"gemini_{purpose}_requests_per_minute")
-    if request_purpose(path, config) == "review" and config.gemini_review_requests_per_minute is not None:
+    role = request_purpose(path, config)
+    review = role == "review"
+    concurrency = config.gemini_review_concurrency if review else 1
+    if review and config.gemini_review_requests_per_minute is not None:
         rpm = config.gemini_review_requests_per_minute
     tpm = getattr(config, f"gemini_{purpose}_tokens_per_minute")
     rpd = getattr(config, f"gemini_{purpose}_requests_per_day")
@@ -166,7 +201,8 @@ def reserve_slot(path, payload):
                 row.day, row.day_count = day, 0
             if rpd and row.day_count >= rpd:
                 raise ProviderDeferred("GEMINI_DAILY_WAIT", next_day(current))
-            if row.active_until > current:
+            leases = live_leases(row, current)
+            if len(leases) >= concurrency:
                 raise ProviderDeferred("GEMINI_PACING_WAIT", max(row.next_at, current + 5))
             recent = [item for item in row.recent if item[0] > current - 60]
             wait_until = row.next_at
@@ -180,10 +216,12 @@ def reserve_slot(path, payload):
                 total -= cost
             if wait_until > current:
                 raise ProviderDeferred("GEMINI_PACING_WAIT", wait_until)
+            reserve_paid_budget(session, config.gemini_paid_call_budget, role)
             token = uid()
             row.recent = [*recent, [current, units]]
             row.next_at = current + 60 / rpm
-            row.active_token, row.active_until = token, current + 300
+            leases[token] = current + 300
+            store_leases(row, leases)
             row.day_count += 1
             session.commit()
             return key, token
@@ -196,9 +234,11 @@ def release_slot(lease):
     key, token = lease
     try:
         with Session(engine()) as session:
-            row = session.scalar(select(GeminiQuota).where(GeminiQuota.key == key).with_for_update())
-            if row and row.active_token == token:
-                row.active_token, row.active_until = None, 0
+            row = locked_row(session, key)
+            leases = live_leases(row, db_time(session))
+            if token in leases:
+                del leases[token]
+                store_leases(row, leases)
                 session.commit()
     except SQLAlchemyError:
         # Fail closed: the bounded lease expires. Do not mask a saved response/error.

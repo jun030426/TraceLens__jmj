@@ -136,7 +136,7 @@ def selection(output, plan, source_sha, suffix, summary):
 
 def process(path, folder, source_sha, check, report, ppt_retry_round=0):
     from lerny.gemini_provider import media_call_budget
-    from lerny.gemini_quota import ProviderDeferred, verification
+    from lerny.gemini_quota import ProviderDeferred, request_purpose, verification
     from lerny.media_materials import MediaStopped, service_transport
     from video_extraction.pipeline import connected
     from video_extraction.shared.gemini import Blocked
@@ -166,6 +166,11 @@ def process(path, folder, source_sha, check, report, ppt_retry_round=0):
     while (output / "plan.json").exists() and read(output / "plan.json")["source_plan"].get("source_issues"):
         attempt += 1
         output = base_output.with_name(base_output.name + f"-prepare-{attempt}")
+    with verification():
+        parallelism = config.gemini_review_concurrency if (
+            path.suffix.lower() == ".pptx" and request_purpose("interactions", config) == "review"
+        ) else 1
+
     def active():
         try:
             check()
@@ -183,8 +188,21 @@ def process(path, folder, source_sha, check, report, ppt_retry_round=0):
         active()
         if path.suffix.lower() == ".pptx":
             with verification():
-                return service_transport(request, timeout, expected_model=model)
+                while True:
+                    if document_budget.stopped.is_set():
+                        raise DocumentStopped("DOCUMENT_JOB_CANCELLED")
+                    try:
+                        return service_transport(request, timeout, expected_model=model)
+                    except MediaStopped as exc:
+                        # Short local pacing waits must not force a full document replay.
+                        pause = (exc.retry_at or 0) - time.time()
+                        if parallelism == 1 or str(exc) != "GEMINI_PACING_WAIT" or pause > 6:
+                            raise
+                        document_budget.stopped.wait(max(0.02, pause))
+                        active()
         return service_transport(request, timeout)
+    ppt = path.suffix.lower() == ".pptx"
+    document_budget = connected.Budget(output, config.gemini_max_calls_per_job, 0, transport=transport) if ppt else None
     try:
         with reporting(progress), media_call_budget():
             progress("preparing")
@@ -201,7 +219,8 @@ def process(path, folder, source_sha, check, report, ppt_retry_round=0):
             active()
             summary = connected.run(output, None, maximum=config.gemini_max_calls_per_job,
                                     delay=0, transport=transport,
-                                    **({"ppt_retry_round": ppt_retry_round} if path.suffix.lower() == ".pptx" else {}))
+                                    **({"ppt_retry_round": ppt_retry_round, "review_concurrency": parallelism,
+                                        "request_budget": document_budget} if ppt else {}))
             if not summary["all_tasks_processed"] and not summary.get("held_pages"):
                 raise ValueError("DOCUMENT_VALIDATION_INCOMPLETE")
             active()
@@ -215,7 +234,7 @@ def process(path, folder, source_sha, check, report, ppt_retry_round=0):
                 from video_extraction.shared.gemini import Gemini
                 supplement(path, plan, result, output / "source-regions",
                            Gemini(output / "gemini-cache", model, None,
-                                  max_calls=config.gemini_max_calls_per_job, delay=0, transport=transport), active)
+                                  max_calls=config.gemini_max_calls_per_job, delay=0, transport=document_budget), active)
                 active()
             save(output / "site-selection.json", result)
             return result
