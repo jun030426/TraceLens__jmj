@@ -10,6 +10,8 @@ from fastapi.responses import Response
 from pydantic import Field
 from sqlalchemy import func, select, text
 
+from lerny import theory_week
+from lerny.automatic import current_section_week
 from lerny.auth import Input
 from lerny.courses import audit
 from lerny.jobs import idempotent, section_student
@@ -18,6 +20,7 @@ from lerny.models import (
     AuditEvent,
     Chunk,
     Concept,
+    DailyPlan,
     Enrollment,
     Job,
     LearningSession,
@@ -80,7 +83,7 @@ def learning_streak(session: Db, actor: Actor, section_id: str | None = None):
 def learning_history(
     session: Db, actor: Actor, section_id: str | None = None,
     date_from: date | None = None, date_to: date | None = None,
-    order: Literal["asc", "desc"] = "desc",
+    order: Literal["asc", "desc"] = "desc", today_only: bool = False,
     offset: int = Query(default=0, ge=0), limit: int = Query(default=100, ge=1, le=100),
 ):
     if actor.role != "student":
@@ -101,10 +104,23 @@ def learning_history(
         query = query.where(LearningSession.day >= date_from)
     if date_to:
         query = query.where(LearningSession.day <= date_to)
-    total = session.scalar(select(func.count()).select_from(query.subquery()))
     ordering = (LearningSession.day, LearningSession.id) if order == "asc" else (LearningSession.day.desc(), LearningSession.id.desc())
-    records = session.scalars(query.order_by(*ordering)
-                              .offset(offset).limit(limit))
+    if today_only:
+        day = today()
+        rows = session.scalars(query.where(LearningSession.day == day, LearningSession.archive_week.is_(None))
+                               .order_by(*ordering))
+        current = []
+        for row in rows:
+            section = session.get(Section, row.section_id)
+            week = current_section_week(session, section, day)
+            plan = theory_week.daily_plan(session, row)
+            if theory_week.is_current_assignment(session, row, plan, section, week):
+                current.append(row)
+        total = len(current)
+        records = current[offset:offset + limit]
+    else:
+        total = session.scalar(select(func.count()).select_from(query.subquery()))
+        records = session.scalars(query.order_by(*ordering).offset(offset).limit(limit))
     items = []
     for record in records:
         attempts = list(
@@ -135,6 +151,11 @@ def read_learning_session(learning_id: str, session: Db, actor: Actor):
     if not record or record.student_id != actor.id:
         deny(404)
     section_student(session, actor, record.section_id)
+    if record.archive_week is not None:
+        return {**session_view(session, record), "week": record.archive_week, "day_index": record.archive_day_index}
+    plan = theory_week.daily_plan(session, record)
+    if plan:
+        return daily_view(session, record, plan, plan.week)
     return session_view(session, record)
 
 
@@ -324,53 +345,62 @@ def daily(section_id: str, session: Db, actor: Actor):
     from lerny.automatic import sync_progress
     sync_progress(session, section.course_id)
     from lerny.config import settings
-    if settings().automatic_learning_enabled:
-        from lerny.personalized import daily as personalized_daily
-        return personalized_daily(session, actor, section, today())
+    day = today()
+    week = current_section_week(session, section, day)
     lock_student(session, actor.id)
-    learning = session.scalar(
-        select(LearningSession).where(
-            LearningSession.student_id == actor.id,
-            LearningSession.section_id == section_id,
-            LearningSession.day == today(),
-        )
-    )
+    empty = {"section_id": section_id, "week": week, "status": "empty", "items": [],
+             "message": f"{week}주차에 공개된 개념 퀴즈가 아직 없어요." if week else "학기 시작 전이에요."}
+    learning = session.scalar(select(LearningSession).where(LearningSession.student_id == actor.id,
+        LearningSession.section_id == section_id, LearningSession.day == day, LearningSession.archive_week.is_(None)))
+    plan = session.scalar(select(DailyPlan).where(DailyPlan.student_id == actor.id,
+        DailyPlan.section_id == section_id, DailyPlan.day == day))
+    if learning and theory_week.is_current_assignment(session, learning, plan, section, week):
+        return daily_view(session, learning, plan, week)
+    bank = [q for q in theory_week.question_bank(session, section, week) if q.concept_id in section.progress]
+    if not bank:
+        return empty
+    starts = theory_week.week_starts(session, section)
+    index = theory_week.day_index(starts, week, day)
+    if settings().automatic_learning_enabled:
+        from lerny.personalized import choose_daily
+        chosen, context = choose_daily(session, actor, section, day, bank)
+    else:
+        chosen = choose_review_questions(session, actor, day, bank)
+        context = {}
+    if not chosen:
+        return empty
     if learning:
-        return session_view(session, learning)
-    if not section.progress:
-        deny(409, "공개된 강의 자료에서 학습 콘텐츠를 준비 중이에요. 준비가 끝나면 학습을 시작할 수 있어요.")
+        learning.archive_week, learning.archive_day_index = theory_week.assigned_slot(session, learning, plan, starts)
+        session.flush()
+    if not plan:
+        plan = DailyPlan(student_id=actor.id, section_id=section_id, day=day)
+        session.add(plan)
+    plan.week, plan.day_index, plan.context, plan.job_id = week, index, context, None
+    learning = LearningSession(student_id=actor.id, section_id=section_id, day=day, question_ids=chosen)
+    session.add(learning)
+    session.commit()
+    return daily_view(session, learning, plan, week)
+
+
+def daily_view(session, row, plan, week):
+    result = session_view(session, row)
+    result["week"] = week
+    if plan:
+        result["day_index"] = plan.day_index
+        if "review_enabled" in plan.context:
+            result["review_enabled"] = plan.context["review_enabled"]
+    return result
+
+
+def choose_review_questions(session, actor, day, bank):
     reviews = {
         r.concept_id: r
         for r in session.scalars(
-            select(Review).where(Review.student_id == actor.id, Review.due_on <= today())
+            select(Review).where(Review.student_id == actor.id, Review.due_on <= day)
         )
     }
     seen = set(session.scalars(select(Attempt.question_id).where(Attempt.student_id == actor.id)))
-    from lerny.automatic import calendar_week
-    max_week = calendar_week(session, section) if section.progress_mode == "auto" else section.progress_week
-    bank = [
-        q
-        for q in session.scalars(
-            select(Question)
-            .where(
-                Question.course_id == section.course_id,
-                Question.student_id.is_(None),
-                Question.status == "active",
-                Question.concept_id.in_(section.progress),
-            )
-            .order_by(Question.created_at)
-        )
-        if valid_sources(session, q, max_week)
-    ]
-    chosen = five_daily_questions(sorted(bank, key=lambda q: (q.id in seen, q.concept_id not in reviews)))
-    if not chosen:
-        deny(409, "현재 진도에 맞는 검증된 문항이 아직 없어요.")
-    learning = LearningSession(
-        student_id=actor.id, section_id=section_id, day=today(), question_ids=chosen
-    )
-    session.add(learning)
-    session.commit()
-    return session_view(session, learning)
+    return five_daily_questions(sorted(bank, key=lambda q: (q.id in seen, q.concept_id not in reviews)))
 
 
 def attempt_view(a):

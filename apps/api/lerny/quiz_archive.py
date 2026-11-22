@@ -1,13 +1,14 @@
 """Browse published weekly quizzes without generating questions."""
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter, Path
 from sqlalchemy import func, select
 
-from lerny.automatic import calendar_week, section_schedule
+from lerny.automatic import current_section_week
+from lerny.theory_week import assigned_slot, question_bank, week_starts
 from lerny.jobs import section_student
-from lerny.learning import daily, five_daily_questions, lock_student, session_view, today, valid_sources
+from lerny.learning import daily, five_daily_questions, lock_student, session_view, today
 from lerny.models import (Attempt, Course, DailyPlan, LearningSession, PracticeExercise, PracticeSession,
                           Question)
 from lerny.practice import problem_items, week_exercises
@@ -18,9 +19,7 @@ router = APIRouter(prefix="/api/v1")
 
 
 def calendar(session, section):
-    start = {r["week"]: date.fromisoformat(r["date"]) for r in section_schedule(session, section)}
-    current = calendar_week(session, section, today()) if section.progress_mode == "auto" else section.progress_week
-    return start, current or 0
+    return week_starts(session, section), current_section_week(session, section, today())
 
 
 def assignments(session, actor, section, starts):
@@ -30,13 +29,7 @@ def assignments(session, actor, section, starts):
     by_week = defaultdict(list)
     for row in session.scalars(select(LearningSession).where(LearningSession.student_id == actor.id,
             LearningSession.section_id == section.id).order_by(LearningSession.day)):
-        if plan := plans.get(row.day):
-            week, index = plan.week, plan.day_index
-        else:
-            week = max((w for w, start in starts.items() if start <= row.day < start + timedelta(days=7)), default=0)
-            if not week:
-                continue
-            index = (row.day - starts[week]).days + 1
+        week, index = assigned_slot(session, row, plans.get(row.day), starts)
         by_week[week].append((index, row))
     return by_week
 
@@ -65,13 +58,6 @@ def weeks(section_id: str, session: Db, actor: Actor):
             "current_week": current, "weeks": items}
 
 
-def question_bank(session, section, week):
-    generations = [g.id for g in published_generations(session, section.course_id) if g.week == week]
-    return [q for q in session.scalars(select(Question).where(Question.generation_id.in_(generations),
-            Question.student_id.is_(None), Question.status == "active").order_by(Question.created_at, Question.id))
-            if valid_sources(session, q, week)]
-
-
 def day_questions(bank, index):
     by_position = defaultdict(list)
     for question in bank:
@@ -90,7 +76,6 @@ def days(section_id: str, session: Db, actor: Actor, week: int = Path(ge=1, le=1
     starts, current = calendar(session, section)
     records = assignments(session, actor, section, starts)
     own = records[week]
-    occupied = {row.day for items in records.values() for _, row in items}
     answered = set(session.scalars(select(Attempt.question_id).where(
         Attempt.student_id == actor.id, Attempt.section_id == section.id).distinct()))
     bank = question_bank(session, section, week) if week <= current else []
@@ -103,7 +88,7 @@ def days(section_id: str, session: Db, actor: Actor, week: int = Path(ge=1, le=1
                               "total": len(row.question_ids), "submitted": len(answered.intersection(row.question_ids))})
         else:
             when = starts[week] + timedelta(days=index - 1) if week in starts else None
-            ready = when and when <= today() and when not in occupied
+            ready = when and when <= today()
             ids = day_questions(bank, index) if ready else []
             items.append({"index": index, "date": when, "session_id": None,
                           "total": len(ids), "submitted": len(answered.intersection(ids))})
@@ -125,26 +110,19 @@ def open_day(section_id: str, session: Db, actor: Actor, week: int = Path(ge=1, 
     when = starts[week] + timedelta(days=index - 1)
     if when > today():
         deny(404)
-    if when == today():
+    if when == today() and week == current:
         # The daily endpoint acquires course and student locks in that order.
         return daily(section_id, session, actor)
     lock_student(session, actor.id)
-    existing = session.scalar(select(LearningSession).where(LearningSession.student_id == actor.id,
-        LearningSession.section_id == section_id, LearningSession.day == when))
-    existing_plan = session.scalar(select(DailyPlan).where(DailyPlan.student_id == actor.id,
-        DailyPlan.section_id == section_id, DailyPlan.day == when))
-    if existing_plan and (existing_plan.week != week or existing_plan.day_index != index):
-        deny(409, "이 날짜에는 다른 주차의 퀴즈가 배정돼 있어요.")
-    if existing:
-        return session_view(session, existing)
+    for slot, row in assignments(session, actor, section, starts)[week]:
+        if slot == index and row.day == when:
+            return session_view(session, row)
     chosen = day_questions(question_bank(session, section, week), index)
     if not chosen:
         deny(404, "이 날짜에 풀 수 있는 공개 문항이 없어요.")
-    learning = LearningSession(student_id=actor.id, section_id=section_id, day=when, question_ids=chosen)
+    learning = LearningSession(student_id=actor.id, section_id=section_id, day=when, question_ids=chosen,
+                               archive_week=week, archive_day_index=index)
     session.add(learning)
-    if not existing_plan:
-        session.add(DailyPlan(student_id=actor.id, section_id=section_id, day=when,
-                              week=week, day_index=index, context={"source": "archive"}))
     session.commit()
     return session_view(session, learning)
 

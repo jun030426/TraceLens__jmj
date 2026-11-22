@@ -7,9 +7,8 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
-from lerny.automatic import calendar_week, section_schedule, weekly_content
-from lerny.models import Attempt, Concept, Course, DailyPlan, LearningSession, Question
-from lerny.security import deny
+from lerny.automatic import current_section_week, section_schedule, weekly_content
+from lerny.models import Attempt, Concept, Course, LearningSession, Question
 
 
 class DailyQuestion(BaseModel):
@@ -30,14 +29,11 @@ class DailySet(BaseModel):
 
 
 def learning_context(session, section, student_id, day):
-    current = calendar_week(session, section, day)
-    week = current if section.progress_mode == "auto" else section.progress_week or current
+    week = current_section_week(session, section, day)
     weekly = weekly_content(session, section.course_id)
     eligible = {w: [c for c in ids if c in section.progress] for w, ids in weekly.items() if w <= week}
-    weeks = [w for w, ids in eligible.items() if ids]
-    if not weeks:
-        deny(409, "이번 진도의 공개 자료와 개념을 준비 중이에요.")
-    week = max(weeks)
+    if not eligible.get(week):
+        return None
     schedule = next((r for r in section_schedule(session, section) if r["week"] == week), None)
     start = date.fromisoformat(schedule["date"]) if schedule else day
     elapsed_days = max(1, (day - start).days + 1)
@@ -71,39 +67,15 @@ def learning_context(session, section, student_id, day):
             "previous": previous[:20], "review_concepts": review, "weakness": signals}
 
 
-def daily(session, actor, section, day):
-    """Assign reviewed questions; personalization never creates unseen student content."""
-    from lerny.learning import five_daily_questions, lock_student, session_view, valid_sources
-    lock_student(session, actor.id)
-    learning = session.scalar(select(LearningSession).where(
-        LearningSession.student_id == actor.id, LearningSession.section_id == section.id,
-        LearningSession.day == day))
-    if learning:
-        return session_view(session, learning)
+def choose_daily(session, actor, section, day, bank):
+    from lerny.learning import five_daily_questions
     context = learning_context(session, section, actor.id, day)
-    bank = [q for q in session.scalars(select(Question).where(
-        Question.course_id == section.course_id, Question.student_id.is_(None),
-        Question.kind == "mcq", Question.status == "active", Question.concept_id.in_(section.progress)))
-        if valid_sources(session, q, context["week"])]
+    if not context:
+        return [], None
     seen = set(session.scalars(select(Attempt.question_id).where(Attempt.student_id == actor.id)))
     bank.sort(key=lambda q: (q.id in seen,
         hashlib.sha256((actor.id + day.isoformat() + q.id).encode()).hexdigest()))
-    chosen = five_daily_questions(bank, context["concept_slots"])
-    if not chosen:
-        deny(409, "교수자가 검토·공개한 이번 진도의 문항이 아직 없어요.")
-    learning = LearningSession(student_id=actor.id,section_id=section.id,day=day,question_ids=chosen)
-    session.add(learning)
-    plan = session.scalar(select(DailyPlan).where(DailyPlan.student_id==actor.id,
-        DailyPlan.section_id==section.id,DailyPlan.day==day))
-    if plan:
-        plan.context=context;plan.week=context["week"];plan.day_index=context["day_index"]
-    else:
-        session.add(DailyPlan(student_id=actor.id,section_id=section.id,day=day,
-            week=context["week"],day_index=context["day_index"],job_id=None,context=context))
-    session.commit()
-    result = session_view(session,learning)
-    result.update(week=context["week"],day_index=context["day_index"],review_enabled=context["review_enabled"])
-    return result
+    return five_daily_questions(bank, context["concept_slots"]), context
 
 
 def generate_daily(session, job):
@@ -179,7 +151,7 @@ def generate_daily(session, job):
     lock_student(session, actor.id)
     day = date.fromisoformat(job.payload["day"])
     existing = session.scalar(select(LearningSession).where(LearningSession.student_id == actor.id,
-        LearningSession.section_id == section.id, LearningSession.day == day))
+        LearningSession.section_id == section.id, LearningSession.day == day, LearningSession.archive_week.is_(None)))
     if existing:
         raise ValueError("DAILY_ALREADY_ASSIGNED")
     learning = LearningSession(student_id=actor.id, section_id=section.id, day=day, question_ids=created)

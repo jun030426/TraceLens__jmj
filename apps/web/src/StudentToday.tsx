@@ -20,7 +20,7 @@ const kstDay = () =>
 export function StudentToday() {
   const { user } = useContext(Auth);
   const rooms = useLoad<{ items: Classroom[] }>("/classrooms");
-  const history = useLoad<{ items: LearningRecord[] }>("/my/learning-sessions");
+  const history = useLoad<{ items: LearningRecord[] }>("/my/learning-sessions?today_only=true");
   const streak = useLoad<{ today_completed: boolean; current_streak: number }>(
     "/my/learning-streak",
   );

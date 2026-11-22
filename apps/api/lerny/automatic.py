@@ -29,6 +29,12 @@ def calendar_week(session, section, day=None):
     day = day or datetime.now(ZoneInfo("Asia/Seoul")).date()
     return max((row["week"] for row in section_schedule(session, section) if row["date"] <= day.isoformat()), default=0)
 
+
+def current_section_week(session, section, day):
+    if section.progress_mode == "manual" and section.progress_week is not None:
+        return section.progress_week
+    return calendar_week(session, section, day)
+
 def sync_progress(session, course_id):
     weeks = weekly_content(session, course_id)
     for section in session.scalars(select(Section).where(Section.course_id == course_id).with_for_update()):
