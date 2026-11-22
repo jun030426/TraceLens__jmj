@@ -227,14 +227,20 @@ def attempt_view(attempt):
             "created_at":attempt.created_at.isoformat(),"job_id":attempt.job_id}
 
 
+def student_exercise_template(exercise):
+    from lerny.practice_support import build_annotated_blank_template
+
+    if exercise.language == "python" and exercise.kind == "blank" and exercise.template and exercise.blanks:
+        return build_annotated_blank_template(exercise.template, exercise.blanks)
+    return exercise.template
+
+
 def exercise_view(session, exercise, material=None):
     material = material or current_source(session, exercise)
     if not material:
         return None
-    from lerny.practice_support import metadata, build_annotated_blank_template
-    template = exercise.template
-    if exercise.language == "python" and exercise.kind == "blank" and exercise.template and exercise.blanks:
-        template = build_annotated_blank_template(exercise.template, exercise.blanks)
+    from lerny.practice_support import metadata
+    template = student_exercise_template(exercise)
     return {**metadata(exercise), "id":exercise.id,"title":exercise.title,"description":exercise.prompt,"kind":exercise.kind,
             "language":exercise.language,"template":template,"expected":exercise.tests[0]["expected"],
             "example_input":exercise.tests[0]["input"],

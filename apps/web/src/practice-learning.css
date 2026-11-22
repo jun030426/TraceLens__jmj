@@ -11,8 +11,8 @@
 #root .practice-example h4, #root .practice-explanation h4 { margin: 12px 0 8px; }
 #root .practice-explanation { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border, #deded5); min-width: 0; }
 #root .practice-explanation pre, #root .practice-example pre { white-space: pre; overflow: auto; max-width: 100%; padding: 14px; border: 1px solid var(--border, #deded5); border-radius: 10px; background: var(--surface-soft, #f4f5ef); color: inherit; line-height: 1.7; }
-#root .practice-output-body > .practice-explanation pre,
-#root .practice-output-body > .practice-explanation pre > code {
+#root .practice-submitted-code,
+#root .practice-submitted-code > code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -91,18 +91,18 @@
 #root .practice-output-body > .practice-explanation pre {
   margin-block: 0;
 }
-#root .practice-right {
+#root :is(.practice-right, .student-practice-record) {
   --practice-submission-bg: #eee4f5;
   --practice-submission-border: #d8c3e5;
   --practice-submission-ink: #432d50;
 }
-:root[data-theme="dark"] #root .practice-right {
+:root[data-theme="dark"] #root :is(.practice-right, .student-practice-record) {
   --practice-submission-bg: #392c43;
   --practice-submission-border: #584463;
   --practice-submission-ink: #eadbf2;
 }
 #root .practice-right > p.message,
-#root .practice-right .practice-output-body > .practice-explanation pre {
+#root .practice-submitted-code {
   background: var(--practice-submission-bg);
   border: 1px solid var(--practice-submission-border);
   color: var(--practice-submission-ink);
@@ -124,4 +124,32 @@
 #root .practice-right .practice-submission-history > span:first-child {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+
+#root .practice-submitted-code :is(.practice-starter-code, .practice-written-code) {
+  display: block;
+  min-height: 1lh;
+}
+#root .practice-submitted-code .practice-written-code {
+  position: relative;
+  padding: 3px 6px;
+  margin-block: 3px;
+  border: 1.5px dashed #815391;
+  border-radius: 6px;
+  background: #fbf6fc;
+}
+:root[data-theme="dark"] #root .practice-submitted-code .practice-written-code {
+  border-color: #c09bce;
+  background: #2a1f2d;
+}
+
+#root .practice-submitted-code .practice-written-code:is(:hover, :focus)::after {
+  content: attr(aria-label) / "";
+  position: absolute;
+  inset-block-end: calc(100% + 2px);
+  inset-inline-end: 6px;
+  font: 600 11px/1.2 system-ui, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
 }
