@@ -412,6 +412,7 @@ class PracticeAttempt(Identity, Base):
     exercise_id: Mapped[str] = mapped_column(ForeignKey("practice_exercises.id"), index=True)
     practice_session_id: Mapped[str] = mapped_column(ForeignKey("practice_sessions.id"), index=True)
     source: Mapped[str] = mapped_column(Text)
+    submission_snapshot: Mapped[dict | None] = mapped_column(JSON(none_as_null=True))
     status: Mapped[str] = mapped_column(String(20), default="pending")
     correct: Mapped[bool | None] = mapped_column(Boolean)
     independent: Mapped[bool] = mapped_column(Boolean, default=True)
