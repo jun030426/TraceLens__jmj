@@ -583,3 +583,32 @@ def test_page_link_stages_match_one_gateway_submission(paced, tmp_path, monkeypa
     root = config.runtime_root/"gemini-calls"
     event, = root.glob("*/attempts/*.json")
     assert json.loads(event.read_text())["credential_role"] == "review"
+
+def test_new_worker_rechecks_receipt_published_under_legacy_job_lock(paced, monkeypatch):
+    from contextlib import contextmanager
+    from threading import Event
+
+    config, _, _ = paced
+    job = SimpleNamespace(id="shared-job", payload={})
+    root = config.runtime_root/"gemini-calls"/provider.fingerprint((job.id,0))
+    cache = root/(provider.fingerprint({"path":PATH,"payload":BODY})+".json")
+    entered = Event()
+    original = provider.receipt_lock
+    @contextmanager
+    def observed(path):
+        if path == root/"job.lock":
+            entered.set()
+        with original(path):
+            yield
+    monkeypatch.setattr(provider,"receipt_lock",observed)
+    calls = fake_http(monkeypatch, httpx.Response(200,json={"duplicate":True}))
+    def send():
+        with job_context(job):
+            return provider.request(PATH,BODY,dict)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with original(root/"job.lock"):
+            future = pool.submit(send)
+            assert entered.wait(5)
+            provider.save_json(cache, {"status":"completed","response":{"saved":True}})
+        assert future.result() == {"saved":True}
+    assert not calls and not (root/"attempts").exists()

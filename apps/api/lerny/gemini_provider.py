@@ -151,30 +151,30 @@ def request(path, payload, parse):
         "credential": config.gemini_key(purpose), "purpose": purpose,
         "model": payload.get("model", path.split(":", 1)[0])}) + ".json")
     with receipt_lock(root / "locks" / key):
-        entry = {}
-        retry_round = current_retry_round()
-        if cache.exists():
-            entry = json.loads(cache.read_text(encoding="utf-8"))
-            if entry.get("status") == "completed":
-                return parse(entry["response"])
-            if entry.get("status") != "failed" or entry.get("code") not in {
-                "GEMINI_RATE_LIMITED", "GEMINI_TEMPORARILY_UNAVAILABLE"
-            }:
-                raise ValueError("GEMINI_CALL_UNCERTAIN")
-        failures = entry.get("service_failures", 0) if entry.get("retry_round", 0) == retry_round else 0
-        if failures >= MAX_SERVICE_FAILURES:
-            raise ValueError(EXHAUSTED)
-        if limit.exists():
-            deferred = json.loads(limit.read_text(encoding="utf-8"))
-            if deferred["retry_at"] > time.time():
-                raise ProviderDeferred(deferred["code"], deferred["retry_at"])
-        ceiling = config.gemini_max_calls_per_media_job if _media_budget.get() else config.gemini_max_calls_per_job
-        if purpose == "embedding":
-            ceiling = max(ceiling, _embedding_budget.get())
         # Serialize admission, never the network wait. Keep job.lock compatible
         # with workers using the old single-lock layout.
         attempts = root / "attempts"
         with receipt_lock(root / "job.lock"):
+            entry = {}
+            retry_round = current_retry_round()
+            if cache.exists():
+                entry = json.loads(cache.read_text(encoding="utf-8"))
+                if entry.get("status") == "completed":
+                    return parse(entry["response"])
+                if entry.get("status") != "failed" or entry.get("code") not in {
+                    "GEMINI_RATE_LIMITED", "GEMINI_TEMPORARILY_UNAVAILABLE"
+                }:
+                    raise ValueError("GEMINI_CALL_UNCERTAIN")
+            failures = entry.get("service_failures", 0) if entry.get("retry_round", 0) == retry_round else 0
+            if failures >= MAX_SERVICE_FAILURES:
+                raise ValueError(EXHAUSTED)
+            if limit.exists():
+                deferred = json.loads(limit.read_text(encoding="utf-8"))
+                if deferred["retry_at"] > time.time():
+                    raise ProviderDeferred(deferred["code"], deferred["retry_at"])
+            ceiling = config.gemini_max_calls_per_media_job if _media_budget.get() else config.gemini_max_calls_per_job
+            if purpose == "embedding":
+                ceiling = max(ceiling, _embedding_budget.get())
             retry = cache.is_file()
             spent = sum(1 for _ in root.glob("*.json")) + sum(1 for _ in attempts.glob("*.retry.json"))
             if spent >= ceiling:
