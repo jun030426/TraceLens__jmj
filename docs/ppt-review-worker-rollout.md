@@ -98,6 +98,16 @@ systemctl is-active lerny-material.service lerny-embedding.service
 - 완료된 작업에서 일부 쪽이 계속 보류되면 교수자 보류 목록으로 인계된다. 일반 작업 재시도 API는 실패한 작업에만 열려 있다. 기존 성공 작업의 청크와 임베딩을 다시 쓰는 버튼은 이 변경 범위에 포함되지 않는다.
 - 우선 대면실습5 한 건으로 확인한 뒤 제5장, 마지막으로 제4장을 고려한다. 캐시를 복원해도 이전에 시작하지 않은 쪽, 연결 검증, 도형 보충은 새 호출 대상이다. 운영 모델 비용은 파일 수나 체크포인트 수와 일대일로 대응하지 않는다.
 
+## 운영 마이그레이션 적용 기록
+
+2026-11-23 01:02:01 KST에 AWS 워커가 사용 중인 운영 DB의 Alembic 리비전을 `af3e227a01db`에서 `b60d9c84f210`으로 올렸다. 당시 Vercel 운영 커밋 `48b566b`는 두 리비전을 모두 지원했다.
+
+- **파일 출처** — #36 커밋 `b6c7c6e92855339b10266eab122c90c235bc6c69`의 `migrations/versions/b60d9c84f210_concurrent_gemini_leases.py`. 원본과 서버 파일의 SHA-256은 모두 `206aea7ec6b45298208472045d561a6b87511bedd65bf206ff95bc7fee63d3f7`였다. 이 파일의 리비전·부모·본문은 이후 rebase에서도 그대로 유지한다. 후속 변경에는 새 리비전을 추가한다.
+- **위치와 환경** — 인스턴스 `i-0c64182a7dada987a`의 `/tmp/lerny-quota-migration-zc1ls9sm/migrations`에 위 커밋의 리비전 파일 21개를 준비했다. SSM Run Command에서 `lerny-worker` 권한과 `/opt/lerny/venv/bin/python`으로 실행했다. 실행 중인 embedding 워커, `/etc/lerny/worker.json`, 실제 SQLAlchemy 연결의 DB 호스트 일치를 확인했다.
+- **실행 명령** — 같은 연결의 트랜잭션에서 기존 리비전, 제5장 행, 큐 상태를 재확인했다. Alembic의 `script_location`을 위 임시 경로로 설정하고 `cfg.attributes["connection"] = connection`을 지정한 뒤 `alembic.command.upgrade(cfg, "b60d9c84f210")`를 호출했다. CLI의 대응 명령은 `alembic upgrade b60d9c84f210`이다.
+- **결과** — 커밋 직후 운영 `/api/v1/health/ready`는 200이었고 DB·스토리지 모두 `ready`였다. 별도 연결에서 `gemini_quotas.active_leases`가 nullable JSON이고 `gemini_paid_call_budgets`의 RLS가 활성화된 것을 확인했다. `anon`·`authenticated`에는 테이블·컬럼 권한이 없고, 테이블 소유자 외 명시적 권한은 `service_role`에만 있었다. 검증 뒤 임시 디렉터리를 삭제했다.
+- **복원 순서** — #36 코드가 배포된 뒤에는 먼저 해당 API와 워커를 이전 스키마를 지원하는 릴리스로 복원한다. DB 복원이 필요하면 위 커밋에서 리비전 파일을 다시 준비하고 같은 운영 대상을 확인한 뒤 `alembic downgrade af3e227a01db`를 실행한다. 이 명령은 새 예산 테이블의 데이터와 `active_leases` 컬럼을 제거한다. 복원 후 DB 리비전과 운영 readiness를 확인한다.
+
 ## 유료 PPT 검증 병렬 처리
 
 기본 동시 요청 수는 1이다. 병렬 처리를 적용하려면 마이그레이션 `b60d9c84f210`을 먼저 적용하고 material·embedding 양쪽에 같은 게이트웨이 코드를 배포한다. 이전 워커의 기존 점유도 만료될 때까지 한 자리로 센다.
