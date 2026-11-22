@@ -1,3 +1,4 @@
+import { previewPractice } from "./previewPractice";
 import { getTestRole } from "./testAccess";
 import { testResponse } from "./testData";
 import { testChatAsk } from "./testChat";
@@ -13,6 +14,8 @@ export async function api<T>(
   // 테스트용 화면: 서버 대신 샘플 데이터로 답하고, 저장 요청은 보내지 않아요.
   const testRole = getTestRole();
   if (testRole && !path.startsWith("/auth/") && path !== "/me") {
+    const practice = previewPractice(path, options);
+    if (practice !== undefined) return practice as T;
     // 질문하기(AI 질문 · 실습 질문 창)는 저장 대신 예시 답변을 만들어 흐름을 보여 줘요 — testChat.ts
     if (/^\/sections\/[^/]+\/chat\/messages$/.test(path) && (options.method || "GET").toUpperCase() === "POST")
       return testChatAsk(JSON.parse(String(options.body || "{}"))) as T;

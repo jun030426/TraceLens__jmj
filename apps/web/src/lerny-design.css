@@ -1129,7 +1129,7 @@
   margin: 32px 0 40px;
   padding: 18px 24px;
   border: 0;
-  border-radius: 9999px;
+  border-radius: 24px;
   background: var(--d-surface);
 }
 
@@ -2690,6 +2690,7 @@
 #root .class-schedule-slot { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 #root .class-schedule-slot input[type="time"] { margin: 0; }
 #root .class-schedule-slot input[type="time"] { flex: 1; min-width: 0; }
+#root .class-schedule-slot > .class-schedule-remove { display: grid; place-items: center; flex: 0 0 32px; align-self: center; margin: 0 !important; padding: 0; line-height: 1; }
 #root .class-schedule-remove { border: 0; background: transparent; color: #8a8c90; font-size: 18px; width: 32px; height: 32px; cursor: pointer; }
 #root .class-schedule-add { border: 1px dashed #cfd0d3; background: #fff; color: #4a4c50; border-radius: 10px; padding: 8px 12px; font-size: 13px; cursor: pointer; }
 
@@ -2716,7 +2717,10 @@
 #root .classroom-page .classroom-bottom { margin-top: 48px !important; }
 
 /* 퀴즈: 강의 선택 ↔ 오늘의 학습 간격을 줄여요 */
-#root .quiz-catalog .student-list-tools { margin-bottom: 0 !important; }
+#root .quiz-catalog > .student-list-tools { margin-bottom: 18px; }
+#root main.app .quiz-catalog > .student-list-tools > label > select {
+  padding-inline-start: 16px;
+}
 #root .quiz-catalog .quiz-section-heading { margin-top: 28px !important; }
 #root .quiz-catalog .quiz-section-heading h2 { margin-top: 0 !important; }
 

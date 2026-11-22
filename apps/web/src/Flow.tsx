@@ -108,7 +108,6 @@ export function QuizCatalog() {
         <label>강의 선택<select value={selected} onChange={e => setParams(e.target.value ? {section:e.target.value} : {})}><option value="">전체 강의</option>{active.map(r => <option key={r.section.id} value={r.section.id}>{r.course.title} · {r.section.title}</option>)}</select></label>
         {active.length > 3 && <label>강의 검색<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="강의·분반·교수 이름" /></label>}
       </div>
-      <div className="quiz-section-heading"><h2>오늘의 학습</h2></div>
       {!active.length && rooms.data && (
         <Notice>
           먼저 강의에 참여해 주세요. <Link to="/courses">내 강의로</Link>
@@ -635,6 +634,15 @@ export function QuizResults() {
             </article>
           ))}
           <div className="flow-actions">
+            {submitted.length < r.data.items.length && (
+              <Link to={archive ? `${archive}/${day}?session=${learningId}` : `/quiz/${r.data.section_id}`}>
+                남은 문항 이어서 풀기 →
+              </Link>
+            )}
+            <Link to="/student">홈으로</Link>
+            <Link to={`/ai?section=${r.data.section_id}`}>
+              이 강의에 질문하기
+            </Link>
             <Link to="/quiz">다른 강의 퀴즈 보기</Link>
             <Link
               className="primary link-button"
@@ -642,15 +650,6 @@ export function QuizResults() {
             >
               내 복습 현황 →
             </Link>
-            <Link to={`/ai?section=${r.data.section_id}`}>
-              이 강의에 질문하기
-            </Link>
-            {submitted.length < r.data.items.length && (
-              <Link to={archive ? `${archive}/${day}?session=${learningId}` : `/quiz/${r.data.section_id}`}>
-                남은 문항 이어서 풀기 →
-              </Link>
-            )}
-            <Link to="/student">홈으로</Link>
           </div>
         </>
       )}
@@ -847,5 +846,5 @@ function StudentRosterPreview({section,courseId,picker}:{section:Section;courseI
   const items=roster.data?.items || [];
   const filtered=items.filter(e=>e.display_name.toLowerCase().includes(search.toLowerCase())&&(status==="all"||e.status===status));
   const statusName=(value:string)=>({active:"수강 중",pending:"승인 대기",transferred:"분반 이동",cancelled:"수강 취소"}[value]||value);
-  return <section className="student-hub-roster"><div className="student-hub-roster-heading">{picker||<h3>{section.title}</h3>}{roster.data&&<div className="roster-filter-bar"><div className="roster-status-tabs" role="tablist" aria-label="수강 상태">{([["all","전체",items.length],["active","수강 중",items.filter(e=>e.status==="active").length],["pending","승인 대기",items.filter(e=>e.status==="pending").length]] as const).map(([v,label,n])=><button key={v} type="button" role="tab" aria-selected={status===v} className={status===v?"is-active":""} onClick={()=>setStatus(v)}>{label}<span>{n}</span></button>)}</div><label className="roster-search"><span className="sr-only">학생 이름 검색</span><input type="search" placeholder="학생 이름 검색" value={search} onChange={e=>setSearch(e.target.value)}/></label></div>}<button onClick={roster.reload}>새로고침</button></div><ErrorNotice text={roster.error}/>{!roster.data&&!roster.error&&<Notice>수강생을 불러오는 중이에요…</Notice>}{roster.data&&<>{!items.length?<p className="student-hub-roster-empty">아직 참여한 학생이 없어요. 분반 관리에서 수강 코드를 발급해 안내하세요.</p>:!filtered.length?<p className="student-hub-roster-empty">조건에 맞는 학생이 없어요.</p>:<ul className="student-hub-roster-list">{filtered.map(e=><li key={e.id}><strong>{e.display_name}</strong><span className={e.status==="pending"?"is-pending":""}>{statusName(e.status)}</span></li>)}</ul>}<div className="student-hub-roster-footer"><span>{filtered.length}명 표시</span><Link to={`/professor/courses/${courseId}?tab=sections`}>수강 승인·분반 이동 →</Link></div></>}</section>;
+  return <section className="student-hub-roster"><div className="student-hub-roster-heading">{picker||<h3>{section.title}</h3>}{roster.data&&<div className="roster-filter-bar"><div className="roster-status-tabs" role="tablist" aria-label="수강 상태">{([["all","전체",items.length],["active","수강 중",items.filter(e=>e.status==="active").length],["pending","승인 대기",items.filter(e=>e.status==="pending").length]] as const).map(([v,label,n])=><button key={v} type="button" role="tab" aria-selected={status===v} className={status===v?"is-active":""} onClick={()=>setStatus(v)}>{label}<span>{n}</span></button>)}</div><label className="roster-search"><span className="sr-only">학생 이름 검색</span><input type="search" placeholder="학생 이름 검색" value={search} onChange={e=>setSearch(e.target.value)}/></label></div>}<button onClick={roster.reload}>새로고침</button></div><ErrorNotice text={roster.error}/>{!roster.data&&!roster.error&&<Notice>수강생을 불러오는 중이에요…</Notice>}{roster.data&&<>{!items.length?<p className="student-hub-roster-empty">아직 참여한 학생이 없어요. 분반 관리에서 수강 코드를 발급해 안내하세요.</p>:!filtered.length?<p className="student-hub-roster-empty">조건에 맞는 학생이 없어요.</p>:<ul className="student-hub-roster-list">{filtered.map(e=><li key={e.id}><strong>{e.display_name}</strong><span className={`is-${e.status}`}>{statusName(e.status)}</span></li>)}</ul>}<div className="student-hub-roster-footer"><span>{filtered.length}명 표시</span><Link to={`/professor/courses/${courseId}?tab=sections`}>수강 승인·분반 이동 →</Link></div></>}</section>;
 }
