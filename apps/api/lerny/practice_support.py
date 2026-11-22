@@ -333,37 +333,24 @@ def normalize_blanks_and_template(exercise):
     return template, blanks
 
 
-def build_annotated_blank_template(template: str, blanks: dict) -> str:
-    """빈칸 바로 윗줄에 눈에 띄는 색으로 주석(# ...)을 배치하고, 빈칸 줄에서는 주석을 분리합니다."""
-    if not template:
-        return ""
-    lines = template.splitlines()
-    raw_blanks = list(blanks.values()) if blanks else []
-    blank_idx = 0
-    new_lines = []
-    for line in lines:
-        if "[[빈칸]]" not in line:
-            new_lines.append(line)
-            continue
-        stripped, comment = split_comment(line)
-        clean_line = stripped.rstrip()
-        indent = line[:len(line) - len(line.lstrip())]
-        target_code = raw_blanks[blank_idx] if blank_idx < len(raw_blanks) else ""
-        blank_idx += 1
+def solving_template(exercise):
+    template, _ = normalize_blanks_and_template(exercise)
+    if exercise.kind != "blank" or exercise.language != "python":
+        return template
+    from io import StringIO
+    from tokenize import COMMENT, TokenError, generate_tokens
 
-        # 빈칸이 채워진 완전한 문맥 코드로 연산 의도 파악
-        combined_code = clean_line.replace("[[빈칸]]", split_comment(target_code)[0].strip()).strip()
-
-        # 원본 라인 주석이 있으면 최우선 승격, 없으면 완전한 코드로부터 연산 의도 추출
-        comment = comment or format_inline_comment(combined_code)
-
-        if new_lines and new_lines[-1].strip() != "" and not new_lines[-1].strip().startswith("#"):
-            new_lines.append("")
-
-        if comment:
-            new_lines.append(indent + "# " + comment)
-        new_lines.append(clean_line)
-    return "\n".join(new_lines)
+    lines = template.split("\n")
+    try:
+        for token in generate_tokens(StringIO(template).readline):
+            if token.type == COMMENT:
+                row, col = token.start
+                prefix = lines[row - 1][:col].rstrip()
+                lines[row - 1] = prefix or None
+    except (IndentationError, TokenError):
+        # A partially blanked template need not be a complete Python program.
+        pass
+    return "\n".join(line for line in lines if line is not None)
 
 
 def explanation(exercise):
