@@ -46,7 +46,7 @@ python deploy/aws/manage.py worker-policy --file worker-policy.json --expected-v
 3. `apps/api/tests/test_aws_worker_policy.py`의 깨끗한 환경 복원 테스트는 실제 `start_worker.py`가 JSON을 로딩하고 권한을 낮춘 뒤 어떤 명령과 설정을 넘기는지 가짜 계정과 exec로 확인한다. `test_gemini_quota.py`는 테스트 프로젝트에서 RPM과 프로젝트·모델 해시를 검증한다. 운영 큐, 키, 모델 요청은 복구 검증에 필요하지 않다.
 4. 같은 강의와 등록 5주차, 기준 시각 직전·정각의 PPT에 대해 각각 무료/교수 검토 경로와 유료 검토 경로를 대조한다. 다른 강의·4주차·PDF·일반 생성도 각각 대조한다. 유료 검토 경로가 유료 검증 키를 선택하는지 확인한다.
 5. 데이터 복구는 설정 복구와 별개다. 재시도 전에 `/var/lib/lerny-worker/document-materials`와 `gemini-calls`를 기존 절대 경로에 보존한다. 패키징 도구는 엔진의 소스·JSON을 Linux 릴리스와 같은 LF로 담는다. 배포 전에 `PYTHONPATH=apps/api python -m pytest apps/api/tests/test_ppt_page_recovery.py`를 실행한다. `ppt_checkpoint_versions.json`은 검토한 운영 엔진과 이번 릴리스의 전체 코드 해시 쌍만 허용한다. 다른 코드·원본·영수증이 섞이면 중지한다.
-6. 위 검증과 승인이 끝나면 유휴 상태에서 변경된 material 서비스와 embedding 서비스를 함께 활성화한다. `lerny-embedding.service`는 `embed`와 `rag_reindex`만 선점한다. material 서비스는 그 외 기존 허용 유형을 선점하고 정리를 담당한다. Gemini 클라우드의 Vercel tick은 CPU 작업을 계속 처리한다. systemd 안은 두 프로세스를 같은 사용자로 격리하고 별도의 메모리 한도를 둔다. 호스트 여유 메모리를 확인한 뒤 동시에 시작한다.
+6. 위 검증과 승인이 끝나면 각 서비스의 메모리 한도와 호스트의 여유 메모리를 확인한다. embedding 서비스는 `embed`와 `rag_reindex`를, interactive 서비스는 학생의 채팅과 채점을 맡는다. material 서비스는 나머지 허용 유형과 주기적 정리를 담당한다. 기존 PPT를 중단한 서버는 아래의 학생 전용 워커 전환 순서를 따른다.
 
 검증 인스턴스에서 두 환경을 읽기 전용으로 대조하는 예시다. 실행할 셸에서 AI Studio로 확인한 유료 검증 키의 마지막 네 글자를 환경변수 `EXPECTED_PAID_REVIEW_KEY_SUFFIX`로 내보낸다. 인스턴스 역할의 SSM 읽기 권한으로 실행하며 키 비교 결과에는 값이 표시되지 않는다.
 
@@ -80,13 +80,23 @@ PY
 
 ```sh
 systemctl daemon-reload
-systemctl enable lerny-material.service lerny-embedding.service
+systemctl enable lerny-material.service lerny-embedding.service lerny-interactive.service
 systemctl restart lerny-material.service
-systemctl start lerny-embedding.service
-systemctl is-active lerny-material.service lerny-embedding.service
+systemctl start lerny-embedding.service lerny-interactive.service
+systemctl is-active lerny-material.service lerny-embedding.service lerny-interactive.service
 ```
 
 이 명령들은 승인 이후 사용할 운영안이다. 분리한 material 서비스만 시작하면 임베딩 작업은 전용 워커가 시작될 때까지 대기한다. 되돌릴 때는 먼저 현재 작업이 끝날 때까지 기다리고, 역할 분리 전의 material 릴리스와 서비스 구성을 함께 복원한다.
+
+### 학생 채팅·채점 전용 워커로 전환
+
+장시간 PPT 추출을 중단해 둔 서버에서는 위의 일괄 시작 명령을 건너뛴다.
+
+1. 전환을 승인한 뒤 임시 타이머를 `systemctl disable --now lerny-interactive-temp.timer`로 중지하고, `systemctl is-active lerny-interactive-temp.service`가 `inactive`가 될 때까지 실행 중인 학생 작업을 기다린다.
+2. 새 유닛을 포함한 릴리스를 설치하고 `systemctl enable --now lerny-interactive.service`를 실행한다. 이 유닛은 기존 material과 같은 시작 스크립트로 worker.json을 읽고 lerny-worker 권한으로 내려간다. 설치와 시작 사이에는 새 학생 작업이 DB 큐에서 기다린다.
+3. 운영자 화면에서 ‘학생 채팅·채점’의 최근 응답을 확인한다. 학생 소유의 `chat`, `practice_grade`, `grade`만 해당한다. 선점은 생성 시각과 ID 순서이며, 잠긴 작업은 다른 워커에 맡긴다. 운영 기능 정지와 제공자·lease 조건도 함께 적용된다.
+4. 제5장 재개를 별도로 승인한 시점에 material을 활성화한다. 그때까지 새 자료 처리와 주기적 정리는 대기한다. 임베딩은 기존 전용 서비스가 맡는다.
+5. 이전 릴리스로 되돌릴 때는 활성 작업을 마친 뒤 상시 interactive 서비스를 중지·비활성화한다. 임시 타이머를 다시 쓸 경우 먼저 타이머가 요구하는 릴리스와 material 중지 상태를 복원하고 타이머를 활성화한다.
 
 ## 쪽 보류와 비용
 

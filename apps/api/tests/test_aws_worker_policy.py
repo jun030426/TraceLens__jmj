@@ -22,7 +22,8 @@ POLICY = {"LERNY_GEMINI_REVIEW_QUOTA_PROJECT": "lerny-paid-embedding",
           "LERNY_GEMINI_REVIEW_REQUESTS_PER_MINUTE": "60", "LERNY_GEMINI_EMBEDDING_REQUESTS_PER_MINUTE": "120"}
 
 
-def test_configuration_and_clean_ssm_only_launcher(tmp_path, monkeypatch):
+@pytest.mark.parametrize("role", ["embedding", "interactive"])
+def test_configuration_and_clean_ssm_only_launcher(tmp_path, monkeypatch, role):
     base = {k:"fixture" for k in ("DATABASE_URL","SUPABASE_URL","SUPABASE_SECRET_KEY",
                                   "GEMINI_EMBEDDING_API_KEY","GEMINI_CONTENT_API_KEY")}
     env = tmp_path / "test.env"
@@ -37,7 +38,7 @@ def test_configuration_and_clean_ssm_only_launcher(tmp_path, monkeypatch):
         return original_read(worker_json if path.as_posix() == "/etc/lerny/worker.json" else path, *args, **kwargs)
     monkeypatch.setattr(Path,"read_text",read)
     monkeypatch.setattr(os,"environ",{})
-    monkeypatch.setattr(sys,"argv",["start_worker.py","embedding"])
+    monkeypatch.setattr(sys,"argv",["start_worker.py",role])
     monkeypatch.setitem(sys.modules,"pwd",SimpleNamespace(getpwnam=lambda _:SimpleNamespace(
         pw_name="fixture",pw_uid=12,pw_gid=12,pw_dir=str(tmp_path))))
     for name in ("setuid","setgid","initgroups","chdir"):
@@ -45,7 +46,7 @@ def test_configuration_and_clean_ssm_only_launcher(tmp_path, monkeypatch):
     captured = []
     monkeypatch.setattr(os,"execv",lambda _,argv:captured.append(argv))
     runpy.run_path(str(AWS/"start_worker.py"))
-    assert captured[0][-2:] == ["lerny.material_daemon","embedding"]
+    assert captured[0][-2:] == ["lerny.material_daemon",role]
     config = Settings(**{k.removeprefix("LERNY_").lower():os.environ[k] for k in POLICY})
     assert config.paid_upload_week("course",5) and not config.paid_upload_week("course",4)
     assert config.gemini_review_requests_per_minute == 60 and config.gemini_embedding_requests_per_minute == 120

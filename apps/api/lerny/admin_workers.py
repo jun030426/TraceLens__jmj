@@ -6,12 +6,11 @@ from sqlalchemy import func, select
 from lerny.admin_models import OperationsWorker
 from lerny.config import settings
 from lerny.models import now
-
-KINDS = ("material", "code", "video")
+from lerny.operations import REQUIRED_WORKER_KINDS
 
 
 def scope():
-    filters = [OperationsWorker.kind.in_(KINDS)]
+    filters = [OperationsWorker.kind.in_(REQUIRED_WORKER_KINDS)]
     if settings().admin_instance_id:
         # A scheduler/serverless helper heartbeat must not stand in for the AWS worker.
         filters.append(OperationsWorker.server_id == settings().admin_instance_id)
@@ -30,7 +29,7 @@ def overview(session, control):
     ).where(*scope()).group_by(OperationsWorker.kind)).all()
     grouped = {kind: (last, total, live, ready) for kind, last, total, live, ready in records}
     workers = []
-    for kind in KINDS:
+    for kind in REQUIRED_WORKER_KINDS:
         last, total, live, ready = grouped.get(kind, (None, 0, 0, 0))
         status = ("online" if ready else "not_ready" if live else
                   "waiting_response" if control.server_hold or control.maintenance or last is None else "stale")

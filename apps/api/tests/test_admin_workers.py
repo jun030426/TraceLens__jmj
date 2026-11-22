@@ -18,7 +18,7 @@ def configured_server(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_overview_is_three_kinds_and_ignores_unlinked_helpers(app_db):
+async def test_overview_lists_dedicated_kinds_and_ignores_unlinked_helpers(app_db):
     app,db=app_db
     moment=now()
     for i in range(120):
@@ -35,8 +35,8 @@ async def test_overview_is_three_kinds_and_ignores_unlinked_helpers(app_db):
         r=await c.get('/api/v1/admin/overview');assert r.status_code==200,r.text
         assert 'no-store' in r.headers['cache-control']
         summary=r.json(); workers=summary['workers']
-        assert [w['kind'] for w in workers]==['material','code','video']
-        assert [w['status'] for w in workers]==['stale','not_ready','online']
+        assert [w['kind'] for w in workers]==['material','code','video','interactive']
+        assert [w['status'] for w in workers]==['stale','not_ready','online','waiting_response']
         assert summary['worker_history_count']==122
         assert workers[0]['responding']==0 and workers[1]['ready']==0 and workers[2]['ready']==1
         control.server_hold=True;db.commit()
@@ -50,7 +50,7 @@ async def test_empty_history_and_recent_ready_worker_are_not_hidden_by_newer_unr
     async with client(app) as c:
         await login(c,'operator1');authorize(db)
         result=(await c.get('/api/v1/admin/overview')).json()
-        assert len(result['workers'])==3 and result['worker_history_count']==0
+        assert len(result['workers'])==4 and result['worker_history_count']==0
         assert all(w['last_seen_at'] is None and w['status']=='waiting_response' for w in result['workers'])
         moment=now()
         db.add_all([

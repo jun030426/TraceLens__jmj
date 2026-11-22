@@ -23,6 +23,7 @@ from lerny.models import (
     Job,
     Material,
     MaterialVersion,
+    User,
     now,
     uid,
 )
@@ -315,7 +316,9 @@ def answer_job(session, job):
     return result
 
 
-def heartbeat(job_id, token, stopped):
+def heartbeat(job_id, token, stopped, worker_kind):
+    from lerny.operations import touch
+
     while not stopped.wait(15):
         with Session(engine()) as session:
             job = session.scalar(
@@ -326,20 +329,33 @@ def heartbeat(job_id, token, stopped):
             if not job:
                 return
             job.lease_until = now() + timedelta(seconds=60)
+            touch(session, worker_kind, busy=True)
             session.commit()
 
 
+STUDENT_INTERACTIVE_JOBS = frozenset({"chat", "practice_grade", "grade"})
 EMBEDDING_JOBS = frozenset({"embed", "rag_reindex"})
 
 
-def run_once(job_id=None, *, kinds=None, exclude_kinds=(), worker_kind="material"):
+def run_once(job_id=None, *, kinds=None, exclude_kinds=(), worker_kind=None):
     from lerny.gemini_runtime import PAUSE_REASONS, hold, needs_remote, pause_reason
     from lerny.gemini_quota import ProviderDeferred
     with Session(engine()) as session:
         from lerny.operations import state, touch, allowed_job_kinds
         control = state(session, lock=True)
-        touch(session, worker_kind)
+        # Untagged local, web and targeted callers retain their existing queue scope.
+        heartbeat_kind = worker_kind or "material"
+        touch(session, heartbeat_kind)
         query = select(Job).where(Job.kind != "lecture_spec", Job.kind.in_(allowed_job_kinds(control)))
+        if worker_kind == "embedding":
+            query = query.where(Job.kind.in_(EMBEDDING_JOBS))
+        elif worker_kind in {"interactive", "material"}:
+            student_interactive = Job.kind.in_(STUDENT_INTERACTIVE_JOBS) & Job.owner_id.in_(
+                select(User.id).where(User.role == "student"))
+            if worker_kind == "interactive":
+                query = query.where(student_interactive)
+            else:
+                query = query.where(~student_interactive, Job.kind.not_in(EMBEDDING_JOBS))
         if exclude_kinds:
             query = query.where(Job.kind.not_in(exclude_kinds))
         if kinds is not None:
@@ -404,10 +420,10 @@ def run_once(job_id=None, *, kinds=None, exclude_kinds=(), worker_kind="material
         cloud = settings().deployment == "cloud" and not settings().dedicated_worker
         job.lease_until = now() + timedelta(seconds=330 if cloud else 60)
         job_id, token = job.id, job.lease_token
-        touch(session, worker_kind, busy=True)
+        touch(session, heartbeat_kind, busy=True)
         session.commit()
     stopped = threading.Event()
-    thread = threading.Thread(target=heartbeat, args=(job_id, token, stopped), daemon=True)
+    thread = threading.Thread(target=heartbeat, args=(job_id, token, stopped, heartbeat_kind), daemon=True)
     if not cloud:
         thread.start()
     try:
@@ -543,7 +559,7 @@ def run_once(job_id=None, *, kinds=None, exclude_kinds=(), worker_kind="material
         if not cloud:
             thread.join(timeout=2)
         from lerny.operations import finished
-        finished(worker_kind)
+        finished(heartbeat_kind)
     return True
 
 

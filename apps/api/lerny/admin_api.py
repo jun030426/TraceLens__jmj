@@ -150,7 +150,7 @@ def overview(request: Request, session: Db, actor: Actor, response: Response):
 
 @router.get("/admin/workers")
 def worker_history(request: Request, session: Db, actor: Actor, response: Response,
-                   kind: Literal["material", "code", "video"] | None = None,
+                   kind: Literal["material", "code", "video", "interactive"] | None = None,
                    offset: int = Query(default=0, ge=0),
                    limit: int = Query(default=5, ge=1, le=20)):
     require_admin(session, actor, request)

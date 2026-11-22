@@ -407,8 +407,14 @@ def test_server_start_works_while_worker_is_off_and_waits_for_readiness(app_db, 
     monkeypatch.setattr(admin_aws, "describe", lambda: {"state": "running"})
     admin_control.advance(db)
     assert row.status == "starting" and operations.state(db).server_hold
-    for kind in ("code", "material", "video"):
+    for kind in ("code", "material", "video", "interactive"):
         db.add(OperationsWorker(id=kind, kind=kind, last_seen_at=now(), ready=True))
+    db.commit()
+    interactive = db.get(OperationsWorker, "interactive")
+    interactive.ready = False
+    db.commit()
+    assert not operations.workers_ready(db)
+    interactive.ready = True
     db.commit()
     admin_control.advance(db)
     assert row.status == "succeeded" and not operations.state(db).server_hold
@@ -466,7 +472,7 @@ def test_readiness_requires_target_server_and_stop_retires_only_its_workers(app_
     _, db = app_db
     configured(monkeypatch)
     monkeypatch.setattr(settings(), "admin_instance_id", "i-0123456789abcdef0")
-    for kind in ("code", "material", "video"):
+    for kind in ("code", "material", "video", "interactive"):
         db.add(OperationsWorker(id=kind, kind=kind, last_seen_at=now(), ready=True))
     db.commit()
     assert not operations.workers_ready(db)  # Other hosts / Vercel cannot claim EC2 readiness.
