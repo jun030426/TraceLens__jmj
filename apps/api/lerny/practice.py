@@ -375,8 +375,13 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
         deny(422, "빈칸을 모두 채워 주세요.")
     def make():
         lock_student(session, actor.id)
-        previous = session.scalar(problem_attempts(actor.id, section_id, PracticeAttempt.id)
-            .where(PracticeExercise.problem_id == exercise.problem_id).limit(1))
+        previous = session.scalar(
+            select(PracticeAttempt.id).where(
+                PracticeAttempt.student_id == actor.id,
+                PracticeAttempt.section_id == section_id,
+                PracticeAttempt.exercise_id == exercise.id,
+            ).limit(1)
+        )
         if previous:
             deny(409, "이미 제출한 실습이에요. 내 코드와 해설을 확인해 주세요.")
         pending = session.scalar(select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
