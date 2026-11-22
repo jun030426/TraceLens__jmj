@@ -11,12 +11,13 @@ from lerny.models import now
 from lerny.tracing import service as tracing
 
 
-def dependencies(schema_revision):
+def dependencies(supported_revisions: frozenset[str]):
     database, files = "unavailable", "local"
     try:
         with engine().connect() as connection:
-            revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            database = "ready" if revision == schema_revision else "migration_required"
+            revisions = connection.scalars(text("SELECT version_num FROM alembic_version")).all()
+            compatible = len(revisions) == 1 and revisions[0] in supported_revisions
+            database = "ready" if compatible else "migration_required"
     except (RuntimeError, SQLAlchemyError):
         pass
     if settings().uses_supabase_storage:
@@ -27,9 +28,9 @@ def dependencies(schema_revision):
     return {"database": database, "storage": files}
 
 
-def learning_status(schema_revision):
+def learning_status(supported_revisions: frozenset[str]):
     config = settings()
-    deps = dependencies(schema_revision)
+    deps = dependencies(supported_revisions)
     maintenance = hold = False
     content = grading = True
     operations = "unavailable"
