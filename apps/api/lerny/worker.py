@@ -236,7 +236,7 @@ def answer_job(session, job):
     if not rows:
         result = {
             "answer_kind": "insufficient",
-            "answer": "공개된 강의 자료에서 답변 근거를 찾지 못했어요.",
+            "answer": "질문하신 내용은 현재 강의 자료에 나와 있지 않아요. 부정확한 정보로 인한 혼란을 막기 위해 AI가 임의로 추측해 답하지 않을게요.",
             "citations": [],
             "access_epoch": epoch,
         }
@@ -294,7 +294,7 @@ def answer_job(session, job):
         answer = (
             "\n\n".join(c["excerpt"] for c in citations)
             if citations
-            else "자료에서 충분한 답변 근거를 찾지 못했어요."
+            else "질문하신 내용은 현재 강의 자료에 나와 있지 않아요. 부정확한 정보로 인한 혼란을 막기 위해 AI가 임의로 추측해 답하지 않을게요."
         )
         result = {
             "answer_kind": kind,

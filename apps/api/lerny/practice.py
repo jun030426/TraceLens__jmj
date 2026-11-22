@@ -231,10 +231,10 @@ def exercise_view(session, exercise, material=None):
     material = material or current_source(session, exercise)
     if not material:
         return None
-    from lerny.practice_support import metadata, build_annotated_blank_template
-    template = exercise.template
-    if exercise.language == "python" and exercise.kind == "blank" and exercise.template and exercise.blanks:
-        template = build_annotated_blank_template(exercise.template, exercise.blanks)
+    from lerny.practice_support import metadata, build_annotated_blank_template, normalize_blanks_and_template
+    template, blanks = normalize_blanks_and_template(exercise)
+    if exercise.language == "python" and exercise.kind == "blank" and template and blanks:
+        template = build_annotated_blank_template(template, blanks)
     return {**metadata(exercise), "id":exercise.id,"title":exercise.title,"description":exercise.prompt,"kind":exercise.kind,
             "language":exercise.language,"template":template,"expected":exercise.tests[0]["expected"],
             "example_input":exercise.tests[0]["input"],

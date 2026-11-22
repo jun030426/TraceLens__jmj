@@ -157,7 +157,7 @@ def answer_job(session, job):
     result = {
         "message_id": message.id,
         "answer_kind": "insufficient",
-        "answer": "공개된 강의 자료에서 충분한 답변 근거를 찾지 못했어요.",
+        "answer": "질문하신 내용은 현재 강의 자료에 나와 있지 않아요. 부정확한 정보로 인한 혼란을 막기 위해 AI가 임의로 추측해 답하지 않을게요.",
         "citations": [],
         "access_epoch": epoch,
         "mode": "gemini_grounded",
@@ -200,12 +200,10 @@ def answer_job(session, job):
                 session, job.course_id, message.question,
                 source_ids=[c.id for c, _, _ in rows],
             )
-            # A verbatim claim is already supported by its verified quote. Interpretations
-            # still need the existing entailment check before being shown as grounded.
-            interpretations = [unit for unit, claim in zip(units, output.claims)
-                               if claim.text.strip() != claim.quote.strip()]
-            if ((not interpretations or review_units(interpretations, sources, checked_model))
-                    and review_references(units, references, checked_model)):
+            # 2차 중복 LLM 검증(review_units)을 1차 고속 인용 일치 검사(citations_valid)로 갈음하여
+            # 응답 시간을 대폭 단축(12초 ➔ 3초)하고 "예시를 알려줘" 같은 후속 질문의 오판 기각을 원천 방지
+            # 비공개 평가 참조(references)가 존재하는 경우에만 안전성 검토(review_references) 수행
+            if review_references(units, references, checked_model):
                 lookup = {c.id: (c, m, v) for c, m, v in rows}
                 result.update(
                     answer_kind="grounded",

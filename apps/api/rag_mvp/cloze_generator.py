@@ -8,32 +8,31 @@ import re
 
 
 # Specialized Data Structures & Algorithms Scoring Rules
+# 우선순위: 1순위 핵심 연산(100점) -> 2순위 포인터/인덱스 갱신 & 핵심 분기(90점) -> 3순위 기저/경계 방어(80점) -> 단순 삽입(75점)
 # (Category, Regex Pattern, Score, Category Type)
 DSA_RULES = [
     # =========================================================================
-    # 1. 100점 구간: 알고리즘 기저 조건(Base Case) & 자료구조 엣지케이스(Edge Case)
+    # 1. 100점 구간: 핵심 연산 호출, 스왑, 점화식 (문제의 주인공 동작)
     # =========================================================================
-    # Algorithm Base Cases (탈출 조건)
-    (r'if\s+(?:n|depth|cnt|count|k)\s*(?:<=|==)\s*(?:0|1|\w+)\s*:', 100, 'algorithm_base_case'),
-    (r'if\s+(?:low|start|left)\s*>\s*(?:high|end|right)\s*:', 100, 'algorithm_base_case'),
-    (r'if\s+(?:not\s+(?:node|root|curr|head)|(?:node|root|curr|head)\s+is\s+None)\s*:', 100, 'algorithm_base_case'),
-    (r'while\s+(?:low|left|start)\s*<=\s*(?:high|right|end)\s*:', 100, 'algorithm_loop_invariant'),
+    # Data Structure Primary Operation Calls (핵심 연산 호출)
+    (r'(?:\w+\s*=\s*)?\w+\.pop\(\s*\)', 100, 'ds_stack_pop'),
+    (r'(?:\w+\s*=\s*)?\w+\.pop\(\s*0\s*\)', 100, 'ds_queue_dequeue'),
+    (r'(?:\w+\s*=\s*)?\w+\.popleft\(\s*\)', 100, 'ds_deque_popleft'),
+    (r'heapq\.heappop\(.*?\)', 100, 'ds_heap_pop'),
+    (r'heapq\.heappush\(.*?\)', 100, 'ds_heap_push'),
 
-    # Data Structure Boundary & State Checks (언더플로우/오버플로우/공백/포화)
-    (r'if\s+(?:len\(\w+\)\s*(?:<=|==)\s*0|not\s+\w+|\w+\.is_empty\(\)|self\.top\s*==\s*-1|self\.top\s*<\s*0)', 100, 'ds_underflow_check'),
-    (r'if\s+len\(\w+\)\s*>\s*0\s*:', 100, 'ds_underflow_check'),
-    (r'if\s+(?:len\(\w+\)\s*(?:>=|==)\s*(?:self\.)?capacity|\w+\.is_full\(\)|self\.top\s*(?:>=|==)\s*(?:self\.)?capacity\s*-\s*1)', 100, 'ds_overflow_check'),
-    (r'if\s+\(.*?rear\s*\+\s*1\)\s*%\s*\w+\s*==\s*.*?front', 100, 'ds_circular_queue_full_check'),
+    # Algorithm Key Swaps, DP Transitions, Recursive Calls
+    (r'\w+\[.*?\],\s*\w+\[.*?\]\s*=\s*\w+\[.*?\],\s*\w+\[.*?\]', 100, 'algorithm_swap'),
+    (r'dp\[.*?\]\s*=\s*(?:max|min|\w+)\s*\(.*?\)', 100, 'algorithm_dp_transition'),
+    (r'return\s+\w+\(.*?-\s*1\)\s*\+\s*\w+\(.*?-\s*2\)', 100, 'algorithm_recursive_call'),
 
     # =========================================================================
-    # 2. 90점 구간: 알고리즘 점화식/분할/범위 갱신 & 자료구조 인덱스/포인터 조작
+    # 2. 90점 구간: 포인터/인덱스 갱신 & 핵심 알고리즘 비교/분기
     # =========================================================================
-    # Algorithm Key Arithmetic, Divide & Conquer, DP Transitions
+    # Algorithm Divide & Conquer, Index/Pointer Narrowing
     (r'(?:mid|pivot_idx)\s*=\s*\(.*?\)\s*//\s*2', 90, 'algorithm_binary_search_mid'),
     (r'(?:low|left)\s*=\s*mid\s*\+\s*1', 90, 'algorithm_binary_search_pointer'),
     (r'(?:high|right)\s*=\s*mid\s*-\s*1', 90, 'algorithm_binary_search_pointer'),
-    (r'dp\[.*?\]\s*=\s*(?:max|min|\w+)\s*\(.*?\)', 90, 'algorithm_dp_transition'),
-    (r'return\s+\w+\(.*?-\s*1\)\s*\+\s*\w+\(.*?-\s*2\)', 90, 'algorithm_recursive_call'),
     (r'mid\s*=\s*len\(\w+\)\s*//\s*2', 90, 'algorithm_merge_sort_split'),
 
     # Data Structure Pointer Mutation & Link Rewiring
@@ -43,22 +42,38 @@ DSA_RULES = [
     (r'(?:self\.)?head\s*=\s*(?:new_node|node)', 90, 'ds_linked_list_head_update'),
     (r'curr\s*=\s*curr\.next', 90, 'ds_linked_list_traverse'),
 
-    # =========================================================================
-    # 3. 80점 구간: 알고리즘 분기 조건/스왑 & 자료구조 핵심 연산 호출
-    # =========================================================================
-    # Algorithm Branch Conditions, Swaps, Relaxation
-    (r'if\s+\w+\[j\]\s*>\s*\w+\[j\s*\+\s*1\]\s*:', 80, 'algorithm_bubble_sort_cmp'),
-    (r'\w+\[.*?\],\s*\w+\[.*?\]\s*=\s*\w+\[.*?\],\s*\w+\[.*?\]', 80, 'algorithm_swap'),
-    (r'if\s+(?:cost|new_dist|d)\s*<\s*(?:distance|dist)\[.*?\]\s*:', 80, 'algorithm_dijkstra_relaxation'),
-    (r'if\s+\w+\s+(?:not\s+in|in)\s+visited\s*:', 80, 'algorithm_visited_check'),
-    (r'if\s+target\s*(?:==|<|>)\s*\w+\[mid\]\s*:', 80, 'algorithm_binary_search_cmp'),
+    # Specific Algorithm Key Branching
+    (r'if\s+\w+\[j\]\s*>\s*\w+\[j\s*\+\s*1\]\s*:', 90, 'algorithm_bubble_sort_cmp'),
+    (r'if\s+target\s*(?:==|<|>)\s*\w+\[mid\]\s*:', 90, 'algorithm_binary_search_cmp'),
+    (r'if\s+\w+\[mid\]\s*(?:==|<|>)\s*target\s*:', 90, 'algorithm_binary_search_cmp'),
+    (r'elif\s+arr\[mid\]\s*<\s*target\s*:', 90, 'algorithm_binary_search_cmp'),
+    (r'if\s+.*?(?:and|or|not)\s+.*?:', 90, 'logical_condition'),
+    (r'elif\s+.*?(?:and|or|not)\s+.*?:', 90, 'logical_condition'),
+    (r'if\s+(?:cost|new_dist|d)\s*<\s*(?:distance|dist)\[.*?\]\s*:', 90, 'algorithm_dijkstra_relaxation'),
+    (r'if\s+\w+\s+(?:not\s+in|in)\s+visited\s*:', 90, 'algorithm_visited_check'),
 
-    # Data Structure Primary Operation Calls
-    (r'(?:\w+\s*=\s*)?\w+\.pop\(\s*\)', 80, 'ds_stack_pop'),
-    (r'(?:\w+\s*=\s*)?\w+\.pop\(\s*0\s*\)', 80, 'ds_queue_dequeue'),
-    (r'(?:\w+\s*=\s*)?\w+\.popleft\(\s*\)', 80, 'ds_deque_popleft'),
-    (r'heapq\.heappop\(.*?\)', 80, 'ds_heap_pop'),
-    (r'heapq\.heappush\(.*?\)', 80, 'ds_heap_push'),
+    # =========================================================================
+    # 3. 80점 구간: 기저 조건(Base Case) 및 자료구조 경계 방어 (안전장치)
+    # =========================================================================
+    # Data Structure Boundary & State Checks (언더플로우/오버플로우/공백/포화)
+    (r'if\s+(?:len\(\w+\)\s*(?:<=|==)\s*0|not\s+\w+|\w+\.is_empty\(\)|self\.top\s*==\s*-1|self\.top\s*<\s*0)', 80, 'ds_underflow_check'),
+    (r'if\s+len\(\w+\)\s*>\s*0\s*:', 80, 'ds_underflow_check'),
+    (r'if\s+(?:len\(\w+\)\s*(?:>=|==)\s*(?:self\.)?capacity|\w+\.is_full\(\)|self\.top\s*(?:>=|==)\s*(?:self\.)?capacity\s*-\s*1)', 80, 'ds_overflow_check'),
+    (r'if\s+\(.*?rear\s*\+\s*1\)\s*%\s*\w+\s*==\s*.*?front', 80, 'ds_circular_queue_full_check'),
+
+    # Algorithm Base Cases (탈출 조건)
+    (r'if\s+(?:n|depth|cnt|count|k)\s*(?:<=|==)\s*(?:0|1|\w+)\s*:', 80, 'algorithm_base_case'),
+    (r'if\s+(?:low|start|left)\s*>\s*(?:high|end|right)\s*:', 80, 'algorithm_base_case'),
+    (r'if\s+(?:not\s+(?:node|root|curr|head)|(?:node|root|curr|head)\s+is\s+None)\s*:', 80, 'algorithm_base_case'),
+    (r'while\s+(?:low|left|start)\s*<=\s*(?:high|right|end)\s*:', 80, 'algorithm_loop_invariant'),
+
+    # General Conditions (일반 조건문 분기)
+    (r'if\s+.*?(?:<=|>=|<|>|==|!=).*?:', 80, 'conditional_branch'),
+    (r'elif\s+.*?(?:<=|>=|<|>|==|!=).*?:', 80, 'conditional_branch'),
+
+    # =========================================================================
+    # 4. 75점 구간: 단순 데이터 추가 (append)
+    # =========================================================================
     (r'\w+\.append\(.*?\)', 75, 'ds_push_or_enqueue')
 ]
 
@@ -66,6 +81,7 @@ DSA_RULES = [
 EXCLUSION_PATTERNS = [
     r'\bprint\s*\(',
     r'\binput\s*\(',
+    r'^\s*if\s+(?:menu|choice|cmd|command)\s*==',
     r'^\s*while\s+True\s*:',
     r'^\s*break\s*$',
     r'^\s*continue\s*$',
@@ -109,7 +125,7 @@ class ClozeGenerator:
         return 0, None
 
     @classmethod
-    def select_blanks(cls, code, min_score=80, max_blanks=2):
+    def select_blanks(cls, code, min_score=80, max_blanks=4):
         """Select top 1~3 critical DSA lines from code as cloze blanks."""
         lines = code.splitlines()
         candidates = []
@@ -180,6 +196,109 @@ class ClozeGenerator:
         return chosen
 
     @classmethod
+    def resolve_domain_formula_requirement(cls, code: str, combined_text: str = "", slide_text: str = "") -> str:
+        """BMI, 온도, 기하 도형, 시간 환산, 할인율/세금 등 상식 계산 공식이 필요한 문제에서
+        학생이 힌트 버튼에 의존하지 않고 문제를 바로 풀 수 있도록 문제 요건에 공식과 단위 환산 규칙을 항상 명시합니다."""
+        combined = (combined_text + " " + (slide_text or "")).lower()
+        code_str = code or ""
+
+        # 1. BMI (체질량지수)
+        if "bmi" in combined or (("height" in combined or "키" in combined) and ("weight" in combined or "몸무게" in combined or "체중" in combined)):
+            return "키(cm)를 미터(m) 단위로 환산(cm / 100)한 뒤, 체질량지수 공식 [BMI = 몸무게(kg) / (키(m))²]을 적용하여 계산하세요."
+
+        # 2. 온도 변환 (섭씨 <-> 화씨)
+        has_temp = any(w in combined for w in ("celsius", "섭씨", "화씨", "fahrenheit", "기온", "온도")) or any(w in code_str for w in ("celsius", "fahrenheit", "temp"))
+        if has_temp:
+            if "fahrenheit" in combined or "화씨" in combined or "f" in code_str:
+                if any(w in code_str for w in ("* 9", "* 1.8", "*9", "*1.8", "+ 32", "+32")):
+                    return "섭씨(C) 온도를 화씨(F) 온도로 변환하는 공식 [F = C × 9/5 + 32] (또는 C × 1.8 + 32)를 적용하여 계산하세요."
+                elif any(w in code_str for w in ("- 32", "-32", "* 5 / 9", "* 5/9", "*5/9")):
+                    return "화씨(F) 온도를 섭씨(C) 온도로 변환하는 공식 [C = (F - 32) × 5/9]를 적용하여 계산하세요."
+                if "화씨로" in combined or "화씨 온도로" in combined or "fahrenheit" in combined:
+                    return "섭씨(C) 온도를 화씨(F) 온도로 변환하는 공식 [F = C × 9/5 + 32]를 적용하여 계산하세요."
+                elif "섭씨로" in combined or "섭씨 온도로" in combined or "celsius" in combined:
+                    return "화씨(F) 온도를 섭씨(C) 온도로 변환하는 공식 [C = (F - 32) × 5/9]를 적용하여 계산하세요."
+
+        # 3. 기하 도형 (원, 구, 삼각형, 사다리꼴, 직사각형)
+        is_circle = any(w in combined for w in ("원의", "원넓이", "원둘레", "반지름", "radius", "원주율", "3.14", "circle"))
+        if is_circle:
+            if any(w in combined for w in ("둘레", "원주", "circumference")):
+                return "원의 둘레를 구하는 공식 [둘레 = 2 × 원주율(π) × 반지름] (π = 3.14)을 적용하여 계산하세요."
+            elif any(w in combined for w in ("구의 부피", "구의부피", "구체", "sphere")):
+                return "구의 부피를 구하는 공식 [부피 = (4/3) × 원주율(π) × 반지름³] (π = 3.14)을 적용하여 계산하세요."
+            elif any(w in combined for w in ("넓이", "면적", "area")) or "** 2" in code_str or "**2" in code_str or "3.14" in code_str:
+                return "원의 넓이를 구하는 공식 [넓이 = 원주율(π) × 반지름²] (π = 3.14)을 적용하여 계산하세요."
+
+        is_triangle = any(w in combined for w in ("삼각형", "triangle", "밑변", "base", "빗변"))
+        if is_triangle and any(w in combined for w in ("넓이", "면적", "area")):
+            return "삼각형의 넓이를 구하는 공식 [넓이 = (밑변 × 높이) / 2]를 적용하여 계산하세요."
+
+        is_trapezoid = any(w in combined for w in ("사다리꼴", "trapezoid", "윗변", "아랫변"))
+        if is_trapezoid and any(w in combined for w in ("넓이", "면적", "area")):
+            return "사다리꼴의 넓이를 구하는 공식 [넓이 = (윗변 + 아랫변) × 높이 / 2]를 적용하여 계산하세요."
+
+        is_rect = any(w in combined for w in ("직사각형", "사각형", "rectangle"))
+        if is_rect and any(w in combined for w in ("넓이", "면적", "area")):
+            return "사각형의 넓이를 구하는 공식 [넓이 = 가로 × 세로]를 적용하여 계산하세요."
+
+        # 4. 시간 환산 (초 -> 분/초, 초 -> 시/분/초)
+        has_time = any(w in combined for w in ("초", "second", "sec", "분", "minute", "min", "시", "hour"))
+        if has_time and ("// 60" in code_str or "% 60" in code_str or "3600" in code_str or "// 3600" in code_str):
+            if "3600" in code_str or "시" in combined:
+                return "초 단위를 시·분·초로 환산하는 공식 [시 = 초 // 3600, 분 = (초 % 3600) // 60, 남은 초 = 초 % 60]을 적용하여 계산하세요."
+            else:
+                return "초 단위를 분과 초로 환산하는 공식 [분 = 초 // 60, 남은 초 = 초 % 60]을 적용하여 계산하세요."
+
+        # 5. 비즈니스 / 할인율 / 세금
+        has_discount = any(w in combined for w in ("할인", "discount", "세일", "sale"))
+        if has_discount and any(w in combined for w in ("가격", "금액", "정가", "원가", "price")):
+            return "할인 계산 공식 [할인 금액 = 정가 × (할인율 / 100)], [최종 결제 금액 = 정가 - 할인 금액]을 적용하여 계산하세요."
+
+        has_tax = any(w in combined for w in ("세금", "tax", "부가세", "vat"))
+        if has_tax and any(w in combined for w in ("금액", "가격", "price", "급여", "총액")):
+            return "세금 계산 공식 [부가세 = 공급가액 × 0.1(10%)], [총 결제 금액 = 공급가액 + 부가세]를 적용하여 계산하세요."
+
+        # 6. 수학 기본 공식 (피타고라스, 평균)
+        has_distance = any(w in combined for w in ("거리", "distance", "피타고라스", "pythagoras", "유클리드"))
+        if has_distance and ("** 2" in code_str or "**2" in code_str or "sqrt" in code_str or "** 0.5" in code_str):
+            return "두 점 사이의 거리 공식 [거리 = √((x₂ - x₁)² + (y₂ - y₁)²)] (피타고라스 정리 [c = √(a² + b²)])를 적용하여 계산하세요."
+
+        has_avg = any(w in combined for w in ("평균", "average", "mean"))
+        if has_avg and ("sum" in code_str or "total" in code_str or "/" in code_str):
+            return "평균 계산 공식 [평균 = 총합 / 개수]를 적용하여 계산하세요."
+
+        # 7. 슬라이드 교안 원문 내 명시적 공식 추출 (예: '공식: Y = ...', '수식: ...')
+        if slide_text:
+            for s_line in slide_text.splitlines():
+                s_line_clean = s_line.strip()
+                m_formula = re.search(r"(?:공식|계산식|수식)\s*[:：]?\s*([A-Za-z가-힣_][\w\s]*=\s*[^,.\n]+)", s_line_clean)
+                if m_formula:
+                    formula_expr = m_formula.group(1).strip()
+                    return f"제시된 계산 공식 [{formula_expr}]을 적용하여 계산하세요."
+
+        # 8. [규칙 사전 외 임의 공식 대응] AST 기반 수식 자동 역공학 (Generic AST Formula Extraction)
+        # 규칙 사전에 등록되지 않은 물리/공학/금융/수학/교수 창작 공식이라도 코드의 연산식(BinOp)을 분석하여 수학 공식으로 자동 재구성
+        try:
+            tree = ast.parse(code_str)
+            for node in tree.body:
+                if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.value, ast.BinOp):
+                    target_name = ast.unparse(node.targets[0]) if hasattr(ast, "unparse") else ""
+                    raw_expr = ast.unparse(node.value) if hasattr(ast, "unparse") else ""
+                    used_ids = {n.id for n in ast.walk(node.value) if isinstance(n, ast.Name)}
+                    # 단순 카운터 누적(i = i + 1) 등 자기 참조 갱신은 제외하고, 새로운 타깃 변수 계산식만 채택
+                    if target_name and raw_expr and target_name not in used_ids:
+                        math_expr = raw_expr
+                        math_expr = math_expr.replace(" ** 2", "²").replace("**2", "²")
+                        math_expr = math_expr.replace(" ** 3", "³").replace("**3", "³")
+                        math_expr = math_expr.replace(" ** ", " ^ ").replace("**", " ^ ")
+                        math_expr = math_expr.replace(" * ", " × ").replace("*", " × ")
+                        return f"계산 공식 [{target_name} = {math_expr}]을 적용하여 계산하세요."
+        except Exception:
+            pass
+
+        return ""
+
+    @classmethod
     def infer_dynamic_requirements(cls, code: str, slide_text: str = None) -> list[str]:
         """임의의 어떤 파이썬 코드가 주어지더라도 AST 구문 분석을 통해
         [1. 입력 선언 유지 -> 2. 도메인별 핵심 연산 정합화 -> 3. 출력/반환 서식 준수]
@@ -236,7 +355,10 @@ class ClozeGenerator:
         else:
             reqs.append("시작 코드의 입력 변수 선언 및 초기화 상태를 유지하세요.")
 
-        # 2. 도메인별 핵심 연산 패턴 동적 감지 (정답 수식 노출 0건)
+        # 2. 도메인별 상식 공식 및 핵심 연산 패턴 동적 감지
+        # 공식을 암기하지 않아도 문제를 바로 해결할 수 있도록 상식 계산 공식(BMI, 온도, 도형, 시간, 할인 등)은 요구조건에 항상 명시합니다.
+        formula_req = cls.resolve_domain_formula_requirement(code, combined_text=combined_text, slide_text=slide_text)
+
         has_unit_scaling = bool(
             re.search(r"/\s*100\b", code) or re.search(r"\*\s*1000\b", code) or
             "cm" in combined_text or "센티미터" in combined_text or "미터" in combined_text or
@@ -264,23 +386,22 @@ class ClozeGenerator:
             "len(" in code and ("str" in combined_text or "text" in combined_text or "@" in combined_text or "email" in combined_text)
         )
 
-        if has_unit_scaling:
-            if "height" in combined_text and "weight" in combined_text:
-                reqs.append("키(cm)와 몸무게(kg)의 단위 체계를 공식에 맞추어 정합화하세요.")
-            else:
-                reqs.append("입력 데이터의 단위 체계를 공식 및 요구조건에 맞추어 적절히 환산·정합화하세요.")
+        if formula_req:
+            reqs.append(formula_req)
         elif has_search_sort:
             reqs.append("탐색/정렬의 범위 갱신과 반복 종료(기저) 조건을 엄격히 준수하여 알고리즘을 완성하세요.")
         elif has_dsa:
             reqs.append("자료구조의 기저/경계 조건(언더플로우·오버플로우)을 방어하고 포인터 상태를 안전하게 갱신하세요.")
         elif has_sum_avg:
-            reqs.append("주어진 데이터 목록을 순회하며 누적 연산(합계)을 수행하고, 이를 바탕으로 최종 결과(평균/비율)를 단계별로 산출하세요.")
+            reqs.append("주어진 데이터 목록을 순회하며 누적 연산(합계)을 수행하고, 공식 [평균 = 합계 / 개수]를 적용하여 최종 결과를 단계별로 산출하세요.")
         elif has_arithmetic:
-            reqs.append("두 수에 대한 각 사칙연산(덧셈, 뺄셈, 곱셈, 실수 나눗셈) 결과를 각각 도출하세요.")
+            reqs.append("두 수에 대한 각 사칙연산(덧셈: +, 뺄셈: -, 곱셈: *, 나눗셈: /) 결과를 각각 도출하세요.")
+        elif has_unit_scaling:
+            reqs.append("입력 데이터의 단위 체계를 공식 및 요구조건에 맞추어 적절히 환산·정합화하세요.")
         elif has_pow_formula:
             reqs.append("문제에서 요구한 연산 우선순위와 거듭제곱(**) 및 나눗셈 비율을 올바르게 적용하세요.")
         elif has_mod_parity:
-            reqs.append("나머지 연산자(%)를 활용하여 짝수/홀수 판별 조건을 올바르게 구성하세요.")
+            reqs.append("나머지 연산자(%)를 활용하여 짝수/홀수 판별 조건(n % 2 == 0)을 올바르게 구성하세요.")
         elif has_string_ops:
             reqs.append("문자열 길이(len) 및 특정 문자 패턴 포함 여부를 올바르게 검사하세요.")
         elif has_condition:
@@ -422,10 +543,10 @@ class ClozeGenerator:
             },
             'bmi': {
                 'title': 'BMI 계산 프로그램 구현하기',
-                'description': '키(height)와 몸무게(weight)를 입력받아 체질량지수를 구하는 BMI 계산 공식을 적용하고 소수점 둘째 자리까지 출력하는 프로그램입니다. (단, 입력된 키의 단위(cm)와 공식에 필요한 단위(m)의 차이에 유의하세요.)',
+                'description': '키(height)와 몸무게(weight)를 입력받아 체질량지수를 구하는 BMI 계산 공식 [BMI = 몸무게(kg) / (키(m))²]을 적용하고 소수점 둘째 자리까지 출력하는 프로그램입니다. (단, 입력된 키의 단위(cm)를 100으로 나누어 미터(m) 단위로 환산해야 합니다.)',
                 'requirements': [
                     '시작 코드의 입력 변수 선언을 유지하세요.',
-                    '키(cm)와 몸무게(kg)의 단위 체계를 공식에 맞추어 정합화하세요.',
+                    '키(cm)를 미터(m) 단위로 환산한 뒤, 공식 [BMI = 몸무게(kg) / (키(m))²]을 적용하여 계산하세요.',
                     '출력 결과는 예시 출력 서식과 소수점 자릿수를 정확히 준수하세요.'
                 ]
             },
@@ -546,7 +667,10 @@ class ClozeGenerator:
                     "2. description: Engaging explanation of the function/algorithm's purpose, rationale, and expected behavior (2~3 sentences).\n"
                     "   * CRITICAL FORMULA & UNIT RULE: If the slide text, code, or comments contain mathematical formulas (e.g., BMI = weight / (height ** 2), average = total / count) "
                     "     or required unit conversions (e.g., convert cm to m by dividing height by 100), you MUST explicitly include the exact calculation formula and unit conversion in the description!\n"
-                    "3. requirements: List of 2~3 concrete technical requirements (e.g., unit conversion, formula calculation, float formatting with :.2f).\n"
+                    "3. requirements: List of 2~3 concrete technical requirements.\n"
+                    "   * MANDATORY FORMULA IN REQUIREMENTS: If the problem requires any domain/mathematical formula or unit conversion, "
+                    "     you MUST explicitly write the formula in requirements (e.g., '공식 [결과 = 수식]을 적용하여 계산하세요.') "
+                    "     so students do not need to memorize external formulas or rely on hints!\n"
                     "4. flow_steps: Exactly 3 logical step-by-step problem-solving actions for student guidance "
                     "   (Step 1: unit conversion or input prep, Step 2: core calculation/formula, Step 3: formatting and output).\n"
                     "Return valid JSON matching the schema."
@@ -1319,11 +1443,12 @@ class ClozeGenerator:
         if cond_stmts and not init_vars:
             cond_node = cond_stmts[0]
             cond_str = ast.unparse(cond_node.test) if hasattr(ast, "unparse") else "조건식"
+            cond_skel = cls.build_abstract_skeleton(f"if {cond_str}:") or "if [경계조건]:"
             steps.append({
                 'step_number': 1,
                 'title': '1️⃣ [안전 확인 - 경계/예외 조건 점검]',
-                'action_story': f'연산을 시작하기 전, 예외가 발생할 수 있는 경계 조건(`if {cond_str}`)을 먼저 점검하고 방어합니다.',
-                'code_mnemonic': f'if {cond_str}:'
+                'action_story': '연산을 시작하기 전, 예외가 발생하거나 빈 상태가 되는 경계 조건을 if 조건문으로 먼저 점검하고 방어합니다.',
+                'code_mnemonic': cond_skel
             })
         elif init_vars:
             steps.append({
@@ -1345,11 +1470,12 @@ class ClozeGenerator:
             loop_node = loop_stmts[0]
             loop_str = ast.unparse(loop_node) if hasattr(ast, "unparse") else "반복문"
             loop_hdr = loop_str.splitlines()[0] if loop_str else "for / while"
+            loop_skel = cls.build_abstract_skeleton(loop_hdr) or "for / while [반복조건]:"
             steps.append({
                 'step_number': 2,
                 'title': '2️⃣ [반복 탐색 및 누적 연산]',
-                'action_story': f'반복문(`{loop_hdr}`)을 통해 데이터 원소를 순회하며 목표 연산을 수행합니다.',
-                'code_mnemonic': loop_hdr
+                'action_story': '반복문(for / while)을 통해 데이터 시퀀스나 범위를 순회하며 목표 연산을 수행합니다.',
+                'code_mnemonic': loop_skel
             })
         elif calc_stmts:
             first_targets, first_val, first_stmt = calc_stmts[0]
@@ -1365,11 +1491,12 @@ class ClozeGenerator:
         elif cond_stmts:
             cond_node = cond_stmts[0]
             cond_str = ast.unparse(cond_node.test) if hasattr(ast, "unparse") else "조건 비교"
+            cond_skel = cls.build_abstract_skeleton(f"if {cond_str}:") or "if [조건식]:"
             steps.append({
                 'step_number': 2,
                 'title': '2️⃣ [조건 판별 및 분기 실행]',
-                'action_story': f'조건(`if {cond_str}`)의 참/거짓 여부를 판별하여 상황에 맞는 처리를 수행합니다.',
-                'code_mnemonic': f'if [조건식]:'
+                'action_story': '문제에서 요구한 대소 비교 및 복합 논리 판별식(if)을 작성하여 참/거짓 분기 처리를 수행합니다.',
+                'code_mnemonic': cond_skel
             })
         else:
             steps.append({
@@ -1557,6 +1684,15 @@ class ClozeGenerator:
             op_s = " ".join(ops_map.get(type(o), "비교") for o in node.ops)
             comp_s = ", ".join(cls._build_recursive_skeleton(c) for c in node.comparators)
             return f"{left_s} {op_s} {comp_s}"
+        elif isinstance(node, ast.BoolOp):
+            op_s = " and " if isinstance(node.op, ast.And) else " or "
+            values_s = [cls._build_recursive_skeleton(v) for v in node.values]
+            joined = op_s.join(values_s)
+            return f"({joined})"
+        elif isinstance(node, ast.UnaryOp):
+            op_s = "not " if isinstance(node.op, ast.Not) else "-" if isinstance(node.op, ast.USub) else ""
+            val_s = cls._build_recursive_skeleton(node.operand)
+            return f"{op_s}{val_s}"
         elif isinstance(node, ast.JoinedStr):
             parts = []
             for v in node.values:
@@ -1581,7 +1717,8 @@ class ClozeGenerator:
         if not clean:
             return ""
         try:
-            tree = ast.parse(clean)
+            line_to_parse = clean + "\n    pass" if clean.endswith(":") else clean
+            tree = ast.parse(line_to_parse)
             if not tree.body:
                 return "[코드 작성]"
             stmt = tree.body[0]
@@ -1648,7 +1785,9 @@ class ClozeGenerator:
                 if skel:
                     skeletons.append(skel)
                 try:
-                    tree = ast.parse(line.split('#')[0].strip())
+                    line_clean = line.split('#')[0].strip()
+                    line_to_parse = line_clean + "\n    pass" if line_clean.endswith(":") else line_clean
+                    tree = ast.parse(line_to_parse)
                     for node in ast.walk(tree):
                         if isinstance(node, ast.Name) and node.id not in ("print", "len", "int", "float", "str", "True", "False", "None"):
                             source_vars.append(node.id)
@@ -1668,7 +1807,9 @@ class ClozeGenerator:
                             operators.append("나머지(%)")
                             has_mod = True
                         elif isinstance(node, ast.Compare):
-                            operators.append("비교 연산자")
+                            operators.append("비교 연산자(>=, <=, == 등)")
+                        elif isinstance(node, ast.BoolOp):
+                            operators.append("논리 연산자(and/or)")
                         elif isinstance(node, ast.Call):
                             fname = getattr(node.func, "id", getattr(node.func, "attr", ""))
                             if fname:
@@ -1737,10 +1878,10 @@ class ClozeGenerator:
                 tips.append("나눗셈 / 연산자(결과는 float 실수)")
             if has_mod or "%" in target_str or "//" in target_str:
                 tips.append("정수 몫 // 연산자 또는 나머지 % 연산자")
-            if has_print or "print(" in target_str:
-                tips.append("출력 형식 맞추기: print('라벨 :', 변수) 또는 f-string(예: `f'라벨 : {변수}'`)의 공백 및 콜론 일치")
-            if has_if or "if " in target_str:
-                tips.append("조건식 끝의 콜론(:) 및 비교 연산자(==, !=, >, <)")
+            if re.search(r'\b(and|or)\b', target_str) or any("논리" in op for op in operators):
+                tips.append("논리 연산자 and / or (복합 조건 결합)")
+            if has_if or re.search(r'\bif\b', target_str):
+                tips.append("조건식 if 선언, 끝의 콜론(:) 및 비교 연산자(==, !=, >, <)")
             if "len" in has_func or "len(" in target_str:
                 tips.append("길이 측정 len() 함수")
             if any(f in has_func for f in ("int", "float")):
@@ -1748,7 +1889,10 @@ class ClozeGenerator:
             if any(kw in target_str for kw in ("self.top", "self.rear")):
                 tips.append("자료구조 포인터 인스턴스 변수의 증감")
 
-            tip_str = f" (💡 사용 도구 팁: {'; '.join(tips)})" if tips else ""
+            if tips:
+                tip_str = "\n\n💡 [사용 도구 팁]\n" + "\n".join(f"• {t}" for t in tips)
+            else:
+                tip_str = ""
             step2_story = f"이 처리에 필요한 {var_part}와 {op_part}를 떠올려 준비하세요.{tip_str}"
 
             # [3단계: 문법 골격 조립 - 정답 코드 노출 방지 추상화 형태]
