@@ -2651,6 +2651,30 @@
 #root select:not([multiple]):not([size]):disabled { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23b3afb8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important; }
 #root select::-ms-expand { display: none; }
 
+@supports (appearance: base-select) and selector(::picker(select)) {
+  #root select:not([multiple]):not([size]) {
+    appearance: base-select !important;
+    align-items: center;
+  }
+
+  #root select:not([multiple]):not([size])::picker-icon {
+    display: none;
+  }
+
+  #root select:not([multiple]):not([size])::picker(select) {
+    appearance: base-select;
+    position-area: block-end;
+    position-try-fallbacks: none;
+    margin-block-start: 4px;
+    max-block-size: min(18rem, 45dvh);
+    overflow-y: auto;
+    border: 1px solid var(--d-hair);
+    border-radius: 10px;
+    background: var(--d-surface);
+    color: var(--d-ink);
+  }
+}
+
 /* 강의실 강의 자료: 흰 카드 안 글씨가 왼쪽 끝에 붙지 않게 안쪽 여백 */
 #root .student-material-weeks .student-material { padding: 18px 24px; }
 @media (max-width: 760px) {

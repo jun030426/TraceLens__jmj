@@ -18,7 +18,7 @@ def my_practice(section_id: str, session: Db, actor: Actor, response: Response,
                 date_from: date | None = None, date_to: date | None = None,
                 offset: int = Query(default=0, ge=0), limit: int = Query(default=10, ge=1, le=50)):
     from lerny.jobs import section_student
-    from lerny.practice import current_source
+    from lerny.practice import current_source, student_exercise_template
     section = section_student(session, actor, section_id)
     first, last, start, end = metrics.window(date_from, date_to)
     response.headers["Cache-Control"] = "private, no-store"
@@ -48,7 +48,8 @@ def my_practice(section_id: str, session: Db, actor: Actor, response: Response,
             "correct": a.correct, "independent": a.independent, "feedback": a.feedback if material else None, "source": a.source,
             "title": exercise.title if material else "공개 범위가 변경된 실습",
             "concept": concepts.get(exercise.concept_id, "개념 미지정") if material else "",
-            "kind": exercise.kind, "language": exercise.language, "source_available": bool(material)})
+            "kind": exercise.kind, "language": exercise.language, "source_available": bool(material),
+            "template": student_exercise_template(exercise) if material and exercise.kind in {"blank", "cloze", "full"} else None})
     return {"date_from": first, "date_to": last, "summary": metrics.counts([a for a, _ in rows]),
             "items": items, "total": len(rows), "offset": offset, "limit": limit,
             "has_more": offset + len(items) < len(rows)}

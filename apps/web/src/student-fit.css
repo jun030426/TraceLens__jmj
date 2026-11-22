@@ -643,7 +643,26 @@
 /* 22. 빈칸·직접 작성 에디터 글자 크기 통일 + 출력 값 위치 */
 #root main.app .practice-page .blank-editor { font-size: 14px !important; line-height: 1.9 !important; font-family: var(--v-mono, Consolas, monospace) !important; }
 #root main.app .practice-page .blank-editor code { font-size: 14px !important; }
-#root .practice-output-body > .practice-expected { flex-shrink: 0; display: flex; align-items: center; gap: 10px; margin: 12px 16px 12px !important; padding: 10px 14px; border-radius: 10px; background: #f7f3f9; border: 1px solid #ece3f1; font-size: 13.5px; color: #6b6e72; white-space: normal; }
+#root .practice-card > .practice-example pre {
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  background: #f7f3f9;
+  border-color: #ece3f1;
+  color: #4e3456;
+}
+#root .practice-card > .practice-example pre > code {
+  font-size: inherit;
+  white-space: inherit;
+  overflow-wrap: inherit;
+}
+:root[data-theme="dark"] #root .practice-card > .practice-example pre {
+  background: #2a2330;
+  border-color: #3a3042;
+  color: #e6d6ef;
+}
+#root .practice-output-body > .practice-expected { flex-shrink: 0; display: flex; align-items: center; gap: 10px; margin: 12px 16px 12px !important; padding: 10px 14px; border-radius: 10px; background: #f7f3f9; border: 1px solid #ece3f1; font-size: 14px; color: #6b6e72; white-space: normal; }
 #root .practice-output-body:has(> .practice-output-empty) > .practice-expected {
   order: -1;
 }
@@ -756,6 +775,10 @@
   background: #d29ad8 !important;
   color: #1f1221 !important;
 }
+#root .practice-type-status {
+  margin-inline-end: 4px;
+  vertical-align: -2px;
+}
 #root .practice-type-picker > button:focus-visible {
   outline: 2px solid #9a679f;
   outline-offset: -2px;
@@ -777,6 +800,32 @@
 #root .practice-q-head .practice-types { display: flex; gap: 6px; flex: none; }
 #root .practice-q-head .practice-types span { padding: 4px 10px; font-size: 12px; }
 #root main.app .practice-page .practice-card > .practice-problem-description { margin: 0 !important; padding: 2px 20px 12px; font-size: 14.5px !important; line-height: 1.65 !important; }
+#root main.app .practice-page .practice-card > .practice-problem-description:has(+ :is(.practice-requirements, .practice-example, .practice-problem-description, p.muted)) {
+  padding-bottom: 4px;
+}
+#root .practice-card > .practice-problem-description .learning-text > :last-child {
+  margin-block-end: 0;
+}
+#root .practice-card > .practice-requirements {
+  margin: 4px 20px 8px;
+  padding-inline-start: 20px;
+}
+#root .practice-card > .practice-example {
+  margin-block-start: 8px;
+}
+#root .practice-card > .practice-example h4 {
+  margin-block-start: 0;
+}
+#root .practice-card > .practice-example:has(+ .practice-hint-drawer) {
+  margin-block-end: 10px;
+}
+#root .practice-card > .practice-example:has(+ .practice-hint-drawer) pre {
+  margin-block-end: 0;
+}
+#root .practice-card > .practice-example + .practice-hint-drawer {
+  margin-block-start: 0;
+}
+
 #root .practice-card > .step-hints { margin: 0 !important; padding: 8px 20px !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; border-bottom: 1px solid #f0eaf2; }
 #root .practice-card > .step-hints .step-hints-head h3 { font-size: 15px; }
 #root .practice-card > .step-hints .step-hints-buttons > button { padding: 4px 12px; min-height: 28px; font-size: 12px; white-space: nowrap; }
@@ -961,6 +1010,18 @@
 #root .step-hints .step-hints-next:hover { background: #5a2a60; border-color: #5a2a60; color: #fff; }
 #root .step-hints .step-hints-next:active { transform: translateY(1px); }
 #root .step-hints .step-hints-next:focus-visible { outline: 2px solid #9a679f; outline-offset: 2px; }
+#root .step-hints-text mark {
+  padding-inline: 3px;
+  color: #302437;
+  font-weight: 700;
+  background: linear-gradient(transparent 34%, #ffe48a 34% 94%, transparent 94%);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+:root[data-theme="dark"] #root .step-hints-text mark {
+  color: #fff3ca;
+  background: linear-gradient(transparent 34%, #72571d 34% 94%, transparent 94%);
+}
 #root .step-hints-list li.is-latest { animation: hint-reveal .3s ease-out; }
 @keyframes hint-reveal { from { opacity: 0; transform: translateY(-4px); } }
 #root .practice-page .practice-problem .step-hints .step-hints-next { min-height: 28px; padding: 0 12px; font-size: 12px; }

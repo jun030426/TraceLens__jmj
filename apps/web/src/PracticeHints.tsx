@@ -3,6 +3,17 @@ import { api, post } from "./api";
 
 type HelpState = { hints_used: number; hints: string[]; max_hint_steps: number; can_view_answer: boolean };
 
+function HintText({ hint }: { hint: string }) {
+  const lines = hint.replace(/([^\s])[ \t]*(?=💡)/gu, "$1\n").split("\n");
+  return <div className="step-hints-text">
+    {lines.map((line, index) => (
+      <div key={index}>
+        {line.trimStart().startsWith("💡") ? <mark>{line.trimStart()}</mark> : line || <br />}
+      </div>
+    ))}
+  </div>;
+}
+
 export function PracticeHints({ sectionId, exerciseId, onBusyChange, planId }: {
   planId?: string; sectionId: string; exerciseId: string; onBusyChange: (busy: boolean) => void;
 }) {
@@ -46,7 +57,7 @@ export function PracticeHints({ sectionId, exerciseId, onBusyChange, planId }: {
       {used > 0 && <button type="button" className="step-hints-fold" aria-expanded={!allHidden} onClick={() => { setFolded(!allHidden); if (allHidden) setClosed([]); }}>{allHidden ? "전체 펼치기" : "전체 접기"}</button>}
       {state && used < total && <button type="button" className={`step-hints-next is-tone-${tone(used + 1)}`} disabled={busy} onClick={() => { setFolded(false); void next(); }}>{busy ? "불러오는 중…" : `힌트 ${used + 1} 보기`}</button>}
     </div></div>
-    {!folded && !!state?.hints.length && <ol className="step-hints-list">{state.hints.map((hint, i) => closed.includes(i) ? null : <li className={`is-step-${tone(i + 1)} ${i + 1 === used ? "is-latest" : ""}`} key={i}><b>힌트 {i + 1}</b><div>{hint}</div><button type="button" className="step-hints-close" aria-label={"힌트 " + (i + 1) + " 닫기"} onClick={() => setClosed(prev => [...prev, i])}>×</button></li>)}</ol>}
+    {!folded && !!state?.hints.length && <ol className="step-hints-list">{state.hints.map((hint, i) => closed.includes(i) ? null : <li className={`is-step-${tone(i + 1)} ${i + 1 === used ? "is-latest" : ""}`} key={i}><b>힌트 {i + 1}</b><HintText hint={hint} /><button type="button" className="step-hints-close" aria-label={"힌트 " + (i + 1) + " 닫기"} onClick={() => setClosed(prev => [...prev, i])}>×</button></li>)}</ol>}
     <p className="muted">힌트는 순서대로 열 수 있어요. 답지·해설은 이 문제를 최종 제출한 뒤 공개돼요.</p>
     {error && <p role="alert">{error}</p>}
   </section>;
