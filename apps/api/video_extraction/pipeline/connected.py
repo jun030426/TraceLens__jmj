@@ -11,6 +11,8 @@ import json
 import sys
 import subprocess
 import traceback
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from contextvars import copy_context
 from pathlib import Path
 from types import SimpleNamespace
 from video_extraction.pipeline import runner as base, audio_workflow, ink_workflow, document_workflow
@@ -509,12 +511,41 @@ def publish(out,p):
     (out/'유형별연결_처리결과.html').write_text(page,encoding='utf-8');return summary
 
 
-def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None,ppt_retry_round=None):
+def parallel_ppt_phase(tasks, concurrency, process, completed, stop):
+    """Only the coordinator advances the dependency graph and reports progress."""
+    tasks = iter(tasks)
+    pending = {}
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
+        try:
+            while True:
+                while len(pending) < concurrency:
+                    task = next(tasks, None)
+                    if task is None:
+                        break
+                    future = pool.submit(copy_context().run, process, task)
+                    pending[future] = task
+                if not pending:
+                    return
+                ready, _ = wait(pending, return_when=FIRST_COMPLETED)
+                for future in ready:
+                    completed(pending.pop(future), future.result())
+        except BaseException:
+            stop.set()
+            for future in pending:
+                future.cancel()
+            raise
+
+
+def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None,ppt_retry_round=None,
+        review_concurrency=1, request_budget=None):
     out=Path(out).resolve()
     with lock(out):
         p=verify(out);results=done(out,p)
         needs_api=not local_only and any(t['id'] not in results and t['kind'] in ('audio','visual','document_links') for t in p['tasks'])
-        budget=Budget(out,maximum,delay,**({'transport':transport} if transport else {})) if needs_api else SimpleNamespace(used=0)
+        budget = request_budget
+        if budget is None:
+            budget = (Budget(out, maximum, delay, **({'transport': transport} if transport else {}))
+                      if needs_api else SimpleNamespace(used=0))
         client=None
         if len(results)<len(p['tasks']):
             environment=runtime_tools.audit(p,out)
@@ -527,45 +558,87 @@ def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None,ppt_re
         transcriber=base.whisper.LocalWhisper(p['source_plan']['local_whisper'],out/'whisper-cache') if p['source_plan'].get('local_whisper') and not local_only else None
         plan_hash = signature(p)
         error=None;failure=None;active_task=None
+        def recoverable(t):
+            return (ppt_retry_round is not None and t['kind'] == 'visual'
+                    and t['unit'].get('source_kind') == 'ppt')
+
+        def runnable(t):
+            if t['id'] in results or (local_only and t['kind'] not in ('code', 'video_coverage')):
+                return False
+            if recoverable(t) and ppt_recovery.current_hold(out, plan_hash, t, ppt_retry_round):
+                return False
+            return t['kind'] != 'document_links' or all(u['id'] in results for u in t['pages'])
+
+        def review(t, inputs):
+            key = signature(t['id'])[:24]
+            folder = out/'work'/key
+            folder.mkdir(parents=True, exist_ok=True)
+            try:
+                if t['kind']=='code':r=code_workflow.run(t['unit'],folder,p['tool_runtime']['code_python'])
+                elif t['kind']=='document_links':r=document_links.run(t,inputs,folder,client)
+                elif t['kind']=='audio':
+                    units=[u for u in p['source_plan']['units'] if u['source_id']==t['unit']['source_id'] and u['modality']=='audio']
+                    frames=av_context.usable_frames(p,inputs,t['unit']['source_id'])
+                    r=audio_workflow.run(t['unit'],units,folder,p,client,transcriber,visual_units=frames)
+                elif t['kind']=='visual':
+                    context=[{**r,'text':r['observed_text']} for result in inputs.values() for r in result['records'] if r['modality']=='audio' and r['kind']=='speech' and r['eligible_for_chunking']]
+                    r=visual(t['unit'],{**p,'_output':str(out)},folder,client,context)
+                else:r=video(t,p,folder)
+            except (ValueError, Blocked) as ex:
+                if recoverable(t) and str(ex) in ppt_recovery.PAGE_HOLD_REASONS:
+                    save(ppt_recovery.hold_file(out, t), ppt_recovery.bound_hold(plan_hash, t, ppt_retry_round, str(ex)))
+                    return None
+                if isinstance(ex, Blocked):
+                    raise
+                save(out/'errors'/(key+'.json'), {'task':t['id'], 'reason':str(ex)})
+                return None
+            r.update(specialist=t['kind'], binding=signature({'plan':plan_hash,'task':t}),
+                     evidence_files={str(f):digest_file(f) for f in folder.rglob('*')
+                                     if f.is_file() and f.suffix in ('.json','.wav','.png')})
+            r['payload_hash'] = signature(r)
+            save(out/'results'/(key+'.json'), r)
+            return r
+
+        def prepare_client(t):
+            nonlocal client
+            if client is None and t['kind'] in ('audio', 'visual', 'document_links'):
+                api_key(env_file)
+                client = Gemini(out/'gemini-cache', p['source_plan']['gemini_model'], env_file,
+                                max_calls=maximum, delay=0, transport=budget)
+            if client is not None:
+                client.ppt_retry_round = ppt_retry_round if recoverable(t) else None
+
+        def report(t):
+            progress.report('video_review' if t['kind']=='visual' else 'source_check', len(results), len(p['tasks']))
+
+        def complete(t, result):
+            if result is not None:
+                results[t['id']] = result
+            report(t)
+
         try:
-            for t in p['tasks']:
-                if t['id'] in results:continue
-                recover_page = (ppt_retry_round is not None and t['kind'] == 'visual'
-                                and t['unit'].get('source_kind') == 'ppt')
-                if recover_page and ppt_recovery.current_hold(out, plan_hash, t, ppt_retry_round):
-                    continue
-                if local_only and t['kind'] not in ('code','video_coverage'):continue
-                if t['kind']=='document_links' and any(u['id'] not in results for u in t['pages']):continue
-                progress.report('video_review' if t['kind']=='visual' else 'source_check', len(results), len(p['tasks']))
-                active_task=t['id']
-                key=signature(t['id'])[:24];folder=out/'work'/key;folder.mkdir(parents=True,exist_ok=True)
-                print(json.dumps({'specialist':t['kind'],'completed':len(results),'total':len(p['tasks']),'task':t['id']},ensure_ascii=False),flush=True)
-                try:
-                    if t['kind'] in ('audio','visual','document_links') and client is None:
-                        api_key(env_file);client=Gemini(out/'gemini-cache',p['source_plan']['gemini_model'],env_file,max_calls=maximum,delay=0,transport=budget)
-                    if client is not None:
-                        client.ppt_retry_round = ppt_retry_round if recover_page else None
-                    if t['kind']=='code':r=code_workflow.run(t['unit'],folder,p['tool_runtime']['code_python'])
-                    elif t['kind']=='document_links':r=document_links.run(t,results,folder,client)
-                    elif t['kind']=='audio':
-                        units=[u for u in p['source_plan']['units'] if u['source_id']==t['unit']['source_id'] and u['modality']=='audio']
-                        frames=av_context.usable_frames(p,results,t['unit']['source_id'])
-                        r=audio_workflow.run(t['unit'],units,folder,p,client,transcriber,visual_units=frames)
-                    elif t['kind']=='visual':
-                        context=[{**r,'text':r['observed_text']} for result in results.values() for r in result['records'] if r['modality']=='audio' and r['kind']=='speech' and r['eligible_for_chunking']]
-                        r=visual(t['unit'],{**p,'_output':str(out)},folder,client,context)
-                    else:r=video(t,p,folder)
-                except (ValueError, Blocked) as ex:
-                    if recover_page and str(ex) in ppt_recovery.PAGE_HOLD_REASONS:
-                        save(ppt_recovery.hold_file(out, t), ppt_recovery.bound_hold(plan_hash, t, ppt_retry_round, str(ex)))
+            parallel = (needs_api and review_concurrency > 1 and ppt_retry_round is not None
+                        and all(t['kind']=='document_links' or recoverable(t) for t in p['tasks']))
+            if parallel:
+                for kind in ('visual', 'document_links'):
+                    phase = [t for t in p['tasks'] if t['kind'] == kind and runnable(t)]
+                    if phase:
+                        inputs = dict(results)
+                        prepare_client(phase[0])
+                        report(phase[0])
+                        parallel_ppt_phase(phase, review_concurrency, lambda t: review(t, inputs),
+                                           complete, budget.stopped)
+            else:
+                for t in p['tasks']:
+                    if not runnable(t):
                         continue
-                    if isinstance(ex, Blocked):
-                        raise
-                    save(out/'errors'/(key+'.json'),{'task':t['id'],'reason':str(ex)});continue
-                r.update(specialist=t['kind'],binding=signature({'plan':signature(p),'task':t}),
-                    evidence_files={str(f):digest_file(f) for f in folder.rglob('*') if f.is_file() and f.suffix in ('.json','.wav','.png')})
-                r['payload_hash']=signature(r);save(out/'results'/(key+'.json'),r);results[t['id']]=r
-                publish(out,p)
+                    active_task = t['id']
+                    report(t)
+                    prepare_client(t)
+                    result = review(t, results)
+                    if result is not None:
+                        results[t['id']] = result
+                        publish(out, p)
         except (Blocked,KeyboardInterrupt) as ex:error=str(ex) or 'interrupted'
         except Exception as ex:
             error='unexpected_error'

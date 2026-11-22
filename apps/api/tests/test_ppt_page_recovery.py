@@ -247,19 +247,25 @@ def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, monk
         if name.startswith("video_extraction") and getattr(module,"digest_file",None) is digest_file:
             monkeypatch.setattr(module,"digest_file",linux_code_digest)
     current = connected.hashes()
-    pr30 = {**current, **{
+    # Exact Linux module digests from the deployed 4cd519e engine.
+    production = {
+        **current,
+        "audio_crosscheck.py": "c6566c486e99e36ac7913c1eba80a22ca239510cdefc08f6a92e3a8442464689",
+        "gemini.py": "59bed6b2d4fb3682525000d52bb7afcc537418ff32050ca2081d2d9a4026b496",
+        "common.py": "cfa3c20a8577e38f1c7efacfac240d478cfbf2c9bd99a84e0b0b5a74dfa63daa",
+        "video_extraction.shared.common": "cfa3c20a8577e38f1c7efacfac240d478cfbf2c9bd99a84e0b0b5a74dfa63daa",
         "connected": "ae4efe152264c207b50406f53faca5e95e8e23b334338f4388d5741d8c169246",
         "video_extraction.pipeline.ppt_recovery": "42917735ab9a14f821f5066dd722a1063caed870a54fca8ba15b29cab401be4d",
         "video_extraction.pipeline.source_followup": "868121fae854762472e15a96385a23dc7228578acf7c75c3609de279391777d7",
-    }}
-    old = {**current, **{"connected":"de46459355570f76dbd8d7f1e85e12d6ac5ea99693ca597565f3b8dff1ac8778","gemini.py":"84ebe4b9a4ecf0448787b4913e01119fc195b298b2190f04acc7e5c90c9a2c04","video_extraction.pipeline.source_followup":"54c5ed0a3a21f84c4648146ec9649cbb0919bb80795b28bbb87a46dc69c19281"}}
+    }
+    old = {**production, **{"connected":"de46459355570f76dbd8d7f1e85e12d6ac5ea99693ca597565f3b8dff1ac8778","gemini.py":"84ebe4b9a4ecf0448787b4913e01119fc195b298b2190f04acc7e5c90c9a2c04","video_extraction.pipeline.source_followup":"54c5ed0a3a21f84c4648146ec9649cbb0919bb80795b28bbb87a46dc69c19281"}}
     del old["video_extraction.pipeline.ppt_recovery"]
     source = tmp_path / "source.pptx"
     source.write_bytes(b"synthetic source")
     plan = {"source_plan":{"sources":[{"kind":"ppt"}], "request":{"sources":[str(source)]}, "gemini_model":"fixture"},
             "code_hashes":old, "inputs":{str(source):digest_file(source)}}
+    assert ppt_recovery.compatible({**plan, "code_hashes": production}, current)
     assert ppt_recovery.compatible(plan, current)
-    assert ppt_recovery.compatible({**plan, "code_hashes": pr30}, current)
     assert not ppt_recovery.compatible(plan, {**current, "runner":"unknown"})
     assert not ppt_recovery.compatible({**plan,"code_hashes":{**old,"runner":"unknown"}}, current)
     output = tmp_path / ("analysis-"+signature({"engine":old,"model":"fixture","policy":"fixture"})[:20])

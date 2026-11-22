@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from pydantic import SecretStr
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from lerny import gemini_provider as provider, gemini_quota as quota
@@ -341,7 +341,6 @@ def test_multicall_job_resumes_from_cached_step_without_duplicate_generation(int
 
 def test_worker_records_error_then_stops_service_retry_without_replacing_progress(integration, monkeypatch):
     from lerny import weekly_content, worker, gemini_failures
-    from lerny.models import now
     _, session, _ = integration
     monkeypatch.setattr(worker, 'heartbeat', lambda *args: None)
     detail = {'http_status':503, 'service_failures':5}
@@ -388,3 +387,199 @@ def test_review_only_rpm_and_embedding_project_accounting(paced, override, revie
             reserve(PATH, BODY, "lerny-paid-embedding", BODY["model"], review_gap)
     finally:
         quota._paid_job.reset(token)
+
+
+def test_review_slots_keep_rolling_limits_and_expire_independently(paced, monkeypatch):
+    config, clock, db = paced
+    config.gemini_review_quota_project = "test-paid"
+    config.gemini_review_requests_per_minute = 4
+    config.gemini_review_concurrency = 4
+    config.gemini_content_requests_per_day = 5
+    monkeypatch.setattr(quota, "request_purpose", lambda *_: "review")
+    leases = []
+    for _ in range(4):
+        leases.append(quota.reserve_slot(PATH, BODY))
+        if len(leases) < 4:
+            pending("GEMINI_PACING_WAIT", lambda: quota.reserve_slot(PATH, BODY))
+            clock[0] += 15
+    clock[0] += 15.02
+    pending("GEMINI_PACING_WAIT", lambda: quota.reserve_slot(PATH, BODY))
+    quota.release_slot(leases[1])
+    extra = quota.reserve_slot(PATH, BODY)
+    quota.release_slot(leases[1])
+    with Session(db) as session:
+        assert set(session.get(GeminiQuota, extra[0]).active_leases) == {lease[1] for lease in (leases[0], *leases[2:], extra)}
+    pending("GEMINI_DAILY_WAIT", lambda: quota.reserve_slot(PATH, BODY))
+    config.gemini_content_requests_per_day = 0
+    clock[0] += 241
+    quota.reserve_slot(PATH, BODY)
+    with Session(db) as session:
+        keys = session.get(GeminiQuota, extra[0]).active_leases
+        assert leases[0][1] not in keys and leases[2][1] in keys
+
+
+def test_parallel_paid_requests_still_obey_tpm(paced, monkeypatch):
+    config, clock, _ = paced
+    monkeypatch.setattr(quota, "request_purpose", lambda *_: "review")
+    from lerny.gemini_input import input_units
+    config.gemini_review_concurrency = 4
+    config.gemini_review_requests_per_minute = 60
+    config.gemini_content_tokens_per_minute = input_units(BODY)
+    quota.reserve_slot(PATH, BODY)
+    clock[0] += 1
+    assert pending("GEMINI_PACING_WAIT", lambda: quota.reserve_slot(PATH, BODY)) >= clock[0]+59
+
+
+def test_paid_gateway_counts_combined_admissions_and_deduplicates(paced, monkeypatch):
+    import threading
+    import time
+    from lerny.config import PaidCallBudget
+    from lerny.models import GeminiPaidCallBudget
+
+    config, _, db = paced
+    GeminiPaidCallBudget.__table__.create(db)
+    config.gemini_paid_call_budget = PaidCallBudget(version_id="target", max_new_calls=5)
+    config.gemini_review_concurrency = 4
+    config.gemini_review_requests_per_minute = config.gemini_embedding_requests_per_minute = 6000
+    config.gemini_review_quota_project = "paid"
+    config.gemini_embedding_api_key = SecretStr("synthetic")
+    tick = iter(range(1800000000,1800005000))
+    monkeypatch.setattr(quota, "db_time", lambda session: next(tick))
+    for module in (provider, quota):
+        monkeypatch.setattr(module, "request_purpose", lambda path, _: "review" if path == PATH else "embedding")
+
+    calls = []
+    lock = threading.Lock()
+    live = [0, 0]
+    def post(_client, path, **kwargs):
+        with lock:
+            calls.append(kwargs["json"]["input"])
+            live[0] += 1
+            live[1] = max(live)
+        try:
+            time.sleep(.15)
+            return httpx.Response(200, json={"ok":True}, request=httpx.Request("POST","https://fixture.invalid"))
+        finally:
+            with lock:
+                live[0] -= 1
+    monkeypatch.setattr(httpx.Client, "post", post)
+    def send(value, embed=False):
+        with job_context(SimpleNamespace(id="embed" if embed else "review", payload={"version_id":"target"})):
+            path = "models/gemini-embedding-2:embedContent" if embed else PATH
+            return provider.request(path, {**BODY, "input": value}, dict)
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = [pool.submit(send, value) for value in ("a","a","b","c","d")]
+        assert all(f.result() == {"ok":True} for f in futures)
+    assert sorted(calls) == ["a","b","c","d"] and 1 < live[1] <= 4
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(send, "r"), pool.submit(send, "e", True)]
+        assert sum(f.exception() is None for f in futures) == 1
+        assert [str(f.exception()) for f in futures if f.exception()] == ["GEMINI_PAID_CALL_BUDGET_EXCEEDED"]
+    assert len(calls) == 5 and send("a") == {"ok":True}
+    with Session(db) as session:
+        total = session.get(GeminiPaidCallBudget, "target")
+        assert total.review + total.embedding == 5
+    events = list((config.runtime_root/"gemini-calls").glob("*/attempts/*.json"))
+    assert len(events) == 5
+
+
+def test_postgres_parallel_paid_admissions_and_late_release(monkeypatch):
+    from threading import Barrier
+    from sqlalchemy.engine import make_url
+    from lerny.config import PaidCallBudget
+    from lerny.models import GeminiPaidCallBudget
+
+    url = os.environ.get("LERNY_INGESTION_TEST_URL")
+    if not url:
+        pytest.skip("Requires disposable loopback PostgreSQL")
+    assert make_url(url).host in {"127.0.0.1","::1","localhost"}
+    db = create_engine(url)
+    tables = [GeminiQuota.__table__, GeminiPaidCallBudget.__table__]
+    for table in tables:
+        table.create(db)
+    config = Settings(gemini_review_quota_project="paid-parallel", gemini_review_concurrency=4,
+                      gemini_review_requests_per_minute=60,
+                      gemini_paid_call_budget=PaidCallBudget(version_id="target", max_new_calls=5))
+    ticks = iter(range(1800000000,1800001000))
+    monkeypatch.setattr(quota, "engine", lambda: db)
+    monkeypatch.setattr(quota, "settings", lambda: config)
+    monkeypatch.setattr(quota, "db_time", lambda _: next(ticks))
+    monkeypatch.setattr(quota,"request_purpose",lambda path,_: "review" if path == PATH else "embedding")
+    barrier = Barrier(8)
+    def admit(_):
+        with job_context(SimpleNamespace(id="review", payload={"version_id":"target"})):
+            barrier.wait(timeout=10)
+            try:
+                return quota.reserve_slot(PATH, BODY)
+            except quota.ProviderDeferred:
+                return None
+    try:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            live = [lease for lease in pool.map(admit, range(8)) if lease]
+        assert len(live) == 4
+        with job_context(SimpleNamespace(id="embed",payload={"version_id":"target"})):
+            quota.reserve_slot("models/embed:embedContent", {"input":"x"})
+        quota.release_slot(live[0])
+        with job_context(SimpleNamespace(id="review",payload={"version_id":"target"})):
+            with pytest.raises(ValueError,match="GEMINI_PAID_CALL_BUDGET_EXCEEDED"):
+                quota.reserve_slot(PATH, BODY)
+        with Session(db) as s:
+            row=s.get(GeminiQuota,live[0][0])
+            budget=s.get(GeminiPaidCallBudget,"target")
+            assert len(row.active_leases)==3 and row.day_count==4
+            assert (budget.review,budget.embedding)==(4,1)
+    finally:
+        for table in reversed(tables):
+            table.drop(db)
+        db.dispose()
+
+
+def test_unexpired_legacy_lease_counts_towards_new_limit(paced, monkeypatch):
+    config, clock, db = paced
+    config.gemini_review_concurrency = 2
+    config.gemini_review_quota_project = "paid"
+    config.gemini_review_requests_per_minute = 60
+    monkeypatch.setattr(quota, "request_purpose", lambda *_: "review")
+    key = quota.scope(PATH, BODY)
+    with Session(db) as session:
+        session.add(GeminiQuota(key=key, active_token="old", active_until=clock[0]+100))
+        session.commit()
+    second = quota.reserve_slot(PATH,BODY)
+    clock[0] += 2
+    pending("GEMINI_PACING_WAIT",lambda: quota.reserve_slot(PATH,BODY))
+    quota.release_slot((key, "old"))
+    quota.reserve_slot(PATH,BODY)
+    with Session(db) as session:
+        assert second[1] in session.get(GeminiQuota,key).active_leases
+
+def test_page_link_stages_match_one_gateway_submission(paced, tmp_path, monkeypatch):
+    from contextvars import ContextVar
+    from PIL import Image
+    from lerny.media_materials import service_transport
+    from video_extraction.pipeline import document_links
+    from video_extraction.shared.gemini import Gemini
+
+    config, _, _ = paced
+    config.gemini_review_quota_project = "paid"
+    config.gemini_embedding_api_key = SecretStr("synthetic")
+    monkeypatch.setenv("LERNY_GEMINI_API_KEY", "synthetic")
+    monkeypatch.setattr(quota, "_paid_job", ContextVar("paid", default=True))
+    rows = []
+    for i in (1,2):
+        image = tmp_path/f"page-{i}.png"
+        Image.new("RGB", (32,32), (i,0,0)).save(image)
+        rows.append({"id": str(i), "source_id":"source", "source_kind":"ppt", "modality":"visual",
+                     "image":str(image),"location":{"page":i}})
+    model = config.gemini_answer_model
+    calls = fake_http(monkeypatch, httpx.Response(200,json={
+        "status":"completed","output_text":json.dumps({"links":[],"checks":[]})}))
+    transport = lambda req,timeout: service_transport(req,timeout,expected_model=model)
+    client = Gemini(tmp_path/"cache",model,None,delay=0,transport=transport)
+    task, = document_links.tasks(rows)
+    with job_context(SimpleNamespace(id="link",payload={})), quota.verification():
+        document_links.run(task,{p["id"]:{"records":[]} for p in rows},tmp_path,client)
+    assert (tmp_path/"read.json").is_file() and (tmp_path/"verify.json").is_file()
+    assert client.stats["requests"] == 2 and len(calls) == 1
+    root = config.runtime_root/"gemini-calls"
+    event, = root.glob("*/attempts/*.json")
+    assert json.loads(event.read_text())["credential_role"] == "review"
