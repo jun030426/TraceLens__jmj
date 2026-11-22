@@ -30,7 +30,8 @@ PGOPTIONS='-c lock_timeout=3s -c statement_timeout=30s' /opt/lerny/venv/bin/pyth
 2. 대상은 `ap-southeast-2`의 `i-0c64182a7dada987a`에서 실행 중인 워커가 사용하는 DB다. 워커 프로세스의 DB 설정과 `/etc/lerny/worker.json`의 일치를 값 노출 없이 확인한다. DB에서 부모 리비전 한 행, 기존 제5장 작업, 대상 테이블, 새 컬럼 부재를 조회한다. 다른 배포와 PPT 재시도 여부를 확인하고 운영 승인을 받는다.
 3. 승인 후 머지된 커밋의 Alembic 트리를 서버의 임시 디렉터리에 준비한다. 새 리비전 파일의 SHA-256을 위 값과 대조한다. `lerny-worker` 사용자, 워커 설정, `/opt/lerny/venv/bin/python` 환경에서 임시 디렉터리의 Alembic 설정으로 `python -m alembic upgrade 4ebad9697835`를 실행한다. PostgreSQL 연결에 짧은 `lock_timeout`을 적용한다. 잠금 획득에 실패하면 결과를 보고한다.
 4. 적용 직후 두 헬스 엔드포인트의 200, Alembic 새 리비전 한 행, 컬럼의 JSON 타입·nullable·기본값 부재를 확인한다. 실행 시각·커밋·임시 경로·실행 파일 해시·결과를 이 문서에 기록하고 임시 파일을 정리한다. 적용한 마이그레이션 파일은 그 바이트로 보존한다.
-5. 제출 시점 정보를 읽고 쓰는 API를 배포한다. 그 뒤 별도 배포로 헬스와 공유 데이터 도구가 새 리비전만 요구하도록 맞춘다.
+5. #44 머지 커밋 `84ff79f98122d24ff820f5c8f3fac9f102dc41c9`의 운영 배포 `dpl_8QT7qdid7kbYQt5nn9uHTRycA7Um`에서 제출 시점 정보를 읽고 쓰는 API를 반영했다. 운영 도메인 연결과 live·ready·learning 200을 확인했다.
+6. 후속 배포부터 API 헬스, capabilities, 공유 데이터 점검·이관 도구는 `alembic_version`에 `4ebad9697835` 한 행이 있어야 통과한다. 부모 리비전으로 복원할 때는 아래 순서를 따른다.
 
 ## 복원 순서
 

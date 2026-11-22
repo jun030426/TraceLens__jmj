@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from lerny import auth, cloud_jobs, cloud_uploads, courses, jobs, learning, materials, exams, storage
 from lerny.config import settings
-from lerny.db import SCHEMA_REVISION
+from lerny.db import SCHEMA_REVISION as SCHEMA_REVISION
 from lerny.retrieval import EMBED_MODEL
 from lerny import lecture_preview
 from lerny import lecture_specs
@@ -134,7 +134,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/health/ready")
     def service_ready() -> JSONResponse:
-        deps = health.dependencies(SCHEMA_REVISION)
+        deps = health.dependencies()
         is_ready = deps["database"] == "ready" and deps["storage"] in {"ready", "local"}
         return JSONResponse(status_code=200 if is_ready else 503, content={
             "status": "ready" if is_ready else "not_ready",
@@ -142,12 +142,12 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/health/learning", responses={503: {"description": "Learning dependencies unavailable"}})
     def ready() -> JSONResponse:
-        state = health.learning_status(SCHEMA_REVISION)
+        state = health.learning_status()
         return JSONResponse(status_code=200 if state["status"] == "ready" else 503, content=state)
 
     @app.get("/api/v1/capabilities", response_model=Capabilities)
     def capabilities() -> Capabilities:
-        state = health.learning_status(SCHEMA_REVISION)
+        state = health.learning_status()
         return Capabilities(learning=state["learning"], local_ai=settings().ai_provider == "ollama",
                             code_execution=state["code_execution"], code_visualization=state["code_execution"],
                             reason=state["reason"])

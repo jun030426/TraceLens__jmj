@@ -118,7 +118,7 @@ def test_operations_gates_are_reported(service, flag, reason, execution):
 
 @pytest.mark.parametrize(("revisions", "accepted"), [
     (["af3e227a01db"], False),
-    (["b60d9c84f210"], True),
+    (["b60d9c84f210"], False),
     (["4ebad9697835"], True),
     (["e83f529cc134"], False),
     (["unknown"], False),
@@ -126,7 +126,9 @@ def test_operations_gates_are_reported(service, flag, reason, execution):
     (["b60d9c84f210", "unknown"], False),
     (["af3e227a01db", "b60d9c84f210"], False),
     (["b60d9c84f210", "4ebad9697835"], False),
-], ids=["previous", "current", "snapshot", "older", "unknown", "empty", "mixed-heads", "old-heads", "rollout-heads"])
+    (["4ebad9697835", "4ebad9697835"], False),
+], ids=["previous", "parent", "current", "older", "unknown", "empty", "mixed-heads", "old-heads",
+        "rollout-heads", "duplicate-head"])
 def test_required_schema_across_health_and_capabilities(service, revisions, accepted):
     client, _, _, engine = service
     with engine.begin() as connection:
@@ -134,8 +136,7 @@ def test_required_schema_across_health_and_capabilities(service, revisions, acce
         if revisions:
             connection.execute(text("INSERT INTO alembic_version VALUES (:revision)"),
                                [{"revision": revision} for revision in revisions])
-        # Shared-data tools continue to require their exact revision.
-        assert schema_revision_matches(connection, SCHEMA_REVISION) == (revisions == [SCHEMA_REVISION])
+        assert schema_revision_matches(connection) is accepted
     status = 200 if accepted else 503
     database = "ready" if accepted else "migration_required"
     ready = client.get("/api/v1/health/ready")
