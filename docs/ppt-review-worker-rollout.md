@@ -102,6 +102,8 @@ systemctl is-active lerny-material.service lerny-embedding.service
 
 2026-11-23 01:02:01 KST에 AWS 워커가 사용 중인 운영 DB의 Alembic 리비전을 `af3e227a01db`에서 `b60d9c84f210`으로 올렸다. 당시 Vercel 운영 커밋 `48b566b`는 두 리비전을 모두 지원했다.
 
+#36부터는 `alembic_version`에 `b60d9c84f210` 한 행이 있어야 API가 DB를 준비 상태로 판정한다. 병렬 검증 코드가 새 점유 컬럼과 예산 테이블을 사용하기 때문이다. 공유 데이터 점검 스크립트도 같은 기준을 사용한다. 데이터 이관 시에는 원본과 대상이 각각 이 기준을 통과해야 한다.
+
 - **파일 출처** — #36 커밋 `b6c7c6e92855339b10266eab122c90c235bc6c69`의 `migrations/versions/b60d9c84f210_concurrent_gemini_leases.py`. 원본과 서버 파일의 SHA-256은 모두 `206aea7ec6b45298208472045d561a6b87511bedd65bf206ff95bc7fee63d3f7`였다. 이 파일의 리비전·부모·본문은 이후 rebase에서도 그대로 유지한다. 후속 변경에는 새 리비전을 추가한다.
 - **위치와 환경** — 인스턴스 `i-0c64182a7dada987a`의 `/tmp/lerny-quota-migration-zc1ls9sm/migrations`에 위 커밋의 리비전 파일 21개를 준비했다. SSM Run Command에서 `lerny-worker` 권한과 `/opt/lerny/venv/bin/python`으로 실행했다. 실행 중인 embedding 워커, `/etc/lerny/worker.json`, 실제 SQLAlchemy 연결의 DB 호스트 일치를 확인했다.
 - **실행 명령** — 같은 연결의 트랜잭션에서 기존 리비전, 제5장 행, 큐 상태를 재확인했다. Alembic의 `script_location`을 위 임시 경로로 설정하고 `cfg.attributes["connection"] = connection`을 지정한 뒤 `alembic.command.upgrade(cfg, "b60d9c84f210")`를 호출했다. CLI의 대응 명령은 `alembic upgrade b60d9c84f210`이다.
