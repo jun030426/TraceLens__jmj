@@ -73,10 +73,13 @@ def generate_job(session, job):
     instructor_review = False
     mcq_count = 2
     if job.payload.get("generation_id"):
+        from lerny.gemini_quota import paid_weekly_generation
         from lerny.weekly_content import generation_for_job
         generation = generation_for_job(session, job)
         mcq_count = (generation.options or {}).get("mcq_per_concept", 2)
-        instructor_review = settings().instructor_reviews_week(generation.course_id, generation.week)
+        config = settings()
+        instructor_review = (config.instructor_reviews_week(generation.course_id, generation.week)
+                             and not paid_weekly_generation(session, config, generation))
     if mcq_count not in (2, 3, 5):
         raise ValueError("INVALID_QUESTION_POLICY")
     concept = session.get(Concept, job.payload["concept_id"])

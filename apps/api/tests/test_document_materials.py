@@ -268,6 +268,32 @@ def test_review_policy_uses_stored_material_and_limits_paid_verification(site, c
         assert request_purpose("interactions", configured) == "content"
 
 
+@pytest.mark.parametrize("case,expected", [
+    ("new", True), ("predates", False), ("private", False), ("answer", False),
+    ("manual", False), ("pdf", False), ("other_course", False), ("earlier_week", False),
+])
+def test_paid_upload_scope_uses_persisted_version(site, configured, monkeypatch, case, expected):
+    from lerny.gemini_quota import review_job, request_purpose, verification
+    _, session, _ = site
+    job, version = upload(site, ".pdf" if case == "pdf" else ".pptx")
+    material = session.get(Material, version.material_id)
+    material.week = 4 if case == "earlier_week" else 5
+    if case == "private":
+        material.visibility = "private"
+    if case == "answer":
+        material.kind = "answer"
+    job.payload = {**job.payload, "week": 5, "manual_text": case == "manual"}
+    monkeypatch.setattr(configured, "gemini_review_course_id", "other" if case == "other_course" else material.course_id)
+    monkeypatch.setattr(configured, "gemini_review_quota_project", "paid-test")
+    monkeypatch.setattr(configured, "instructor_review_from_week", 5)
+    monkeypatch.setattr(configured, "gemini_paid_from_week", 5)
+    cutoff = now() + timedelta(days=1 if case == "predates" else -1)
+    monkeypatch.setattr(configured, "gemini_paid_uploads_since", cutoff)
+    session.flush()
+    with review_job(session, job, configured), verification():
+        assert (request_purpose("interactions", configured) == "review") is expected
+
+
 def test_model_approval_cannot_override_code_calculation_hold(site, synthetic_engine):
     synthetic_engine.unsafe = True
     _, session, _ = site

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from lerny.config import Settings
 from lerny.weekly_quiz import generate_set
 from lerny.gemini_quota import request_purpose, review_job
 
@@ -41,10 +42,10 @@ def run(fault=None, persistent=False, *, verify_with_ai=True):
                 if key == "Q3" and fault in ("concept_matches","distinct_objective") and (persistent or len([s for s,_ in calls if s=="review"]) == 1):
                     result[key][fault] = False
         return result
-    config = SimpleNamespace(gemini_review_quota_project="paid-test",gemini_review_course_id="course",gemini_review_week=4,
-                             gemini_paid_generation_id=None)
+    config = Settings(gemini_review_quota_project="paid-test", gemini_review_course_id="course", gemini_review_week=4)
     job = SimpleNamespace(course_id="course",kind="questions",payload={"generation_id":"synthetic"})
-    with review_job(SimpleNamespace(scalar=lambda _:4),job,config):
+    generation = SimpleNamespace(week=4, course_id="course")
+    with review_job(SimpleNamespace(scalar=lambda _:generation),job,config):
         result = generate_set([(chunk,None,None)],SimpleNamespace(name="비교"),sources,model,verify_with_ai=verify_with_ai)
     return calls,result,sources,chunk
 

@@ -31,8 +31,10 @@ def eligible(job, version, material):
     if not version or not material or material.deleted or job.payload.get("manual_text") or not student_source(material):
         return False
     suffix = Path(version.filename).suffix.lower()
-    return suffix in FORMATS and not (
-        suffix == ".pptx" and settings().instructor_reviews_week(material.course_id, material.week))
+    config = settings()
+    if suffix == ".pptx" and config.instructor_reviews_week(material.course_id, material.week):
+        return config.paid_upload(material.course_id, material.week, version.created_at)
+    return suffix in FORMATS
 
 
 def check_source(job_id, token, version_id, source_sha):
