@@ -115,7 +115,7 @@ async def test_archive_opens_all_exercises_and_first_answers_are_read_only(app_d
         db.add(PracticeAttempt(student_id=student.id, section_id=section.id, exercise_id=exercises[0].id,
                                practice_session_id=previous.id, status="graded", source="print(1)", correct=True,
                                created_at=now() - timedelta(days=1)))
-        # Both submissions predate the group rule. Keep the originals and review the first.
+        # Each variant keeps its own submission. The problem's top-level fields review the first.
         db.add(PracticeAttempt(student_id=student.id, section_id=section.id, exercise_id=full.id,
                                practice_session_id=previous.id, status="graded", source="print(2)", correct=False))
         db.commit()
@@ -171,7 +171,9 @@ async def test_archive_opens_all_exercises_and_first_answers_are_read_only(app_d
         history = (await c.get(api + "/practice/attempts", params={"plan_id": weekly["id"]})).json()["items"]
         assert [a["source"] for a in history] == ["print(2)", "print(1)"]
         grouped = (await c.get(api + "/practice/attempts", params={"plan_id": weekly["id"], "by_exercise": True})).json()
-        assert [a["source"] for a in grouped["items"]] == ["print(1)"]
+        assert [a["source"] for a in grouped["items"]] == ["print(1)", "print(2)"]
+        assert {kind: v["attempt"]["source"] for kind, v in weekly["items"][0]["variants"].items()} == {
+            "blank": "print(1)", "full": "print(2)"}
         other = db.scalar(select(User).where(User.login_id == "student2"))
         db.add(Enrollment(student_id=other.id, course_id=course["id"], section_id=section.id, status="active"))
         db.commit()
