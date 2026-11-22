@@ -4,12 +4,17 @@ from pathlib import Path
 
 from video_extraction.shared.common import read, signature
 
+PAGE_HOLD_REASONS = {
+    "invalid_model_response", "source_followup_issue_mapping",
+    "source_followup_audit_changed", "source_followup_mapping_repair_changed",
+}
+
 
 def compatible(plan, current):
     pins = read(Path(__file__).with_name("ppt_checkpoint_versions.json"))
     sources = plan["source_plan"]["sources"]
     return (bool(sources) and all(s["kind"] == "ppt" for s in sources)
-            and signature(plan["code_hashes"]) == pins["previous"]
+            and signature(plan["code_hashes"]) in pins["previous"]
             and signature(current) == pins["current"])
 
 
@@ -24,7 +29,7 @@ def output_folder(folder, preferred, current, model, policy, source):
             if compatible(plan, current):
                 return plan_file.parent
             pins = read(Path(__file__).with_name("ppt_checkpoint_versions.json"))
-            if signature(plan["code_hashes"]) == pins["previous"]:
+            if signature(plan["code_hashes"]) in pins["previous"]:
                 raise ValueError("DOCUMENT_CHECKPOINT_ENGINE_MISMATCH")
     return preferred
 
@@ -73,7 +78,7 @@ def current_hold(out, plan_hash, task, retry_round):
         return None
     data = read(path)
     reason = data.get("reason")
-    if reason not in {"source_followup_issue_mapping", "invalid_model_response"}:
+    if reason not in PAGE_HOLD_REASONS:
         raise ValueError("invalid_page_hold")
     expected = bound_hold(plan_hash, task, data["round"], reason)
     if data != expected:

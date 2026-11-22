@@ -556,7 +556,7 @@ def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None,ppt_re
                         r=visual(t['unit'],{**p,'_output':str(out)},folder,client,context)
                     else:r=video(t,p,folder)
                 except (ValueError, Blocked) as ex:
-                    if recover_page and str(ex) in {'invalid_model_response', 'source_followup_issue_mapping'}:
+                    if recover_page and str(ex) in ppt_recovery.PAGE_HOLD_REASONS:
                         save(ppt_recovery.hold_file(out, t), ppt_recovery.bound_hold(plan_hash, t, ppt_retry_round, str(ex)))
                         continue
                     if isinstance(ex, Blocked):
