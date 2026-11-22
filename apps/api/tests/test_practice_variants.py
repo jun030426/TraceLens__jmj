@@ -66,6 +66,28 @@ def test_blank_offsets_use_utf16_code_units_and_exact_editor_boundaries():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("leading,with_editor", [("  ", False), ("\n\n", True), ("\n\n  ", True)])
+async def test_full_submission_keeps_legacy_grading_whitespace(cloud_db, monkeypatch, leading, with_editor):
+    app, engine, _ = cloud_db
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://lerny.example") as c:
+        with Session(engine) as db:
+            ctx = await prepare_test_data(c, db, monkeypatch)
+            code = "n = 3\nif n:\n    print(n + 1)"
+            starter = ctx["daily"]["items"][0]["variants"]["full"]["template"]
+            body = {"exercise_id": ctx["full_id"], "source": leading + code + "\n  "}
+            if with_editor:
+                body["editor"] = {"template": starter}
+            response = await c.post(ctx["base"] + "/practice/submit", json=body,
+                                    headers={"Idempotency-Key": "full-whitespace"})
+            assert response.status_code == 202
+            assert response.json()["source"] == code
+            attempt = db.get(PracticeAttempt, response.json()["id"])
+            assert attempt.source == code
+            assert attempt.submission_snapshot == {"kind": "full", "starter_code": starter}
+            assert grade(db, response)["correct"] is True
+
+
+@pytest.mark.asyncio
 async def test_submission_snapshots_survive_template_changes_on_both_routes(cloud_db, monkeypatch):
     app, engine, _ = cloud_db
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://lerny.example") as c:
@@ -86,11 +108,11 @@ async def test_submission_snapshots_survive_template_changes_on_both_routes(clou
             assert first.status_code == 202, first.text
             grade(db, first)
             starter = variants["full"]["template"]
-            second = await c.post(route, json={"exercise_id": ctx["full_id"], "source": ctx["code"] + "\n",
+            second = await c.post(route, json={"exercise_id": ctx["full_id"], "source": "\n\n  " + ctx["code"] + "\n",
                                                "editor": {"template": starter}},
                                   headers={"Idempotency-Key": "full-snapshot"})
             assert second.status_code == 202, second.text
-            grade(db, second)
+            assert grade(db, second)["correct"] is True
             start = len(source.partition(value)[0].encode("utf-16-le")) // 2
             expected = {first.json()["id"]: {"kind": "blank", "spans": [
                 {"number": 1, "start": start, "end": start + len(value.encode("utf-16-le")) // 2}]},
@@ -108,7 +130,7 @@ async def test_submission_snapshots_survive_template_changes_on_both_routes(clou
                     assert result.status_code == 200, result.text
                     items = result.json()["items"]
                     assert {i["id"]: i["submission_snapshot"] for i in items} == expected
-                    assert next(i["source"] for i in items if i["id"] == second.json()["id"]).endswith("\n")
+                    assert next(i["source"] for i in items if i["id"] == second.json()["id"]) == ctx["code"]
 
 
 @pytest.mark.asyncio

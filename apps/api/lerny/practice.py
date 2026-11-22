@@ -380,6 +380,7 @@ class Submission(Input):
 def submit(section_id: str, body: Submission, session: Db, actor: Actor,
            idempotency_key: str | None = Header(default=None)):
     section, plan, exercise = assigned(session, actor, section_id, body.exercise_id, body.plan_id)
+    source = body.source.strip() if exercise.kind == "full" else body.source
     if not body.source.strip():
         deny(422, "제출할 코드를 입력해 주세요.")
     if "[[빈칸]]" in body.source:
@@ -401,9 +402,9 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
             deny(409, "이전 제출의 검증을 기다려 주세요.")
         assisted = session.scalar(problem_help_events(actor.id, section_id, exercise)
                                   .with_only_columns(AuditEvent.id).limit(1))
-        snapshot = submission_snapshot(exercise.kind, student_exercise_template(exercise), body.source, body.editor)
+        snapshot = submission_snapshot(exercise.kind, student_exercise_template(exercise), source, body.editor)
         attempt = PracticeAttempt(student_id=actor.id, section_id=section_id, exercise_id=exercise.id,
-            practice_session_id=plan.id, source=body.source, submission_snapshot=snapshot, independent=assisted is None)
+            practice_session_id=plan.id, source=source, submission_snapshot=snapshot, independent=assisted is None)
         session.add(attempt)
         session.flush()
         job = Job(owner_id=actor.id, course_id=section.course_id, kind="practice_grade",
@@ -411,8 +412,9 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
         session.add(job)
         session.flush()
         attempt.job_id = job.id
-        return attempt_view(attempt)
+        return {**attempt_view(attempt), "source": attempt.source}
     payload = body.model_dump()
+    payload["source"] = source
     if body.editor is None:
         # Keep idempotency keys issued before the editor supplied template metadata.
         del payload["editor"]

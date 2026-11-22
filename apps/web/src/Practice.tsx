@@ -213,7 +213,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
       if (!await confirm({ title: "최종 제출할까요?", message: "제출한 코드는 변경할 수 없어요. 제출 후 내 코드를 확인하고 답지를 따라 써 볼 수 있어요.", confirmLabel: "제출하기", cancelLabel: "더 풀어 볼게요" })) return;
       const editor = { template: quiz.template, fills: isFull ? undefined : template.blanks.map(({ n }) => cleanFill(fills[n])) };
       const submitted = await api<PracticeAttempt>(`/sections/${sectionId}/practice/submit`, post({...practiceSubmitBody(quiz.id, source, editor), plan_id: archivePlan}));
-      setJustSubmitted(previous => ({ ...previous, [quiz.id]: { ...submitted, source } }));
+      setJustSubmitted(previous => ({ ...previous, [quiz.id]: { ...submitted, source: submitted.source ?? source } }));
       notifyPracticeSubmit();
       submissions.reload();
     } catch (e) { setSubmitError((e as Error).message); submissions.reload(); }
