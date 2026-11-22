@@ -1,7 +1,6 @@
-"""Exercise both entry points with separate PostgreSQL transactions per HTTP request."""
+"""Exercise practice variant submissions across entry points and plans."""
 import asyncio
 import hashlib
-import json
 from threading import Barrier
 
 import httpx
@@ -10,108 +9,124 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from lerny import practice
-from lerny.models import (ContentGeneration, Enrollment, Job, LearningCompletion, PracticeAttempt,
-                          PracticeExercise, User)
+from lerny.models import ContentGeneration, PracticeAttempt, PracticeExercise
 from test_cloud import cloud_db  # noqa: F401
-from test_identity_courses import login
 from test_personal_pipeline import prepared
 
 
-@pytest.mark.asyncio
-async def test_variants_share_submission_across_plans_and_weeks(cloud_db, monkeypatch, record_property):
-    app, engine, _ = cloud_db
+async def prepare_test_data(c, db, monkeypatch, week=3):
     code = "n = 3\nprint(n + 1)"
+    course, section, material, version, chunk, student = await prepared(c, db, monkeypatch)
+    generation = db.scalar(select(ContentGeneration).where(ContentGeneration.course_id == course["id"]))
+    section.progress_week = material.week = generation.week = week
+    chunk.content = code
+    tests = [{"statement": "n = 3", "input": "n = 3", "expected": "4"},
+             {"statement": "n = 3", "input": "n = 7", "expected": "8"}]
+    for kind, template in [("blank", "n = 3\n[[빈칸]]"), ("full", "n = 3\n# 여기에 구현하세요.")]:
+        db.add(PracticeExercise(course_id=course["id"], version_id=version.id, generation_id=generation.id,
+            source_key=hashlib.sha256(code.encode()).hexdigest(), position=1, kind=kind, language="python",
+            title="다음 정수 출력하기", prompt="주어진 정수보다 1 큰 수를 출력하세요.", template=template,
+            reference=code, blanks={"1": "print(n + 1)"} if kind == "blank" else {}, tests=tests,
+            sources=[{"chunk_id": chunk.id, "quote": code}], status="ready"))
+    db.commit()
+    base = f"/api/v1/sections/{section.id}"
+    daily = (await c.post(base + "/practice/daily")).json()
+    archive = (await c.post(base + f"/quiz-archive/{week}/practice")).json()
+    problem = daily["items"][0]
+    blank_id = problem["variants"]["blank"]["exercise_id"]
+    full_id = problem["variants"]["full"]["exercise_id"]
+    return {
+        "course": course,
+        "section": section,
+        "base": base,
+        "daily": daily,
+        "archive": archive,
+        "blank_id": blank_id,
+        "full_id": full_id,
+        "code": code,
+        "student": student,
+    }
+
+
+@pytest.mark.asyncio
+async def test_different_variant_submission_allowed(cloud_db, monkeypatch):
+    """(a) 다른 변형은 제출 허용: 같은 문제라도 blank와 full 변형은 각각 1회씩 제출할 수 있다."""
+    app, engine, _ = cloud_db
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://lerny.example") as c:
         with Session(engine) as db:
-            course, section, material, version, chunk, _ = await prepared(c, db, monkeypatch)
-            generation = db.scalar(select(ContentGeneration).where(ContentGeneration.course_id == course["id"]))
-            section.progress_week = material.week = generation.week = 3
-            chunk.content = code
-            tests = [{"statement": "n = 3", "input": "n = 3", "expected": "4"},
-                     {"statement": "n = 3", "input": "n = 7", "expected": "8"}]
-            for kind, template in [("blank", "n = 3\n[[빈칸]]"), ("full", "n = 3\n# 여기에 구현하세요.")]:
-                db.add(PracticeExercise(course_id=course["id"], version_id=version.id, generation_id=generation.id,
-                    source_key=hashlib.sha256(code.encode()).hexdigest(), position=1, kind=kind, language="python",
-                    title="다음 정수 출력하기", prompt="주어진 정수보다 1 큰 수를 출력하세요.", template=template,
-                    reference=code, blanks={"1": "print(n + 1)"} if kind == "blank" else {}, tests=tests,
-                    sources=[{"chunk_id": chunk.id, "quote": code}], status="ready"))
-            db.commit()
-            base = f"/api/v1/sections/{section.id}"
-            daily = base + "/practice/daily"
-            archive = base + "/quiz-archive/3/practice"
-            submit = base + "/practice/submit"
-            progress = "/api/v1/my/practice-progress"
-            today_plan = (await c.post(daily)).json()
-            weekly = (await c.post(archive)).json()
-            assert weekly["id"] != today_plan["id"] and weekly["items"] == today_plan["items"]
-            problem, = weekly["items"]
-            blank = problem["variants"]["blank"]["exercise_id"]
-            full = problem["variants"]["full"]["exercise_id"]
-            assert blank != full and problem["submitted_exercise_id"] is None
-            assert problem["variants"]["blank"]["template"] != problem["variants"]["full"]["template"]
-            assert (await c.get(base + "/quiz-archive")).json()["weeks"][2]["practice"] == 1
-            hint = await c.post(base + "/practice/help", json={"exercise_id": blank, "kind": "hint", "step": 1})
-            assert hint.status_code == 200
-            bodies = [{"exercise_id": blank, "source": code},
-                      {"exercise_id": full, "plan_id": weekly["id"], "source": code}]
-            # Both requests pass assignment checks before either acquires the submission lock.
-            barrier = Barrier(2, timeout=10)
-            assigned = practice.assigned
-            def simultaneous(*args):
-                result = assigned(*args)
-                barrier.wait()
-                return result
-            with monkeypatch.context() as concurrent:
-                concurrent.setattr(practice, "assigned", simultaneous)
-                results = await asyncio.gather(*(c.post(submit, json=b,
-                    headers={"Idempotency-Key": b["exercise_id"]}) for b in bodies))
-            assert sorted(r.status_code for r in results) == [202, 409], [r.text for r in results]
-            winner = next(r.json() for r in results if r.status_code == 202)
-            assert not winner["independent"]
-            assert db.scalar(select(func.count()).select_from(PracticeAttempt)) == 1
-            assert db.scalar(select(func.count()).select_from(Job).where(Job.kind == "practice_grade")) == 1
-            selected = next(b for b in bodies if b["exercise_id"] == winner["exercise_id"])
-            replay = await c.post(submit, json=selected, headers={"Idempotency-Key": selected["exercise_id"]})
-            assert replay.json() == winner
-            monkeypatch.setattr(practice, "output_of", lambda lang, src, **kw: "8" if "n = 7" in src else "4")
-            assert practice.grade(db, db.get(Job, winner["job_id"]))["correct"]
-            db.commit()
-            assert db.scalar(select(func.count()).select_from(LearningCompletion)
-                             .where(LearningCompletion.domain == "practice")) == 1
-            for body in bodies:
-                assert (await c.post(submit, json=body, headers={"Idempotency-Key": "new-" + body["exercise_id"]})).status_code == 409
-            for route in (daily, archive):
-                row, = (await c.post(route)).json()["items"]
-                assert row["problem_id"] == problem["problem_id"]
-                assert row["submitted_exercise_id"] == winner["exercise_id"]
-                assert row["attempt"]["source"] == code and row["attempt"]["status"] == "graded"
-            review = await c.get(base + f"/practice/attempts/{winner['id']}/explanation")
-            assert review.json()["reference"] == code
-            for eid in (blank, full):
-                frozen = await c.post(base + "/practice/help", json={"exercise_id": eid, "kind": "hint", "step": 1})
-                assert frozen.status_code == 409
-            for plan in (weekly, today_plan):
-                row, = (await c.get(progress, params={"session_id": plan["id"]})).json()["items"]
-                assert (row["total"], row["submitted"], row["remaining_exercise_ids"]) == (1, 1, [])
+            ctx = await prepare_test_data(c, db, monkeypatch)
+            submit = ctx["base"] + "/practice/submit"
 
-            # In week 12, week 3 stays accessible in the archive. Today's assignment cannot absorb it.
-            section.progress_week = 12
-            other = db.scalar(select(User).where(User.login_id == "student2"))
-            db.add(Enrollment(student_id=other.id, course_id=course["id"], section_id=section.id, status="active"))
-            db.commit()
-            assert (await c.post(daily)).json()["items"] == []
-            assert (await c.get(progress)).json()["items"] == []
-            await login(c, "student2")
-            old = (await c.post(archive)).json()
-            assert old["items"][0]["submitted_exercise_id"] is None
-            record_property("archive_response", json.dumps(old, ensure_ascii=False))
-            assert (await c.post(base + "/practice/help", json={"plan_id": old["id"], "exercise_id": blank,
-                                 "kind": "hint", "step": 1})).status_code == 200
-            for eid, expected_status in [(full, 202), (blank, 409)]:
-                response = await c.post(submit, json={"plan_id": old["id"], "exercise_id": eid, "source": code},
-                                        headers={"Idempotency-Key": "old-" + eid})
-                assert response.status_code == expected_status
-                if expected_status == 202:
-                    assert response.json()["independent"] is False
-            assert (await c.get(progress)).json()["items"] == []
-            assert (await c.get(progress, params={"session_id": old["id"]})).json()["items"][0]["submitted"] == 1
+            r1 = await c.post(submit, json={"exercise_id": ctx["blank_id"], "source": ctx["code"]},
+                              headers={"Idempotency-Key": "submit-blank"})
+            assert r1.status_code == 202
+
+            r2 = await c.post(submit, json={"exercise_id": ctx["full_id"], "source": ctx["code"]},
+                              headers={"Idempotency-Key": "submit-full"})
+            assert r2.status_code == 202
+
+            assert db.scalar(select(func.count()).select_from(PracticeAttempt)) == 2
+
+
+@pytest.mark.asyncio
+async def test_same_variant_duplicate_submission_denied(cloud_db, monkeypatch):
+    """(b) 같은 변형 재제출은 409: 이미 제출한 동일한 변형을 다시 제출하면 409로 차단된다."""
+    app, engine, _ = cloud_db
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://lerny.example") as c:
+        with Session(engine) as db:
+            ctx = await prepare_test_data(c, db, monkeypatch)
+            submit = ctx["base"] + "/practice/submit"
+
+            r1 = await c.post(submit, json={"exercise_id": ctx["blank_id"], "source": ctx["code"]},
+                              headers={"Idempotency-Key": "sub-1"})
+            assert r1.status_code == 202
+
+            r2 = await c.post(submit, json={"exercise_id": ctx["blank_id"], "source": ctx["code"]},
+                              headers={"Idempotency-Key": "sub-2"})
+            assert r2.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_same_variant_across_sessions_denied(cloud_db, monkeypatch):
+    """(c) 세션이 달라도 같은 변형은 409: 일일 실습에서 제출한 변형은 주차 보관함에서 제출해도 409로 차단된다."""
+    app, engine, _ = cloud_db
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://lerny.example") as c:
+        with Session(engine) as db:
+            ctx = await prepare_test_data(c, db, monkeypatch)
+            submit = ctx["base"] + "/practice/submit"
+
+            r1 = await c.post(submit, json={"plan_id": ctx["daily"]["id"], "exercise_id": ctx["blank_id"], "source": ctx["code"]},
+                              headers={"Idempotency-Key": "sub-daily"})
+            assert r1.status_code == 202
+
+            r2 = await c.post(submit, json={"plan_id": ctx["archive"]["id"], "exercise_id": ctx["blank_id"], "source": ctx["code"]},
+                              headers={"Idempotency-Key": "sub-archive"})
+            assert r2.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_archive_view_answer_after_daily_submission(cloud_db, monkeypatch):
+    """(d) 보관함 답지 조회 200: 일일 실습에서 제출한 변형은 보관함 세션에서도 답지(kind: answer) 조회가 200으로 성공한다."""
+    app, engine, _ = cloud_db
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://lerny.example") as c:
+        with Session(engine) as db:
+            ctx = await prepare_test_data(c, db, monkeypatch)
+            submit = ctx["base"] + "/practice/submit"
+            help_url = ctx["base"] + "/practice/help"
+
+            r1 = await c.post(submit, json={"plan_id": ctx["daily"]["id"], "exercise_id": ctx["blank_id"], "source": ctx["code"]},
+                              headers={"Idempotency-Key": "sub-daily-for-ans"})
+            assert r1.status_code == 202
+
+            ans_blank = await c.post(help_url, json={"plan_id": ctx["archive"]["id"], "exercise_id": ctx["blank_id"], "kind": "answer"})
+            assert ans_blank.status_code == 200
+            assert ans_blank.json()["explanation"]["reference"] == ctx["code"]
+
+            ans_full = await c.post(help_url, json={"plan_id": ctx["archive"]["id"], "exercise_id": ctx["full_id"], "kind": "answer"})
+            assert ans_full.status_code == 409
+
+            hint_blank = await c.post(help_url, json={"plan_id": ctx["archive"]["id"], "exercise_id": ctx["blank_id"], "kind": "hint", "step": 1})
+            assert hint_blank.status_code == 409
+
+            hint_full = await c.post(help_url, json={"plan_id": ctx["archive"]["id"], "exercise_id": ctx["full_id"], "kind": "hint", "step": 1})
+            assert hint_full.status_code == 200

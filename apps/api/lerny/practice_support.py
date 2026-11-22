@@ -87,11 +87,17 @@ def help_state(session, actor, plan, exercise):
     wrong = list(session.scalars(select(PracticeAttempt.id).where(PracticeAttempt.student_id == actor.id,
         PracticeAttempt.exercise_id == exercise.id, PracticeAttempt.practice_session_id == plan.id,
         PracticeAttempt.status == "graded", PracticeAttempt.correct.is_(False))))
-    first = first_problem_attempts(session, actor.id, plan.section_id, [exercise.problem_id]).get(exercise.problem_id)
-    submitted_id = first.exercise_id if first else None
+    attempt = session.scalar(
+        select(PracticeAttempt).where(
+            PracticeAttempt.student_id == actor.id,
+            PracticeAttempt.section_id == plan.section_id,
+            PracticeAttempt.exercise_id == exercise.id,
+        ).order_by(PracticeAttempt.created_at.asc()).limit(1)
+    )
+    submitted_id = attempt.exercise_id if attempt else None
     return {"hints_used": used, "hints": steps[:used], "max_hint_steps": len(steps),
             "failed_attempts": len(wrong), "can_view_answer": submitted_id == exercise.id,
-            "submitted_exercise_id": submitted_id, "independent": first.independent if first else not bool(events)}
+            "submitted_exercise_id": submitted_id, "independent": attempt.independent if attempt else not bool(events)}
 
 
 def format_inline_comment(line: str) -> str:
