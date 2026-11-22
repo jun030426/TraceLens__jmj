@@ -12,6 +12,77 @@ from test_personal_pipeline import prepared
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("personalized", [True, False])
+async def test_current_week_only_preserves_existing_assignment_on_same_day_publication(app_db, monkeypatch, personalized):
+    from lerny.config import settings
+    from lerny.models import Chunk, DailyPlan, Material, MaterialVersion, Question
+    from publication_fixtures import published
+
+    app, db = app_db
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        course, section, material, _, _, student = await prepared(client, db, monkeypatch)
+        monkeypatch.setattr(settings(), "automatic_learning_enabled", personalized)
+        day = today()
+        section.progress_mode = "auto"
+        section.week_schedule = [{"week": 4, "date": (day - timedelta(weeks=8)).isoformat()},
+                                 {"week": 12, "date": day.isoformat()}]
+        older = db.scalar(select(ContentGeneration).where(ContentGeneration.course_id == course["id"]))
+        older.week = material.week = 4
+        question = db.scalar(select(Question).where(Question.generation_id == older.id, Question.kind == "mcq"))
+        stale = LearningSession(student_id=student.id, section_id=section.id, day=day, question_ids=[question.id])
+        db.add(stale)
+        db.add(DailyPlan(student_id=student.id, section_id=section.id, day=day, week=4, day_index=7, context={}))
+        db.flush()
+        db.add(Attempt(student_id=student.id, section_id=section.id, learning_session_id=stale.id,
+                       concept_id=question.concept_id, question_id=question.id, answer="0", status="graded", correct=True))
+        db.commit()
+        base = f"/api/v1/sections/{section.id}"
+        progress = "/api/v1/my/learning-sessions?today_only=true"
+        archive = base + "/quiz-archive/4/days"
+        empty = (await client.post(base + "/daily")).json()
+        assert empty["week"] == 12 and empty["items"] == [] and "12주차" in empty["message"]
+        assert (await client.get(progress)).json()["total"] == 0
+        assert (await client.get(archive)).json()["days"][-1]["session_id"] == stale.id
+
+        # Publishing later on the same KST date must keep the already-submitted answer.
+        current = Material(course_id=course["id"], title="12주차", kind="lecture", week=12, visibility="public")
+        db.add(current)
+        db.flush()
+        version = MaterialVersion(material_id=current.id, version_no=1, filename="new.txt", object_key="new",
+                                  sha256="1" * 64, status="ready")
+        db.add(version)
+        db.flush()
+        current.active_version_id = version.id
+        chunk = Chunk(version_id=version.id, content="12주차 근거 문장", locator={"page": 1})
+        db.add(chunk)
+        db.flush()
+        fresh = Question(course_id=course["id"], concept_id=question.concept_id, kind="mcq", prompt="12주차 문제",
+                         options=question.options, solution=question.solution, sources=[{"chunk_id": chunk.id, "quote": chunk.content}])
+        db.add(fresh)
+        published(db, course["id"], week=12, concept_ids=[question.concept_id])
+        db.commit()
+        assert (await client.get(progress)).json()["items"] == []
+        active = (await client.post(base + "/daily")).json()
+        assert active["week"] == 12 and [q["id"] for q in active["items"]] == [fresh.id]
+        assert (await client.post(base + "/daily")).json() == active
+        records = (await client.get(progress)).json()
+        assert records["total"] == 1 and records["items"][0]["answered"] == 0
+        saved = (await client.post(archive + "/7", params={"session_id": stale.id})).json()
+        assert saved["items"][0]["submitted_answer"] == question.options[0] and saved["items"][0]["explanation"]
+        assert (await client.get(archive)).json()["days"][-1]["submitted"] == 1
+        assert (await client.get("/api/v1/my/learning-sessions")).json()["total"] == 2
+        # Historical mixed assignments can carry the current plan week.
+        mixed = db.get(LearningSession, active["id"])
+        mixed.question_ids = [fresh.id, question.id]
+        db.commit()
+        assert (await client.get(progress)).json()["items"] == []
+        replacement = (await client.post(base + "/daily")).json()
+        assert replacement["id"] != mixed.id and [q["id"] for q in replacement["items"]] == [fresh.id]
+        archived = (await client.post(base + "/quiz-archive/12/days/1", params={"session_id": mixed.id})).json()
+        assert [q["id"] for q in archived["items"]] == [fresh.id, question.id]
+
+
+@pytest.mark.asyncio
 async def test_archive_opens_all_exercises_and_first_answers_are_read_only(app_db, monkeypatch):
     app, db = app_db
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:

@@ -14,6 +14,7 @@ from lerny.models import (
     MaterialVersion,
     Question,
     Review,
+    Section,
 )
 from sqlalchemy import select
 from test_identity_courses import login, setup_course
@@ -83,6 +84,8 @@ async def seed(client, session, *, legacy_session=False):
     response = await client.put(f"/api/v1/sections/{section['id']}/progress",
         headers={"If-Match":"1"},json={"concept_ids":[concept["id"]]})
     assert response.status_code==200,response.text
+    session.get(Section, section["id"]).progress_week = 1
+    session.commit()
     code = (await client.post(f"/api/v1/sections/{section['id']}/join-code", json={})).json()[
         "join_code"
     ]
@@ -171,7 +174,9 @@ async def test_source_revocation_blocks_question_and_statistics_access(app_db):
         )
         assert response.status_code == 409
         redacted = (await c.post(f"/api/v1/sections/{section['id']}/daily")).json()
-        assert all(q["status"] == "unavailable" and "options" not in q for q in redacted["items"])
+        assert redacted["status"] == "empty" and redacted["items"] == []
+        saved = (await c.get(f"/api/v1/learning-sessions/{daily['id']}")).json()
+        assert saved["items"] and all(q["status"] == "unavailable" and "options" not in q for q in saved["items"])
         await login(c, "teacher2")
         assert (await c.get(f"/api/v1/courses/{course['id']}/questions")).status_code == 404
 

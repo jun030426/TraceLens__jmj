@@ -16,7 +16,6 @@ def test_rotation_continues_past_seven_and_covers_all_concepts(api, monkeypatch)
     for cid in ids: db.add(Concept(id=cid, course_id="course", name=cid))
     section = Section(id="rotation", course_id="course", title="rotation", progress=ids, progress_mode="manual", progress_week=2)
     db.add(section); db.flush()
-    monkeypatch.setattr(personalized, "calendar_week", lambda *a: 12)
     monkeypatch.setattr(personalized, "weekly_content", lambda *a: {2: ids, 3: ["future"]})
     monkeypatch.setattr(personalized, "section_schedule", lambda *a: [{"week":2,"date":"2026-09-07"}])
     days = [personalized.learning_context(db, section, "student", date(2026,11,18)+timedelta(days=i)) for i in range(18)]
