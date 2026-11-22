@@ -13,6 +13,7 @@ const names: Record<string, string> = {
   material: "자료·학습",
   code: "코드 실행",
   video: "영상",
+  interactive: "학생 채팅·채점",
 };
 const labels: Record<string, string> = {
   online: "정상",

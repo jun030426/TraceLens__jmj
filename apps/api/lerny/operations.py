@@ -13,6 +13,7 @@ from lerny.admin_models import OperationsState, OperationsWorker
 from lerny.config import settings
 from lerny.models import CodeRun, ConceptVideo, Job, ModelCall, now
 
+REQUIRED_WORKER_KINDS = ("material", "code", "video", "interactive")
 FEATURES = ("uploads", "rag", "grading", "content", "videos")
 JOB_FEATURE = {
     "material_preview": "uploads",
@@ -195,4 +196,4 @@ def workers_ready(session, since=None):
     if settings().admin_instance_id:
         query = query.where(OperationsWorker.server_id == settings().admin_instance_id)
     kinds = set(session.scalars(query))
-    return {"material", "code", "video"}.issubset(kinds)
+    return set(REQUIRED_WORKER_KINDS).issubset(kinds)

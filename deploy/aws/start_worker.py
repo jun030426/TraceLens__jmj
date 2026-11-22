@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 kind = sys.argv[1]
-if kind not in {"code", "material", "embedding", "video"}:
+if kind not in {"code", "material", "embedding", "interactive", "video"}:
     raise SystemExit(2)
 config = json.loads(Path("/etc/lerny/worker.json").read_text())
 os.environ.update(config)
@@ -18,6 +18,6 @@ os.setuid(account.pw_uid)
 os.environ["HOME"] = account.pw_dir
 os.environ["PYTHONPATH"] = "/opt/lerny/current/apps/api"
 os.chdir(account.pw_dir)
-module = {"code": "lerny.tracing.cloud_worker", "material": "lerny.material_daemon", "embedding": "lerny.material_daemon", "video": "lerny.video_worker"}[kind]
+module = {"code": "lerny.tracing.cloud_worker", "video": "lerny.video_worker"}.get(kind, "lerny.material_daemon")
 python = "/opt/lerny/venv/bin/python"
-os.execv(python, [python, "-m", module, *(["embedding"] if kind == "embedding" else [])])
+os.execv(python, [python, "-m", module, *([kind] if module == "lerny.material_daemon" else [])])

@@ -44,7 +44,7 @@ def learning_status(schema_revision: str):
                 operations = "ready"
                 if config.deployment == "cloud":
                     query = select(OperationsWorker.id).where(
-                        OperationsWorker.kind == "material", OperationsWorker.ready.is_(True),
+                        OperationsWorker.kind == "interactive", OperationsWorker.ready.is_(True),
                         OperationsWorker.last_seen_at > now() - timedelta(seconds=90))
                     if config.admin_instance_id:
                         query = query.where(OperationsWorker.server_id == config.admin_instance_id)

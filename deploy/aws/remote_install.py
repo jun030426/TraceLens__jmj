@@ -39,7 +39,7 @@ if temporary.is_symlink():
     temporary.unlink()
 temporary.symlink_to(release, target_is_directory=True)
 temporary.replace(current)
-for name in ["lerny-code", "lerny-material", "lerny-embedding", "lerny-video"]:
+for name in ["lerny-code", "lerny-material", "lerny-embedding", "lerny-interactive", "lerny-video"]:
     unit = release / "deploy/aws" / (name + ".service")
     Path("/etc/systemd/system", unit.name).write_bytes(unit.read_bytes())
 subprocess.run(["systemctl", "daemon-reload"], check=True)
