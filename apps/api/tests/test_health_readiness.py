@@ -35,7 +35,7 @@ def service(monkeypatch):
     monkeypatch.setattr(queue, "engine", lambda: engine)
     with Session(engine) as session:
         session.add_all([OperationsState(id=1), CodeWorker(id="sandbox", ready=True, last_seen_at=now()),
-                         OperationsWorker(id="material", kind="material", server_id="test-instance", ready=True)])
+                         OperationsWorker(id="interactive", kind="interactive", server_id="test-instance", ready=True)])
         session.commit()
         with TestClient(create_app()) as client:
             yield client, session, config, engine
@@ -61,6 +61,7 @@ def test_online_is_ready_without_ai_calls_or_database_writes(service):
     try:
         state = check(client, 200, None, True, True)
         assert state["status"] == "ready"
+        assert state["dependencies"]["grading_worker"] == "ready"
         assert state["dependencies"]["local_model"] == "gemini_paused"
         assert client.get("/api/v1/health/ready").status_code == 200
     finally:
@@ -81,12 +82,23 @@ def test_offline_or_stale_sandbox_is_partial_learning(service, ready, age):
 @pytest.mark.parametrize("change", ["stale", "not_ready", "wrong_server"])
 def test_grading_worker_must_be_recent_and_from_configured_server(service, change):
     client, session, _, _ = service
-    worker = session.get(OperationsWorker, "material")
+    worker = session.get(OperationsWorker, "interactive")
     if change == "stale": worker.last_seen_at = now() - timedelta(seconds=120)
     elif change == "not_ready": worker.ready = False
     else: worker.server_id = "unrelated"
     session.commit()
     check(client, 503, "grading_worker_offline", True, True)
+
+
+@pytest.mark.parametrize("material_present", [False, True], ids=["no-worker", "material-only"])
+def test_grading_offline_without_interactive_worker(service, material_present):
+    client, session, _, _ = service
+    session.delete(session.get(OperationsWorker, "interactive"))
+    if material_present:
+        session.add(OperationsWorker(id="material", kind="material", server_id="test-instance", ready=True))
+    session.commit()
+    state = check(client, 503, "grading_worker_offline", True, True)
+    assert state["dependencies"]["grading_worker"] == "offline"
 
 
 @pytest.mark.parametrize("flag,reason,execution", [
