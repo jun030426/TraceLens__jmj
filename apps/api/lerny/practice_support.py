@@ -261,11 +261,16 @@ def full_answer_on_template(exercise) -> str:
     reference = (exercise.reference or "").replace("\r\n", "\n")
     template_lines = (exercise.template or "").replace("\r\n", "\n").rstrip().split("\n")
     comment = "#" if exercise.language == "python" else "//"
-    starter = [line.strip() for line in template_lines if line.strip() and not line.strip().startswith(comment)]
     lines = reference.split("\n")
+    # 시작 코드는 보통 모범 코드의 앞부분 그대로예요. 원문 맨 위의 설명 주석 줄도 여기에 들어 있어요.
     index = 0
+    while (index < len(template_lines) and index < len(lines)
+           and template_lines[index].rstrip() == lines[index].rstrip()):
+        index += 1
+    starter = [line.strip() for line in template_lines[index:]
+               if line.strip() and not line.strip().startswith(comment)]
     for expected in starter:
-        while index < len(lines) and not lines[index].strip():
+        while index < len(lines) and (not lines[index].strip() or lines[index].strip().startswith(comment)):
             index += 1
         if index >= len(lines) or lines[index].strip() != expected:
             return reference  # 시작 코드가 모범 코드의 앞부분이 아니면 원문 그대로 둡니다.

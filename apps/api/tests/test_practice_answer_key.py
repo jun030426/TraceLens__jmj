@@ -47,6 +47,25 @@ def test_full_answer_starts_below_the_starter_comment():
     assert copy[3] == "# 계산과 출력을 구현하세요." and copy[4].startswith("if score")
 
 
+def test_full_answer_lines_up_when_the_source_opens_with_a_comment():
+    # Lecture code often opens with its own comment. The starter repeats it above the input lines.
+    head = "# 실수형 점수를 키보드로 입력 받아 해당 점수의 학점이 출력되도록 프로그램 하세요.\n\nscore = 85.5\n"
+    body = ('if score >= 70 and score<80:\n    grade = "C"\nelif score >= 80 and score<90:\n    grade = "B"\n'
+            'else:\n    grade = "F"\nprint(grade)')
+    starter = head + "\n# 계산과 출력을 구현하세요.\n"
+    answer, = answer_key(exercise(kind="full", reference=head + "\n" + body, template=starter))
+    editor, copy = starter.split("\n"), answer.split("\n")
+    assert copy[:5] == editor[:5] and editor[5] == ""
+    assert copy[4] == "# 계산과 출력을 구현하세요." and copy[5:] == body.split("\n")
+    # A comment the source keeps between the inputs and the body stays with the body.
+    noted = head + "\n# 학점 판정\n" + body
+    answer, = answer_key(exercise(kind="full", reference=noted, template=starter))
+    assert answer.split("\n")[4:7] == ["# 계산과 출력을 구현하세요.", "# 학점 판정", "if score >= 70 and score<80:"]
+    # Starter lines that follow a comment missing from the starter are still found in order.
+    answer, = answer_key(exercise(kind="full", reference="# 설명\nn = 3\nprint(n + 1)", template="n = 3\n# 구현하세요."))
+    assert answer == "n = 3\n# 구현하세요.\nprint(n + 1)"
+
+
 def test_full_answer_keeps_the_reference_when_the_starter_is_not_its_prefix():
     assert full_answer_on_template(exercise(kind="full", template="total = 0\n# 구현하세요.")) == REFERENCE
     assert full_answer_on_template(exercise(kind="full", template="")) == REFERENCE
