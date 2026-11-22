@@ -36,6 +36,16 @@ def test_blank_answers_follow_blank_numbers_whatever_the_stored_key_order():
     assert answer_key(stored) == ["if score >= 60 and attendance >= 80:", 'result = "합격"']
 
 
+def test_solving_hides_comments_and_answer_explains_each_blank():
+    from lerny.practice_support import explanation
+
+    template = '# 해설\nn = 3\nlabel = "#1"\n[[빈칸]]  # 첫 연산\n[[빈칸]]'
+    stored = exercise(template=template, blanks={"1": "a = n + 1  # 하나 더하기", "2": "b = a * 2  # 두 배"})
+    assert student_exercise_template(stored) == 'n = 3\nlabel = "#1"\n[[빈칸]]\n[[빈칸]]'
+    assert explanation(stored)["blank_comments"] == {"1": "하나 더하기", "2": "두 배"}
+    assert stored.template == template
+
+
 def test_full_answer_starts_below_the_starter_comment():
     starter = "score = 85\nattendance = 90\n\n# 계산과 출력을 구현하세요.\n"
     full = exercise(kind="full", template=starter)

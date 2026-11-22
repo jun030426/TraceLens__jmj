@@ -1,5 +1,4 @@
-import { SubmittedFullCode } from "./SubmittedFullCode";
-import { SubmittedBlankCode } from "./SubmittedBlankCode";
+import { SubmittedCode, type SubmissionSnapshot } from "./SubmittedCode";
 import { archivePath } from "./QuizArchive";
 import { notifyPracticeSubmit } from "./xp/practiceXp";
 import { isComposingInput } from "./inputKeyboard";
@@ -49,7 +48,7 @@ function PracticeOutput({ tab, run, stage, code, incomplete, blankLines = [], fi
   // 오래된 기록 안내(stale)·오류·부분 기록 안내는 시각화 호스트가 보여 줘요
   return <div className="practice-run"><Suspense fallback={<Notice>시각화 화면을 불러오는 중이에요…</Notice>}><CodeTracePlayer trace={run.trace} source={run.code} stale={run.code !== code} /></Suspense></div>;
 }
-type PracticeAttempt = { id: string; practice_session_id: string; exercise_id: string; status: string; correct: boolean | null; independent: boolean; source?: string; created_at: string; job_id?: string; feedback?: { message: string; passed?: number; total?: number }; exercise?: { title: string; kind: string } | null };
+type PracticeAttempt = { id: string; practice_session_id: string; exercise_id: string; status: string; correct: boolean | null; independent: boolean; source?: string; submission_snapshot?: SubmissionSnapshot | null; created_at: string; job_id?: string; feedback?: { message: string; passed?: number; total?: number }; exercise?: { title: string; kind: string } | null };
 type PracticeKind = "blank" | "full";
 type PracticeProblem = BlankQuiz & {
   problem_id?: string;
@@ -263,9 +262,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   const shownViz = resultTab === "시각화" && run?.kind === "ran" && run.code === runnable.code ? vizLine : null;
   // 코드를 실행하면 편집기의 코드 줄마다 바로 위에 설명 주석을 붙인다 (문제 코드는 그대로, 화면에만).
   // 빈칸을 고치면 실행한 코드와 달라지므로 다시 실행할 때까지 숨긴다.
-  const commentsOn = userRan && !!run && run.code === runnable.code;
-  const lineComments = useMemo(() => (commentsOn ? runnable.code.split("\n").map(l => lineComment(l) || null) : null), [commentsOn, runnable.code]);
-  const commentMark = language === "Python" ? "#" : "//";
+
   // 자동수정 안내는 학생이 실행한 뒤에만 — 고칠 곳을 학생이 직접 따라 쓰면 사라져요. 답지를 켜면 답지가 우선이에요.
   const fixShown = isFull && userRan && !!fix?.fixes.length;
   const chatContext = useMemo<PracticeChatContext>(() => ({ exerciseId: quiz.id, number: current + 1, language, title: quiz.title, description: quiz.description, template, fills, verdict, viz: shownViz, week: week ? Number(week) : room.current_week }), [week, language, quiz.id, quiz.title, quiz.description, current, template, fills, verdict, shownViz, room?.current_week]);
@@ -330,7 +327,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
             <p id="practice-answer-rule" className="practice-answer-rule">{kinds.length > 1 ? "빈칸 채우기와 전체 구현은 각각 한 번씩 최종 제출할 수 있어요." : "한 번만 최종 제출할 수 있어요."} 제출 후 답지를 따라 써 볼 수 있어요.</p>
   <div className="practice-file-bar"><span>{language === "Python" ? "main.py" : language === "Java" ? "Main.java" : "main.c"}</span><span aria-live="polite">{saved || (isFull ? `${fullCode.split("\n").length}줄` : `빈칸 ${filledCount}/${template.blanks.length} 채움`)}</span></div>
   
-            {isFull ? <CodeEditor value={fullCode} onChange={v => fill(0, v)} onCommit={() => { setUserRan(true); setCommitted({ code: runnable.code, stopLines: {} }); }} ghost={fixShown ? fix!.code : undefined} fixes={fixShown ? fix!.fixes : undefined} vizLine={shownViz} label={`${language} 코드 작성`} syntax={syntaxIssue} /> : <BlankEditor template={template} fills={fills} onFill={fill} onCommit={() => { setUserRan(true); setCommitted({ code: runnable.code, stopLines: runnable.stopLines }); }} stopBlank={userRan && resultTab === "시각화" && vizLine?.kind === "blank" && run?.kind === "ran" && run.code === runnable.code ? run.blankStop?.blank : undefined} vizLine={shownViz} badBlanks={badBlanks} syntax={syntaxIssue} comments={lineComments} commentMark={commentMark} />}
+            {isFull ? <CodeEditor value={fullCode} onChange={v => fill(0, v)} onCommit={() => { setUserRan(true); setCommitted({ code: runnable.code, stopLines: {} }); }} ghost={fixShown ? fix!.code : undefined} fixes={fixShown ? fix!.fixes : undefined} vizLine={shownViz} label={`${language} 코드 작성`} syntax={syntaxIssue} /> : <BlankEditor template={template} fills={fills} onFill={fill} onCommit={() => { setUserRan(true); setCommitted({ code: runnable.code, stopLines: runnable.stopLines }); }} stopBlank={userRan && resultTab === "시각화" && vizLine?.kind === "blank" && run?.kind === "ran" && run.code === runnable.code ? run.blankStop?.blank : undefined} vizLine={shownViz} badBlanks={badBlanks} syntax={syntaxIssue} />}
             {syntaxIssue && <p className="practice-syntax-note" role="status"><b>✕ {syntaxIssue.line ? `${syntaxIssue.line}번째 줄` : "문법"}</b> {syntaxIssue.message} <span>· 문법 오류는 시도 횟수에 들어가지 않아요</span></p>}
             {fixShown && <button type="button" disabled={!!stage || submitting} onClick={() => { fill(0, fix!.code); resetRun(); setCommitted(null); setUserRan(false); }}>수정안 적용하기</button>}
             <div id="practice-vartable-slot" className="practice-vartable-slot" />
@@ -360,7 +357,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
         {(editable || latest) && <section className="practice-output-panel"><div className="practice-output-tabs" role="tablist" aria-label="결과 보기">{(latest ? ["내 제출 코드", "실행 결과", "시각화"] : ["실행 결과", "시각화"]).map(t => <button role="tab" id={`practice-tab-${t}`} aria-selected={resultTab === t} aria-controls="practice-output" key={t} onClick={() => setResultTab(t)}>{t}</button>)}</div>
           <div id="practice-output" role="tabpanel" aria-labelledby={`practice-tab-${resultTab}`} aria-live="polite" className="practice-output-body">
             {latest && resultTab === "내 제출 코드" && <section className="practice-explanation" aria-label="내 제출 코드">
-              <pre className="practice-submitted-code"><code>{isFull ? <SubmittedFullCode source={latest.source ?? ""} starter={quiz.template} /> : <SubmittedBlankCode source={latest.source ?? ""} template={template} />}</code></pre>
+              <pre className="practice-submitted-code"><code><SubmittedCode source={latest.source ?? ""} snapshot={latest.submission_snapshot} /></code></pre>
             </section>}
             {resultTab !== "내 제출 코드" && <VizLineContext.Provider value={setVizLine}><PracticeOutput tab={resultTab} run={run} stage={stage} code={copyRan ? run?.code ?? "" : runnable.code} incomplete={!copyRan && runnable.unfilled.length > 0} blankLines={template.blanks} fixes={!copyRan && fixShown ? fix!.fixes : undefined} /></VizLineContext.Provider>}
             {resultTab === "시각화" && latest?.source && !stage && (run?.kind !== "ran" || !run.trace) &&
@@ -438,7 +435,8 @@ function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, isFull, la
   onRun: (code: string, stopLines: Record<number, number>) => void;
 }) {
   const [showAnswer, setShowAnswer] = useState(true);
-  const [answers, setAnswers] = useState<string[]>();
+  const [answer, setAnswer] = useState<{ answers: string[]; explanation?: { blank_comments?: Record<string, string> } }>();
+  const answers = answer?.answers;
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const [copyCode, setCopyCode] = useState(starter);
@@ -447,12 +445,12 @@ function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, isFull, la
   useEffect(() => {
     let active = true;
     setError("");
-    api<{ answers?: string[] }>(`/sections/${sectionId}/practice/help`, post({
+    api<NonNullable<typeof answer>>(`/sections/${sectionId}/practice/help`, post({
       exercise_id: exerciseId, plan_id: planId, kind: "answer",
     })).then(result => {
       if (!active) return;
       if (!result.answers?.length) throw new Error("표시할 답지를 아직 불러오지 못했어요.");
-      setAnswers(result.answers);
+      setAnswer(result);
     }).catch(cause => {
       if (active) setError((cause as Error).message);
     });
@@ -465,11 +463,12 @@ function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, isFull, la
     : (blankRun.unfilled.length === 0 ? blankRun.code : undefined);
   const runnableSource = practiceSource ?? submittedSource;
   const fileName = language === "Python" ? "main.py" : language === "Java" ? "Main.java" : "main.c";
-  const comments = !isFull ? template.lines.map(parts => {
-    const code = parts.map(part => typeof part === "string" ? part : `__blank${part.blank}__`).join("");
-    const blanks = parts.flatMap(part => typeof part === "string" ? [] : [circled(part.blank)]);
-    const comment = lineComment(code).replace(/__blank(\d+)__/g, (_, number) => `빈칸 ${circled(Number(number))}`);
-    return comment || (blanks.length ? `빈칸 ${blanks.join(", ")}에 들어갈 코드를 작성해요` : null);
+  const comments = showAnswer && answers && !isFull ? template.lines.map(parts => {
+    const notes = parts.flatMap(part => typeof part === "string" ? [] : [answer?.explanation?.blank_comments?.[part.blank]]);
+    if (notes.length) return [...new Set(notes.filter(Boolean))].join(" · ") || null;
+    const code = parts.join("");
+    if (/^\s*(#|\/\/)/.test(code)) return null;
+    return lineComment(code) || null;
   }) : undefined;
 
   return <section className="practice-editor-panel" aria-label="답지 따라쓰기">
