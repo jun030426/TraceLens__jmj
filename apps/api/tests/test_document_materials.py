@@ -436,6 +436,88 @@ def test_low_impact_and_dependent_relations_are_not_rag_evidence(tmp_path, monke
     assert got["chunks"] and all("UNAPPROVED" not in c["text"] for c in got["chunks"])
 
 
+def test_failed_ppt_link_still_finishes_embedding(site, synthetic_engine, monkeypatch):
+    from lerny.rag_index import indexed_ids, store_vector
+    from video_extraction.shared.gemini import Gemini
+
+    client, session, _ = site
+    render = connected.base.adapters.prepare_source
+    call = Gemini.call
+    reviewed = []
+
+    def three_pages(*args, **kwargs):
+        meta, (page,) = render(*args, **kwargs)
+        return meta, [dict(page, location={"page": n}, time_seconds=n) for n in (1, 2, 3)]
+
+    def link_answers(self, stage, images, prompt, schema):
+        if not stage.startswith("document-adjacent-"):
+            return call(self, stage, images, prompt, schema)
+        pages = json.loads(prompt.split("DATA:\n", 1)[1])["pages"]
+        reviewed.append((pages[0], stage))
+        links = ([{"from_id": "outside", "to_id": "outside", "kind": "continuation",
+                   "reason": "synthetic out-of-scope relation", "source_supported": True}]
+                 if pages == [1, 2] else [])
+        return {"links": links, "checks": []}
+
+    monkeypatch.setattr(connected.base.adapters, "prepare_source", three_pages)
+    monkeypatch.setattr(Gemini, "call", link_answers)
+    deck = Presentation()
+    for _ in range(3):
+        slide = deck.slides.add_slide(deck.slide_layouts[6])
+        slide.shapes.add_textbox(0, 0, deck.slide_width, deck.slide_height).text = TEXT
+    stream = io.BytesIO()
+    deck.save(stream)
+    response = client.post("/api/v1/courses/course/materials",
+        data={"kind": "lecture", "week": "3", "visibility": "public"},
+        files={"file": ("three.pptx", stream.getvalue(), "application/octet-stream")})
+    assert response.status_code == 201
+    job = session.get(Job, response.json()["processing_job_id"])
+    assert worker.run_once(job.id)
+    session.expire_all()
+    version = session.get(MaterialVersion, response.json()["version_id"])
+    assert job.status == "succeeded" and version.status == "extracted", job.error_code
+    assert sorted(reviewed) == [(p, s) for p in (1, 2) for s in ("document-adjacent-read", "document-adjacent-verify")]
+    report = client.get(f"/api/v1/materials/{version.material_id}/extraction-review").json()
+    assert any(r["source_locator"] == "문서 1→2쪽" and r["reasons"] == ["page_link_wrong_scope"]
+               for r in report["review_queue"])
+    def embed(chunks, db):
+        for chunk in chunks:
+            assert "outside" not in chunk.content
+            store_vector(chunk, [1.0] + [0.0] * 767)
+    monkeypatch.setattr(worker, "embed_chunks", embed)
+    embed_job = session.scalars(select(Job).where(Job.kind == "embed",
+        Job.payload["version_id"].as_string() == version.id)).one()
+    assert worker.run_once(embed_job.id, worker_kind="embedding")
+    session.expire_all()
+    chunks = list(session.scalars(select(Chunk).where(Chunk.version_id == version.id)))
+    assert embed_job.status == "succeeded" and version.status == "ready"
+    assert chunks and len(indexed_ids(chunks, validate_vectors=True)) == len(chunks)
+
+
+def test_unresolved_link_content_is_excluded_from_searchable_corpus(tmp_path, monkeypatch):
+    from video_extraction.pipeline import document_links
+    pages = [{"id": f"p{n}", "source_id": "a"*64, "source_file": "test.pptx", "source_kind": "ppt",
+              "location": {"page": n}, "modality": "visual", "time_seconds": n} for n in (1, 2)]
+    tasks = [{"id": p["id"], "kind": "visual", "unit": p} for p in pages] + document_links.tasks(pages)
+    plan = {"source_plan": {"units": pages}, "tasks": tasks}
+    def record(page, suffix, text, refs=()):
+        return dict(connected.base.base_record(page, suffix, "document", "text", text),
+                    eligible_for_chunking=True, judgment="source_rechecked", related_record_ids=list(refs))
+    independent = record(pages[0], "standalone", "Independent page fact")
+    unresolved = record(pages[0], "conditional", "Do not publish the condition", ["p1:page-link:unverified"])
+    dependent = record(pages[1], "dependent", "Do not publish the consequent", [unresolved["id"]])
+    monkeypatch.setattr(connected, "done", lambda *_: {
+        "p1": {"records": [independent, unresolved], "changes": []},
+        "p2": {"records": [dependent], "changes": []}})
+    selected = documents.selection(tmp_path, plan, "a"*64, ".pptx",
+                                   {"held_links": [{"pages": [1, 2], "reason": "page_link_issue_mapping"}]})
+    chunk, = selected["chunks"]
+    assert "Independent page fact" in chunk["text"] and "Do not publish" not in chunk["text"]
+    assert chunk["provenance"]["record_ids"] == [independent["id"]]
+    excluded = {r["id"] for r in selected["held"] if "page_link_review_pending" in r["reasons"]}
+    assert excluded == {unresolved["id"], dependent["id"]}
+
+
 def test_render_failure_retries_in_new_revision_without_deleting_evidence(tmp_path, configured, monkeypatch):
     path = tmp_path / "source.pdf"
     path.write_bytes(source(".pdf"))

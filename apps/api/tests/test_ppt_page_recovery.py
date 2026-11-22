@@ -235,6 +235,48 @@ def test_page_hold_allows_subsequent_page_and_only_dependent_links(tmp_path, mon
 
 
 
+def test_only_link_validation_failures_with_two_current_parent_receipts_can_publish(tmp_path):
+    from video_extraction.pipeline import ppt_recovery as recovery
+    pages = [{"id": f"p{n}", "location": {"page": n}, "source_kind": "ppt"} for n in (1, 2)]
+    task = {"kind": "document_links", "id": "link", "pages": pages}
+    plan = {"tasks": [task]}
+    results = {p["id"]: {"payload_hash": signature(p)} for p in pages}
+    assert not recovery.classified_holds(tmp_path, plan, results, 1)
+    for reason in recovery.LINK_HOLD_REASONS:
+        marker = recovery.bound_hold(signature(plan), task, 1, reason, results)
+        save(recovery.hold_file(tmp_path, task), marker)
+        assert recovery.classified_holds(tmp_path, plan, results, 1) == [marker]
+        assert not recovery.classified_holds(tmp_path, plan, results, 2)
+        assert not recovery.classified_holds(tmp_path, plan, {"p1": results["p1"]}, 1)
+        assert not recovery.classified_holds(tmp_path, plan, {**results, "p2": {"payload_hash": "changed"}}, 1)
+    mixed = {"tasks": [task, {"id": "unexplained", "kind": "code"}]}
+    save(recovery.hold_file(tmp_path, task), recovery.bound_hold(signature(mixed), task, 1, "page_link_issue_mapping", results))
+    assert not recovery.classified_holds(tmp_path, mixed, results, 1)
+    for fatal in ("page_link_binding_changed", "GEMINI_CALL_UNCERTAIN", "request_budget_exhausted"):
+        assert fatal not in recovery.hold_reasons(task)
+    assert not recovery.hold_reasons({**task, "pages": [dict(p, source_kind="pdf") for p in pages]})
+
+
+def test_pending_link_excludes_only_its_decisions_and_transitive_dependents():
+    from lerny.ppt_source_index import depends_on_held_link
+    from video_extraction.pipeline import ppt_recovery
+    def record(i, refs=(), **extra):
+        return {"id": i, "unit_id": "p1", "related_record_ids": list(refs), "reasons": [],
+                "eligible_for_chunking": True, **extra}
+    rows = [record("ok"), record("transitive", ["dependent"]), record("dependent", ["issue"]),
+            record("missing-link", ["p1:page-link:abcdef"], bbox=[0, 0, 500, 500]),
+            record("issue", reasons=["pdf_cross_page_connection_requires_review"], observed_text="unresolved formula"),
+            record("other-pair", unit_id="p3", reasons=["pdf_cross_page_connection_requires_review"])]
+    task = {"id": "l1", "pages": [{"id": "p1"}, {"id": "p2"}]}
+    ppt_recovery.hold_link_dependents(rows, [task])
+    assert {r["id"] for r in rows if r["eligible_for_chunking"]} == {"ok", "other-pair"}
+    withheld = [r for r in rows if "page_link_review_pending" in r["reasons"]]
+    assert len(withheld) == 4 and all(not r["approved_for_rag"] for r in withheld)
+    assert depends_on_held_link(withheld, (12, 12, 20, 20), (100, 100), "")
+    assert depends_on_held_link(withheld, (70, 70, 90, 90), (100, 100), "unresolved formula")
+    assert not depends_on_held_link(withheld, (70, 70, 90, 90), (100, 100), "independent text")
+
+
 @pytest.fixture
 def checkpoint_engines(monkeypatch):
     import hashlib
@@ -247,9 +289,15 @@ def checkpoint_engines(monkeypatch):
         if name.startswith("video_extraction") and getattr(module,"digest_file",None) is digest_file:
             monkeypatch.setattr(module,"digest_file",linux_code_digest)
     current = connected.hashes()
+    before_link_fix = {
+        **current,
+        "connected": "24972956d150b40e439d6a097ac127f73f8b365c9bf9c06cd9cf88ea010cf6d8",
+        "video_extraction.pipeline.ppt_recovery": "7d4896911487a0de5f69726305c7b991641dc596f4213a48afc18542ba0011ae",
+        "video_extraction.pipeline.document_links": "815bd6111d27e8ff101644636ac198dc8d62bc77c2745f1a501610c67b3d2f34",
+    }
     # Exact Linux module digests from the deployed 4cd519e engine.
     production = {
-        **current,
+        **before_link_fix,
         "audio_crosscheck.py": "c6566c486e99e36ac7913c1eba80a22ca239510cdefc08f6a92e3a8442464689",
         "gemini.py": "59bed6b2d4fb3682525000d52bb7afcc537418ff32050ca2081d2d9a4026b496",
         "common.py": "cfa3c20a8577e38f1c7efacfac240d478cfbf2c9bd99a84e0b0b5a74dfa63daa",
@@ -260,13 +308,14 @@ def checkpoint_engines(monkeypatch):
     }
     old = {**production, **{"connected":"de46459355570f76dbd8d7f1e85e12d6ac5ea99693ca597565f3b8dff1ac8778","gemini.py":"84ebe4b9a4ecf0448787b4913e01119fc195b298b2190f04acc7e5c90c9a2c04","video_extraction.pipeline.source_followup":"54c5ed0a3a21f84c4648146ec9649cbb0919bb80795b28bbb87a46dc69c19281"}}
     del old["video_extraction.pipeline.ppt_recovery"]
-    complement = {**production, **{name: current[name] for name in (
+    complement = {**production, **{name: before_link_fix[name] for name in (
         "video_extraction.pipeline.ppt_recovery", "video_extraction.pipeline.source_followup")}}
     complement["connected"] = "5cab6da57a5aa8a25b5bdcf650eccb5b6c8cd4098df25d7aab4fc42a3bb9a4be"
-    return current, {"original": old, "deployed": production, "complement": complement}
+    return current, {"original": old, "deployed": production, "complement": complement,
+                     "before_link_fix": before_link_fix}
 
 
-@pytest.mark.parametrize("engine", ["original", "deployed", "complement"])
+@pytest.mark.parametrize("engine", ["original", "deployed", "complement", "before_link_fix"])
 def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, checkpoint_engines, engine):
     from video_extraction.pipeline import ppt_recovery
     current, versions = checkpoint_engines
@@ -287,8 +336,11 @@ def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, chec
         connected.verify(output)
 
 
-@pytest.mark.parametrize("engine", ["original", "deployed"])
-def test_resume_skips_55_saved_tasks_from_each_production_engine(tmp_path, monkeypatch, checkpoint_engines, engine):
+@pytest.mark.parametrize(("engine", "saved_links"), [
+    ("original", set(range(1, 5))), ("deployed", set(range(1, 5))),
+    ("original", set(range(1, 33)) - {19}),
+])
+def test_resume_skips_saved_production_tasks(tmp_path, monkeypatch, checkpoint_engines, engine, saved_links):
     from contextlib import nullcontext
     from video_extraction.pipeline import ppt_recovery
     current, versions = checkpoint_engines
@@ -302,7 +354,8 @@ def test_resume_skips_55_saved_tasks_from_each_production_engine(tmp_path, monke
                             "gemini_model": "fixture"}}
     out = tmp_path / ("analysis-" + signature({"policy": "fixture", "engine": versions[engine], "model": "fixture"})[:20])
     save(out / "plan.json", plan)
-    for task in tasks[:55]:
+    saved_tasks = tasks[:51] + [tasks[50 + page] for page in sorted(saved_links)]
+    for task in saved_tasks:
         result = {"records": [], "specialist": task["kind"], "evidence_files": {},
                   "binding": signature({"plan": signature(plan), "task": task})}
         result["payload_hash"] = signature(result)
@@ -313,7 +366,8 @@ def test_resume_skips_55_saved_tasks_from_each_production_engine(tmp_path, monke
     monkeypatch.setattr(connected, "lock", lambda _: nullcontext())
     monkeypatch.setattr(connected.runtime_tools, "audit", lambda *_: {"core_ready": True, "checks": []})
     monkeypatch.setattr(connected, "api_key", lambda _: "fixture")
-    monkeypatch.setattr(connected, "publish", lambda *_: {"pending": 46, "all_tasks_processed": False})
+    monkeypatch.setattr(connected, "publish", lambda *_: {"pending": len(tasks) - len(saved_tasks),
+                                                          "all_tasks_processed": False})
     calls = []
     def record(task, results, target, client):
         calls.append(task["id"])
@@ -322,4 +376,4 @@ def test_resume_skips_55_saved_tasks_from_each_production_engine(tmp_path, monke
     monkeypatch.setattr(connected, "visual", lambda *_: pytest.fail("completed page scheduled"))
     connected.run(out, None, ppt_retry_round=1, review_concurrency=4,
                   transport=lambda *_: pytest.fail("unexpected Gemini request"))
-    assert sorted(calls) == sorted(t["id"] for t in tasks[55:])
+    assert sorted(calls) == sorted(tasks[50 + page]["id"] for page in range(1, 51) if page not in saved_links)

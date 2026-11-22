@@ -398,6 +398,9 @@ def publish(out,p):
     for issue in p['source_plan'].get('source_issues',[]):
         pending.append({'id':issue['source_sha256'],'kind':'source','status':'unprocessed','reason':issue['reason']})
     rows=[canonical_record(r,p.get('low_impact_policy')) for r in rows]
+    ppt_recovery.hold_link_dependents(rows, [t for t in p['tasks'] if t['kind']=='document_links'
+        and t['id'] not in results and ppt_recovery.hold_reasons(t)
+        and all(u['id'] in results for u in t['pages'])])
     resolved={i for r in results.values() for i in r.get('resolved_coverage_ids',[])}
     # A middle page may depend on both neighbors. One pair must not clear a
     # continuation still unresolved (or unprocessed) in the other pair.
@@ -565,9 +568,12 @@ def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None,ppt_re
         def runnable(t):
             if t['id'] in results or (local_only and t['kind'] not in ('code', 'video_coverage')):
                 return False
-            if recoverable(t) and ppt_recovery.current_hold(out, plan_hash, t, ppt_retry_round):
+            if t['kind'] == 'document_links' and not all(u['id'] in results for u in t['pages']):
                 return False
-            return t['kind'] != 'document_links' or all(u['id'] in results for u in t['pages'])
+            if (ppt_retry_round is not None and ppt_recovery.hold_reasons(t)
+                    and ppt_recovery.current_hold(out, plan_hash, t, ppt_retry_round, results)):
+                return False
+            return True
 
         def review(t, inputs):
             key = signature(t['id'])[:24]
@@ -585,8 +591,8 @@ def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None,ppt_re
                     r=visual(t['unit'],{**p,'_output':str(out)},folder,client,context)
                 else:r=video(t,p,folder)
             except (ValueError, Blocked) as ex:
-                if recoverable(t) and str(ex) in ppt_recovery.PAGE_HOLD_REASONS:
-                    save(ppt_recovery.hold_file(out, t), ppt_recovery.bound_hold(plan_hash, t, ppt_retry_round, str(ex)))
+                if ppt_retry_round is not None and str(ex) in ppt_recovery.hold_reasons(t):
+                    save(ppt_recovery.hold_file(out, t), ppt_recovery.bound_hold(plan_hash, t, ppt_retry_round, str(ex), inputs))
                     return None
                 if isinstance(ex, Blocked):
                     raise
@@ -667,7 +673,9 @@ def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None,ppt_re
             save(out/'run-state.json',{'stop_reason':'complete' if aligned['state'] in ('complete','not_required') else 'complete_with_alignment_review',
                  'api_calls_this_run':budget.used,'alignment_state':aligned['state'],'failure':None})
         if ppt_retry_round is not None and not summary['all_tasks_processed']:
-            summary['held_pages'] = ppt_recovery.classified_holds(out, p, results, ppt_retry_round)
+            holds = ppt_recovery.classified_holds(out, p, results, ppt_retry_round)
+            summary['held_pages'] = [h for h in holds if 'page' in h]
+            summary['held_links'] = [h for h in holds if 'pages' in h]
             save(out/'summary.json', summary)
         return summary
 

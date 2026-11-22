@@ -263,6 +263,59 @@ class PageLinkTests(unittest.TestCase):
         self.answer['links'][0]['to_id']=self.rows[0]['id']
         with self.assertRaisesRegex(ValueError,'wrong_scope'):dl.selection(self.task,self.data,[self.answer]*2)
 
+    def test_replay_saved_19_20_pair_without_transport(self):
+        # Both saved answers were identical. Only the source hash and prose are redacted.
+        answer = read(Path(__file__).parent / 'fixtures' / 'page_link_19_20.json')
+        pages = [dict(p, id=f'fixture:visual:{i-1}', source_id='fixture', source_kind='ppt',
+                      location={'page': i}) for p, i in zip(self.pages, (19, 20))]
+        task, = dl.tasks(pages)
+        results = {
+            p['id']: {'records': [dict(base_record(p, f'b{n}', 'document', 'text', ''),
+                                       eligible_for_chunking=i == 1) for n in range(1, count+1)]}
+            for i, (p, count) in enumerate(zip(pages, (3, 2)))
+        }
+        rows = [row for value in results.values() for row in value['records']]
+        data = {'source_id': 'fixture', 'records': rows, 'issues': [], 'pages': [19, 20]}
+        binding = signature({'task': task, 'data': data, 'images': [digest_file(self.image)]*2,
+                             'prompt': dl.PROMPT})
+        proof = {'binding': binding, 'data': data, 'answers': [answer, answer]}
+        save(self.root/'page-links.json', proof)
+        result = dl.run(task, results, self.root, None)
+        ignored = {role: [answer['checks'][0]['id']] for role in ('read', 'verify')}
+        self.assertEqual(result['ignored_check_ids'], ignored)
+        self.assertEqual(result['resolved_coverage_ids'], [])
+        self.assertEqual(len(result['records']), 1)
+        self.assertFalse(result['records'][0]['eligible_for_chunking'])
+        stripped = dict(answer, checks=[])
+        self.assertEqual({k: v for k, v in result.items() if k != 'ignored_check_ids'},
+                         dl.selection(task, data, [stripped, stripped]))
+        dl.verify(task, self.root, result, rows)
+        self.assertEqual(read(self.root/'page-links.json'), proof)
+        with self.assertRaisesRegex(ValueError, 'page_link_selection_changed'):
+            dl.verify(task, self.root, dict(result, ignored_check_ids={}), rows)
+
+    def test_extra_checks_do_not_resolve_issues_or_add_links(self):
+        answers = [copy.deepcopy(self.answer) for _ in range(2)]
+        answers[1]['checks'].append(dict(answers[1]['checks'][0], id='unknown'))
+        result = dl.selection(self.task, self.data, answers)
+        clean = dl.selection(self.task, self.data, [self.answer]*2)
+        self.assertEqual(result.pop('ignored_check_ids'), {'verify': ['unknown']})
+        self.assertEqual(result, clean)
+        self.assertEqual(result['resolved_coverage_ids'], [self.issue['id']])
+        answers[0]['links'][0]['to_id'] = 'unknown'
+        with self.assertRaisesRegex(ValueError, 'page_link_wrong_scope'):
+            dl.selection(self.task, self.data, answers)
+
+    def test_expected_check_required_exactly_once_in_each_answer(self):
+        check = self.answer['checks'][0]
+        for role in (0, 1):
+            for checks in ([dict(check, id='extra')], [check, check, dict(check, id='extra')]):
+                with self.subTest(role=role, count=len(checks)):
+                    answers = [self.answer, self.answer]
+                    answers[role] = dict(self.answer, checks=checks)
+                    with self.assertRaisesRegex(ValueError, 'page_link_issue_mapping'):
+                        dl.selection(self.task, self.data, answers)
+
 class AudioFollowupTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=Path(self.tmp.name);self.source=raw_file(self.root)

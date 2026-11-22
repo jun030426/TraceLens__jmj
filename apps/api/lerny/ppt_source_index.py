@@ -46,6 +46,23 @@ def contains_region(text, value):
     return "\n" + value.strip("\n") + "\n" in "\n" + text + "\n"
 
 
+def depends_on_held_link(rows, rect, size, value):
+    # Native shapes have no specialist record IDs. Match the withheld region on
+    # its original page so a supplemental text or picture read cannot restore it.
+    literal = "".join(value.split())
+    for row in rows:
+        box = row.get("bbox")
+        if box and len(box) == 4:
+            x0, y0, x1, y1 = (n * size[i % 2] / 1000 for i, n in enumerate(box))
+            if rect[0] < x1 and rect[2] > x0 and rect[1] < y1 and rect[3] > y0:
+                return True
+        elif literal:
+            held = "".join((row.get("observed_text") or row.get("original_text") or "").split())
+            if held and (held in literal or literal in held):
+                return True
+    return False
+
+
 def read_regions(client, stage, images, targets):
     try:
         answer = client.call(stage, images, PROMPT + json.dumps(targets), READINGS)
@@ -116,8 +133,11 @@ def supplement(path, plan, result, folder, client, check):
             continue
         image = Path(unit["image"])
         prior = [c["text"] for c in result["chunks"] if c.get("slide_number") == page]
+        link_dependent = [r for r in result["held"] if r.get("location", {}).get("page") == page
+                          and "page_link_review_pending" in r.get("reasons", [])]
         targets = []
         with Image.open(image) as canvas:
+            size = canvas.size
             for shape in slide.shapes:
                 if shape._element.xpath('.//p:cNvPr[@hidden="1" or @hidden="true"]'):
                     continue
@@ -137,17 +157,19 @@ def supplement(path, plan, result, folder, client, check):
                 rect = (math.floor(shape.left * sx), math.floor(shape.top * sy),
                         min(canvas.width, math.ceil((shape.left + shape.width) * sx)),
                         min(canvas.height, math.ceil((shape.top + shape.height) * sy)))
+                if link_dependent and depends_on_held_link(link_dependent, rect, size, value):
+                    continue
                 crop = folder / f"page-{page}-shape-{shape.shape_id}.png"
                 canvas.crop(rect).save(crop)
                 kind = "picture" if picture else "table" if shape.has_table else "text"
                 supports = not picture and rendered_words_include(unit, rect, canvas.size, value)
-                targets.append(({"id": str(shape.shape_id), "kind": kind}, crop, value, proof, supports))
+                targets.append(({"id": str(shape.shape_id), "kind": kind}, crop, value, proof, supports, rect))
         for start in range(0, len(targets), 6):
             batch = targets[start:start + 6]
             specs = [item[0] for item in batch]
             check()
             first = read_regions(client, POLICY, [image, *(x[1] for x in batch)], specs)
-            for spec, crop, value, proof, supports in batch:
+            for spec, crop, value, proof, supports, rect in batch:
                 key = spec["id"]
                 readback = first.get(key, "")
                 if spec["kind"] == "picture" and 0 < len(readback) <= 1800:
@@ -175,6 +197,8 @@ def supplement(path, plan, result, folder, client, check):
                     accepted = verified_native(client, image, crop, value)
                 if not accepted:
                     log["unresolved"].append({**proof, "reason": "independent_readback_mismatch"})
+                    continue
+                if spec["kind"] == "picture" and link_dependent and depends_on_held_link(link_dependent, rect, size, value):
                     continue
                 if any(contains_region(text, value) for text in prior):
                     continue

@@ -1,6 +1,11 @@
 export type HeldSource = { id:string; modality:'audio'|'visual'|'document'; text:string; context?:string; text_truncated:boolean; source_locator:string; start_seconds:number|null; end_seconds:number|null; reasons:string[] };
 export type ExtractionReview = { available:boolean; version_id:string; held_count:number; usable_chunks:number; total:number; offset:number; limit:number; has_more:boolean; review_queue:HeldSource[]; pipeline:string; limitations:string[]; is_video:boolean };
 const reasons:Record<string,string> = {
+  page_link_issue_mapping:'두 쪽의 연결 검사에서 요청한 항목이 빠지거나 중복됐어요.',
+  page_link_wrong_scope:'연결이 지정한 항목을 두 원본 쪽에서 확인할 수 없어요.',
+  duplicate_page_link:'같은 쪽 간 연결이 중복되어 연결을 확정할 수 없어요.',
+  invalid_model_response:'모델 응답이 검증에 필요한 형식을 충족하지 않았어요.',
+  page_link_review_pending:'이 내용은 보류된 쪽 간 연결에 의존해 검색에서 제외했어요.',
   ocr_region_disagreement:'같은 글자 영역을 다시 읽은 결과가 달라 원본 확인이 필요해요.',
   ocr_numeric_disagreement:'숫자·영문 기호의 인식 결과가 일치하지 않아요.',
   ocr_ambiguous_formula:'수식의 문자와 숫자를 확실히 구분하지 못했어요.',

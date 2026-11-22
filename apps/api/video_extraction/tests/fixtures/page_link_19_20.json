@@ -1,0 +1,20 @@
+{
+  "links": [
+    {
+      "from_id": "fixture:visual:18:b1",
+      "to_id": "fixture:visual:19:b1",
+      "kind": "continuation",
+      "source_supported": true,
+      "reason": "Redacted nonempty link reason."
+    }
+  ],
+  "checks": [
+    {
+      "id": "fixture:visual:18:b1",
+      "decision": "linked",
+      "source_clear": true,
+      "record_ids": ["fixture:visual:18:b1", "fixture:visual:19:b1"],
+      "reason": "Redacted nonempty check reason."
+    }
+  ]
+}
