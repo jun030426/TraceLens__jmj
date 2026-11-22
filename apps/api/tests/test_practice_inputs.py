@@ -6,8 +6,8 @@ import pytest
 from sqlalchemy import select
 
 from lerny import practice, worker
-from lerny.models import Chunk, Job, PracticeExercise
-from lerny.practice_inputs import adapted_programs, literal_inputs, numeric_source
+from lerny.models import Chunk, Job, Material, PracticeExercise
+from lerny.practice_inputs import adapted_programs, blank_template, condition_spans, literal_inputs, numeric_source
 from test_weekly_publication import api, configured, integration, weekly, start  # noqa: F401
 
 CODE = 'a = int(input("첫 수: "))\nb = float(input("다음 수: "))\n\ntotal = a + b\nprint("두 수의 합은", total)\nprint("평균은", total / 2)'
@@ -140,3 +140,61 @@ def test_input_identity_preserves_source_and_logic():
     assert key != input_program_identity('different-source', CODE)
     assert key != input_program_identity('source', CODE.replace('a + b', 'a - b'))
     assert key != input_program_identity('source', CODE.replace('total =', '    total ='))
+
+
+def test_condition_template_round_trips_original_and_keeps_output_visible():
+    code = ('점수 = 42\r\nif (점수 >= 40\r\n    and 점수 < 50):\r\n    print("통과")\r\n'
+            'elif 50 <= 점수 < 60: print("재검사")\r\n'
+            'if __name__ == "__main__":\r\n    main()')
+    spans = condition_spans(code)
+    template, answers = blank_template(code, spans, spans)
+    assert list(answers.values()) == ['점수 >= 40', '점수 < 50', '50 <= 점수 < 60']
+    assert 'elif [[빈칸]]: print("재검사")' in template
+    assert 'if __name__ == "__main__":' in template
+    for value in answers.values():
+        template = template.replace('[[빈칸]]', value, 1)
+    assert template == code.replace('\r\n', '\n')
+
+
+def test_input_example_with_outputs_inside_branches_can_be_prepared():
+    code = 'value = int(input())\nif value < 0:\n    print("음수")\nelse:\n    print("그 외")'
+    chunks = [SimpleNamespace(id='numeric', content='\x60\x60\x60python\n'+code+'\n\x60\x60\x60')]
+    programs = adapted_programs(chunks, lambda *_: {'programs':[proposal(cases=[[-1],[0],[1]], blank_lines=[3])]},
+                                prefer_conditions=True)
+    (item, quote), = programs
+    assert quote == code and item.blank_lines == [2]
+
+
+@pytest.mark.parametrize('week,scope,adapted,expect_branch', [
+    (4,'course',True,True), (5,'course',False,True), (3,'course',True,False), (5,'other',False,False),
+])
+def test_branch_choice_in_weekly_practice(weekly, configured, monkeypatch, week, scope, adapted, expect_branch):
+    client, session, _ = weekly
+    monkeypatch.setattr(configured,'practice_condition_course_id',scope)
+    rest = '\nif 0 <= value < 8:\n    result = "low"\nelif value >= 10:\n    result = "high"\nelse:\n    result = "mid"\nprint(result)'
+    first = 'value = int(input())' if adapted else 'value = 1'
+    source = first + rest
+    session.get(Material,'material').week = week
+    session.add(Chunk(id='numeric',version_id='version',content='\x60\x60\x60python\n'+source+'\n\x60\x60\x60',locator={}))
+    session.commit()
+    gid = start(client,week)
+    job = Job(owner_id='teacher',course_id='course',kind='practice_prepare',
+              payload={'source_version_id':'version','generation_id':gid})
+    session.add(job); session.commit()
+    def model(prompt, schema):
+        assert ('경계값 포함 여부' in prompt) == expect_branch
+        if 'cases' in str(schema):
+            return {'programs':[proposal(cases=[[1],[9],[12]],blank_lines=[8])]}
+        if adapted:
+            return {'programs':[]}
+        return {'programs':[dict(source_id='numeric', concept_id=None, code=source, title='범위 분기',
+            prompt='주어진 값의 범위에 따라 결과를 출력하세요.', input_statement=first,
+            variants=['value = 9','value = 12'], blank_lines=[8], full_template=first+'\n# 구현')]}
+    monkeypatch.setattr(worker,'model_json',model)
+    outputs=iter(['low','mid','high'])
+    monkeypatch.setattr(practice,'output_of',lambda *a,**k: next(outputs))
+    assert not practice.prepare(session,job)['held']
+    exercise=session.scalar(select(PracticeExercise).where(PracticeExercise.generation_id==gid, PracticeExercise.kind=='blank'))
+    assert list(exercise.blanks.values()) == (['0 <= value < 8','value >= 10'] if expect_branch else ['print(result)'])
+    assert ('print(result)' in exercise.template) == expect_branch
+    assert exercise.sources == [{'chunk_id':'numeric','quote':source}]

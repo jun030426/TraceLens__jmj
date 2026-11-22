@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
 from lerny.auth import Input
+from lerny.config import settings
 from lerny.automatic import calendar_week, eligible
 from lerny.courses import audit
 from lerny.jobs import idempotent, section_student
@@ -17,6 +18,7 @@ from lerny.models import (AuditEvent, Chunk, Concept, Course, Enrollment, Job, M
     PracticeAttempt, PracticeExercise, PracticeSession, Section, User, now)
 from lerny.security import Actor, Db, deny
 from lerny.practice_support import first_problem_attempts, problem_attempts, problem_help_events
+from lerny.practice_inputs import CONDITION_PROMPT, blank_template, condition_spans
 
 router = APIRouter(prefix="/api/v1")
 
@@ -115,6 +117,8 @@ def prepare(session, job):
     version_ids=job.payload.get("source_version_ids",[version.id])
     concept_ids=generation.concept_ids if generation else version.concept_ids or []
     language = session.get(Course, job.course_id).teaching_language.lower()
+    prefer_conditions = bool(generation and language == "python" and generation.week >= 4
+                             and generation.course_id == settings().practice_condition_course_id)
     section_id = session.scalar(select(Section.id).where(Section.course_id == job.course_id).order_by(Section.created_at).limit(1))
     if language not in {"python", "java", "c"}:
         return {"status": "no_supported_language", "exercise_ids": []}
@@ -131,7 +135,8 @@ def prepare(session, job):
         "blank_lines는 핵심 계산/제어 코드의 1부터 시작하는 줄 번호, 입력 선언과 껍데기 괄호만인 줄은 제외한다. "
         "full_template는 입력 선언과 언어별 실행 뼈대만 유지하고 구현할 알고리즘은 주석으로 남긴다. "
         "prompt에는 구현 목표와 입력 변수가 바뀔 수 있다는 점을 한국어로 명확히 설명하라. "
-        "같은 코드는 한 번만 선택한다. concept_id는 해당 코드가 설명하는 개념 ID, 맞는 개념이 없으면 null이다.\n" + json.dumps({
+        + (CONDITION_PROMPT if prefer_conditions else "")
+        + "같은 코드는 한 번만 선택한다. concept_id는 해당 코드가 설명하는 개념 ID, 맞는 개념이 없으면 null이다.\n" + json.dumps({
             "concepts": [{"id": c.id, "name": c.name} for c in session.scalars(select(Concept).where(Concept.id.in_(concept_ids))) ]}, ensure_ascii=False))
     # Process all weekly sources in bounded batches, rather than one oversized request.
     batches, batch, size = [], [], 0
@@ -152,7 +157,7 @@ def prepare(session, job):
     if language == "python":
         from lerny.practice_inputs import adapted_programs, input_program_identity
         versions = session.scalars(select(MaterialVersion).where(MaterialVersion.id.in_(version_ids)))
-        adapted = adapted_programs(chunks, model_json, versions)
+        adapted = adapted_programs(chunks, model_json, versions, prefer_conditions=prefer_conditions)
         for program, quote in adapted:
             original_quotes[(program.source_id, program.code)] = quote
         # A direct model proposal can repeat the stdin original using LF or
@@ -174,9 +179,10 @@ def prepare(session, job):
         try:
             inputs = input_variants(item.input_statement, item.variants)
             lines = item.code.splitlines()
-            numbers = sorted(set(item.blank_lines))
             input_start = item.code[:item.code.index(item.input_statement)].count("\n") + 1
             input_lines = range(input_start, input_start + len(item.input_statement.splitlines()))
+            branches = condition_spans(item.code) if prefer_conditions else {}
+            numbers = list(branches) if branches else sorted(set(item.blank_lines))
             if any(n < 1 or n > len(lines) or not lines[n-1].strip()
                    or n in input_lines for n in numbers):
                 raise ValueError("INVALID_PRACTICE_BLANK")
@@ -194,12 +200,8 @@ def prepare(session, job):
         except ValueError as exc:
             held.append({"source_id":item.source_id,"reason":str(exc)})
             continue
-        blanks = {}
-        for i, number in enumerate(numbers, 1):
-            original = lines[number-1]
-            blanks[str(i)] = original.lstrip()
-            lines[number-1] = original[:len(original)-len(original.lstrip())] + "[[빈칸]]"
-        for kind, template in [("blank", "\n".join(lines)), ("full", item.full_template)]:
+        cloze, blanks = blank_template(item.code, numbers, branches)
+        for kind, template in [("blank", cloze), ("full", item.full_template)]:
             exercise = PracticeExercise(course_id=job.course_id, version_id=source_version_id,
                 generation_id=job.payload.get("generation_id"),
                 concept_id=item.concept_id if item.concept_id in concept_ids else None,
