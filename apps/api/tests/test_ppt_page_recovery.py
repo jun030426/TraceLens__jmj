@@ -3,6 +3,7 @@ import io
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -102,7 +103,7 @@ def test_wrong_cached_mapping_only_regenerates_the_repair(tmp_path, monkeypatch)
     save(path, receipt)
     repair = tmp_path / "audit-issue-mapping-v1.json"
     save(repair, {"binding": signature({"original_receipt": receipt, "expected_issue_ids": f["expected_checks"],
-                                       "policy": "document_issue_mapping_retry_v1"}), "answer": checks(f["repair_checks"])})
+                                       "policy": "document_issue_mapping_retry_v1"}), "answer": checks(f["repair_checks"][:-1])})
     transport = Transport(lambda _: checks(f["expected_checks"]))
     client = Gemini(tmp_path / "cache", "fixture", None, delay=0, transport=transport)
     with pytest.raises(ValueError, match="source_followup_issue_mapping"):
@@ -116,6 +117,79 @@ def test_wrong_cached_mapping_only_regenerates_the_repair(tmp_path, monkeypatch)
     assert len(transport.prompts) == 1 and read(path) == receipt
 
 
+@pytest.mark.parametrize("case", ["complement", "complete", "missing", "duplicate", "overlap",
+                                  "conflict", "extra", "input_changed", "repair_changed"])
+def test_page_10_cached_confirm_mapping(tmp_path, case):
+    fixture = FIXTURE["mapping"]
+    expected = fixture["expected_checks"]
+    first = checks(fixture["first_checks"])
+    repair = checks(fixture["repair_checks"])
+    for check in first["checks"] + repair["checks"]:
+        check.update(decision="existing_supported", source_clear=True)
+    image = tmp_path / "slide.png"
+    image.write_bytes(b"page-10")
+    task = {"id": "slide-10", "source_kind": "ppt", "image": str(image)}
+    result = {"final_blocks": [], "visuals": []}
+    issues = [{"id": i} for i in expected]
+    binding = signature({"image": digest_file(image), "data": {"unit_id": task["id"], "regions": [], "issues": issues},
+                         "prompt": source_followup.PROMPT, "stage": "confirm"})
+    original = {"binding": binding, "answer": first}
+    path = tmp_path / "confirm.json"
+    corrected = tmp_path / "confirm-issue-mapping-v1.json"
+    save(path, original)
+    items = repair["checks"]
+    if case == "missing":
+        items.pop()
+    elif case == "duplicate":
+        items.append(items[-1])
+    elif case == "complete":
+        items.extend(first["checks"])
+    elif case in {"overlap", "conflict"}:
+        items[-1] = dict(first["checks"][0])
+        if case == "conflict":
+            items[-1]["decision"] = "uncertain"
+    elif case == "extra":
+        items.append({**items[-1], "id": "unexpected"})
+    repair_binding = signature({"original_receipt": original, "expected_issue_ids": expected,
+                                "policy": "document_issue_mapping_retry_v1"})
+    save(corrected, {"binding": "unrelated" if case == "repair_changed" else repair_binding, "answer": repair})
+    if case == "input_changed":
+        image.write_bytes(b"different page")
+    args = (task, result, issues, tmp_path)
+    if case in {"complement", "complete"}:
+        client = SimpleNamespace(ppt_retry_round=2, call=Mock(side_effect=AssertionError("unexpected paid request")))
+        answer = source_followup.inspect(*args, client, "confirm")
+        client.call.assert_not_called()
+        assert sorted(c["id"] for c in answer["answer"]["checks"]) == sorted(expected)
+        assert answer["mapping_repair"] == {
+            "policy": "ppt_complementary_checks_v1" if case == "complement" else "document_issue_mapping_retry_v1",
+            "original_sha256": digest_file(path), "repair_sha256": digest_file(corrected)}
+        assert source_followup.inspect(*args, None, "confirm", read_only=True) == answer
+    else:
+        with pytest.raises(ValueError, match="source_followup_(issue_mapping|audit_changed|mapping_repair_changed)"):
+            source_followup.inspect(*args, None, "confirm", read_only=True)
+
+
+def test_code_only_ppt_chunks_keep_their_own_page():
+    from lerny.team_engine import chunk_locator
+    from video_extraction.pipeline import data_integration
+    from video_extraction.pipeline.concept_chunking import build_corpus_from_bundles
+
+    def code(i, page):
+        return {"id": i, "source_id": "src", "source_sha256": "src", "source_file": "lecture.pptx",
+                "kind": "code", "modality": "visual", "observed_text": f"print({i!r})",
+                "location": {"page": page} if page else {}}
+
+    bundles = data_integration.integrate_records([code("a", 4), code("b", 7), {**code("c", None), "unit_id": None}])
+    chunks = build_corpus_from_bundles(bundles)["chunks"]
+    assert len({c["id"] for c in chunks}) == 3
+    assert {tuple(c["provenance"]["record_ids"]): c["page"] for c in chunks} == {
+        ("a",): 4, ("b",): 7, ("c",): None}
+    for c in chunks:
+        if c["page"] is not None:
+            assert chunk_locator({**c, "document_type": "pptx"})["slide"] == c["page"]
+
+
 @pytest.mark.parametrize("code", ["DOCUMENT_VALIDATION_INCOMPLETE","DOCUMENT_MODEL_REVIEW_FAILED"])
 def test_manual_retry_keeps_document_gateway_generation(code):
     job = SimpleNamespace(kind="extract", payload={"version_id":"version","_ai_generation":2}, error_code=code)
@@ -125,7 +199,9 @@ def test_manual_retry_keeps_document_gateway_generation(code):
     assert job.payload["_ai_generation"] == 3
 
 
-def test_page_hold_allows_subsequent_page_and_only_dependent_links(tmp_path, monkeypatch):
+@pytest.mark.parametrize("reason", ["invalid_model_response", "source_followup_audit_changed",
+                                    "source_followup_mapping_repair_changed"])
+def test_page_hold_allows_subsequent_page_and_only_dependent_links(tmp_path, monkeypatch, reason):
     from contextlib import nullcontext
     from video_extraction.pipeline import ppt_recovery
     units = [{"id": str(i), "source_kind": "ppt", "location": {"page": i}} for i in (1,2,3)]
@@ -144,11 +220,11 @@ def test_page_hold_allows_subsequent_page_and_only_dependent_links(tmp_path, mon
     def visual(unit, plan, folder, client, context):
         visited.append(unit["id"])
         if unit["id"] == "2":
-            raise Blocked("invalid_model_response")
+            raise ValueError(reason)
         return {"records":[]}
     monkeypatch.setattr(connected, "visual", visual)
     summary = connected.run(tmp_path, None, transport=lambda *_: pytest.fail("unexpected call"), ppt_retry_round=0)
-    assert visited == ["1","2","3"] and [h["page"] for h in summary["held_pages"]] == [2]
+    assert visited == ["1","2","3"] and [(h["page"], h["reason"]) for h in summary["held_pages"]] == [(2, reason)]
     visited.clear()
     connected.run(tmp_path, None, ppt_retry_round=0)
     assert visited == []
@@ -171,6 +247,11 @@ def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, monk
         if name.startswith("video_extraction") and getattr(module,"digest_file",None) is digest_file:
             monkeypatch.setattr(module,"digest_file",linux_code_digest)
     current = connected.hashes()
+    pr30 = {**current, **{
+        "connected": "ae4efe152264c207b50406f53faca5e95e8e23b334338f4388d5741d8c169246",
+        "video_extraction.pipeline.ppt_recovery": "42917735ab9a14f821f5066dd722a1063caed870a54fca8ba15b29cab401be4d",
+        "video_extraction.pipeline.source_followup": "868121fae854762472e15a96385a23dc7228578acf7c75c3609de279391777d7",
+    }}
     old = {**current, **{"connected":"de46459355570f76dbd8d7f1e85e12d6ac5ea99693ca597565f3b8dff1ac8778","gemini.py":"84ebe4b9a4ecf0448787b4913e01119fc195b298b2190f04acc7e5c90c9a2c04","video_extraction.pipeline.source_followup":"54c5ed0a3a21f84c4648146ec9649cbb0919bb80795b28bbb87a46dc69c19281"}}
     del old["video_extraction.pipeline.ppt_recovery"]
     source = tmp_path / "source.pptx"
@@ -178,6 +259,7 @@ def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, monk
     plan = {"source_plan":{"sources":[{"kind":"ppt"}], "request":{"sources":[str(source)]}, "gemini_model":"fixture"},
             "code_hashes":old, "inputs":{str(source):digest_file(source)}}
     assert ppt_recovery.compatible(plan, current)
+    assert ppt_recovery.compatible({**plan, "code_hashes": pr30}, current)
     assert not ppt_recovery.compatible(plan, {**current, "runner":"unknown"})
     assert not ppt_recovery.compatible({**plan,"code_hashes":{**old,"runner":"unknown"}}, current)
     output = tmp_path / ("analysis-"+signature({"engine":old,"model":"fixture","policy":"fixture"})[:20])

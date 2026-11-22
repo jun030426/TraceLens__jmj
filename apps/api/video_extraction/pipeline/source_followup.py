@@ -59,6 +59,22 @@ def native_issues(t,result,native):
     return list({r['id']:r for r in issues}.values())
 
 
+def mapped_answer(original, correction, expected, allow_complement):
+    """Both receipts are schema-validated and bound to this specific inspection."""
+    corrected_ids = [c['id'] for c in correction['checks']]
+    if sorted(corrected_ids) == sorted(expected):
+        return correction
+    if not allow_complement:
+        return None
+    checks = original['checks'] + correction['checks']
+    if sorted(c['id'] for c in checks) != sorted(expected):
+        return None
+    by_id = {c['id']: c for c in checks}
+    return {'complete_scan': original['complete_scan'] and correction['complete_scan'],
+            'checks': [by_id[i] for i in expected],
+            'regions': original['regions'] + correction['regions']}
+
+
 def inspect(t,result,issues,folder,client,stage,read_only=False):
     data={'unit_id':t['id'],'regions':result['final_blocks']+result['visuals'],'issues':issues}
     binding=signature({'image':digest_file(t['image']),'data':data,'prompt':PROMPT,'stage':stage})
@@ -82,15 +98,18 @@ def inspect(t,result,issues,folder,client,stage,read_only=False):
             raise ValueError('source_followup_issue_mapping')
         repaired=Path(folder)/(stage+'-issue-mapping-v1.json')
         repair_binding=signature({'original_receipt':receipt,'expected_issue_ids':ids,'policy':'document_issue_mapping_retry_v1'})
+        ppt = t.get('source_kind') == 'ppt'
+        mapped = None
         regenerate = False
         if repaired.exists():
             retry=read(repaired)
             if retry.get('binding')!=repair_binding:raise ValueError('source_followup_mapping_repair_changed')
             prior = retry['answer']
             validate(prior, SCHEMA)
-            regenerate = (not read_only and t.get('source_kind') == 'ppt'
+            mapped = mapped_answer(answer, prior, ids, ppt)
+            regenerate = (not read_only and ppt
                           and getattr(client, 'ppt_retry_round', None) is not None
-                          and sorted(c['id'] for c in prior['checks']) != sorted(ids))
+                          and mapped is None)
         if not repaired.exists() or regenerate:
             if read_only:raise ValueError('source_followup_issue_mapping')
             prompt=PROMPT+json.dumps({**data,'response_contract':{
@@ -103,10 +122,13 @@ def inspect(t,result,issues,folder,client,stage,read_only=False):
                            + 'PPT review round ' + str(client.ppt_retry_round))
             retry={'binding':repair_binding,'answer':client.call('source-followup-'+stage+'-document-issue-mapping-v1',[Path(t['image'])],prompt,SCHEMA)}
             save(repaired,retry)
-        answer=retry['answer'];validate(answer,SCHEMA)
-        if sorted(c['id'] for c in answer['checks'])!=sorted(ids):
+            validate(retry['answer'], SCHEMA)
+            mapped = mapped_answer(answer, retry['answer'], ids, ppt)
+        if mapped is None:
             raise ValueError('source_followup_issue_mapping')
-        receipt={'binding':binding,'answer':answer,'mapping_repair':{'policy':'document_issue_mapping_retry_v1',
+        answer = mapped
+        policy = 'document_issue_mapping_retry_v1' if mapped is retry['answer'] else 'ppt_complementary_checks_v1'
+        receipt={'binding':binding,'answer':answer,'mapping_repair':{'policy':policy,
             'original_sha256':digest_file(path),'repair_sha256':digest_file(repaired)}}
     for r in answer['regions']:
         bbox_pixels(r['bbox'],t['dimensions'])
@@ -186,6 +208,7 @@ def apply_round(baseline,raw,regions,image):
 
 def run(t,baseline,native,plan,folder,client,read_only=False):
     folder=Path(folder);current=copy.deepcopy(baseline);proof=[];changes=[];issues=[]
+    combined_receipts = []
     first_checks={};last_checks={};settled=[];structure_path=None
     # Two repair rounds bound retries. Budget exhaustion is propagated and stage
     # responses are cached by source; the same run resumes without new approvals.
@@ -210,17 +233,24 @@ def run(t,baseline,native,plan,folder,client,read_only=False):
         for x in discovered:byid.setdefault(x['id'],x)
         issues=list(byid.values())
         audit=inspect(t,current,issues,stage,client,'audit',read_only)
+        inspections = [('audit', audit)]
         checks={c['id']:c for c in audit['answer']['checks']}
         for key,c in checks.items():first_checks.setdefault(key,c)
         regions=scoped_regions(current,audit['answer'])
         if not regions or index==2:
             confirm=inspect(t,current,issues,stage,client,'confirm',read_only)
+            inspections.append(('confirm', confirm))
             last_checks={c['id']:c for c in confirm['answer']['checks']}
             settled=[i for i,c in checks.items() if c['decision'] in GOOD and c['source_clear'] and c['reason'].strip()
                 and last_checks[i]['decision']==c['decision'] and last_checks[i]['source_clear'] and last_checks[i]['reason'].strip()]
             remaining=scoped_regions(current,confirm['answer'])+regions
             state={'complete_scan':audit['answer']['complete_scan'] and confirm['answer']['complete_scan'],
                    'regions':remaining,'unresolved_issue_ids':[i['id'] for i in issues if i['id'] not in settled]}
+        for name, inspection in inspections:
+            mapping = inspection.get('mapping_repair', {})
+            if mapping.get('policy') == 'ppt_complementary_checks_v1':
+                combined_receipts.append({'round': index, 'stage': name, 'binding': inspection['binding'], **mapping})
+        if not regions or index == 2:
             break
         path=stage/'raw-repair.json'
         if path.exists():raw=read(path)
@@ -244,6 +274,8 @@ def run(t,baseline,native,plan,folder,client,read_only=False):
     receipt={'policy':POLICY,'image_sha256':digest_file(t['image']),'baseline':signature(baseline),
              'final':signature(current),'issues':issues,'settled_issue_ids':settled,'stages':proof,'state':state,
              'structure_review':str(structure_path) if structure_path else None}
+    if combined_receipts:
+        receipt['combined_checks'] = combined_receipts
     path=folder/'receipt.json'
     if read_only:
         if read(path)!=receipt:raise ValueError('source_followup_receipt_changed')

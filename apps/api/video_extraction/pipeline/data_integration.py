@@ -60,7 +60,7 @@ def extract_slide_key(record):
         page = _parse_page_number(loc.get('slide_number'))
     if page is None:
         page = _parse_page_number(record.get('slide_number'))
-    if page is None and 'unit_id' in record:
+    if page is None and isinstance(record.get('unit_id'), str):
         # e.g. 'source_id:visual:3' -> slide 4
         parts = record['unit_id'].split(':')
         if len(parts) >= 3 and parts[-2] == 'visual' and parts[-1].isdigit():
@@ -360,14 +360,14 @@ def integrate_records(records, units=None, code_corpus=None, metadata=None):
         slide_full_text = " ".join([b['text'] for b in text_blocks] + [speech_transcript])
 
         for c in code_records:
-            c_loc = c.get('location') or {}
-            c_page = _parse_page_number(c_loc.get('page')) or _parse_page_number(c.get('slide_number'))
+            code_source, c_page = extract_slide_key(c)
             sym = c.get('symbol_name', '')
             c_file = Path(c.get('source_file', '')).name
 
-            if c_page is not None and c_page == page:
-                slide_code.append(c)
-                attached_code_ids.add(c['id'])
+            if c_page is not None:
+                if code_source == sid and c_page == page:
+                    slide_code.append(c)
+                    attached_code_ids.add(c['id'])
             elif sym and len(sym) >= 3 and sym in slide_full_text:
                 slide_code.append(c)
                 attached_code_ids.add(c['id'])
@@ -486,15 +486,16 @@ def integrate_records(records, units=None, code_corpus=None, metadata=None):
         if cur_group:
             bundles.append(_build_audio_segment_bundle(cur_group))
 
-    # 3. Build Orphan Code Bundles (standalone code modules/files not tied to any slide)
+    # A page with only accepted code has no slide bundle to attach it to.
     orphan_codes = [c for c in code_records if c['id'] not in attached_code_ids]
     by_file = {}
     for c in orphan_codes:
         f = c.get('source_file') or c.get('source_id') or 'code_file'
-        by_file.setdefault(f, []).append(c)
+        source, page = extract_slide_key(c)
+        by_file.setdefault((f, source, page), []).append(c)
 
-    for fpath, citems in by_file.items():
-        bundles.append(_build_code_module_bundle(fpath, citems))
+    for (fpath, _, page), citems in by_file.items():
+        bundles.append(_build_code_module_bundle(fpath, citems, page))
 
     return bundles
 
@@ -551,7 +552,7 @@ def _build_audio_segment_bundle(speech_group):
     }
 
 
-def _build_code_module_bundle(file_path, code_items):
+def _build_code_module_bundle(file_path, code_items, page):
     first = code_items[0]
     sid = first.get('source_id') or first.get('source_sha256') or 'code_source'
     fname = Path(file_path).name
@@ -574,6 +575,8 @@ def _build_code_module_bundle(file_path, code_items):
 
     full_code = "\n\n".join(s['code'] for s in snippets)
     bundle_id = f"{sid}:code:{fname}"
+    if page is not None:
+        bundle_id += f":page:{page}"
     content_dict = {
         'title': f"Code Module · {fname}",
         'base_text': full_code,
@@ -587,8 +590,8 @@ def _build_code_module_bundle(file_path, code_items):
         'source_id': sid,
         'source_sha256': first.get('source_sha256', sid),
         'source_file': str(file_path),
-        'slide_number': None,
-        'page': None,
+        'slide_number': page,
+        'page': page,
         'time_interval': None,
         'content': content_dict,
         'provenance': {

@@ -111,15 +111,18 @@ def selection(output, plan, source_sha, suffix, summary):
         if (chunk.get("source_sha256") != source_sha or not chunk.get("eligible_for_chunking")
                 or not chunk["text"].strip() or len(chunk["text"]) > 1800):
             raise ValueError("DOCUMENT_SELECTION_INVALID")
-        chunk.update(document_type=suffix.lstrip("."), source_locator=f"문서 {chunk.get('page')}쪽",
-                     slide_number=chunk.get("page"), quality=POLICY)
+        page = chunk.get("page")
+        chunk.update(document_type=suffix.lstrip("."), source_locator=f"문서 {page}쪽" if page is not None else "문서",
+                     slide_number=page, quality=POLICY)
     for marker in summary.get("held_pages", []):
         page = marker["page"]
         held.append({"id": f"{source_sha}:page-review:{page}", "kind": "coverage_issue",
                      "location": {"page": page}, "reasons": [marker["reason"]], "status": "held",
-                     "source_context": ("원본 쪽의 검증 항목 ID가 일치하지 않습니다."
-                                        if marker["reason"] == "source_followup_issue_mapping"
-                                        else "이 쪽의 모델 응답이 검증 형식을 충족하지 않았습니다."),
+                     "source_context": {
+                         "source_followup_issue_mapping": "원본 쪽의 검증 항목 ID가 일치하지 않습니다.",
+                         "source_followup_audit_changed": "저장된 검증 응답의 원본 또는 입력이 현재 쪽과 다릅니다.",
+                         "source_followup_mapping_repair_changed": "보정 응답이 이 쪽의 검증 입력과 일치하지 않습니다.",
+                     }.get(marker["reason"], "이 쪽의 모델 응답이 검증 형식을 충족하지 않았습니다."),
                      "eligible_for_chunking": False})
     for row in held:
         page = row.get("location", {}).get("page")

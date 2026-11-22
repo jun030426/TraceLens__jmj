@@ -74,6 +74,31 @@ class FollowupVisualTests(unittest.TestCase):
         self.assertEqual(api.calls,['pdf-source-structure-v1','source-followup-audit','source-followup-confirm'])
         self.assertEqual(sf.add_unresolved(self.t,[],receipt),[])
 
+    def test_complementary_ppt_confirm_keeps_its_proof_and_independent_audit(self):
+        class ComplementaryConfirm(VisualClient):
+            def call(self, name, *args):
+                answer = super().call(name, *args)
+                if name == 'source-followup-confirm':
+                    answer['checks'] = answer['checks'][:1]
+                    answer['checks'][0]['source_clear'] = False
+                elif name == 'source-followup-confirm-document-issue-mapping-v1':
+                    answer['checks'] = answer['checks'][1:]
+                return answer
+
+        self.t['source_kind'] = 'ppt'
+        issues = [{'id': f'issue-{i}', 'kind': 'native_ppt'} for i in range(57)]
+        client = ComplementaryConfirm()
+        with patch.object(sf, 'native_issues', return_value=issues):
+            result = self.run_case(client)
+            folder = self.root / 'followup'
+            receipt = read(folder / 'receipt.json')
+            self.assertEqual(receipt['state']['unresolved_issue_ids'], ['issue-0'])
+            proof, = receipt['combined_checks']
+            self.assertEqual((proof['round'], proof['stage']), (0, 'confirm'))
+            self.assertEqual(proof['original_sha256'], digest_file(folder / '0/confirm.json'))
+            self.assertEqual(proof['repair_sha256'], digest_file(folder / '0/confirm-issue-mapping-v1.json'))
+            self.assertEqual(sf.run(self.t, self.base, self.native, self.plan, folder, None, read_only=True), result)
+
     def test_document_wrong_issue_ids_retry_once_preserves_original_and_replays(self):
         class WrongIds(VisualClient):
             def call(self,*args):
