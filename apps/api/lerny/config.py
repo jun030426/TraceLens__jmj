@@ -1,10 +1,11 @@
 import json
 import os
+from datetime import UTC
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, SecretStr, model_validator
 from sqlalchemy.engine import make_url
 
 from lerny.environment import cloud_environment, private_env_path, read_env, runtime_root
@@ -35,6 +36,8 @@ class Settings(BaseModel):
     gemini_review_course_id: str | None = None
     gemini_review_week: int | None = Field(default=None, ge=1)
     gemini_paid_generation_id: str | None = Field(default=None, min_length=1, max_length=36)
+    gemini_paid_from_week: int | None = Field(default=None, ge=1)
+    gemini_paid_uploads_since: AwareDatetime | None = None
     # The same course can hand PPT and weekly question review to its instructor.
     instructor_review_from_week: int | None = Field(default=None, ge=1)
 
@@ -91,6 +94,19 @@ class Settings(BaseModel):
         return (self.instructor_review_from_week is not None
                 and course_id is not None and course_id == self.gemini_review_course_id
                 and week is not None and week >= self.instructor_review_from_week)
+
+    def paid_upload_week(self, course_id, week):
+        return bool(self.gemini_review_quota_project and self.gemini_review_course_id
+                    and course_id == self.gemini_review_course_id and self.gemini_paid_uploads_since
+                    and self.gemini_paid_from_week is not None and week is not None
+                    and week >= self.gemini_paid_from_week)
+
+    def paid_upload(self, course_id, week, created_at):
+        if not self.paid_upload_week(course_id, week) or not created_at:
+            return False
+        # SQLite returns the stored UTC timestamp without its timezone.
+        timestamp = created_at if created_at.tzinfo else created_at.replace(tzinfo=UTC)
+        return timestamp >= self.gemini_paid_uploads_since
 
     @property
     def uses_supabase_storage(self):

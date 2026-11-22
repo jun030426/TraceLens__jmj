@@ -90,7 +90,8 @@ def test_paid_verification_keeps_completed_responses_and_free_project_backoff(pa
         return httpx.Response(200, json={"ok":True}, request=httpx.Request("POST", "https://test.invalid"))
     monkeypatch.setattr(httpx.Client, "post", post)
     job = SimpleNamespace(id="test-route", kind="questions", course_id="course", payload={"generation_id":"test"})
-    with job_context(job), quota.review_job(SimpleNamespace(scalar=lambda _: 4), job, config):
+    generation = SimpleNamespace(week=4, course_id="course")
+    with job_context(job), quota.review_job(SimpleNamespace(scalar=lambda _: generation), job, config):
         provider.request(PATH, BODY, dict)
         quota.block_until(PATH, BODY, "GEMINI_RATE_LIMITED", clock[0] + 3600)
         changed = {**BODY, "input":"second synthetic request"}
@@ -131,7 +132,8 @@ def test_paid_generation_is_bound_to_one_draft(paced, monkeypatch, kind, course,
         return httpx.Response(200, json={"ok":True}, request=httpx.Request("POST", "https://test.invalid"))
     monkeypatch.setattr(httpx.Client, "post", post)
     free_scope = quota.scope(PATH, BODY)
-    with job_context(job), quota.review_job(SimpleNamespace(scalar=lambda _:week), job, config):
+    generation = SimpleNamespace(week=week, course_id=course) if week is not None else None
+    with job_context(job), quota.review_job(SimpleNamespace(scalar=lambda _: generation), job, config):
         assert quota.request_purpose(PATH, config) == expected
         assert (quota.scope(PATH, BODY) != free_scope) == (expected == "draft")
         assert quota.request_purpose("models/test:embedContent", config) == "embedding"

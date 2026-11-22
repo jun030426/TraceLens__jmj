@@ -9,6 +9,7 @@ import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime, time as day_start, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, text
@@ -17,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from lerny.config import settings
 from lerny.db import engine
-from lerny.models import GeminiQuota, uid
+from lerny.models import ContentGeneration, GeminiQuota, Material, MaterialVersion, uid
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
 _verifying = ContextVar("gemini_verifying", default=False)
@@ -25,29 +26,51 @@ _paid_job = ContextVar("gemini_paid_review_job", default=False)
 _paid_draft = ContextVar("gemini_paid_draft", default=False)
 
 
+def paid_weekly_generation(session, config, generation):
+    if not config.paid_upload_week(generation.course_id, generation.week):
+        return False
+    version_ids = [source["version_id"] for source in generation.sources]
+    return session.scalar(select(MaterialVersion.id).join(Material, Material.id == MaterialVersion.material_id)
+        .where(MaterialVersion.id.in_(version_ids), MaterialVersion.created_at >= config.gemini_paid_uploads_since,
+               Material.course_id == generation.course_id, Material.week == generation.week,
+               Material.deleted.is_(False), Material.visibility == "public", Material.internal_use == "none",
+               Material.kind != "answer").limit(1)) is not None
+
+
+def paid_document_review(session, job, config):
+    from lerny.material_policy import student_source
+
+    row = session.execute(select(MaterialVersion, Material).join(Material, Material.id == MaterialVersion.material_id)
+        .where(MaterialVersion.id == job.payload.get("version_id"), Material.course_id == job.course_id)).first()
+    if not row or job.payload.get("manual_text"):
+        return False
+    version, material = row
+    if material.deleted or not student_source(material) or Path(version.filename).suffix.lower() != ".pptx":
+        return False
+    return (config.paid_upload(material.course_id, material.week, version.created_at)
+            or (config.instructor_review_from_week is None and material.week == config.gemini_review_week))
+
+
 @contextmanager
 def review_job(session, job, config):
-    from lerny.models import ContentGeneration, Material, MaterialVersion
-
     allowed = False
     paid_draft = False
-    if (config.gemini_review_quota_project and config.gemini_review_week is not None
+    if (config.gemini_review_quota_project and config.gemini_review_course_id
             and job.course_id == config.gemini_review_course_id):
-        if job.kind == "extract" and config.instructor_review_from_week is None:
-            week = session.scalar(select(Material.week)
-                .join(MaterialVersion, MaterialVersion.material_id == Material.id)
-                .where(MaterialVersion.id == job.payload.get("version_id"), Material.course_id == job.course_id))
-            allowed = week == config.gemini_review_week
+        if job.kind == "extract":
+            allowed = paid_document_review(session, job, config)
         elif job.kind in {"weekly_content", "questions", "practice_prepare"}:
             generation_id = job.payload.get("generation_id")
             selected = bool(generation_id and generation_id == config.gemini_paid_generation_id)
-            if job.kind == "questions" or selected:
-                week = session.scalar(select(ContentGeneration.week).where(
+            if generation_id:
+                generation = session.scalar(select(ContentGeneration).where(
                     ContentGeneration.id == generation_id, ContentGeneration.course_id == job.course_id,
                     ContentGeneration.status == "draft"))
-                eligible = week == config.gemini_review_week
-                allowed = eligible and job.kind == "questions"
-                paid_draft = eligible and selected
+                if generation:
+                    new_upload = paid_weekly_generation(session, config, generation)
+                    legacy_week = config.gemini_review_week is not None and generation.week == config.gemini_review_week
+                    allowed = (new_upload or legacy_week) and job.kind == "questions"
+                    paid_draft = new_upload or (legacy_week and selected)
     token = _paid_job.set(allowed)
     draft_token = _paid_draft.set(paid_draft)
     try:
