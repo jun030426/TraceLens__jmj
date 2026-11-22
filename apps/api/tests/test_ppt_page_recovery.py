@@ -235,10 +235,10 @@ def test_page_hold_allows_subsequent_page_and_only_dependent_links(tmp_path, mon
 
 
 
-def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, monkeypatch):
+@pytest.fixture
+def checkpoint_engines(monkeypatch):
     import hashlib
     import sys
-    from video_extraction.pipeline import ppt_recovery
     # Hash the Linux release form when Git checked out CRLF files on Windows.
     connected.hashes()
     def linux_code_digest(path):
@@ -260,11 +260,21 @@ def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, monk
     }
     old = {**production, **{"connected":"de46459355570f76dbd8d7f1e85e12d6ac5ea99693ca597565f3b8dff1ac8778","gemini.py":"84ebe4b9a4ecf0448787b4913e01119fc195b298b2190f04acc7e5c90c9a2c04","video_extraction.pipeline.source_followup":"54c5ed0a3a21f84c4648146ec9649cbb0919bb80795b28bbb87a46dc69c19281"}}
     del old["video_extraction.pipeline.ppt_recovery"]
+    complement = {**production, **{name: current[name] for name in (
+        "video_extraction.pipeline.ppt_recovery", "video_extraction.pipeline.source_followup")}}
+    complement["connected"] = "5cab6da57a5aa8a25b5bdcf650eccb5b6c8cd4098df25d7aab4fc42a3bb9a4be"
+    return current, {"original": old, "deployed": production, "complement": complement}
+
+
+@pytest.mark.parametrize("engine", ["original", "deployed", "complement"])
+def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, checkpoint_engines, engine):
+    from video_extraction.pipeline import ppt_recovery
+    current, versions = checkpoint_engines
+    old = versions[engine]
     source = tmp_path / "source.pptx"
     source.write_bytes(b"synthetic source")
     plan = {"source_plan":{"sources":[{"kind":"ppt"}], "request":{"sources":[str(source)]}, "gemini_model":"fixture"},
             "code_hashes":old, "inputs":{str(source):digest_file(source)}}
-    assert ppt_recovery.compatible({**plan, "code_hashes": production}, current)
     assert ppt_recovery.compatible(plan, current)
     assert not ppt_recovery.compatible(plan, {**current, "runner":"unknown"})
     assert not ppt_recovery.compatible({**plan,"code_hashes":{**old,"runner":"unknown"}}, current)
@@ -275,3 +285,41 @@ def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, monk
     source.write_bytes(b"different")
     with pytest.raises(ValueError, match="bound_source_changed"):
         connected.verify(output)
+
+
+@pytest.mark.parametrize("engine", ["original", "deployed"])
+def test_resume_skips_55_saved_tasks_from_each_production_engine(tmp_path, monkeypatch, checkpoint_engines, engine):
+    from contextlib import nullcontext
+    from video_extraction.pipeline import ppt_recovery
+    current, versions = checkpoint_engines
+    source = tmp_path / "source.pptx"
+    source.write_bytes(b"synthetic deck")
+    units = [{"id": f"p{i}", "source_kind": "ppt", "location": {"page": i}} for i in range(1, 52)]
+    tasks = [{"id": u["id"], "kind": "visual", "unit": u} for u in units]
+    tasks += [{"id": f"link{i}", "kind": "document_links", "pages": units[i:i+2]} for i in range(50)]
+    plan = {"tasks": tasks, "code_hashes": versions[engine], "inputs": {str(source): digest_file(source)},
+            "source_plan": {"sources": [{"kind": "ppt"}], "request": {"sources": [str(source)]},
+                            "gemini_model": "fixture"}}
+    out = tmp_path / ("analysis-" + signature({"policy": "fixture", "engine": versions[engine], "model": "fixture"})[:20])
+    save(out / "plan.json", plan)
+    for task in tasks[:55]:
+        result = {"records": [], "specialist": task["kind"], "evidence_files": {},
+                  "binding": signature({"plan": signature(plan), "task": task})}
+        result["payload_hash"] = signature(result)
+        save(out / "results" / (signature(task["id"])[:24] + ".json"), result)
+    assert ppt_recovery.output_folder(tmp_path, tmp_path / "new", current, "fixture", "fixture", source) == out
+    # Synthetic receipts exercise plan selection, binding, and the real runnable filter.
+    monkeypatch.setattr(connected, "revalidate_result", lambda *_: None)
+    monkeypatch.setattr(connected, "lock", lambda _: nullcontext())
+    monkeypatch.setattr(connected.runtime_tools, "audit", lambda *_: {"core_ready": True, "checks": []})
+    monkeypatch.setattr(connected, "api_key", lambda _: "fixture")
+    monkeypatch.setattr(connected, "publish", lambda *_: {"pending": 46, "all_tasks_processed": False})
+    calls = []
+    def record(task, results, target, client):
+        calls.append(task["id"])
+        return {"records": []}
+    monkeypatch.setattr(connected.document_links, "run", record)
+    monkeypatch.setattr(connected, "visual", lambda *_: pytest.fail("completed page scheduled"))
+    connected.run(out, None, ppt_retry_round=1, review_concurrency=4,
+                  transport=lambda *_: pytest.fail("unexpected Gemini request"))
+    assert sorted(calls) == sorted(t["id"] for t in tasks[55:])
