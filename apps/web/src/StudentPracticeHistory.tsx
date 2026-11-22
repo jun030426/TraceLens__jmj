@@ -206,9 +206,7 @@ export function StudentPracticeHistory({
                   </div>
                 )}
                 <strong>내 제출 코드</strong>
-                <pre className="practice-submitted-code">
-                  <code><SubmittedCode source={a.source} snapshot={a.submission_snapshot} /></code>
-                </pre>
+                <SubmittedCode source={a.source} snapshot={a.submission_snapshot} />
               </details>
             </article>
           );
