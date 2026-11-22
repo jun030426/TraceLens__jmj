@@ -329,14 +329,21 @@ def heartbeat(job_id, token, stopped):
             session.commit()
 
 
-def run_once(job_id=None):
+EMBEDDING_JOBS = frozenset({"embed", "rag_reindex"})
+
+
+def run_once(job_id=None, *, kinds=None, exclude_kinds=(), worker_kind="material"):
     from lerny.gemini_runtime import PAUSE_REASONS, hold, needs_remote, pause_reason
     from lerny.gemini_quota import ProviderDeferred
     with Session(engine()) as session:
         from lerny.operations import state, touch, allowed_job_kinds
         control = state(session, lock=True)
-        touch(session, "material")
+        touch(session, worker_kind)
         query = select(Job).where(Job.kind != "lecture_spec", Job.kind.in_(allowed_job_kinds(control)))
+        if exclude_kinds:
+            query = query.where(Job.kind.not_in(exclude_kinds))
+        if kinds is not None:
+            query = query.where(Job.kind.in_(kinds))
         from lerny.models import ContentGeneration
         without_video = select(ContentGeneration.id).where(
             ContentGeneration.options["video_mode"].as_string() == "none")
@@ -397,7 +404,7 @@ def run_once(job_id=None):
         cloud = settings().deployment == "cloud" and not settings().dedicated_worker
         job.lease_until = now() + timedelta(seconds=330 if cloud else 60)
         job_id, token = job.id, job.lease_token
-        touch(session, "material", busy=True)
+        touch(session, worker_kind, busy=True)
         session.commit()
     stopped = threading.Event()
     thread = threading.Thread(target=heartbeat, args=(job_id, token, stopped), daemon=True)
@@ -536,7 +543,7 @@ def run_once(job_id=None):
         if not cloud:
             thread.join(timeout=2)
         from lerny.operations import finished
-        finished("material")
+        finished(worker_kind)
     return True
 
 

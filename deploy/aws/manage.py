@@ -1,12 +1,11 @@
 """Operator helper. Credentials use the AWS login profile; secret values are never printed."""
 import argparse
 import hashlib
+import io
 import json
-import os
 import secrets
 import subprocess
 import tarfile
-import time
 from pathlib import Path
 
 import boto3
@@ -19,11 +18,22 @@ INSTANCE = "i-0c64182a7dada987a"
 PARAMETER = "/lerny/production/worker-env"
 
 
-def configuration(env_file, state_dir, enable_automatic=False):
+WORKER_POLICY_NAMES = (
+    "LERNY_GEMINI_REVIEW_COURSE_ID", "LERNY_GEMINI_REVIEW_WEEK",
+    "LERNY_GEMINI_REVIEW_QUOTA_PROJECT", "LERNY_INSTRUCTOR_REVIEW_FROM_WEEK",
+    "LERNY_GEMINI_PAID_FROM_WEEK", "LERNY_GEMINI_PAID_UPLOADS_SINCE",
+    "LERNY_GEMINI_REVIEW_REQUESTS_PER_MINUTE", "LERNY_GEMINI_EMBEDDING_REQUESTS_PER_MINUTE",
+    "LERNY_GEMINI_CONTENT_REQUESTS_PER_MINUTE",
+)
+
+
+def configuration(env_file, state_dir, enable_automatic=False, *, worker=True):
     source = dotenv_values(env_file, encoding="utf-8-sig", interpolate=False)
     names = ("DATABASE_URL", "SUPABASE_URL", "SUPABASE_SECRET_KEY", "GEMINI_EMBEDDING_API_KEY",
              "GEMINI_CONTENT_API_KEY", "GEMINI_CONTENT_MODEL", "HEYGEN_API_KEY", "HEYGEN_AVATAR_ID", "HEYGEN_VOICE_ID")
     config = {name: source[name] for name in names if source.get(name)}
+    if worker:
+        config.update({name: source[name] for name in WORKER_POLICY_NAMES if source.get(name)})
     assert all(config.get(k) for k in names[:5])
     private = state_dir / "deployment-secrets.json"
     if private.exists():
@@ -47,10 +57,56 @@ def configuration(env_file, state_dir, enable_automatic=False):
     return config
 
 
+def add_release_file(archive, file, root):
+    relative = file.relative_to(root)
+    # Engine plans bind implementation bytes. Git for Windows can check out
+    # CRLF even when the reviewed blob and the running Linux release use LF.
+    if relative.is_relative_to("apps/api/video_extraction") and file.suffix in {".py", ".json"}:
+        data = file.read_bytes().replace(b"\r\n", b"\n")
+        entry = archive.gettarinfo(str(file), arcname=relative.as_posix())
+        entry.size = len(data)
+        archive.addfile(entry, io.BytesIO(data))
+    else:
+        archive.add(file, arcname=relative.as_posix(), recursive=False)
+
+
+def update_worker_policy(ssm, patch, expected_version, *, apply=False):
+    if (not isinstance(patch, dict) or not patch or set(patch) - set(WORKER_POLICY_NAMES)
+            or any(type(v) is not str or not v.strip() for v in patch.values())):
+        raise ValueError("Expected a nonempty worker policy JSON object with allowlisted string values")
+    for name, value in patch.items():
+        if name.endswith("_REQUESTS_PER_MINUTE") and not (value.isdecimal() and 1 <= int(value) <= 6000):
+            raise ValueError("Invalid RPM for " + name)
+    current = ssm.get_parameter(Name=PARAMETER, WithDecryption=True)["Parameter"]
+    if current["Type"] != "SecureString" or expected_version != current["Version"]:
+        raise ValueError("Worker parameter type or version differs from the reviewed version")
+    previous = json.loads(current["Value"])
+    changed = sorted(k for k in patch if previous.get(k) != patch[k])
+    print(json.dumps({"version": current["Version"], "changed": changed}))
+    if not apply or not changed:
+        return
+    metadata, = ssm.describe_parameters(ParameterFilters=[
+        {"Key": "Name", "Option": "Equals", "Values": [PARAMETER]}])["Parameters"]
+    if metadata["Version"] != expected_version:
+        raise ValueError("Worker parameter changed during review")
+    value = json.dumps({**previous, **patch}, separators=(",", ":"))
+    tier = metadata["Tier"]
+    if len(value.encode()) > (4096 if tier == "Standard" else 8192):
+        raise ValueError("Merged value exceeds current SSM tier")
+    options = {k: metadata[k] for k in ("KeyId", "Description", "AllowedPattern", "DataType") if metadata.get(k)}
+    if metadata.get("Policies"):
+        options["Policies"] = json.dumps([json.loads(p["PolicyText"]) for p in metadata["Policies"]])
+    result = ssm.put_parameter(Name=PARAMETER, Value=value, Type="SecureString",
+                               Tier=tier, Overwrite=True, **options)
+    print(json.dumps({"written_version": result["Version"]}))
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["package", "install", "send", "poll", "vercel-env"])
+    parser.add_argument("action", choices=["package", "install", "send", "poll", "vercel-env", "worker-policy"])
     parser.add_argument("--file")
+    parser.add_argument("--expected-version", type=int)
+    parser.add_argument("--apply", action="store_true")
     parser.add_argument("--id")
     parser.add_argument("--env-file")
     parser.add_argument("--private-dir")
@@ -60,7 +116,10 @@ def main():
     state = Path(args.private_dir) if args.private_dir else ROOT.parent
     session = boto3.Session(profile_name="lerny-deploy", region_name=REGION)
     ssm = session.client("ssm")
-    if args.action == "package":
+    if args.action == "worker-policy":
+        policy = json.loads(Path(args.file).read_text(encoding="utf-8-sig"))
+        update_worker_policy(ssm, policy, args.expected_version, apply=args.apply)
+    elif args.action == "package":
         archive = ROOT.parent / "source.tar.gz"
         excluded = {"__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", ".venv"}
         with tarfile.open(archive, "w:gz") as out:
@@ -70,7 +129,7 @@ def main():
                 for file in files:
                     if not file.is_file() or excluded.intersection(file.parts) or file.name.startswith(".env"):
                         continue
-                    out.add(file, arcname=file.relative_to(ROOT).as_posix(), recursive=False)
+                    add_release_file(out, file, ROOT)
         digest = hashlib.sha256(archive.read_bytes()).hexdigest()
         key = "releases/" + digest + "/source.tar.gz"
         session.client("s3").upload_file(str(archive), BUCKET, key)
@@ -81,6 +140,12 @@ def main():
         config = configuration(args.env_file, state, args.enable_automatic_learning)
         config.update({"LERNY_DEDICATED_WORKER": "true", "LERNY_TRACE_BACKEND": "command",
             "LERNY_TRACE_SANDBOX_COMMAND": json.dumps(["/usr/bin/python3", "/opt/lerny/current/deploy/trace-sandbox/run_isolated.py"])})
+        # Keep the last approved routing policy when deploying from an older env file.
+        try:
+            existing = json.loads(ssm.get_parameter(Name=PARAMETER, WithDecryption=True)["Parameter"]["Value"])
+        except ssm.exceptions.ParameterNotFound:
+            existing = {}
+        config = {**{k: existing[k] for k in WORKER_POLICY_NAMES if k in existing}, **config}
         value = json.dumps(config)
         assert len(value.encode()) <= 4096, "Standard parameter limit exceeded"
         ssm.put_parameter(Name=PARAMETER, Value=value, Type="SecureString", Tier="Standard", Overwrite=True)
@@ -97,7 +162,7 @@ def main():
         response = ssm.get_command_invocation(CommandId=args.id, InstanceId=INSTANCE)
         print(json.dumps({"status": response["Status"], "code": response["ResponseCode"], "out": response.get("StandardOutputContent", "")[-7000:], "error": response.get("StandardErrorContent", "")[-5000:]}))
     elif args.action == "vercel-env":
-        config = configuration(args.env_file, state, args.enable_automatic_learning)
+        config = configuration(args.env_file, state, args.enable_automatic_learning, worker=False)
         config["LERNY_SUPABASE_URL"] = config.pop("SUPABASE_URL")
         config["LERNY_SUPABASE_SERVICE_KEY"] = config.pop("SUPABASE_SECRET_KEY")
         config.update({"LERNY_RUNTIME_ROOT": "/tmp/lerny", "LERNY_DEDICATED_WORKER": "false", "LERNY_TRACE_BACKEND": "queue"})

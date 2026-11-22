@@ -625,7 +625,7 @@ def job_action(
                     row.id,
                 )
             from lerny.gemini_failures import prepare_retry
-            prepare_retry(row)
+            prepare_retry(row, session)
             row.status, row.error_code = "queued", None
             row.lease_token, row.lease_until = None, None
             if row.kind in {"extract", "embed"}:

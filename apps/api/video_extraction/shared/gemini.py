@@ -82,6 +82,28 @@ class Gemini:
                 value=validate(cached['parsed'],schema)
                 self.stats['cache_hits']+=1
                 return value
+        retry_round = getattr(self, 'ppt_retry_round', None)
+        rejected = self.cache / (sig + '.invalid-0.json')
+        if retry_round is not None and rejected.exists():
+            previous = read(rejected)
+            if previous.get('stage') != stage:
+                raise ValueError('rejected_stage_changed')
+            if stage == 'layers_extract':
+                try:
+                    parsed, changes = self.parse_ppt_layers(previous['response'], schema)
+                except (ValueError, KeyError, TypeError):
+                    pass
+                else:
+                    if changes:
+                        save(path, {'signature': sig, 'stage': stage, 'model': self.model, 'parsed': parsed,
+                                    'normalization': changes, 'original_response_sha256': signature(previous['response'])})
+                        self.stats['cache_hits'] += 1
+                        return parsed
+            # Change only the rejected request's gateway fingerprint. Good stages
+            # retain their original signature and the job keeps its billing generation.
+            prompt += (f'\nPPT validation retry {retry_round}. Reinspect the original media. '
+                       'Respect every array bound (at most 100 text blocks for layers_extract). '
+                       'Keep uncertain content marked uncertain. Never omit content to fit a bound.')
         key=api_key(self.env_file)
         parts=[{'type':'text','text':prompt}]
         for p in images:
@@ -120,16 +142,27 @@ class Gemini:
             except (ValueError,UnicodeDecodeError):
                 raise self.blocked('malformed_http_response') from None
             try:
-                parsed=validate(json.loads(response_text(raw)),schema)
+                changes = []
+                if retry_round is not None and stage == 'layers_extract':
+                    parsed, changes = self.parse_ppt_layers(raw, schema)
+                else:
+                    parsed=validate(json.loads(response_text(raw)),schema)
             except (ValueError,KeyError,TypeError):
                 save(self.cache/(sig+f'.invalid-{attempt}.json'),{'stage':stage,'response':raw})
-                if attempt<2:continue
+                if retry_round is None and attempt<2:continue
                 raise Blocked('invalid_model_response') from None
             self.stats['successes']+=1
             usage=raw.get('usage',raw.get('usage_metadata',{}));self.stats['usage'].append(usage)
             save(path,{'signature':sig,'stage':stage,'model':self.model,'parsed':parsed,'usage':usage,
-                       'seconds':time.monotonic()-self.last})
+                       'seconds':time.monotonic()-self.last,
+                       **({'normalization': changes, 'original_response_sha256': signature(raw)} if changes else {})})
             return parsed
+
+    @staticmethod
+    def parse_ppt_layers(raw, schema):
+        from video_extraction.pipeline.ppt_recovery import normalized_layers
+        value, changes = normalized_layers(json.loads(response_text(raw)))
+        return validate(value, schema), changes
 
 
 def obj(props):

@@ -113,6 +113,14 @@ def selection(output, plan, source_sha, suffix, summary):
             raise ValueError("DOCUMENT_SELECTION_INVALID")
         chunk.update(document_type=suffix.lstrip("."), source_locator=f"문서 {chunk.get('page')}쪽",
                      slide_number=chunk.get("page"), quality=POLICY)
+    for marker in summary.get("held_pages", []):
+        page = marker["page"]
+        held.append({"id": f"{source_sha}:page-review:{page}", "kind": "coverage_issue",
+                     "location": {"page": page}, "reasons": [marker["reason"]], "status": "held",
+                     "source_context": ("원본 쪽의 검증 항목 ID가 일치하지 않습니다."
+                                        if marker["reason"] == "source_followup_issue_mapping"
+                                        else "이 쪽의 모델 응답이 검증 형식을 충족하지 않았습니다."),
+                     "eligible_for_chunking": False})
     for row in held:
         page = row.get("location", {}).get("page")
         row["source_locator"] = f"문서 {page}쪽" if page else "문서"
@@ -123,7 +131,7 @@ def selection(output, plan, source_sha, suffix, summary):
         "accuracy_pct": None, "scope": "model_source_review_and_calculation_gates_not_measured_accuracy"}}
 
 
-def process(path, folder, source_sha, check, report):
+def process(path, folder, source_sha, check, report, ppt_retry_round=0):
     from lerny.gemini_provider import media_call_budget
     from lerny.gemini_quota import ProviderDeferred, verification
     from lerny.media_materials import MediaStopped, service_transport
@@ -145,6 +153,9 @@ def process(path, folder, source_sha, check, report):
     # Keep old policy outputs intact; the service gateway still reuses matching responses.
     output = folder / ("analysis-" + signature({"policy": POLICY, "engine": connected.hashes(),
                                                "model": model})[:20])
+    if path.suffix.lower() == ".pptx":
+        from video_extraction.pipeline import ppt_recovery
+        output = ppt_recovery.output_folder(folder, output, connected.hashes(), model, POLICY, path)
     base_output = output
     attempt = 0
     # A failed render is frozen in the common preparation plan. Preserve that
@@ -186,8 +197,9 @@ def process(path, folder, source_sha, check, report):
                 raise ValueError("DOCUMENT_RENDER_FAILED")
             active()
             summary = connected.run(output, None, maximum=config.gemini_max_calls_per_job,
-                                    delay=0, transport=transport)
-            if not summary["all_tasks_processed"]:
+                                    delay=0, transport=transport,
+                                    **({"ppt_retry_round": ppt_retry_round} if path.suffix.lower() == ".pptx" else {}))
+            if not summary["all_tasks_processed"] and not summary.get("held_pages"):
                 raise ValueError("DOCUMENT_VALIDATION_INCOMPLETE")
             active()
             if digest_file(path) != source_sha:
@@ -250,7 +262,9 @@ def extract_job(session, job, version, material):
         finally:
             temporary.unlink(missing_ok=True)
     check()
-    result = process(path, folder, version.sha256, check, reporter(job.id, job.lease_token, version.id))
+    retry_round = job.payload.get("_ppt_review_round", 0)
+    result = process(path, folder, version.sha256, check, reporter(job.id, job.lease_token, version.id),
+                     **({"ppt_retry_round": retry_round} if retry_round else {}))
     check()
     return publish_extraction(session, job, version, material, {"source_sha256": version.sha256},
                               result["chunks"], result["held"], result["evidence"])

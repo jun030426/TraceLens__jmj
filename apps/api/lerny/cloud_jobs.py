@@ -59,7 +59,10 @@ def tick():
     from lerny.admin_control import tick as control_tick
     control_tick()
 
-    cleanup()
+    # In the Gemini deployment the dedicated material service owns cleanup.
+    # Other cloud deployments retain their scheduler-only maintenance path.
+    if settings().ai_provider != "gemini":
+        cleanup()
 
     started, processed = time.monotonic(), 0
     # Each invocation is bounded. No permanent worker or request waiting for GPU inference.

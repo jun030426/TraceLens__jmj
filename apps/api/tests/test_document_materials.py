@@ -451,3 +451,20 @@ def test_render_failure_retries_in_new_revision_without_deleting_evidence(tmp_pa
             documents.process(path, tmp_path, digest_file(path), lambda: None, lambda *_: None)
     assert folders[0] != folders[1]
     assert all((folder / "plan.json").is_file() for folder in folders)
+
+
+def test_unreadable_page_is_staff_only_and_never_supplemented(site, synthetic_engine, monkeypatch):
+    from video_extraction.shared.gemini import Blocked
+    from lerny.extraction_review import normalized
+    _, session, _ = site
+    job, version = upload(site, ".pptx")
+    monkeypatch.setattr(connected, "visual", lambda *_: (_ for _ in ()).throw(Blocked("invalid_model_response")))
+    assert worker.run_once(job.id)
+    session.expire_all()
+    assert job.status == "succeeded" and version.status == "needs_review"
+    assert not version.extracted_text and not list(session.scalars(select(Chunk).where(Chunk.version_id == version.id)))
+    report = version.extraction_report
+    item, = report["review_queue"]
+    assert normalized(item, 0)["source_locator"] == "문서 1쪽"
+    assert item["reasons"] == ["invalid_model_response"]
+    assert report["native_evidence"]["ppt_page_review"]["accepted"] == [] and not synthetic_engine.calls

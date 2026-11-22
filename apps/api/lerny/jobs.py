@@ -220,7 +220,7 @@ def retry(job_id: str, session: Db, actor: Actor):
     if job.status != "failed":
         deny(409)
     from lerny.gemini_failures import prepare_retry
-    prepare_retry(job)
+    prepare_retry(job, session)
     job.status, job.error_code = "queued", None
     if job.kind in {"extract", "embed"}:
         from lerny.models import MaterialVersion

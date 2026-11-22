@@ -144,6 +144,8 @@ def reserve_slot(path, payload):
     config = settings()
     purpose = "embedding" if path.endswith(":embedContent") else "content"
     rpm = getattr(config, f"gemini_{purpose}_requests_per_minute")
+    if request_purpose(path, config) == "review" and config.gemini_review_requests_per_minute is not None:
+        rpm = config.gemini_review_requests_per_minute
     tpm = getattr(config, f"gemini_{purpose}_tokens_per_minute")
     rpd = getattr(config, f"gemini_{purpose}_requests_per_day")
     # Media bytes are transport encoding, not text tokens. Keep text's existing
