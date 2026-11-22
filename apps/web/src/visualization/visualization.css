@@ -72,6 +72,18 @@
 .vz-screen__detail.is-cond-true, .vz-screen__detail.is-loop-in { color: #2f8a57; }
 .vz-screen__detail.is-cond-false, .vz-screen__detail.is-loop-out { color: #b0562f; }
 .vz-screen__facts { font-size: 12.5px; color: var(--vz-ink-2); }
+.vz-screen__facts mark {
+  padding-inline: 3px;
+  color: #302437;
+  font-weight: 700;
+  background: linear-gradient(transparent 34%, #ffe48a 34% 94%, transparent 94%);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+:root[data-theme="dark"] .vz-screen__facts mark {
+  color: #fff3ca;
+  background: linear-gradient(transparent 34%, #72571d 34% 94%, transparent 94%);
+}
 .vz-screen__step { display: inline-block; margin-right: 8px; padding: 1px 8px; border-radius: 999px; background: var(--vz-accent-wash); color: var(--vz-accent); font-size: 12px; font-weight: 700; }
 
 .vz-screen__controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

@@ -578,11 +578,8 @@
 #root .practice-chat .practice-chat__bookmark .practice-chat__bookmark-week { display: inline !important; color: inherit !important; font-size: 12px !important; }
 
 /* 19. 실습 답지: 빈칸 위에 회색 글씨로 깔아 두고 학생이 따라 써요 */
-#root .blank-editor .blank-editor__slot.has-ghost { display: inline-grid; grid-template-columns: auto auto; align-items: center; }
-#root .blank-editor .blank-editor__slot.has-ghost > .blank-editor__num { grid-column: 1; grid-row: 1; }
-#root .blank-editor .blank-editor__slot.has-ghost > input { grid-column: 2; grid-row: 1; }
-#root .blank-editor .blank-editor__ghost { grid-column: 2; grid-row: 1; align-self: center; padding: 0 calc(6px + 1.5px); font: inherit; white-space: pre; color: #9aa0a6; opacity: .75; pointer-events: none; z-index: 1; }
-#root main.app .blank-editor .blank-editor__slot.has-ghost input.blank-editor__input.blank-editor__input { border-color: #a9adb3; border-style: dashed; }
+#root .blank-editor .blank-editor__ghost {  color: #9aa0a6; opacity: .75; pointer-events: none; z-index: 1; }
+#root main.app .blank-editor .blank-editor__slot.has-ghost textarea.blank-editor__input.blank-editor__input { border-color: #a9adb3; border-style: dashed; }
 #root .practice-editor-actions .practice-answer-btn { border: 1px solid #d9c9a8 !important; background: #fdf8ee !important; color: #8a6420 !important; }
 #root .practice-editor-actions .practice-answer-btn.is-on { background: #f5ead2 !important; }
 :root[data-theme="dark"] #root .blank-editor .blank-editor__ghost { color: #8d8794; }
@@ -646,15 +643,18 @@
 /* 22. 빈칸·직접 작성 에디터 글자 크기 통일 + 출력 값 위치 */
 #root main.app .practice-page .blank-editor { font-size: 14px !important; line-height: 1.9 !important; font-family: var(--v-mono, Consolas, monospace) !important; }
 #root main.app .practice-page .blank-editor code { font-size: 14px !important; }
-#root .practice-output-panel > .practice-expected { flex-shrink: 0; display: flex; align-items: center; gap: 10px; margin: 0 16px 12px !important; padding: 10px 14px; border-radius: 10px; background: #f7f3f9; border: 1px solid #ece3f1; font-size: 13.5px; color: #6b6e72; white-space: normal; }
-#root .practice-output-panel > .practice-expected span { font-weight: 700; color: #5b4363; }
-#root .practice-output-panel > .practice-expected code { font: 14px var(--v-mono, Consolas, monospace); padding: 2px 9px; border-radius: 6px; background: #fff; color: #4e3456; }
-:root[data-theme="dark"] #root .practice-output-panel > .practice-expected { background: #2a2330; border-color: #3a3042; color: #a49eaa; }
-:root[data-theme="dark"] #root .practice-output-panel > .practice-expected span { color: #d8c6e2; }
-:root[data-theme="dark"] #root .practice-output-panel > .practice-expected code { background: #1d1720; color: #e6d6ef; }
+#root .practice-output-body > .practice-expected { flex-shrink: 0; display: flex; align-items: center; gap: 10px; margin: 12px 16px 12px !important; padding: 10px 14px; border-radius: 10px; background: #f7f3f9; border: 1px solid #ece3f1; font-size: 13.5px; color: #6b6e72; white-space: normal; }
+#root .practice-output-body:has(> .practice-output-empty) > .practice-expected {
+  order: -1;
+}
+#root .practice-output-body > .practice-expected span { font-weight: 700; color: #5b4363; }
+#root .practice-output-body > .practice-expected code { font: 14px var(--v-mono, Consolas, monospace); padding: 2px 9px; border-radius: 6px; background: #fff; color: #4e3456; }
+:root[data-theme="dark"] #root .practice-output-body > .practice-expected { background: #2a2330; border-color: #3a3042; color: #a49eaa; }
+:root[data-theme="dark"] #root .practice-output-body > .practice-expected span { color: #d8c6e2; }
+:root[data-theme="dark"] #root .practice-output-body > .practice-expected code { background: #1d1720; color: #e6d6ef; }
 /* 23. 실행 결과 아래 채점 박스가 잘리지 않게 */
 #root main.app .practice-page .practice-output-panel > .blank-verdict { max-height: none !important; overflow: visible !important; flex: 0 0 auto !important; }
-#root main.app .practice-page .practice-output-panel > .practice-expected { flex: 0 0 auto !important; }
+#root main.app .practice-page .practice-output-body > .practice-expected { flex: 0 0 auto !important; }
 #root main.app .practice-page .practice-output-panel > .practice-output-body { flex: 1 1 auto !important; min-height: 72px !important; overflow-y: auto !important; }
 /* 24. 시각화 칸이 잘리지 않게 실습 작업 칸 최소 높이를 키워요 */
 @media (min-width: 851px) {
@@ -694,9 +694,9 @@
 #root .practice-page { padding-bottom: 72px; }
 
 /* 24. 답지 보기: 학생이 따라 쓴 글씨는 파란색 (밑에 깔린 답지는 회색) */
-#root main.app .blank-editor .blank-editor__slot.has-ghost input.blank-editor__input.blank-editor__input { color: #1d5fd6 !important; font-weight: 600; }
+#root main.app .blank-editor .blank-editor__slot.has-ghost textarea.blank-editor__input.blank-editor__input { color: #1d5fd6 !important; font-weight: 600; }
 #root main.app .code-editor.has-ghost textarea.code-editor__input.code-editor__input { color: #1d5fd6 !important; }
-:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot.has-ghost input.blank-editor__input.blank-editor__input { color: #8ab6ff !important; }
+:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot.has-ghost textarea.blank-editor__input.blank-editor__input { color: #8ab6ff !important; }
 :root[data-theme="dark"] #root main.app .code-editor.has-ghost textarea.code-editor__input.code-editor__input { color: #8ab6ff !important; }
 
 /* 25. 실습 풀이 화면: 상단 바를 숨겨 두고, 화면 맨 위에 마우스를 올리면 내려와요 (키보드로 들어가도 내려와요) */
@@ -776,13 +776,13 @@
 #root .practice-card .practice-variant-notice { margin: 12px 20px 16px; color: var(--d-ink-2, #656668); font-size: 14px; }
 #root .practice-q-head .practice-types { display: flex; gap: 6px; flex: none; }
 #root .practice-q-head .practice-types span { padding: 4px 10px; font-size: 12px; }
-#root main.app .practice-page .practice-card > .practice-problem-description { margin: 0 !important; padding: 2px 20px 12px; font-size: 14.5px !important; line-height: 1.65 !important; border-bottom: 1px solid #f0eaf2; }
+#root main.app .practice-page .practice-card > .practice-problem-description { margin: 0 !important; padding: 2px 20px 12px; font-size: 14.5px !important; line-height: 1.65 !important; }
 #root .practice-card > .step-hints { margin: 0 !important; padding: 8px 20px !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; border-bottom: 1px solid #f0eaf2; }
 #root .practice-card > .step-hints .step-hints-head h3 { font-size: 15px; }
 #root .practice-card > .step-hints .step-hints-buttons > button { padding: 4px 12px; min-height: 28px; font-size: 12px; white-space: nowrap; }
 #root .practice-card > .practice-editor-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; overflow: hidden; }
 #root .practice-card > .practice-editor-panel > * { flex: none; }
-#root .practice-card .practice-editor-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; padding: 10px 20px !important; }
+#root .practice-card .practice-editor-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; padding: 10px 20px !important; border-top: 1px solid var(--d-hair, #f0eaf2); }
 #root .practice-card .practice-editor-title { flex-wrap: wrap; }
 #root .practice-card .practice-editor-title .practice-fixed-language { margin-left: 4px; }
 #root .practice-card .practice-editor-actions.practice-editor-buttons { display: flex; align-items: center; gap: 8px; padding: 0 !important; border: 0 !important; }
@@ -811,7 +811,6 @@
 
 :root[data-theme="dark"] #root .practice-card { background: var(--d-surface, #231b2a); border-color: #3a323d; box-shadow: 0 4px 16px rgba(0, 0, 0, .3); }
 :root[data-theme="dark"] #root .practice-q-head h2 { color: #ece6f0; }
-:root[data-theme="dark"] #root main.app .practice-page .practice-card > .practice-problem-description,
 :root[data-theme="dark"] #root .practice-card > .step-hints,
 :root[data-theme="dark"] #root .practice-card .practice-editor-note { border-color: #342c37; }
 :root[data-theme="dark"] #root .practice-card .practice-editor-note { color: #9d95a6 !important; }
@@ -870,7 +869,7 @@
 
 /* 32. 팀원 B 명세 — 실습 편집기: 문법 오류 빨간 물결 밑줄 (시도 횟수와 무관) */
 #root .blank-editor li.is-syntax > code { text-decoration: underline wavy #e5484d; text-decoration-skip-ink: none; text-underline-offset: 5px; }
-#root main.app .blank-editor li.is-syntax input.blank-editor__input.blank-editor__input { border-bottom: 2px solid #e5484d; }
+#root main.app .blank-editor li.is-syntax textarea.blank-editor__input.blank-editor__input { border-bottom: 2px solid #e5484d; }
 #root .blank-editor li.is-syntax > .blank-editor__ln, #root .code-editor__ln li.is-syntax { color: #d13d33; font-weight: 700; }
 #root .code-editor__syntax { position: absolute; inset: 0; margin: 0; padding: 12px 12px 12px 4px; white-space: pre; color: transparent; pointer-events: none; user-select: none; background: none; border: 0; overflow: hidden; tab-size: 4; font: 14px/1.9 var(--v-mono, Consolas, monospace) !important; letter-spacing: 0 !important; }
 #root .code-editor__syntax .syntax-squiggle { text-decoration: underline wavy #e5484d; text-decoration-skip-ink: none; text-underline-offset: 5px; }

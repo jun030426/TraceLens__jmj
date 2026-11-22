@@ -7,12 +7,12 @@
 .blank-editor li { display: grid; grid-template-columns: 3em minmax(0, 1fr) auto; align-items: center; padding-right: 12px; }
 .blank-editor li.is-stop { background: #f3e9f6; box-shadow: inset 3px 0 0 #7b4a80; }
 .blank-editor__ln { padding-right: 12px; text-align: right; color: #b1aeb8; font-size: 12px; user-select: none; }
-.blank-editor code { white-space: pre; overflow-x: auto; background: none; padding: 0; color: inherit; font: inherit; }
-.blank-editor__slot { display: inline-flex; align-items: center; gap: 3px; margin: 0 2px; vertical-align: middle; }
+.blank-editor code { white-space: pre-wrap; overflow-wrap: anywhere; background: none; padding: 0; color: inherit; font: inherit; }
+.blank-editor__slot { display: inline-grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 3px; max-width: 100%; vertical-align: middle; }
 .blank-editor__num { color: #7b4a80; font-weight: 800; font-size: 13px; }
-#root main.app .blank-editor .blank-editor__slot input.blank-editor__input.blank-editor__input { box-sizing: content-box; min-height: 0; margin: 0; box-shadow: none; min-width: 6ch; max-width: 60ch; height: 1.7em; padding: 0 6px; border: 1.5px dashed #b78fbf; border-radius: 6px; background: #fbf6fc; color: #2b2530; font: inherit; line-height: 1.7em; }
-#root main.app .blank-editor .blank-editor__slot input.blank-editor__input.blank-editor__input:focus { outline: 2px solid #bda5e8; outline-offset: 0; border-style: solid; background: #fff; }
-#root main.app .blank-editor .blank-editor__slot.is-filled input.blank-editor__input.blank-editor__input { border-style: solid; border-color: #9fdcbf; background: #f1faf5; }
+#root main.app .blank-editor .blank-editor__slot textarea.blank-editor__input.blank-editor__input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 0; height: 100%; margin: 0; box-shadow: none; resize: none; overflow: hidden; padding: 0 6px; border: 1.5px dashed #b78fbf; border-radius: 6px; background: #fbf6fc; color: #2b2530; font: inherit; line-height: 1.7em; }
+#root main.app .blank-editor .blank-editor__slot textarea.blank-editor__input.blank-editor__input:focus { outline: 2px solid #bda5e8; outline-offset: 0; border-style: solid; background: #fff; }
+#root main.app .blank-editor .blank-editor__slot.is-filled textarea.blank-editor__input.blank-editor__input { border-style: solid; border-color: #9fdcbf; background: #f1faf5; }
 .blank-editor__stop { padding: 0 8px; border-radius: 999px; background: #7b4a80; color: #fff; font: 700 11px/1.8 system-ui, sans-serif; white-space: nowrap; }
 
 :root[data-theme="dark"] .blank-quiz-tabs > button { background: #2a232c; border-color: #3a323d; color: #b9b2c4; }
@@ -21,8 +21,8 @@
 :root[data-theme="dark"] .blank-editor li.is-stop { background: #33213a; }
 :root[data-theme="dark"] .blank-editor__ln { color: #6f6a79; }
 :root[data-theme="dark"] .blank-editor__num { color: #d7a9df; }
-:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot input.blank-editor__input.blank-editor__input { background: #2a1f2d; border-color: #915f96; color: #f1eaf5; }
-:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot.is-filled input.blank-editor__input.blank-editor__input { background: #1d2a24; border-color: #4f8f70; }
+:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot textarea.blank-editor__input.blank-editor__input { background: #2a1f2d; border-color: #915f96; color: #f1eaf5; }
+:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot.is-filled textarea.blank-editor__input.blank-editor__input { background: #1d2a24; border-color: #4f8f70; }
 
 /* 시각화가 지금 보여 주는 줄 — 오른쪽 무대와 같은 줄을 왼쪽 코드에서도 짚어 준다 */
 .blank-editor { position: relative; }
@@ -49,13 +49,13 @@
 .blank-verdict__cmp dt { flex: 0 0 5.5em; font-size: 12px; color: #7a4a45; }
 .blank-verdict__cmp dd { margin: 0; min-width: 0; }
 .blank-verdict__cmp code { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; color: #303235; white-space: pre-wrap; word-break: break-all; background: rgba(255, 255, 255, 0.7); padding: 1px 6px; border-radius: 6px; }
-#root main.app .blank-editor .blank-editor__slot.is-bad input.blank-editor__input.blank-editor__input { border-style: solid; border-color: #e0786d; background: #fdeceb; }
+#root main.app .blank-editor .blank-editor__slot.is-bad textarea.blank-editor__input.blank-editor__input { border-style: solid; border-color: #e0786d; background: #fdeceb; }
 .blank-editor__slot.is-bad .blank-editor__num { color: #c8463b; }
 :root[data-theme="dark"] .blank-verdict.is-correct { background: #1d2a24; color: #9fdcbf; border-color: #2f5a44; }
 :root[data-theme="dark"] .blank-verdict.is-wrong { background: #3a1f1f; color: #f2b3ab; border-color: #6a3330; }
 :root[data-theme="dark"] .blank-verdict__cmp dt { color: #d9a39c; }
 :root[data-theme="dark"] .blank-verdict__cmp code { background: rgba(0, 0, 0, 0.25); color: #f1eaf5; }
-:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot.is-bad input.blank-editor__input.blank-editor__input { background: #3a1f1f; border-color: #c8463b; }
+:root[data-theme="dark"] #root main.app .blank-editor .blank-editor__slot.is-bad textarea.blank-editor__input.blank-editor__input { background: #3a1f1f; border-color: #c8463b; }
 
 /* ── 시각화 중 줄 설명 주석: 코드 한 줄마다 바로 위에 (문제 코드는 그대로, 화면에만) ── */
 .blank-editor li.blank-editor__cmt { grid-template-columns: 3em minmax(0, 1fr); align-items: start; margin-top: 2px; line-height: 1.55; }
@@ -69,3 +69,17 @@
 :root[data-theme="dark"] .blank-editor li.blank-editor__cmt.is-viz-ran { background: #1d2a24; }
 :root[data-theme="dark"] .blank-editor li.blank-editor__cmt.is-viz-error { background: #3a1f1f; }
 :root[data-theme="dark"] .blank-editor li.blank-editor__cmt[class*="is-viz-"] .blank-editor__cmt-text { color: #b4ecc1; }
+
+.blank-editor__slot > :is(.blank-editor__input, .blank-editor__measure, .blank-editor__ghost) {
+  grid-area: 1 / 2;
+  min-width: 0;
+  font: inherit;
+  line-height: 1.7em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.blank-editor__measure, .blank-editor__slot > .blank-editor__ghost {
+  padding: 0 6px;
+  border: 1.5px solid transparent;
+}
+.blank-editor__measure { visibility: hidden; }

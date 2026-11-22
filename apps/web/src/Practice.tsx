@@ -133,6 +133,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   const [vizLine, setVizLine] = useState<VizLine | null>(null);
   // "빈칸 앞까지 실행" 표시는 학생이 직접 실행한 뒤에만 — 문제를 열 때 자동으로 도는 미리보기에는 붙이지 않는다
   const [userRan, setUserRan] = useState(false);
+  const [copyRan, setCopyRan] = useState(false);
   const [saved, setSaved] = useState("");
   const { run, stage, execute: runCode, reset: resetRun } = useCodeTrace(language, sectionId);
   const key = `lerny-practice-blanks:${user?.id}:${sectionId}:${planId}`;
@@ -198,7 +199,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
     setSubmitting(true); setSubmitError("");
     const source = runnable.code;
     try {
-      if (!await confirm({ title: "최종 제출할까요?", message: "제출한 코드는 변경할 수 없어요. 제출 후 내 코드와 해설을 확인할 수 있어요.", confirmLabel: "제출하기", cancelLabel: "더 풀어 볼게요" })) return;
+      if (!await confirm({ title: "최종 제출할까요?", message: "제출한 코드는 변경할 수 없어요. 제출 후 내 코드를 확인하고 답지를 따라 써 볼 수 있어요.", confirmLabel: "제출하기", cancelLabel: "더 풀어 볼게요" })) return;
       const submitted = await api<PracticeAttempt>(`/sections/${sectionId}/practice/submit`, post({...practiceSubmitBody(quiz.id, source), plan_id: archivePlan}));
       setJustSubmitted({...submitted, source});
       notifyPracticeSubmit();
@@ -209,12 +210,12 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   const syntaxIssue: SyntaxIssue | null = runnable.unfilled.length === 0 && run?.kind === "syntax" && run.code === runnable.code
     ? { line: run.info.line ?? null, message: run.info.msg, name: run.info.name } : null;
   const resetEditor = () => {
-    resetRun(); setCommitted(null); lastAuto.current = ""; setUserRan(false); setVizLine(null);
+    setCopyRan(false); resetRun(); setCommitted(null); lastAuto.current = ""; setUserRan(false); setVizLine(null);
     setSubmitError(""); setSaved(""); setChatOpen(false); setChatDraft(null);
   };
   const goToQuiz = (index: number) => {
     if (stage || submitting || assistBusy || index < 0 || index >= quizzes.length) return;
-    resetEditor(); setSelectedKind(null); setQuizIndex(index);
+    resetEditor(); setResultTab(tab => tab === "내 제출 코드" ? "실행 결과" : tab); setSelectedKind(null); setQuizIndex(index);
   };
   const [finishing, setFinishing] = useState(false);
   const finishQuiz = async () => {
@@ -286,11 +287,16 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
           {quiz.helpers_guide_text
             ? <div className="practice-problem-description"><LearningText text={quiz.helpers_guide_text} /></div>
             : !!quiz.available_helpers?.length && <p className="muted">사용 가능한 도구: {quiz.available_helpers.join(", ")}</p>}
-          <div className="practice-example">{quiz.example_input && <div><h4>예시 입력 선언</h4><pre><code>{quiz.example_input}</code></pre></div>}<div><h4>예시 출력</h4><pre><code>{quiz.expected || "(출력 없음)"}</code></pre></div></div>
-          {latest ? <section className="practice-explanation" aria-label="내 제출 코드">
-            <h3>내 제출 코드</h3><pre><code>{latest.source}</code></pre>
-            <PracticeAttemptReview key={latest.id} sectionId={sectionId} attemptId={latest.id} />
-          </section> : editable ? <>
+          {quiz.example_input && <div className="practice-example"><div><h4>예시 입력 선언</h4><pre><code>{quiz.example_input}</code></pre></div></div>}
+          {latest ? <>
+            <PracticeAnswerCopy key={latest.id} sectionId={sectionId} planId={archivePlan}
+              exerciseId={latest.exercise_id} starter={quiz.template} isFull={isFull} language={language}
+              submittedSource={latest.source} running={!!stage} onRun={(code, stopLines) => {
+                setCopyRan(true);
+                setResultTab("실행 결과");
+                void runCode(code, stopLines);
+              }} />
+          </> : editable ? <>
           <details className="practice-hint-drawer" key={quiz.id}><summary>막힐 때 단계별 힌트 보기</summary><PracticeHints planId={archivePlan} sectionId={sectionId} exerciseId={quiz.id} onBusyChange={setAssistBusy} /></details>
           <section className="practice-editor-panel" aria-labelledby="practice-editor-title">
             <div className="practice-editor-toolbar">
@@ -300,7 +306,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
                 <button type="button" className="primary" disabled={!complete || !!stage || pending || submitting || assistBusy || !submissions.data} onClick={() => void submitFinal()}>{submitting ? "제출 중…" : pending ? "채점 기다리는 중…" : <>최종 제출 <span className="go-arrow" aria-hidden="true">→</span></>}</button>
               </div>
             </div>
-            <p id="practice-answer-rule" className="practice-answer-rule">한 번만 최종 제출할 수 있어요. 제출 후 내 코드와 해설을 볼 수 있어요.</p>
+            <p id="practice-answer-rule" className="practice-answer-rule">한 번만 최종 제출할 수 있어요. 제출 후 답지를 따라 써 볼 수 있어요.</p>
   <div className="practice-file-bar"><span>{language === "Python" ? "main.py" : language === "Java" ? "Main.java" : "main.c"}</span><span aria-live="polite">{saved || (isFull ? `${fullCode.split("\n").length}줄` : `빈칸 ${filledCount}/${template.blanks.length} 채움`)}</span></div>
   
             {isFull ? <CodeEditor value={fullCode} onChange={v => fill(0, v)} onCommit={() => { setUserRan(true); setCommitted({ code: runnable.code, stopLines: {} }); }} ghost={fixShown ? fix!.code : undefined} fixes={fixShown ? fix!.fixes : undefined} vizLine={shownViz} label={`${language} 코드 작성`} syntax={syntaxIssue} /> : <BlankEditor template={template} fills={fills} onFill={fill} onCommit={() => { setUserRan(true); setCommitted({ code: runnable.code, stopLines: runnable.stopLines }); }} stopBlank={userRan && resultTab === "시각화" && vizLine?.kind === "blank" && run?.kind === "ran" && run.code === runnable.code ? run.blankStop?.blank : undefined} vizLine={shownViz} badBlanks={badBlanks} syntax={syntaxIssue} comments={lineComments} commentMark={commentMark} />}
@@ -321,15 +327,31 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
             : <button type="button" className="practice-quiz-nav__go practice-quiz-nav__finish" disabled={finishing || submitting || !!stage} onClick={() => void finishQuiz()}>퀴즈 마침 ✓</button>}
         </nav>
 
-        {latest && <Notice><strong>마지막 제출 결과 · </strong>{latest.status === "pending" ? "답안을 저장했고 격리 환경에서 검증 중이에요." : latest.feedback?.message || "제출 결과를 확인하고 있어요."}
+        {latest && <Notice><span><strong>마지막 제출 결과 · </strong>{latest.status === "pending" ? "답안을 저장했고 격리 환경에서 검증 중이에요." : latest.feedback?.message || "제출 결과를 확인하고 있어요."}
           {latest.feedback?.total != null && ` (${latest.feedback.passed}/${latest.feedback.total})`}
           {!latest.independent && " · 도움을 받은 풀이"}
           {latest.status === "held" && latest.job_id && <button onClick={async () => { try { await api(`/jobs/${latest.job_id}/retry`, post({})); submissions.reload(); } catch (e) { setSubmitError((e as Error).message); } }}>검증 다시 시도</button>}
-          <Link to={`/classrooms/${sectionId}/practice/results?plan=${encodeURIComponent(planId)}${week ? "&week="+week : ""}`}>제출 기록 보기</Link>
+          </span>
+          <Link className="practice-submission-history" to={`/classrooms/${sectionId}/practice/results?plan=${encodeURIComponent(planId)}${week ? "&week="+week : ""}`}>
+            <span>제출 기록 보기</span><span aria-hidden="true">→</span>
+          </Link>
         </Notice>}
-        {editable && <section className="practice-output-panel"><div className="practice-output-tabs" role="tablist" aria-label="결과 보기">{["실행 결과", "시각화"].map(t => <button role="tab" id={`practice-tab-${t}`} aria-selected={resultTab === t} aria-controls="practice-output" key={t} onClick={() => setResultTab(t)}>{t}</button>)}</div><div id="practice-output" role="tabpanel" aria-labelledby={`practice-tab-${resultTab}`} aria-live="polite" className="practice-output-body"><VizLineContext.Provider value={setVizLine}><PracticeOutput tab={resultTab} run={run} stage={stage} code={runnable.code} incomplete={runnable.unfilled.length > 0} blankLines={template.blanks} fixes={fixShown ? fix!.fixes : undefined} /></VizLineContext.Provider></div>
-          {isFull && resultTab === "실행 결과" && <div className="practice-expected"><span>출력 값</span><code>{quiz.expected}</code></div>}
-          {verdict && resultTab === "실행 결과" && <div className={`blank-verdict is-${verdict.kind === "correct" ? "correct" : "wrong"} `} role={verdict.kind === "correct" ? "status" : "alert"}>
+        {(editable || latest) && <section className="practice-output-panel"><div className="practice-output-tabs" role="tablist" aria-label="결과 보기">{(latest ? ["내 제출 코드", "실행 결과", "시각화"] : ["실행 결과", "시각화"]).map(t => <button role="tab" id={`practice-tab-${t}`} aria-selected={resultTab === t} aria-controls="practice-output" key={t} onClick={() => setResultTab(t)}>{t}</button>)}</div>
+          <div id="practice-output" role="tabpanel" aria-labelledby={`practice-tab-${resultTab}`} aria-live="polite" className="practice-output-body">
+            {latest && resultTab === "내 제출 코드" && <section className="practice-explanation" aria-label="내 제출 코드">
+              <pre><code>{isFull ? latest.source : <SubmittedBlankCode source={latest.source ?? ""} template={template} />}</code></pre>
+            </section>}
+            {resultTab !== "내 제출 코드" && <VizLineContext.Provider value={setVizLine}><PracticeOutput tab={resultTab} run={run} stage={stage} code={copyRan ? run?.code ?? "" : runnable.code} incomplete={!copyRan && runnable.unfilled.length > 0} blankLines={template.blanks} fixes={!copyRan && fixShown ? fix!.fixes : undefined} /></VizLineContext.Provider>}
+            {resultTab === "시각화" && latest?.source && !stage && (run?.kind !== "ran" || !run.trace) &&
+              <div className="practice-run">
+                <button type="button" onClick={() => {
+                  setCopyRan(true);
+                  void runCode(latest.source!);
+                }}>제출 코드로 시각화 보기</button>
+              </div>}
+            {resultTab === "실행 결과" && <div className="practice-expected"><span>예시 출력</span><code>{quiz.expected || "(출력 없음)"}</code></div>}
+          </div>
+          {editable && verdict && resultTab === "실행 결과" && <div className={`blank-verdict is-${verdict.kind === "correct" ? "correct" : "wrong"} `} role={verdict.kind === "correct" ? "status" : "alert"}>
             <strong><span aria-hidden="true">{verdict.kind === "correct" ? "✓" : "✕"}</span> {verdict.title}</strong>
             <p>{verdict.text}{verdict.kind === "syntax" && " 문법 오류는 시도 횟수에 들어가지 않아요."}</p>
             {verdict.kind === "wrong" && <dl className="blank-verdict__cmp"><div><dt>출력 값</dt><dd><code>{verdict.expected}</code></dd></div><div><dt>내 출력</dt><dd><code>{verdict.actual}</code></dd></div></dl>}
@@ -383,6 +405,128 @@ function FixBanner({ fixes }: { fixes: QuickFix[] }) {
   </div>;
 }
 
+function SubmittedBlankCode({ source, template }: { source: string; template: BlankTemplate }) {
+  const lines = source.split("\n");
+  if (lines.length !== template.lines.length) return source;
+
+  return lines.map((line, lineIndex) => {
+    const parts = template.lines[lineIndex];
+    if (parts.every(part => typeof part === "string")) return line + (lineIndex < lines.length - 1 ? "\n" : "");
+
+    let cursor = 0;
+    const rendered = parts.map((part, index) => {
+      if (cursor < 0) return null;
+      if (typeof part === "string") {
+        if (!line.startsWith(part, cursor)) { cursor = -1; return null; }
+        cursor += part.length;
+        return part;
+      }
+
+      const next = parts[index + 1];
+      const end = typeof next !== "string" ? line.length
+        : index + 1 === parts.length - 1 && line.endsWith(next)
+          ? line.length - next.length
+          : line.indexOf(next, cursor);
+      if (end <= cursor) { cursor = -1; return null; }
+      const value = line.slice(cursor, end);
+      cursor = end;
+      return <span key={part.blank}>
+        <span className="blank-editor__num" aria-label={`빈칸 ${part.blank}`}>{circled(part.blank)}</span>
+        <mark className="practice-submitted-blank">{value}</mark>
+      </span>;
+    });
+    return <span key={lineIndex}>
+      {cursor === line.length ? rendered : line}{lineIndex < lines.length - 1 ? "\n" : ""}
+    </span>;
+  });
+}
+
+function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, isFull, language, submittedSource, running, onRun }: {
+  sectionId: string;
+  planId?: string;
+  exerciseId: string;
+  starter: string;
+  isFull: boolean;
+  language: Language;
+  submittedSource?: string;
+  running: boolean;
+  onRun: (code: string, stopLines: Record<number, number>) => void;
+}) {
+  const [showAnswer, setShowAnswer] = useState(true);
+  const [answers, setAnswers] = useState<string[]>();
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+  const [copyCode, setCopyCode] = useState(starter);
+  const [copyFills, setCopyFills] = useState<Record<number, string>>({});
+  const template = useMemo(() => parseTemplate(isFull ? "" : starter), [isFull, starter]);
+  useEffect(() => {
+    let active = true;
+    setError("");
+    api<{ answers?: string[] }>(`/sections/${sectionId}/practice/help`, post({
+      exercise_id: exerciseId, plan_id: planId, kind: "answer",
+    })).then(result => {
+      if (!active) return;
+      if (!result.answers?.length) throw new Error("표시할 답지를 아직 불러오지 못했어요.");
+      setAnswers(result.answers);
+    }).catch(cause => {
+      if (active) setError((cause as Error).message);
+    });
+    return () => { active = false; };
+  }, [sectionId, planId, exerciseId, retry]);
+
+  const blankRun = buildRunnable(template, copyFills);
+  const practiceSource = isFull
+    ? (copyCode.trim() && copyCode !== starter ? copyCode : undefined)
+    : (blankRun.unfilled.length === 0 ? blankRun.code : undefined);
+  const runnableSource = practiceSource ?? submittedSource;
+  const fileName = language === "Python" ? "main.py" : language === "Java" ? "Main.java" : "main.c";
+  const comments = !isFull ? template.lines.map(parts => {
+    const code = parts.map(part => typeof part === "string" ? part : `__blank${part.blank}__`).join("");
+    const blanks = parts.flatMap(part => typeof part === "string" ? [] : [circled(part.blank)]);
+    const comment = lineComment(code).replace(/__blank(\d+)__/g, (_, number) => `빈칸 ${circled(Number(number))}`);
+    return comment || (blanks.length ? `빈칸 ${blanks.join(", ")}에 들어갈 코드를 작성해요` : null);
+  }) : undefined;
+
+  return <section className="practice-editor-panel" aria-label="답지 따라쓰기">
+    <div className="practice-editor-toolbar">
+      <div className="practice-editor-title"><h2>{isFull ? "코드 작성" : "빈칸 채우기"}</h2><PracticeGuide full={isFull} /></div>
+      <div className="practice-editor-actions practice-editor-buttons">
+        <span className="practice-answer-wrap">
+          <button type="button" aria-describedby="submitted-practice-answer-tip"
+            aria-pressed={showAnswer && !!answers} disabled={!answers}
+            onClick={() => setShowAnswer(value => !value)}>
+            {showAnswer && answers ? "답지 숨기기" : "답지 보기"}
+          </button>
+          <span id="submitted-practice-answer-tip" className="practice-answer-tip" role="tooltip">
+            최종 제출을 마쳤어요. 회색 답지를 켜고 끌 수 있어요.
+          </span>
+        </span>
+        <button type="button" disabled={running || !runnableSource?.trim()}
+          onClick={() => { if (runnableSource) onRun(runnableSource, {}); }}>
+          {running ? "실행 중…" : "코드 실행"}
+        </button>
+        <button type="button" className="primary" disabled>제출 완료 ✓</button>
+      </div>
+    </div>
+    <div className="practice-file-bar">
+      <span>{fileName}</span>
+      <span>{isFull ? `${copyCode.split("\n").length}줄` : `빈칸 ${template.blanks.length - blankRun.unfilled.length}/${template.blanks.length} 채움`}</span>
+    </div>
+    {error ? <>
+      <ErrorNotice text={error} />
+      <button type="button" onClick={() => setRetry(value => value + 1)}>답지 다시 불러오기</button>
+    </> : !answers && <p className="practice-answer-rule" role="status">답지를 불러오는 중이에요…</p>}
+    {isFull
+      ? <CodeEditor value={copyCode} onChange={setCopyCode} onCommit={() => {}}
+          ghost={showAnswer ? answers?.[0] : undefined} label={`${language} 답지 따라쓰기`} />
+      : <BlankEditor template={template} fills={copyFills}
+          onFill={(index, value) => setCopyFills(previous => ({ ...previous, [index]: value }))}
+          onCommit={() => {}} comments={comments} commentMark={language === "Python" ? "#" : "//"}
+          ghosts={showAnswer && answers ? Object.fromEntries(answers.map((answer, index) => [index + 1, answer])) : undefined} />}
+    <p className="practice-editor-note">회색 글씨를 따라 쓰면 친 만큼 지워져요. 답지 글씨는 복사할 수 없어요.</p>
+  </section>;
+}
+
 function CodeEditor({ value, onChange, onCommit, ghost, fixes, vizLine, label, syntax }: { value: string; onChange: (v: string) => void; onCommit: () => void; ghost?: string; /** 실행 전 자동수정한 줄 — 빨간색으로 표시해요 (이때 ghost는 고친 코드) */ fixes?: QuickFix[]; vizLine?: VizLine | null; label: string; syntax?: SyntaxIssue | null }) {
   const lines = Math.max(value.split("\n").length, ghost ? ghost.split("\n").length : 0, 8);
   const textLines = value.split("\n");
@@ -418,18 +562,18 @@ function BlankEditor({ template, fills, onFill, onCommit, stopBlank, vizLine, ba
     if (li.offsetTop < ol.scrollTop || li.offsetTop + li.offsetHeight > ol.scrollTop + ol.clientHeight) ol.scrollTop = li.offsetTop - ol.clientHeight / 3;
   }, [vizLine?.line]);
   return <ol className="blank-editor" ref={box} aria-label="빈칸이 있는 코드">
-    {template.lines.map((parts, i) => { const viz = vizLine?.line === i + 1 ? vizLine : null; const stop = parts.some(p => typeof p !== "string" && p.blank === stopBlank); const bad = syntax?.line === i + 1; const note = comments?.[i]; const lead = typeof parts[0] === "string" ? (parts[0].match(/^[ \t]*/)?.[0].replace(/\t/g, "    ").length ?? 0) : 0; return [note && <li key={`c${i}`} className={`blank-editor__cmt ${viz ? `is-viz-${viz.kind}` : ""}`} aria-label={`${i + 1}번째 줄 설명`}>
+    {template.lines.map((parts, i) => { const viz = vizLine?.line === i + 1 ? vizLine : null; const stop = parts.some(p => typeof p !== "string" && p.blank === stopBlank); const bad = syntax?.line === i + 1; const note = comments?.[i]; const indent = typeof parts[0] === "string" ? parts[0].match(/^[ \t]*/)?.[0] ?? "" : ""; const lead = indent.replace(/\t/g, "    ").length; return [note && <li key={`c${i}`} className={`blank-editor__cmt ${viz ? `is-viz-${viz.kind}` : ""}`} aria-label={`${i + 1}번째 줄 설명`}>
       <span className="blank-editor__ln" aria-hidden="true" />
       <span className="blank-editor__cmt-text" style={{ paddingLeft: `${lead}ch` }}><span aria-hidden="true">{commentMark} </span>{note}</span>
     </li>, <li key={i} className={`${stop ? "is-stop" : ""} ${viz ? `is-viz is-viz-${viz.kind}` : ""} ${bad ? "is-syntax" : ""}`} aria-current={viz ? "step" : undefined} title={bad ? syntax!.message : undefined}>
       <span className="blank-editor__ln" aria-hidden="true">{i + 1}</span>
-      <code>{parts.map((p, k) => typeof p === "string" ? <span key={k}>{p}</span> : <label key={k} className={`blank-editor__slot ${cleanFill(fills[p.blank]) ? "is-filled" : ""} ${badBlanks.includes(p.blank) ? "is-bad" : ""} ${ghosts?.[p.blank] ? "has-ghost" : ""}`}>
+      <code className="blank-editor__line" style={{ paddingInlineStart: `min(${lead}ch, 35%)` }}>{parts.map((p, k) => typeof p === "string" ? <span key={k}>{k === 0 ? p.slice(indent.length) : p}</span> : <label key={k} style={{ width: `calc(${Math.max(6, (fills[p.blank] || "").length + 2, (ghosts?.[p.blank] || "").length + 2)}ch + 1.5em)` }} className={`blank-editor__slot ${cleanFill(fills[p.blank]) ? "is-filled" : ""} ${badBlanks.includes(p.blank) ? "is-bad" : ""} ${ghosts?.[p.blank] ? "has-ghost" : ""}`}>
         <span className="blank-editor__num" aria-hidden="true">{circled(p.blank)}</span>
-        <input className="blank-editor__input" value={fills[p.blank] || ""} aria-label={`빈칸 ${p.blank}`} spellCheck={false} autoCapitalize="none" autoComplete="off"
-          style={{ width: `${Math.max(6, (fills[p.blank] || "").length + 2, (ghosts?.[p.blank] || "").length + 2)}ch` }}
-          onChange={e => onFill(p.blank, e.target.value)}
+        <textarea rows={1} className="blank-editor__input" value={fills[p.blank] || ""} aria-label={`빈칸 ${p.blank}`} spellCheck={false} autoCapitalize="none" autoComplete="off"
+          onChange={e => onFill(p.blank, e.target.value.replace(/\r?\n/g, " "))}
           onBlur={onCommit}
           onKeyDown={e => { if (e.key === "Enter" && !isComposingInput(e.nativeEvent)) { e.preventDefault(); onCommit(); } }} />
+        <span className="blank-editor__measure" aria-hidden="true">{fills[p.blank] || " "}</span>
         {ghosts?.[p.blank] && (() => { const g = ghostRest(ghosts[p.blank], fills[p.blank] || ""); return <span className={`blank-editor__ghost ${g.matched ? "" : "is-miss"}`} aria-hidden="true" onCopy={e => e.preventDefault()}><span className="ghost-typed">{g.typed}</span>{g.rest}</span>; })()}
       </label>)}{parts.length === 1 && parts[0] === "" ? " " : null}</code>
       {stop ? <span className="blank-editor__stop">빈칸 앞까지 실행</span> : viz ? <span className={`blank-editor__viz is-${viz.kind}`}>{viz.kind === "error" ? "✕ 오류" : viz.kind === "ran" ? "✓ 방금 실행" : "▶ 시각화 중"}</span> : null}
@@ -465,6 +609,6 @@ export function PracticeResults() {
     </section><section className="practice-result-card">
       <div className="practice-output-tabs">{["테스트 결과", "제출 코드", "답지·해설"].map(t => <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>{t}</button>)}</div>
       {current && (tab === "답지·해설" ? <PracticeAttemptReview key={current.id} sectionId={sectionId} attemptId={current.id} /> : tab === "제출 코드" ? <pre><code>{current.source}</code></pre> : <><h3>{current.feedback?.message || "격리 실행 결과를 기다리고 있어요."}</h3><p>{current.feedback?.total != null && `${current.feedback.passed}/${current.feedback.total}개 입력 검증 통과`}</p><p>{current.independent ? "독립적으로 제출한 풀이" : "도움을 받은 풀이"}</p></>)}
-    </section></div><Link className="ln-cta" to={`/classrooms/${sectionId}/practice${week ? "?week="+week : ""}`}>실습 풀이로 이동 ↗</Link>
+    </section></div><div className="practice-results-actions"><Link className="ln-cta" to={`/classrooms/${sectionId}/practice${week ? "?week="+week : ""}`}>실습 풀이로 이동 <span aria-hidden="true">→</span></Link></div>
   </section>;
 }

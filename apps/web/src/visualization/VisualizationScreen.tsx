@@ -194,7 +194,7 @@ export function VisualizationScreen(props: VisualizationScreenProps) {
             : facts}
         </p>
         {!blankStop && said?.detail && said.detail !== said.text && <p className={`vz-screen__detail is-${said.kind}`}>값으로 보면 <code>{said.detail}</code>{said.kind === "cond-true" || said.kind === "loop-in" ? " → 참" : said.kind === "cond-false" || said.kind === "loop-out" ? " → 거짓" : ""}</p>}
-        {!blankStop && said && factsShown && <p className="vz-screen__facts">바뀐 값 · {facts}</p>}
+        {!blankStop && said && factsShown && <p className="vz-screen__facts"><mark>바뀐 값 · {facts}</mark></p>}
       </div>
       <div className="vz-screen__controls">
         <button type="button" onClick={controls.restart} disabled={!canPrevious} aria-label="처음으로">⟲</button>

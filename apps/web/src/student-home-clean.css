@@ -1857,7 +1857,7 @@
 @media (max-width: 720px) { #root main.app .progress-page .concept-inline-filter .drop-select { flex: 1 1 auto; } }
 /* 학습 기록 제목 위 여백 줄임 (11-18) */
 #root main.app .student-home.progress-page .progress-panel { padding-top: 18px !important; }
-#root main.app .student-home.progress-page .progress-title-row { margin-top: 0 !important; }
+#root main.app .student-home.progress-page .progress-title-row { margin-top: 0 !important; padding-inline: 10px; }
 /* 제목 옆에 설명 문구, 오른쪽 끝에 라벨 — 한 줄 (11-18) */
 #root main.app .student-home.progress-page .progress-title-row { display: flex !important; align-items: baseline !important; gap: 12px !important; flex-wrap: wrap; margin-bottom: 18px !important; }
 #root main.app .student-home.progress-page .progress-title-row .progress-caption { margin: 0 !important; flex: 0 1 auto; min-width: 0; }
@@ -1882,3 +1882,67 @@
 #root .practice-num-tabs > button[aria-pressed="true"] { color:#63346f !important; font-weight:750; }
 #root .practice-num-tabs > button[aria-pressed="true"]::after { background:currentColor; }
 :root[data-theme="dark"] #root .practice-num-tabs > button[aria-pressed="true"] { color:#e3bee9 !important; }
+
+#root .quiz-catalog .archive-date-search > .prof-list-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) repeat(2, auto);
+  max-width: none;
+}
+#root .quiz-catalog .archive-date-search > .prof-list-tools > label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+#root .quiz-catalog .archive-date-search > .prof-list-tools input[type="date"] {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  padding: 0 14px !important;
+  border: 1px solid var(--d-hair);
+  border-radius: 12px;
+  background: var(--d-pearl);
+  color: var(--d-ink);
+}
+#root :is(.quiz-catalog .archive-date-search > .prof-list-tools, .progress-page .student-period-calendar) > button {
+  min-height: 44px;
+  margin: 0;
+  padding-inline: 16px;
+  border: 1px solid var(--d-accent);
+  border-radius: 12px;
+  background: var(--d-accent);
+  color: var(--d-pearl);
+  font-weight: 600;
+}
+#root :is(.quiz-catalog .archive-date-search > .prof-list-tools, .progress-page .student-period-calendar) > button:hover {
+  background: var(--d-accent-deep);
+}
+#root .quiz-catalog .archive-range-note { font-size: 14px; }
+#root :is(.quiz-catalog .student-record-archive, .progress-page) .learning-history > .concept-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+#root :is(.quiz-catalog .student-record-archive, .progress-page) .learning-history > .concept-section-heading > h3 { margin: 0; }
+#root :is(.quiz-catalog .student-record-archive, .progress-page) .learning-history > .concept-section-heading > .design-picker > label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+#root :is(.quiz-catalog .student-record-archive, .progress-page) .learning-history > .concept-section-heading select { margin: 0; }
+@media (max-width: 600px) {
+  #root .quiz-catalog .archive-date-search > .prof-list-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+#root .student-practice-history .practice-history-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}

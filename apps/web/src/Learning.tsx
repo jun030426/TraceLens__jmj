@@ -646,7 +646,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
                   onClick={() => setReEdit(reEdit === i ? null : i)}>{REACTIONS.find(r => r[0] === item.reaction)?.[1]}</button>}
                 {item.answer ? <TypedAnswer text={item.answer.answer} animate={!!item.fresh}>
                   {item.answer.citations?.map((c, n) => <ChatCitation key={n} citation={c} handouts={handouts} />)}
-                </TypedAnswer> : item.error ? <ErrorNotice text={item.error} /> : item.pending ? <p role="status">{item.pending}</p> : <p className="chat-typing" role="status"><span className="chat-dots" aria-hidden="true"><i /><i /><i /></span><span>{speaker}가 답변을 적고 있어요</span></p>}
+                </TypedAnswer> : item.error ? <p role="alert">{item.error}</p> : item.pending ? <p role="status">{item.pending}</p> : <p className="chat-typing" role="status"><span className="chat-dots" aria-hidden="true"><i /><i /><i /></span><span>{speaker}가 답변을 적고 있어요</span></p>}
                 {item.answer?.follow_up && <p className="chat-followup"><b>🤔 생각해 볼 질문</b>{item.answer.follow_up}</p>}
               </div>
               {/* 답변 바로 아래 줄: 왼쪽은 시간, 오른쪽은 이해했어요·헷갈려요·중단. 하나 고르면 답변에 이모티콘이 달리고 선택지는 사라져요 (11-15) */}
