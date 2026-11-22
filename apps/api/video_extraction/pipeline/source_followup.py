@@ -82,15 +82,25 @@ def inspect(t,result,issues,folder,client,stage,read_only=False):
             raise ValueError('source_followup_issue_mapping')
         repaired=Path(folder)/(stage+'-issue-mapping-v1.json')
         repair_binding=signature({'original_receipt':receipt,'expected_issue_ids':ids,'policy':'document_issue_mapping_retry_v1'})
+        regenerate = False
         if repaired.exists():
             retry=read(repaired)
             if retry.get('binding')!=repair_binding:raise ValueError('source_followup_mapping_repair_changed')
-        else:
+            prior = retry['answer']
+            validate(prior, SCHEMA)
+            regenerate = (not read_only and t.get('source_kind') == 'ppt'
+                          and getattr(client, 'ppt_retry_round', None) is not None
+                          and sorted(c['id'] for c in prior['checks']) != sorted(ids))
+        if not repaired.exists() or regenerate:
             if read_only:raise ValueError('source_followup_issue_mapping')
             prompt=PROMPT+json.dumps({**data,'response_contract':{
                 'expected_check_ids':ids,
                 'instruction':'Return each expected_check_id exactly once in checks. If the list is empty, checks MUST be []. Region IDs are NOT issue IDs. Inspect the original source again; preserve all uncertainties.',
                 'rejected_check_ids':[c['id'] for c in answer['checks']]}},ensure_ascii=False)
+            if regenerate:
+                save(repaired.with_name(stage+'-rejected-'+signature(retry)[:24]+'.json'), retry)
+                prompt += ('\nRecheck the original page. Return exactly one check per expected ID. '
+                           + 'PPT review round ' + str(client.ppt_retry_round))
             retry={'binding':repair_binding,'answer':client.call('source-followup-'+stage+'-document-issue-mapping-v1',[Path(t['image'])],prompt,SCHEMA)}
             save(repaired,retry)
         answer=retry['answer'];validate(answer,SCHEMA)

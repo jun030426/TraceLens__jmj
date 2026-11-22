@@ -41,6 +41,7 @@ class Settings(BaseModel):
     # The same course can hand PPT and weekly question review to its instructor.
     instructor_review_from_week: int | None = Field(default=None, ge=1)
 
+    gemini_review_requests_per_minute: int | None = Field(default=None, ge=1, le=6000)
     gemini_content_requests_per_minute: int = Field(default=12, ge=1, le=6000)
     gemini_embedding_requests_per_minute: int = Field(default=12, ge=1, le=6000)
     gemini_content_tokens_per_minute: int = Field(default=200000, ge=1)

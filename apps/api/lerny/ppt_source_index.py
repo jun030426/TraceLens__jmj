@@ -105,7 +105,10 @@ def supplement(path, plan, result, folder, client, check):
         log["unresolved"].append({"reason": "slide_page_mapping_uncertain"})
         return
     folder.mkdir(parents=True, exist_ok=True)
+    held_pages = {h["page"] for h in result["evidence"].get("summary", {}).get("held_pages", [])}
     for page, slide in enumerate(deck.slides, 1):
+        if page in held_pages:
+            continue
         check()
         unit = pages[page]
         if (slide._element.get("show", "1") in {"0", "false"} or unit.get("preparation_holds")
@@ -187,7 +190,7 @@ def supplement(path, plan, result, folder, client, check):
     visible = {i for i, s in enumerate(deck.slides, 1) if s._element.get("show", "1") not in {"0", "false"}}
     covered = {c.get("slide_number") for c in result["chunks"]}
     log["missing_pages"] = sorted(visible - covered)
-    for page in log["missing_pages"]:
+    for page in sorted(set(log["missing_pages"]) - held_pages):
         result["held"].append({"id": f"{sha}:unindexed-slide:{page}", "kind": "coverage_issue",
                                "source_locator": f"문서 {page}쪽", "location": {"page": page},
                                "reasons": ["ppt_page_without_verified_content"]})

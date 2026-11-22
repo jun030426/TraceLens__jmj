@@ -359,3 +359,32 @@ def test_worker_records_error_then_stops_service_retry_without_replacing_progres
     assert job.result['media_progress']['completed'] == 80
     assert job.result['provider_error'] == detail
     assert not worker.run_once(job.id)
+
+
+@pytest.mark.parametrize("override,review_gap", [(None, 5), (60, 1)])
+def test_review_only_rpm_and_embedding_project_accounting(paced, override, review_gap):
+    import hashlib
+    config, clock, db = paced
+    config.gemini_review_quota_project = "lerny-paid-embedding"
+    config.gemini_review_requests_per_minute = override
+    config.gemini_embedding_requests_per_minute = 120
+    embed_path = "models/gemini-embedding-2:embedContent"
+
+    def reserve(path, payload, project, model, gap):
+        lease = quota.reserve_slot(path, payload)
+        expected = hashlib.sha256(json.dumps([project, model]).encode()).hexdigest()
+        assert lease[0] == expected
+        with Session(db) as session:
+            assert session.get(GeminiQuota, expected).next_at == clock[0] + gap
+        quota.release_slot(lease)
+
+    reserve(PATH, BODY, "lerny", BODY["model"], 5)
+    # The base deployment labels physical embedding calls with the default
+    # quota project. Its model gives it a distinct row from paid review.
+    reserve(embed_path, {}, "lerny", "gemini-embedding-2", .5)
+    token = quota._paid_job.set(True)
+    try:
+        with quota.verification():
+            reserve(PATH, BODY, "lerny-paid-embedding", BODY["model"], review_gap)
+    finally:
+        quota._paid_job.reset(token)

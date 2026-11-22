@@ -24,7 +24,7 @@ from video_extraction.pipeline import code_workflow
 from video_extraction.pipeline import visual_ocr
 from video_extraction.pipeline import av_context
 from video_extraction.pipeline import audio_batch
-from video_extraction.pipeline import ppt_reuse
+from video_extraction.pipeline import ppt_recovery, ppt_reuse
 from video_extraction.pipeline import source_followup,video_followup,audio_followup,document_links
 from video_extraction.code import processing as code_processing
 
@@ -66,7 +66,7 @@ def hashes():
     from video_extraction.audio import word_alignment
     from video_extraction.pipeline import runtime_setup
     return {**base.hashes(),**ink_hashes(),'connected':digest_file(__file__),**{m.__name__:digest_file(m.__file__) for m in
-        (progress,audio_batch,ppt_reuse,runtime_setup,document_links,audio_followup,video_followup,source_followup,av_context,visual_ocr,visual_ocr.ink_ocr,code_workflow,code_processing,audio_workflow,ink_workflow,document_workflow,pdf_workflow,usable_selection,unreadable,generalized_review,runtime_tools,alignment_bridge,native_reader,word_alignment,
+        (progress,audio_batch,ppt_recovery,ppt_reuse,runtime_setup,document_links,audio_followup,video_followup,source_followup,av_context,visual_ocr,visual_ocr.ink_ocr,code_workflow,code_processing,audio_workflow,ink_workflow,document_workflow,pdf_workflow,usable_selection,unreadable,generalized_review,runtime_tools,alignment_bridge,native_reader,word_alignment,
          audio_meaning_scope,audio_meaning_review,audio_remaining_impact,multimodal_checks,preprocessing,
          base.whisper,separator_pixels,bbox_cutoff,source_coordinate_review)}}
 
@@ -187,7 +187,8 @@ def prepare(out, inputs=None, model=None, whisper_model=None, ocr_models=None,oc
 
 def verify(out):
     out=Path(out);p=read(out/'plan.json')
-    if p['code_hashes']!=hashes():raise ValueError('implementation_changed_prepare_new_version')
+    current = hashes()
+    if p['code_hashes']!=current and not ppt_recovery.compatible(p, current):raise ValueError('implementation_changed_prepare_new_version')
     for f,h in p['inputs'].items():
         if digest_file(f)!=h:raise ValueError('bound_source_changed:'+f)
     model=p['source_plan'].get('local_whisper')
@@ -508,7 +509,7 @@ def publish(out,p):
     (out/'유형별연결_처리결과.html').write_text(page,encoding='utf-8');return summary
 
 
-def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None):
+def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None,ppt_retry_round=None):
     out=Path(out).resolve()
     with lock(out):
         p=verify(out);results=done(out,p)
@@ -524,10 +525,15 @@ def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None):
             if p.get('ocr_policy')=='selective_auxiliary_v1':
                 print('OCR은 화면 판독 후 필요한 영역에만 보조로 사용합니다. 전체 화면 선행 OCR은 실행하지 않습니다.',flush=True)
         transcriber=base.whisper.LocalWhisper(p['source_plan']['local_whisper'],out/'whisper-cache') if p['source_plan'].get('local_whisper') and not local_only else None
+        plan_hash = signature(p)
         error=None;failure=None;active_task=None
         try:
             for t in p['tasks']:
                 if t['id'] in results:continue
+                recover_page = (ppt_retry_round is not None and t['kind'] == 'visual'
+                                and t['unit'].get('source_kind') == 'ppt')
+                if recover_page and ppt_recovery.current_hold(out, plan_hash, t, ppt_retry_round):
+                    continue
                 if local_only and t['kind'] not in ('code','video_coverage'):continue
                 if t['kind']=='document_links' and any(u['id'] not in results for u in t['pages']):continue
                 progress.report('video_review' if t['kind']=='visual' else 'source_check', len(results), len(p['tasks']))
@@ -537,6 +543,8 @@ def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None):
                 try:
                     if t['kind'] in ('audio','visual','document_links') and client is None:
                         api_key(env_file);client=Gemini(out/'gemini-cache',p['source_plan']['gemini_model'],env_file,max_calls=maximum,delay=0,transport=budget)
+                    if client is not None:
+                        client.ppt_retry_round = ppt_retry_round if recover_page else None
                     if t['kind']=='code':r=code_workflow.run(t['unit'],folder,p['tool_runtime']['code_python'])
                     elif t['kind']=='document_links':r=document_links.run(t,results,folder,client)
                     elif t['kind']=='audio':
@@ -547,7 +555,12 @@ def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None):
                         context=[{**r,'text':r['observed_text']} for result in results.values() for r in result['records'] if r['modality']=='audio' and r['kind']=='speech' and r['eligible_for_chunking']]
                         r=visual(t['unit'],{**p,'_output':str(out)},folder,client,context)
                     else:r=video(t,p,folder)
-                except ValueError as ex:
+                except (ValueError, Blocked) as ex:
+                    if recover_page and str(ex) in {'invalid_model_response', 'source_followup_issue_mapping'}:
+                        save(ppt_recovery.hold_file(out, t), ppt_recovery.bound_hold(plan_hash, t, ppt_retry_round, str(ex)))
+                        continue
+                    if isinstance(ex, Blocked):
+                        raise
                     save(out/'errors'/(key+'.json'),{'task':t['id'],'reason':str(ex)});continue
                 r.update(specialist=t['kind'],binding=signature({'plan':signature(p),'task':t}),
                     evidence_files={str(f):digest_file(f) for f in folder.rglob('*') if f.is_file() and f.suffix in ('.json','.wav','.png')})
@@ -580,6 +593,9 @@ def run(out,env_file,maximum=600,delay=15,local_only=False,transport=None):
             save(out/'summary.json',summary)
             save(out/'run-state.json',{'stop_reason':'complete' if aligned['state'] in ('complete','not_required') else 'complete_with_alignment_review',
                  'api_calls_this_run':budget.used,'alignment_state':aligned['state'],'failure':None})
+        if ppt_retry_round is not None and not summary['all_tasks_processed']:
+            summary['held_pages'] = ppt_recovery.classified_holds(out, p, results, ppt_retry_round)
+            save(out/'summary.json', summary)
         return summary
 
 

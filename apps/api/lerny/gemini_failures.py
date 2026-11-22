@@ -56,8 +56,16 @@ def latest_error(job):
     return detail
 
 
-def prepare_retry(job):
-    """Only a known explicit HTTP failure can resume the same immutable call cache."""
+def prepare_retry(job, session=None):
+    """Retain successful receipts for targeted PPT validation and explicit service retries."""
+    if (session is not None and job.kind == "extract" and job.error_code in
+            {"DOCUMENT_VALIDATION_INCOMPLETE", "DOCUMENT_MODEL_REVIEW_FAILED"}):
+        from pathlib import Path
+        from lerny.models import MaterialVersion
+        version = session.get(MaterialVersion, job.payload["version_id"])
+        if version and Path(version.filename).suffix.lower() == ".pptx":
+            job.payload = {**job.payload, "_ppt_review_round": job.payload.get("_ppt_review_round", 0) + 1}
+            return
     if job.error_code == EXHAUSTED:
         job.payload = {**job.payload, "_gemini_retry_round": job.payload.get("_gemini_retry_round", 0) + 1}
     else:
