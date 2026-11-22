@@ -205,11 +205,10 @@ def adapted_programs(chunks, generate, versions=()):
                 seen.add(ln)
                 candidates.append(ln)
 
-        # 핵심 조건/계산 줄이 부족할 때만 print문을 후순위로 보충
-        for ln in prints:
-            if ln not in seen:
-                seen.add(ln)
-                candidates.append(ln)
+        # 핵심 조건/계산 줄이 하나라도 있으면 print문은 빈칸 후보에서 뺀다.
+        # 출력 줄만 있는 코드에서만 print문을 후보로 쓴다.
+        if not candidates:
+            candidates.extend(prints)
 
         numbers = proposal.get('blank_lines')
         if (not isinstance(numbers, list) or not numbers or

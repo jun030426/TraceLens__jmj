@@ -236,6 +236,48 @@ def clean_blank_answers(blanks: dict) -> list[str]:
     return results
 
 
+def ordered_blanks(blanks: dict) -> dict:
+    """빈칸 번호는 템플릿의 [[빈칸]] 순서와 같아요. 저장소가 키 순서를 바꿔 돌려줘도 번호순으로 맞춥니다."""
+    keys = list(blanks)
+    if all(str(key).isdigit() for key in keys):
+        keys.sort(key=lambda key: int(key))
+    return {key: blanks[key] for key in keys}
+
+
+def answer_key(exercise) -> list[str]:
+    """제출 뒤 회색 따라쓰기로 깔아 주는 답안. 학생 화면에 보이는 템플릿과 같은 기준으로 만듭니다."""
+    if exercise.kind == "blank":
+        # DB 원본 blanks가 아니라, 화면의 빈칸과 같은 정규화된 빈칸의 답을 줘야 번호가 어긋나지 않아요.
+        return clean_blank_answers(normalize_blanks_and_template(exercise)[1] or {})
+    return [full_answer_on_template(exercise)]
+
+
+def full_answer_on_template(exercise) -> str:
+    """전체 구현 답지를 시작 코드 위에 줄을 맞춰 얹습니다.
+
+    따라쓰기는 편집기와 답지를 같은 줄 번호끼리 겹쳐 그려요. 시작 코드의 안내 주석 줄을 그대로 두고
+    그 다음 줄부터 모범 코드의 본문이 오게 해야 글자가 겹치지 않습니다.
+    """
+    reference = (exercise.reference or "").replace("\r\n", "\n")
+    template_lines = (exercise.template or "").replace("\r\n", "\n").rstrip().split("\n")
+    comment = "#" if exercise.language == "python" else "//"
+    starter = [line.strip() for line in template_lines if line.strip() and not line.strip().startswith(comment)]
+    lines = reference.split("\n")
+    index = 0
+    for expected in starter:
+        while index < len(lines) and not lines[index].strip():
+            index += 1
+        if index >= len(lines) or lines[index].strip() != expected:
+            return reference  # 시작 코드가 모범 코드의 앞부분이 아니면 원문 그대로 둡니다.
+        index += 1
+    while index < len(lines) and not lines[index].strip():
+        index += 1
+    body = lines[index:]
+    if not any(template_lines) or not body:
+        return reference
+    return "\n".join(template_lines + body)
+
+
 def normalize_blanks_and_template(exercise):
     """
     기존 DB에 저장된 빈칸 문제 중 단순 print(...)나 input(...) 등 금지 줄이 빈칸으로 뚫려있거나
@@ -244,7 +286,7 @@ def normalize_blanks_and_template(exercise):
     실시간 정규화(Auto-remediation)하여 반환합니다.
     """
     template = getattr(exercise, "template", "") or ""
-    blanks = getattr(exercise, "blanks", {}) or {}
+    blanks = ordered_blanks(getattr(exercise, "blanks", {}) or {})
     language = getattr(exercise, "language", "") or ""
     kind = getattr(exercise, "kind", "") or ""
     reference = getattr(exercise, "reference", "") or ""

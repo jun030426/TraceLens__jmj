@@ -81,7 +81,8 @@ async def test_progressive_hints_survive_reload_and_do_not_leak_answers(app_db, 
         submitted = await c.post(base + "/practice/submit", json={"exercise_id": ex.id, "source": code},
                                  headers={"Idempotency-Key": "hints-final"})
         assert submitted.status_code == 202, submitted.text
-        assert (await help("answer")).json()["answers"] == [code]
+        # The copy text keeps the starter comment line and continues with the reference body below it.
+        assert (await help("answer")).json()["answers"] == ["n = 3\n# 구현하세요\nprint(n + 1)"]
         response = await c.post(base + "/chat/messages", headers={"Idempotency-Key": "practice-context"},
             json={"message": "어디서 막혔나요?", "mode": "practice", "exercise_id": ex.id,
                   "practice_context": "학생 코드: n = 3"})

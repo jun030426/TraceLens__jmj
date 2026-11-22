@@ -439,10 +439,9 @@ def help_used(section_id: str, body: HelpInput, session: Db, actor: Actor):
     state = help_state(session, actor, plan, exercise)
     session.commit()
     if body.kind == "answer":
-        from lerny.practice_support import explanation, clean_blank_answers
-        expl = explanation(exercise)
-        state["explanation"] = expl
-        state["answers"] = clean_blank_answers(exercise.blanks) if exercise.kind == "blank" else [expl["reference"]]
+        from lerny.practice_support import answer_key, explanation
+        state["explanation"] = explanation(exercise)
+        state["answers"] = answer_key(exercise)
     return state
 
 
