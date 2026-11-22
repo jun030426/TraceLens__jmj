@@ -51,6 +51,88 @@ def grade(db, response):
     return result
 
 
+def test_blank_offsets_use_utf16_code_units_and_exact_editor_boundaries():
+    from lerny.practice_snapshot import SubmissionEditor, submission_snapshot
+
+    template = " 한😀[[빈칸]]:[[빈칸]]\n"
+    source = " 한😀가:🧪:나\n"
+    editor = SubmissionEditor(template=template, fills=["가:🧪", "나"])
+    assert practice.Submission(exercise_id="e", source=source, editor=editor).source == source
+    assert submission_snapshot("blank", template, source, editor) == {
+        "kind": "blank", "spans": [{"number": 1, "start": 4, "end": 8}, {"number": 2, "start": 9, "end": 10}]}
+    assert submission_snapshot("blank", template, source, None) is None
+    assert submission_snapshot("blank", "😀 [[빈칸]]", "😀 한", None)["spans"] == [
+        {"number": 1, "start": 3, "end": 4}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("leading,with_editor", [("  ", False), ("\n\n", True), ("\n\n  ", True)])
+async def test_full_submission_keeps_legacy_grading_whitespace(cloud_db, monkeypatch, leading, with_editor):
+    app, engine, _ = cloud_db
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://lerny.example") as c:
+        with Session(engine) as db:
+            ctx = await prepare_test_data(c, db, monkeypatch)
+            code = "n = 3\nif n:\n    print(n + 1)"
+            starter = ctx["daily"]["items"][0]["variants"]["full"]["template"]
+            body = {"exercise_id": ctx["full_id"], "source": leading + code + "\n  "}
+            if with_editor:
+                body["editor"] = {"template": starter}
+            response = await c.post(ctx["base"] + "/practice/submit", json=body,
+                                    headers={"Idempotency-Key": "full-whitespace"})
+            assert response.status_code == 202
+            assert response.json()["source"] == code
+            attempt = db.get(PracticeAttempt, response.json()["id"])
+            assert attempt.source == code
+            assert attempt.submission_snapshot == {"kind": "full", "starter_code": starter}
+            assert grade(db, response)["correct"] is True
+
+
+@pytest.mark.asyncio
+async def test_submission_snapshots_survive_template_changes_on_both_routes(cloud_db, monkeypatch):
+    app, engine, _ = cloud_db
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://lerny.example") as c:
+        with Session(engine) as db:
+            ctx = await prepare_test_data(c, db, monkeypatch)
+            variants = ctx["daily"]["items"][0]["variants"]
+            route = ctx["base"] + "/practice/submit"
+            template = variants["blank"]["template"]
+            value = "print(n + 1) # 😀"
+            source = template.replace("[[빈칸]]", value)
+            body = {"exercise_id": ctx["blank_id"], "source": source,
+                    "editor": {"template": template, "fills": [value]}}
+            for editor, status in [({"template": "old", "fills": [value]}, 409),
+                                   ({"template": template, "fills": ["wrong"]}, 422)]:
+                invalid = await c.post(route, json={**body, "editor": editor}, headers={"Idempotency-Key": "check"})
+                assert invalid.status_code == status
+            first = await c.post(route, json=body, headers={"Idempotency-Key": "blank-snapshot"})
+            assert first.status_code == 202, first.text
+            grade(db, first)
+            starter = variants["full"]["template"]
+            second = await c.post(route, json={"exercise_id": ctx["full_id"], "source": "\n\n  " + ctx["code"] + "\n",
+                                               "editor": {"template": starter}},
+                                  headers={"Idempotency-Key": "full-snapshot"})
+            assert second.status_code == 202, second.text
+            assert grade(db, second)["correct"] is True
+            start = len(source.partition(value)[0].encode("utf-16-le")) // 2
+            expected = {first.json()["id"]: {"kind": "blank", "spans": [
+                {"number": 1, "start": start, "end": start + len(value.encode("utf-16-le")) // 2}]},
+                second.json()["id"]: {"kind": "full", "starter_code": starter}}
+            for ex in (ctx["blank_id"], ctx["full_id"]):
+                db.get(PracticeExercise, ex).template = "changed after submission"
+            db.commit()
+            for legacy in (False, True):
+                if legacy:
+                    db.get(PracticeAttempt, first.json()["id"]).submission_snapshot = None
+                    db.commit()
+                    expected[first.json()["id"]] = None
+                for path in ("/practice/attempts", "/my-practice"):
+                    result = await c.get(ctx["base"] + path)
+                    assert result.status_code == 200, result.text
+                    items = result.json()["items"]
+                    assert {i["id"]: i["submission_snapshot"] for i in items} == expected
+                    assert next(i["source"] for i in items if i["id"] == second.json()["id"]) == ctx["code"]
+
+
 @pytest.mark.asyncio
 async def test_each_variant_is_submitted_independently(cloud_db, monkeypatch):
     """(a) 같은 문제의 빈칸·전체 구현은 각각 한 번씩 제출하고, 화면에 유형별 제출 기록을 준다."""

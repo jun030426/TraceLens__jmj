@@ -2,10 +2,10 @@
 import hashlib
 import json
 import re
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, Response
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import func, select
 
 from lerny.auth import Input
@@ -16,6 +16,7 @@ from lerny.learning import lock_student, record_completion, today
 from lerny.models import (AuditEvent, Chunk, Concept, Course, Enrollment, Job, Material, MaterialVersion,
     PracticeAttempt, PracticeExercise, PracticeSession, Section, User, now)
 from lerny.security import Actor, Db, deny
+from lerny.practice_snapshot import SubmissionEditor, submission_snapshot
 from lerny.practice_support import first_exercise_attempts, problem_attempts, problem_help_events
 
 router = APIRouter(prefix="/api/v1")
@@ -221,10 +222,11 @@ def prepare(session, job):
     return {"exercise_ids":created,"held":held,"status":"ready" if created else "no_verified_source_code"}
 
 
-def attempt_view(attempt):
+def attempt_view(attempt, *, source_available=True):
     return {"id":attempt.id,"practice_session_id":attempt.practice_session_id,"exercise_id":attempt.exercise_id,"status":attempt.status,
             "correct":attempt.correct,"independent":attempt.independent,"feedback":attempt.feedback,
-            "created_at":attempt.created_at.isoformat(),"job_id":attempt.job_id}
+            "created_at":attempt.created_at.isoformat(),"job_id":attempt.job_id,
+            "submission_snapshot":attempt.submission_snapshot if source_available else None}
 
 
 def student_exercise_template(exercise):
@@ -370,13 +372,17 @@ def assigned(session, actor, section_id, exercise_id, plan_id=None):
 class Submission(Input):
     plan_id: str | None = None
     exercise_id: str
-    source: str = Field(min_length=1, max_length=32000)
+    source: Annotated[str, StringConstraints(strip_whitespace=False, min_length=1, max_length=32000)]
+    editor: SubmissionEditor | None = None
 
 
 @router.post("/sections/{section_id}/practice/submit", status_code=202)
 def submit(section_id: str, body: Submission, session: Db, actor: Actor,
            idempotency_key: str | None = Header(default=None)):
     section, plan, exercise = assigned(session, actor, section_id, body.exercise_id, body.plan_id)
+    source = body.source.strip() if exercise.kind == "full" else body.source
+    if not body.source.strip():
+        deny(422, "제출할 코드를 입력해 주세요.")
     if "[[빈칸]]" in body.source:
         deny(422, "빈칸을 모두 채워 주세요.")
     def make():
@@ -396,8 +402,9 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
             deny(409, "이전 제출의 검증을 기다려 주세요.")
         assisted = session.scalar(problem_help_events(actor.id, section_id, exercise)
                                   .with_only_columns(AuditEvent.id).limit(1))
+        snapshot = submission_snapshot(exercise.kind, student_exercise_template(exercise), source, body.editor)
         attempt = PracticeAttempt(student_id=actor.id, section_id=section_id, exercise_id=exercise.id,
-            practice_session_id=plan.id, source=body.source, independent=assisted is None)
+            practice_session_id=plan.id, source=source, submission_snapshot=snapshot, independent=assisted is None)
         session.add(attempt)
         session.flush()
         job = Job(owner_id=actor.id, course_id=section.course_id, kind="practice_grade",
@@ -405,8 +412,14 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
         session.add(job)
         session.flush()
         attempt.job_id = job.id
-        return attempt_view(attempt)
-    return idempotent(session, actor, "practice-submit:" + section_id, idempotency_key, body.model_dump(), make)
+        return {**attempt_view(attempt), "source": attempt.source}
+    payload = body.model_dump()
+    payload["source"] = source
+    if body.editor is None:
+        # Keep idempotency keys issued before the editor supplied template metadata.
+        del payload["editor"]
+        payload["source"] = body.source.strip()
+    return idempotent(session, actor, "practice-submit:" + section_id, idempotency_key, payload, make)
 
 
 class HelpInput(Input):
@@ -480,8 +493,12 @@ def attempts(section_id: str, session: Db, actor: Actor, plan_id: str | None = N
     else:
         query = query.order_by(PracticeAttempt.created_at.desc(), PracticeAttempt.id.desc())
         rows = session.scalars(query if archive else query.limit(100))
-    return {"items":[{**attempt_view(a),"source":a.source,"exercise":exercise_view(session,
-        session.get(PracticeExercise,a.exercise_id))} for a in rows]}
+    items = []
+    for attempt in rows:
+        exercise = exercise_view(session, session.get(PracticeExercise, attempt.exercise_id))
+        items.append({**attempt_view(attempt, source_available=exercise is not None),
+                      "source": attempt.source, "exercise": exercise})
+    return {"items": items}
 
 
 @router.get("/sections/{section_id}/practice/attempts/{attempt_id}/explanation")

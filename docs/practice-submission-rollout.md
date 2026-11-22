@@ -2,7 +2,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 운영 적용 상태 | 승인 대기 |
+| 운영 적용 상태 | 2026-11-23 04:03:51 KST 적용 완료 |
 | Alembic | `b60d9c84f210` → `4ebad9697835` |
 | 전환 API | #42 머지 `53775563bd23d614e92a42a3e913315df2656e39`, 운영 배포 `dpl_9G2WyAzucddWvF9QkmUtrEFGMWx6` |
 | 파일 | `migrations/versions/4ebad9697835_practice_submission_snapshot.py` |
@@ -11,6 +11,18 @@
 `upgrade`는 `practice_attempts.submission_snapshot`을 기본값 없는 nullable JSON 컬럼으로 추가한다. 기존 제출은 SQL NULL로 남는다. 이전 워커는 매핑된 컬럼만 읽고 쓰며 채점 작업의 입력은 기존 `attempt_id`다.
 
 격리 PostgreSQL에서 빈 DB부터 부모 리비전까지 올린 뒤 upgrade·downgrade·재적용을 검증했다. 빈칸 제출을 만들어 둔 상태에서 컬럼을 추가한 뒤 기존 채점 코드로 처리하고, 같은 문제의 전체 구현도 새로 제출해 채점했다. 두 제출은 모두 채점 완료였고 스냅샷은 SQL NULL이었다. downgrade 뒤에도 두 제출의 채점 결과가 남았다.
+
+## 운영 실행 기록
+
+- #43 머지 커밋 `b401d5ceb96d3581ee7b87cb01b0d56997699e71`을 기준으로 인스턴스 `i-0c64182a7dada987a`의 `/tmp/lerny-practice-migration-1prcdlj0`에 Alembic 설정과 이력을 준비했다. 실행 직전 서버 파일 25개의 SHA-256이 Git 원본과 일치했다. 새 리비전 파일 SHA-256은 `625c1df8ba75bd4d43af6adb0bbd6486b78ba18b168cb6d3a7f86f947f1b094e`이다.
+- interactive 프로세스와 워커 설정의 DB 접속 대상이 일치했다. 기존 리비전 한 행, 제5장 작업, 기존 제출 29건, 새 컬럼 부재, 실행·대기 0건을 확인했다. 렌더링이 중지된 기존 HeyGen 13건은 동일한 ID였다.
+- SSM 명령 `1283d1a1-7f38-4b4b-9b37-3b18e9ef30d2`에서 위 경로를 작업 디렉터리로 사용했다. `lerny-worker` 사용자와 interactive 워커 환경으로 다음 명령을 실행했다.
+
+```sh
+PGOPTIONS='-c lock_timeout=3s -c statement_timeout=30s' /opt/lerny/venv/bin/python -B -m alembic -c /tmp/lerny-practice-migration-1prcdlj0/alembic.ini upgrade 4ebad9697835
+```
+
+적용 직후 운영 ready·learning은 모두 HTTP 200, database는 ready였다. 운영 DB에서 새 리비전 한 행과 `json`·nullable·기본값 없음, 기존 제출 29건 중 SQL NULL 29건을 확인했다. 임시 디렉터리는 삭제했다.
 
 ## 적용 순서
 

@@ -21,8 +21,11 @@ test("실습 질문은 배정 문항과 모드가 필수이며 정답 자체는 
   assert.equal(practiceChatBody("질문", "e", undefined, "x".repeat(4000)).practice_context.length, 3000);
 });
 
-test("최종 제출에는 코드만 보내고 클라이언트 정답 판정을 보내지 않아요", () => {
+test("최종 제출은 입력값과 보여 준 템플릿을 보존해요", () => {
   assert.deepEqual(practiceSubmitBody("exercise", "print('아직 미완성')"), { exercise_id: "exercise", source: "print('아직 미완성')" });
+  const editor = { template: " 한😀[[빈칸]]:[[빈칸]]\n", fills: ["가:🧪", "나"] };
+  assert.deepEqual(practiceSubmitBody("exercise", " 한😀가:🧪:나\n", editor),
+    { exercise_id: "exercise", source: " 한😀가:🧪:나\n", editor });
 });
 
 test("이해도는 특정 답변에 저장하고 중단은 대기 중 작업부터 취소해요", async () => {

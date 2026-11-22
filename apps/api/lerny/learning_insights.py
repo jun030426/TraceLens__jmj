@@ -27,7 +27,7 @@ def my_practice(section_id: str, session: Db, actor: Actor, response: Response,
         PracticeAttempt.student_id == actor.id, PracticeAttempt.section_id == section_id,
         PracticeExercise.course_id == section.course_id,
         PracticeAttempt.created_at >= start, PracticeAttempt.created_at < end).options(
-        defer(PracticeAttempt.source), defer(PracticeAttempt.feedback)).order_by(
+        defer(PracticeAttempt.source), defer(PracticeAttempt.feedback), defer(PracticeAttempt.submission_snapshot)).order_by(
         PracticeAttempt.created_at.desc(), PracticeAttempt.id.desc())
     rows = metrics.bounded(session, query)
     if order == "asc":
@@ -35,7 +35,7 @@ def my_practice(section_id: str, session: Db, actor: Actor, response: Response,
     page = rows[offset:offset + limit]
     attempts = {a.id: a for a in session.scalars(select(PracticeAttempt).where(
         PracticeAttempt.id.in_([a.id for a, _ in page])).options(
-            undefer(PracticeAttempt.source), undefer(PracticeAttempt.feedback)))}
+            undefer(PracticeAttempt.source), undefer(PracticeAttempt.feedback), undefer(PracticeAttempt.submission_snapshot)))}
     exercises = {e.id: e for e in session.scalars(select(PracticeExercise).where(
         PracticeExercise.id.in_([exercise_id for _, exercise_id in page])))}
     concepts = {c.id: c.name for c in session.scalars(select(Concept).where(Concept.course_id == section.course_id))}
@@ -49,6 +49,7 @@ def my_practice(section_id: str, session: Db, actor: Actor, response: Response,
             "title": exercise.title if material else "공개 범위가 변경된 실습",
             "concept": concepts.get(exercise.concept_id, "개념 미지정") if material else "",
             "kind": exercise.kind, "language": exercise.language, "source_available": bool(material),
+            "submission_snapshot": a.submission_snapshot if material else None,
             "template": student_exercise_template(exercise) if material and exercise.kind in {"blank", "cloze", "full"} else None})
     return {"date_from": first, "date_to": last, "summary": metrics.counts([a for a, _ in rows]),
             "items": items, "total": len(rows), "offset": offset, "limit": limit,

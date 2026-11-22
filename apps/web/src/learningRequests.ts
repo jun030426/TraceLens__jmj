@@ -16,7 +16,8 @@ export function practiceChatBody(question: string, exerciseId: string, threadId?
     message: question.trim(), practice_context: context?.slice(0, 3000) || "" };
 }
 
-export const practiceSubmitBody = (exerciseId: string, source: string) => ({ exercise_id: exerciseId, source });
+export const practiceSubmitBody = (exerciseId: string, source: string, editor?: { template: string; fills?: string[] }) =>
+  ({ exercise_id: exerciseId, source, ...(editor && { editor }) });
 
 export type TutorChoice = "understood" | "confused" | "stop";
 export type Requester = (path: string, options: RequestInit) => Promise<unknown>;
