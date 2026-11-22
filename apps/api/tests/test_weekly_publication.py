@@ -207,7 +207,8 @@ def test_new_upload_or_failed_index_blocks_generation(weekly):
     assert client.post("/api/v1/courses/course/weeks/1/content",json={"source_hash":data["source_hash"]}).status_code==409
 
 
-def test_weekly_worker_combines_files_and_tags_verified_practice(weekly,monkeypatch):
+@pytest.mark.parametrize("model_blank", [2, 3], ids=["calculation", "print-line"])
+def test_weekly_worker_combines_files_and_tags_verified_practice(weekly,monkeypatch,model_blank):
     from lerny import practice
     client,session,_=weekly
     code="numbers = [1, 2]\ntotal = sum(numbers)\nprint(total)"
@@ -223,7 +224,7 @@ def test_weekly_worker_combines_files_and_tags_verified_practice(weekly,monkeypa
         assert code in {s["text"] for s in json.loads(prompt.rsplit("\n",1)[1])["sources"]}
         return {"programs":[{"source_id":"code-chunk","concept_id":"concept_stack","code":code,"title":"합 구하기",
             "prompt":"배열 숫자의 합을 계산해 출력하세요.","input_statement":"numbers = [1, 2]","variants":["numbers = [3, 4]","numbers = [0, 0]"],
-            "blank_lines":[2],"full_template":"numbers = [1, 2]\n# 구현하세요"}]}
+            "blank_lines":[model_blank],"full_template":"numbers = [1, 2]\n# 구현하세요"}]}
     monkeypatch.setattr(worker,"model_json",model)
     root=session.scalar(select(Job).where(Job.kind=="weekly_content"))
     weekly_content.generate_job(session,root);session.flush()
@@ -234,6 +235,9 @@ def test_weekly_worker_combines_files_and_tags_verified_practice(weekly,monkeypa
     assert len(result["exercise_ids"])==2 and result["held"]==[]
     for eid in result["exercise_ids"]:
         exercise=session.get(PracticeExercise,eid)
+        if exercise.kind == "blank":
+            assert exercise.blanks == {"1": "total = sum(numbers)"}
+            assert "print(total)" in exercise.template
         assert exercise.generation_id==gid and exercise.version_id=="code-v" and len(exercise.tests)==3
 
 

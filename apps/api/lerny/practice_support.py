@@ -1,7 +1,9 @@
 """Progressive practice support. No code execution and no hidden answers in views."""
 import ast
+import re
 
 from sqlalchemy import select
+from rag_mvp.cloze_generator import split_comment
 
 from lerny.models import AuditEvent, PracticeAttempt, PracticeExercise, PracticeSession
 
@@ -32,7 +34,9 @@ def metadata(exercise):
         ref_code = getattr(exercise, "reference", None) or getattr(exercise, "template", "") or ""
         try:
             from rag_mvp.cloze_generator import ClozeGenerator
-            requirements = ClozeGenerator.infer_dynamic_requirements(ref_code, slide_text=exercise.prompt)
+            tests = getattr(exercise, "tests", None) or []
+            statement = tests[0].get("statement") if tests else None
+            requirements = ClozeGenerator.infer_dynamic_requirements(ref_code, slide_text=exercise.prompt, input_statement=statement)
         except Exception:
             pass
 
@@ -56,11 +60,17 @@ def hints(exercise):
             code = exercise.reference or ""
             flow = ClozeGenerator.practice_hint_flow(exercise.title, "full_coding", code)
 
-        if flow and flow.get("steps"):
-            return [step["title"] + "\n" + step["action_story"] for step in flow["steps"]]
-        dynamic_flow = ClozeGenerator.generate_dynamic_action_flow(exercise.reference, title=exercise.title)
-        if dynamic_flow and dynamic_flow.get("steps"):
-            return [step["title"] + "\n" + step["action_story"] for step in dynamic_flow["steps"]]
+        if not flow or not flow.get("steps"):
+            flow = ClozeGenerator.generate_dynamic_action_flow(exercise.reference, title=exercise.title)
+        if flow.get("steps"):
+            messages = []
+            for step in flow["steps"]:
+                message = step["title"] + "\n" + step["action_story"]
+                mnemonic = step.get("code_mnemonic")
+                if mnemonic and mnemonic not in message:
+                    message += "\n" + mnemonic
+                messages.append(message)
+            return messages
 
     # Non-Python or AST-incompatible languages fallback
     result = [f"「{exercise.title}」에서 주어진 입력과 구해야 하는 출력을 먼저 구분해 보세요.",
@@ -107,33 +117,32 @@ def format_inline_comment(line: str) -> str:
     if not line:
         return ""
     # 원래 인라인 주석이 있으면 추출
-    extracted_comment = ""
-    if "#" in line:
-        parts = line.split("#", 1)
-        extracted_comment = parts[1].strip()
-        line = parts[0].strip()
+    line, extracted_comment = split_comment(line)
+    if extracted_comment:
+        return extracted_comment
+    if re.match(r"elif\b", line):
+        return "앞선 조건이 거짓이면 다음 조건을 판별"
+    if line == "else:":
+        return "앞선 조건이 모두 거짓일 때 실행"
 
     # 특정 도메인(BMI, 사칙연산, 성적 등)에 대한 정밀 맞춤 주석
     l_lower = line.lower()
     if "height" in l_lower and ("/ 100" in line or "/100" in line):
-        return extracted_comment or "키를 100으로 나누어 미터(m) 단위로 변환"
+        return "키를 100으로 나누어 미터(m) 단위로 변환"
     if "bmi" in l_lower and ("weight" in l_lower or "** 2" in line or "**2" in line):
-        return extracted_comment or "체질량지수(BMI) 공식 적용: 몸무게 / (키의 제곱)"
+        return "체질량지수(BMI) 공식 적용: 몸무게 / (키의 제곱)"
     if "print(" in line and ("bmi" in l_lower or ":.2f" in line):
-        return extracted_comment or "계산된 BMI 결과를 소수 둘째 자리까지 포맷팅하여 출력"
+        return "계산된 BMI 결과를 소수 둘째 자리까지 포맷팅하여 출력"
     if "total" in l_lower and "+" in line:
-        return extracted_comment or "과목 점수들을 모두 더하여 총점에 저장"
+        return "과목 점수들을 모두 더하여 총점에 저장"
     if "avg" in l_lower and "/" in line:
-        return extracted_comment or "총점을 과목 수로 나누어 평균 계산"
+        return "총점을 과목 수로 나누어 평균 계산"
     if "self.top += 1" in line:
-        return extracted_comment or "스택 최상단 포인터(top) 1 증가"
+        return "스택 최상단 포인터(top) 1 증가"
     if "self.top -= 1" in line:
-        return extracted_comment or "스택 최상단 포인터(top) 1 감소"
+        return "스택 최상단 포인터(top) 1 감소"
     if "self.rear" in line and "%" in line:
-        return extracted_comment or "큐 rear 포인터를 원형 회전 이동"
-
-    if extracted_comment:
-        return extracted_comment
+        return "큐 rear 포인터를 원형 회전 이동"
 
     try:
         line_to_parse = line + "\n    pass" if (line.endswith(":") and not line.endswith("pass")) else line
@@ -215,18 +224,6 @@ def format_inline_comment(line: str) -> str:
     return "요구조건에 맞추어 연산 수행"
 
 
-def split_comment(line):
-    from io import StringIO
-    from tokenize import COMMENT, TokenError, generate_tokens
-    try:
-        for token in generate_tokens(StringIO(line).readline):
-            if token.type == COMMENT:
-                return line[:token.start[1]].rstrip(), token.string[1:].strip()
-    except (TokenError, IndentationError):
-        pass
-    return line, ""
-
-
 def clean_blank_answers(blanks: dict) -> list[str]:
     """빈칸 인풋창(Ghost Text) 안에 주석이 덮어써지지 않도록 순수 실행 코드만 추출합니다."""
     results = []
@@ -283,74 +280,105 @@ def full_answer_on_template(exercise) -> str:
     return "\n".join(template_lines + body)
 
 
+def input_lines(reference, statement):
+    if not statement or statement not in reference:
+        return set()
+    start = reference[:reference.index(statement)].count("\n")
+    return set(range(start, start + len(statement.splitlines())))
+
+
+def python_blank_template(reference, selected, statement):
+    """Keep valid proposed lines. Repair forbidden selections using the verified source."""
+    from rag_mvp.cloze_generator import ClozeGenerator
+
+    lines = reference.splitlines()
+    protected = input_lines(reference, statement)
+    chosen = sorted(i for i in set(selected) if i not in protected and not ClozeGenerator.is_excluded_line(lines[i]))
+    if not chosen:
+        chosen = [b["line_index"] for b in ClozeGenerator.select_blanks(reference, protected_lines=protected)]
+    blanks = {}
+    for i in chosen:
+        line = lines[i]
+        blanks[str(len(blanks) + 1)] = line.lstrip()
+        lines[i] = line[:len(line) - len(line.lstrip())] + "[[빈칸]]"
+    if not blanks:
+        # Output-only examples can still ask for the printed expression.
+        # AST columns are UTF-8 byte offsets; preserve labels, quotes and indentation.
+        for i, line in enumerate(lines):
+            if i in protected:
+                continue
+            code = line.lstrip()
+            try:
+                tree = ast.parse(code)
+            except (SyntaxError, ValueError):
+                continue
+            if len(tree.body) != 1 or not isinstance(tree.body[0], ast.Expr):
+                continue
+            call = tree.body[0].value
+            if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "print"):
+                continue
+            arg = next((a for a in call.args if not isinstance(a, (ast.Constant, ast.Starred))), None)
+            if arg is not None:
+                encoded = code.encode()
+                start, end = arg.col_offset, arg.end_col_offset
+                blanks["1"] = encoded[start:end].decode()
+                indent = line[:len(line) - len(code)]
+                lines[i] = indent + encoded[:start].decode() + "[[빈칸]]" + encoded[end:].decode()
+                break
+    return "\n".join(lines), blanks
+
+
 def normalize_blanks_and_template(exercise):
-    """
-    기존 DB에 저장된 빈칸 문제 중 단순 print(...)나 input(...) 등 금지 줄이 빈칸으로 뚫려있거나
-    교육학적 중요도(DSA_RULES) 기준에 맞지 않는 레거시 빈칸 문제를
-    사용자 합의 기준(ClozeGenerator.select_blanks: 최대 2개, 인접 방지, 기저/포인터/조건 최우선, print 완전 배제)으로
-    실시간 정규화(Auto-remediation)하여 반환합니다.
-    """
+    """Repair invalid stored slots for display, keeping the saved exercise unchanged."""
     template = getattr(exercise, "template", "") or ""
     blanks = ordered_blanks(getattr(exercise, "blanks", {}) or {})
-    language = getattr(exercise, "language", "") or ""
-    kind = getattr(exercise, "kind", "") or ""
-    reference = getattr(exercise, "reference", "") or ""
-
-    if language != "python" or kind != "blank" or not reference:
+    reference = exercise.reference or ""
+    if exercise.language != "python" or exercise.kind != "blank" or not reference:
         return template, blanks
-
-    # 블랙리스트(print, input 등) 검사
-    has_bad_blank = False
-    for b in blanks.values():
-        stripped = b.strip()
-        if stripped.startswith("print(") or stripped.startswith("print ") or stripped.startswith("input("):
-            has_bad_blank = True
-            break
-
-    # print문이 뚫려있거나 빈칸이 4개 초과로 뚫린 경우, 계획된 표준 ClozeGenerator.select_blanks로 재선정
-    if has_bad_blank or len(blanks) > 4:
-        try:
-            from rag_mvp.cloze_generator import ClozeGenerator
-            selected = ClozeGenerator.select_blanks(reference, min_score=80, max_blanks=4)
-            if selected:
-                ref_lines = reference.splitlines()
-                chosen_indices = {b['line_index'] for b in selected}
-                new_blanks = {}
-                for i, b in enumerate(selected, 1):
-                    new_blanks[str(i)] = b['answer']
-
-                new_template_lines = []
-                for idx, line in enumerate(ref_lines):
-                    if idx in chosen_indices:
-                        indent = line[:len(line) - len(line.lstrip())]
-                        new_template_lines.append(indent + "[[빈칸]]")
-                    else:
-                        new_template_lines.append(line)
-                return "\n".join(new_template_lines), new_blanks
-        except Exception:
-            pass
-
+    tests = getattr(exercise, "tests", None) or []
+    statement = tests[0].get("statement", "") if tests else ""
+    hidden_input = statement and statement in reference and statement not in template
+    forbidden = any(re.match(r"(?:print|input)\s*\(", answer.lstrip()) for answer in blanks.values())
+    if hidden_input or forbidden or len(blanks) > 4:
+        repaired, answers = python_blank_template(reference, (), statement)
+        if answers:
+            return repaired, answers
     return template, blanks
 
 
-def solving_template(exercise):
-    template, _ = normalize_blanks_and_template(exercise)
-    if exercise.kind != "blank" or exercise.language != "python":
-        return template
+def without_python_comments(source, *, preserve=""):
     from io import StringIO
+    from itertools import accumulate
     from tokenize import COMMENT, TokenError, generate_tokens
 
-    lines = template.split("\n")
+    if "#" not in source:
+        return source
+    lines = source.split("\n")
+    offsets = list(accumulate((len(line) + 1 for line in lines), initial=0))
+    start = source.find(preserve) if preserve else -1
     try:
-        for token in generate_tokens(StringIO(template).readline):
+        for token in generate_tokens(StringIO(source).readline):
             if token.type == COMMENT:
                 row, col = token.start
-                prefix = lines[row - 1][:col].rstrip()
-                lines[row - 1] = prefix or None
+                if start >= 0 and start <= offsets[row - 1] + col < start + len(preserve):
+                    continue
+                lines[row - 1] = lines[row - 1][:col].rstrip() or None
     except (IndentationError, TokenError):
-        # A partially blanked template need not be a complete Python program.
         pass
     return "\n".join(line for line in lines if line is not None)
+
+
+def blank_editor_templates(exercise):
+    template, _ = normalize_blanks_and_template(exercise)
+    if exercise.kind != "blank" or exercise.language != "python":
+        return template, template
+    display = without_python_comments(template)
+    tests = getattr(exercise, "tests", None) or []
+    statement = tests[0].get("statement", "") if tests else ""
+    # The deployed grader replaces this exact, immutable input declaration for each case.
+    if statement and statement in template and statement not in display:
+        return without_python_comments(template, preserve=statement), display
+    return display, display
 
 
 def explanation(exercise):
@@ -373,7 +401,7 @@ def explanation(exercise):
     for line in (exercise.reference or "").splitlines():
         trimmed = line.strip()
         indent = line[:len(line) - len(line.lstrip())]
-        if not trimmed:
+        if not trimmed or (exercise.language == "python" and (trimmed.startswith("#") or split_comment(line)[1])):
             ref_lines.append(line)
             continue
 

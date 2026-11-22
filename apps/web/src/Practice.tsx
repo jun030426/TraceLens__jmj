@@ -51,8 +51,9 @@ function PracticeOutput({ tab, run, stage, code, incomplete, blankLines = [], fi
 type PracticeAttempt = { id: string; practice_session_id: string; exercise_id: string; status: string; correct: boolean | null; independent: boolean; source?: string; submission_snapshot?: SubmissionSnapshot | null; created_at: string; job_id?: string; feedback?: { message: string; passed?: number; total?: number }; exercise?: { title: string; kind: string } | null };
 type PracticeKind = "blank" | "full";
 type PracticeProblem = BlankQuiz & {
+  display_template?: string | null;
   problem_id?: string;
-  variants?: Partial<Record<PracticeKind, { exercise_id: string; template: string; hint_steps: number; attempt?: PracticeAttempt | null }>>;
+  variants?: Partial<Record<PracticeKind, { exercise_id: string; template: string; display_template?: string | null; hint_steps: number; attempt?: PracticeAttempt | null }>>;
   submitted_exercise_id?: string | null;
   attempt?: PracticeAttempt | null;
 };
@@ -127,7 +128,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   const shownKind = selectedKind && kinds.includes(selectedKind)
     ? selectedKind : problem.kind && kinds.includes(problem.kind) ? problem.kind : kinds[0];
   const variant = problem.variants?.[shownKind];
-  const quiz = variant ? { ...problem, kind: shownKind, id: variant.exercise_id, template: variant.template } : problem;
+  const quiz = variant ? { ...problem, kind: shownKind, id: variant.exercise_id, template: variant.template, display_template: variant.display_template } : problem;
   const latest = attemptFor(quiz.id, variant?.attempt ?? problem.attempt);
   const editable = !!submissions.data && !latest;
   // 문제 유형 — 빈칸 채우기 / 직접 작성(풀코딩). 직접 작성은 학생 코드 전체를 fills[0]에 담아 같은 저장·실행·채점 흐름을 써요.
@@ -135,7 +136,8 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   const [fillsByQuiz, setFillsByQuiz] = useState<Record<string, Record<number, string>>>({});
   const fills = fillsByQuiz[quiz.id] || {};
   const fullCode = isFull ? (fills[0] ?? quiz.template) : "";
-  const template = useMemo(() => parseTemplate(isFull ? fullCode : quiz.template), [isFull, fullCode, quiz.template]);
+  const displayTemplate = quiz.display_template ?? quiz.template;
+  const template = useMemo(() => parseTemplate(isFull ? fullCode : displayTemplate), [isFull, fullCode, displayTemplate]);
   // 수정 제안은 회색으로 표시하며, 학생이 적용한 코드만 실행·제출한다.
   const fix = useMemo(() => isFull ? quickFix(fullCode, language) : null, [isFull, fullCode, language]);
   const runnable = useMemo(() => isFull ? { code: fullCode, stopLines: {}, unfilled: [] as number[] } : buildRunnable(template, fills), [isFull, fullCode, template, fills]);
@@ -207,7 +209,8 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
     if (!editable || requestBusy.current || assistBusy || hasPending || stage || !complete) return;
     requestBusy.current = true;
     setSubmitting(true); setSubmitError("");
-    const source = runnable.code;
+    const source = !isFull && quiz.display_template
+      ? buildRunnable(parseTemplate(quiz.template), fills).code : runnable.code;
     try {
       if (!await confirm({ title: "최종 제출할까요?", message: "제출한 코드는 변경할 수 없어요. 제출 후 내 코드를 확인하고 답지를 따라 써 볼 수 있어요.", confirmLabel: "제출하기", cancelLabel: "더 풀어 볼게요" })) return;
       const editor = { template: quiz.template, fills: isFull ? undefined : template.blanks.map(({ n }) => cleanFill(fills[n])) };
@@ -308,7 +311,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
           {quiz.example_input && <div className="practice-example"><div><h4>예시 입력 선언</h4><pre><code>{quiz.example_input}</code></pre></div></div>}
           {latest ? <>
             <PracticeAnswerCopy key={latest.id} sectionId={sectionId} planId={archivePlan}
-              exerciseId={latest.exercise_id} starter={quiz.template} isFull={isFull} language={language}
+              exerciseId={latest.exercise_id} starter={displayTemplate} isFull={isFull} language={language}
               submittedSource={latest.source} running={!!stage} onRun={(code, stopLines) => {
                 setCopyRan(true);
                 setResultTab("실행 결과");

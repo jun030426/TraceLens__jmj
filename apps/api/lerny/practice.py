@@ -183,6 +183,18 @@ def prepare(session, job):
                 raise ValueError("INVALID_PRACTICE_BLANK")
             if item.full_template.count(item.input_statement) != 1 or len(item.full_template) >= len(item.code):
                 raise ValueError("INVALID_PRACTICE_TEMPLATE")
+            if language == "python":
+                from lerny.practice_support import python_blank_template
+                template, blanks = python_blank_template(item.code, [n - 1 for n in numbers], item.input_statement)
+                if not blanks:
+                    raise ValueError("INVALID_PRACTICE_BLANK")
+            else:
+                blanks = {}
+                for i, number in enumerate(numbers, 1):
+                    original = lines[number - 1]
+                    blanks[str(i)] = original.lstrip()
+                    lines[number - 1] = original[:len(original) - len(original.lstrip())] + "[[빈칸]]"
+                template = "\n".join(lines)
             tests = []
             for input_code in inputs:
                 output = output_of(language, item.code.replace(item.input_statement, input_code, 1),
@@ -195,12 +207,7 @@ def prepare(session, job):
         except ValueError as exc:
             held.append({"source_id":item.source_id,"reason":str(exc)})
             continue
-        blanks = {}
-        for i, number in enumerate(numbers, 1):
-            original = lines[number-1]
-            blanks[str(i)] = original.lstrip()
-            lines[number-1] = original[:len(original)-len(original.lstrip())] + "[[빈칸]]"
-        for kind, template in [("blank", "\n".join(lines)), ("full", item.full_template)]:
+        for kind, template in [("blank", template), ("full", item.full_template)]:
             exercise = PracticeExercise(course_id=job.course_id, version_id=source_version_id,
                 generation_id=job.payload.get("generation_id"),
                 concept_id=item.concept_id if item.concept_id in concept_ids else None,
@@ -230,19 +237,21 @@ def attempt_view(attempt, *, source_available=True):
 
 
 def student_exercise_template(exercise):
-    from lerny.practice_support import solving_template
-    return solving_template(exercise)
+    from lerny.practice_support import blank_editor_templates
+    return blank_editor_templates(exercise)[0]
 
 
 def exercise_view(session, exercise, material=None):
     material = material or current_source(session, exercise)
     if not material:
         return None
-    from lerny.practice_support import metadata
-    template = student_exercise_template(exercise)
+    from lerny.practice_support import blank_editor_templates, metadata, without_python_comments
+    template, display = blank_editor_templates(exercise)
+    example = exercise.tests[0]["input"]
     return {**metadata(exercise), "id":exercise.id,"title":exercise.title,"description":exercise.prompt,"kind":exercise.kind,
             "language":exercise.language,"template":template,"expected":exercise.tests[0]["expected"],
-            "example_input":exercise.tests[0]["input"],
+            "display_template":display if display != template else None,
+            "example_input":without_python_comments(example) if exercise.language == "python" else example,
             "week":material.week,"source_title":material.title,"concept_id":exercise.concept_id}
 
 
@@ -279,7 +288,7 @@ def problem_items(session, student_id, section_id, exercises):
         selected = next((v for v in variants.values() if v["id"] == submitted_id), default)
         items.append({**selected, "problem_id": problem_id,
                       "variants": {kind: {"exercise_id": v["id"], "template": v["template"],
-                                          "hint_steps": v["hint_steps"], "attempt": submitted(v)}
+                                          "display_template": v["display_template"], "hint_steps": v["hint_steps"], "attempt": submitted(v)}
                                    for kind, v in variants.items()},
                       "submitted_exercise_id": submitted_id,
                       "attempt": submitted(selected) if attempt else None})
