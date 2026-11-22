@@ -247,9 +247,11 @@ def checkpoint_engines(monkeypatch):
         if name.startswith("video_extraction") and getattr(module,"digest_file",None) is digest_file:
             monkeypatch.setattr(module,"digest_file",linux_code_digest)
     current = connected.hashes()
+    before_link_fix = {**current, "video_extraction.pipeline.document_links":
+                       "815bd6111d27e8ff101644636ac198dc8d62bc77c2745f1a501610c67b3d2f34"}
     # Exact Linux module digests from the deployed 4cd519e engine.
     production = {
-        **current,
+        **before_link_fix,
         "audio_crosscheck.py": "c6566c486e99e36ac7913c1eba80a22ca239510cdefc08f6a92e3a8442464689",
         "gemini.py": "59bed6b2d4fb3682525000d52bb7afcc537418ff32050ca2081d2d9a4026b496",
         "common.py": "cfa3c20a8577e38f1c7efacfac240d478cfbf2c9bd99a84e0b0b5a74dfa63daa",
@@ -263,10 +265,11 @@ def checkpoint_engines(monkeypatch):
     complement = {**production, **{name: current[name] for name in (
         "video_extraction.pipeline.ppt_recovery", "video_extraction.pipeline.source_followup")}}
     complement["connected"] = "5cab6da57a5aa8a25b5bdcf650eccb5b6c8cd4098df25d7aab4fc42a3bb9a4be"
-    return current, {"original": old, "deployed": production, "complement": complement}
+    return current, {"original": old, "deployed": production, "complement": complement,
+                     "before_link_fix": before_link_fix}
 
 
-@pytest.mark.parametrize("engine", ["original", "deployed", "complement"])
+@pytest.mark.parametrize("engine", ["original", "deployed", "complement", "before_link_fix"])
 def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, checkpoint_engines, engine):
     from video_extraction.pipeline import ppt_recovery
     current, versions = checkpoint_engines
@@ -287,8 +290,11 @@ def test_pinned_production_plan_retains_binding_and_source_checks(tmp_path, chec
         connected.verify(output)
 
 
-@pytest.mark.parametrize("engine", ["original", "deployed"])
-def test_resume_skips_55_saved_tasks_from_each_production_engine(tmp_path, monkeypatch, checkpoint_engines, engine):
+@pytest.mark.parametrize(("engine", "saved_links"), [
+    ("original", set(range(1, 5))), ("deployed", set(range(1, 5))),
+    ("original", set(range(1, 33)) - {19}),
+])
+def test_resume_skips_saved_production_tasks(tmp_path, monkeypatch, checkpoint_engines, engine, saved_links):
     from contextlib import nullcontext
     from video_extraction.pipeline import ppt_recovery
     current, versions = checkpoint_engines
@@ -302,7 +308,8 @@ def test_resume_skips_55_saved_tasks_from_each_production_engine(tmp_path, monke
                             "gemini_model": "fixture"}}
     out = tmp_path / ("analysis-" + signature({"policy": "fixture", "engine": versions[engine], "model": "fixture"})[:20])
     save(out / "plan.json", plan)
-    for task in tasks[:55]:
+    saved_tasks = tasks[:51] + [tasks[50 + page] for page in sorted(saved_links)]
+    for task in saved_tasks:
         result = {"records": [], "specialist": task["kind"], "evidence_files": {},
                   "binding": signature({"plan": signature(plan), "task": task})}
         result["payload_hash"] = signature(result)
@@ -313,7 +320,8 @@ def test_resume_skips_55_saved_tasks_from_each_production_engine(tmp_path, monke
     monkeypatch.setattr(connected, "lock", lambda _: nullcontext())
     monkeypatch.setattr(connected.runtime_tools, "audit", lambda *_: {"core_ready": True, "checks": []})
     monkeypatch.setattr(connected, "api_key", lambda _: "fixture")
-    monkeypatch.setattr(connected, "publish", lambda *_: {"pending": 46, "all_tasks_processed": False})
+    monkeypatch.setattr(connected, "publish", lambda *_: {"pending": len(tasks) - len(saved_tasks),
+                                                          "all_tasks_processed": False})
     calls = []
     def record(task, results, target, client):
         calls.append(task["id"])
@@ -322,4 +330,4 @@ def test_resume_skips_55_saved_tasks_from_each_production_engine(tmp_path, monke
     monkeypatch.setattr(connected, "visual", lambda *_: pytest.fail("completed page scheduled"))
     connected.run(out, None, ppt_retry_round=1, review_concurrency=4,
                   transport=lambda *_: pytest.fail("unexpected Gemini request"))
-    assert sorted(calls) == sorted(t["id"] for t in tasks[55:])
+    assert sorted(calls) == sorted(tasks[50 + page]["id"] for page in range(1, 51) if page not in saved_links)

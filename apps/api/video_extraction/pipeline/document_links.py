@@ -37,9 +37,24 @@ def tasks(units):
 def selection(task,data,answers):
     a,b=task['pages'];known={r['id']:r for r in data['records']};issues={r['id'] for r in data['issues']}
     rows=[];resolved=[]
-    for answer in answers:
+    if len(answers) != 2:
+        raise ValueError('page_link_issue_mapping')
+    checks_by_role = []
+    ignored = {}
+    for role, answer in zip(('read', 'verify'), answers):
         validate(answer,SCHEMA)
-        if sorted(c['id'] for c in answer['checks'])!=sorted(issues):raise ValueError('page_link_issue_mapping')
+        checks = {}
+        for check in answer['checks']:
+            issue_id = check['id']
+            if issue_id not in issues:
+                ignored.setdefault(role, []).append(issue_id)
+            elif issue_id in checks:
+                raise ValueError('page_link_issue_mapping')
+            else:
+                checks[issue_id] = check
+        if checks.keys() != issues:
+            raise ValueError('page_link_issue_mapping')
+        checks_by_role.append(checks)
         if len({(l['from_id'],l['to_id'],l['kind']) for l in answer['links']})!=len(answer['links']):raise ValueError('duplicate_page_link')
         for link in answer['links']:
             x,y=known.get(link['from_id']),known.get(link['to_id'])
@@ -61,13 +76,16 @@ def selection(task,data,answers):
             reasons=[] if valid else ['cross_page_readings_disagree' if not agreed else 'cross_page_target_or_table_structure_unresolved'])
         rows.append(r)
         if valid:agreements.append(r['related_record_ids'])
-    for check in answers[0]['checks']:
-        other=next(c for c in answers[1]['checks'] if c['id']==check['id'])
+    read_checks, verify_checks = checks_by_role
+    for issue_id, check in read_checks.items():
+        other = verify_checks[issue_id]
         if not all(c['source_clear'] and c['reason'].strip() for c in (check,other)):continue
         if check['decision']==other['decision']=='not_related':resolved.append(check['id'])
         elif check['decision']==other['decision']=='linked' and check['record_ids']==other['record_ids'] and check['record_ids'] in agreements:
             resolved.append(check['id'])
-    return {'records':rows,'changes':[],'resolved_coverage_ids':resolved,'status':'complete',
+    # Keep clean results byte-compatible with previously verified checkpoints.
+    return {**({'ignored_check_ids': ignored} if ignored else {}),
+            'records':rows,'changes':[],'resolved_coverage_ids':resolved,'status':'complete',
             'executed':['adjacent_original_pages','independent_relation_checks','table_shape_gate','no_text_merging']}
 
 
@@ -121,4 +139,6 @@ def verify(task,folder,result,source_records=None):
     expected=signature({'task':task,'data':proof['data'],'images':[digest_file(u['image']) for u in task['pages']],'prompt':PROMPT})
     if proof['binding']!=expected:raise ValueError('page_link_source_changed')
     calculated=selection(task,proof['data'],proof['answers'])
-    if any(result[k]!=v for k,v in calculated.items()):raise ValueError('page_link_selection_changed')
+    if (any(result.get(k)!=v for k,v in calculated.items())
+            or ('ignored_check_ids' in result) != ('ignored_check_ids' in calculated)):
+        raise ValueError('page_link_selection_changed')
