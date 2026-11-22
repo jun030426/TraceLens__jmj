@@ -48,7 +48,9 @@ def check(client, status, reason, learning, execution):
     state = response.json()
     assert (state["reason"], state["learning"], state["code_execution"]) == (reason, learning, execution)
     assert state["ai_required"] is False and state["ai_live_verified"] is False
-    caps = client.get("/api/v1/capabilities").json()
+    caps_response = client.get("/api/v1/capabilities")
+    assert caps_response.status_code == 200
+    caps = caps_response.json()
     assert (caps["reason"], caps["learning"], caps["code_execution"], caps["code_visualization"]) == (reason, learning, execution, execution)
     return state
 
@@ -101,11 +103,29 @@ def test_operations_gates_are_reported(service, flag, reason, execution):
     check(client, 503, reason, False, execution)
 
 
-def test_schema_mismatch_is_not_ready(service):
+@pytest.mark.parametrize(("revisions", "accepted"), [
+    (["af3e227a01db"], True),
+    (["b60d9c84f210"], True),
+    (["e83f529cc134"], False),
+    (["unknown"], False),
+    ([], False),
+    (["af3e227a01db", "unknown"], False),
+    (["af3e227a01db", "b60d9c84f210"], False),
+], ids=["current", "next", "older", "unknown", "empty", "mixed-heads", "both-heads"])
+def test_schema_transition_across_health_and_capabilities(service, revisions, accepted):
     client, _, _, engine = service
     with engine.begin() as connection:
-        connection.execute(text("UPDATE alembic_version SET version_num = 'old'"))
-    check(client, 503, "database_migration_required", False, False)
+        connection.execute(text("DELETE FROM alembic_version"))
+        if revisions:
+            connection.execute(text("INSERT INTO alembic_version VALUES (:revision)"),
+                               [{"revision": revision} for revision in revisions])
+    status = 200 if accepted else 503
+    database = "ready" if accepted else "migration_required"
+    ready = client.get("/api/v1/health/ready")
+    assert ready.status_code == status
+    assert ready.json()["dependencies"]["database"] == database
+    learning = check(client, status, None if accepted else "database_migration_required", accepted, accepted)
+    assert learning["dependencies"]["database"] == database
 
 
 def test_database_failure_is_structured(service, monkeypatch):

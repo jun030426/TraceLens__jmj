@@ -30,6 +30,8 @@ from lerny import material_previews
 from lerny import health
 
 SCHEMA_REVISION = "af3e227a01db"
+# The additive quota migration can run while this API release is serving traffic.
+SUPPORTED_SCHEMA_REVISIONS = frozenset({SCHEMA_REVISION, "b60d9c84f210"})
 
 
 class Capabilities(BaseModel):
@@ -135,7 +137,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/health/ready")
     def service_ready() -> JSONResponse:
-        deps = health.dependencies(SCHEMA_REVISION)
+        deps = health.dependencies(SUPPORTED_SCHEMA_REVISIONS)
         is_ready = deps["database"] == "ready" and deps["storage"] in {"ready", "local"}
         return JSONResponse(status_code=200 if is_ready else 503, content={
             "status": "ready" if is_ready else "not_ready",
@@ -143,12 +145,12 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/health/learning", responses={503: {"description": "Learning dependencies unavailable"}})
     def ready() -> JSONResponse:
-        state = health.learning_status(SCHEMA_REVISION)
+        state = health.learning_status(SUPPORTED_SCHEMA_REVISIONS)
         return JSONResponse(status_code=200 if state["status"] == "ready" else 503, content=state)
 
     @app.get("/api/v1/capabilities", response_model=Capabilities)
     def capabilities() -> Capabilities:
-        state = health.learning_status(SCHEMA_REVISION)
+        state = health.learning_status(SUPPORTED_SCHEMA_REVISIONS)
         return Capabilities(learning=state["learning"], local_ai=settings().ai_provider == "ollama",
                             code_execution=state["code_execution"], code_visualization=state["code_execution"],
                             reason=state["reason"])
