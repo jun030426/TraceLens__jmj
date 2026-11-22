@@ -413,12 +413,15 @@ class PracticeAttempt(Identity, Base):
 class LearningSession(Identity, Base):
     __tablename__ = "learning_sessions"
     __table_args__ = (
-        Index("uq_daily_student_section", "student_id", "section_id", "day", unique=True),
+        Index("uq_daily_student_section", "student_id", "section_id", "day", unique=True,
+              postgresql_where=text("archive_week IS NULL"), sqlite_where=text("archive_week IS NULL")),
     )
     student_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     section_id: Mapped[str] = mapped_column(ForeignKey("sections.id"))
     day: Mapped[date] = mapped_column(Date)
     question_ids: Mapped[list] = mapped_column(JSON)
+    archive_week: Mapped[int | None] = mapped_column(Integer)
+    archive_day_index: Mapped[int | None] = mapped_column(Integer)
 
 
 class Attempt(Identity, Base):

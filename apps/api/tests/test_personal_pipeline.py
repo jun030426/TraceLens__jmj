@@ -80,7 +80,9 @@ async def test_daily_five_owned_frozen_and_help_audited(app_db, monkeypatch):
         material.visibility = "private"
         session.commit()
         await login(c, "student1")
-        assert all(q["status"] == "unavailable" for q in (await c.post(route)).json()["items"])
+        assert (await c.post(route)).json()["items"] == []
+        saved = (await c.get(f"/api/v1/learning-sessions/{ready['id']}")).json()
+        assert saved["items"] and all(q["status"] == "unavailable" for q in saved["items"])
 
 
 async def test_review_starts_day_four_from_own_wrong_answers(app_db, monkeypatch):

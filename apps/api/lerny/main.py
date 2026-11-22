@@ -29,7 +29,7 @@ from lerny import weekly_content, google_slides_auth, lecture_slides
 from lerny import material_previews
 from lerny import health
 
-SCHEMA_REVISION = "f18ab47c9821"
+SCHEMA_REVISION = "af3e227a01db"
 
 
 class Capabilities(BaseModel):

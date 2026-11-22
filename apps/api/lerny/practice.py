@@ -9,8 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
 from lerny.auth import Input
+from lerny.automatic import current_section_week, eligible
 from lerny.config import settings
-from lerny.automatic import calendar_week, eligible
 from lerny.courses import audit
 from lerny.jobs import idempotent, section_student
 from lerny.learning import lock_student, record_completion, today
@@ -244,9 +244,7 @@ def exercise_view(session, exercise, material=None):
 
 
 def current_practice_week(session, section):
-    if section.progress_mode == "manual" and section.progress_week is not None:
-        return section.progress_week
-    return calendar_week(session, section, today())
+    return current_section_week(session, section, today())
 
 
 def week_exercises(session, course_id, week):

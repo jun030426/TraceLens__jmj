@@ -82,7 +82,7 @@ export function QuizCatalog() {
   const practice = useLoad<{ items: { section_id: string; session_id: string; total: number; submitted: number }[] }>("/my/practice-progress");
   const [search, setSearch] = useState("");
   const today = kstDay();
-  const history = useLoad<{ items: Record[] }>(`/my/learning-sessions?date_from=${today}&date_to=${today}`);
+  const history = useLoad<{ items: Record[] }>(`/my/learning-sessions?today_only=true`);
   const [params, setParams] = useSearchParams();
   const selected = params.get("section") || "";
   const active = rooms.data?.items.filter((r) => r.status === "active") || [];

@@ -157,7 +157,8 @@ def test_draft_hidden_then_publication_enables_students_and_retrieval(weekly,mon
     assert client.get("/api/v1/materials/material/lecture-summary").json()["items"]==[]
     assert client.get("/api/v1/sections/section/concept-videos").json()["items"]==[]
     assert client.get(f"/api/v1/concept-videos/{gid}-video/file").status_code==404
-    assert client.post("/api/v1/sections/section/daily").status_code==409
+    before = client.post("/api/v1/sections/section/daily")
+    assert before.status_code == 200 and before.json()["status"] == "empty" and before.json()["items"] == []
     login(client,tokens,"teacher");assert publish(client,gid).status_code==200
     assert valid_sources(session,session.get(Question,gid+"-q0"))
     assert current_source(session,session.get(PracticeExercise,gid+"-practice")) is not None
