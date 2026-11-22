@@ -10,15 +10,12 @@ from lerny.db import engine, schema_revision_matches
 from lerny.models import now
 from lerny.tracing import service as tracing
 
-# During the additive practice migration, both schemas can serve this API.
-PRACTICE_SNAPSHOT_REVISION = "4ebad9697835"
 
-
-def dependencies(schema_revision: str):
+def dependencies():
     database, files = "unavailable", "local"
     try:
         with engine().connect() as connection:
-            compatible = schema_revision_matches(connection, schema_revision, PRACTICE_SNAPSHOT_REVISION)
+            compatible = schema_revision_matches(connection)
             database = "ready" if compatible else "migration_required"
     except (RuntimeError, SQLAlchemyError):
         pass
@@ -30,9 +27,9 @@ def dependencies(schema_revision: str):
     return {"database": database, "storage": files}
 
 
-def learning_status(schema_revision: str):
+def learning_status():
     config = settings()
-    deps = dependencies(schema_revision)
+    deps = dependencies()
     maintenance = hold = False
     content = grading = True
     operations = "unavailable"

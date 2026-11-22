@@ -17,7 +17,7 @@ from sqlalchemy.pool import NullPool
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps/api"))
 from lerny import storage
 from lerny.config import Settings
-from lerny.db import SCHEMA_REVISION, schema_revision_matches
+from lerny.db import schema_revision_matches
 from lerny.environment import read_env
 from lerny.models import Base
 
@@ -30,7 +30,7 @@ class MigrationStopped(Exception):
 
 
 def require_current_schema(connection):
-    if not schema_revision_matches(connection, SCHEMA_REVISION):
+    if not schema_revision_matches(connection):
         raise MigrationStopped("SCHEMA_REVISION_MISMATCH")
 
 

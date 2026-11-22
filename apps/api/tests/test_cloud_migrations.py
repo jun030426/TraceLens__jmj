@@ -32,7 +32,7 @@ def test_cloud_schema_migration_roundtrip(monkeypatch):
         command.upgrade(config, "head")
         assert set(Base.metadata.tables) <= set(inspect(isolated).get_table_names())
         with isolated.connect() as connection:
-            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar() == "b60d9c84f210"
+            assert db_module.schema_revision_matches(connection)
             protected = connection.execute(text(
                 "SELECT relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
                 "WHERE n.nspname=:schema AND c.relkind='r' AND c.relrowsecurity"

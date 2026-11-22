@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps/api"))
 from sqlalchemy import func, select, text
 from lerny import storage
 from lerny.config import settings
-from lerny.db import SCHEMA_REVISION, engine, schema_revision_matches
+from lerny.db import engine, schema_revision_matches
 from lerny.models import Course, Material, MaterialVersion, User
 
 
@@ -19,7 +19,7 @@ def main():
             raise ValueError("Shared storage not configured")
         with engine().connect() as connection:
             connection.execute(text("SET TRANSACTION READ ONLY"))
-            if not schema_revision_matches(connection, SCHEMA_REVISION):
+            if not schema_revision_matches(connection):
                 raise ValueError("Schema revision mismatch")
             counts = {model.__tablename__: connection.scalar(select(func.count()).select_from(model))
                       for model in (User, Course, Material, MaterialVersion)}

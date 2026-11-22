@@ -8,12 +8,12 @@ from sqlalchemy.pool import NullPool
 
 from lerny.config import settings
 
-SCHEMA_REVISION = "b60d9c84f210"
+SCHEMA_REVISION = "4ebad9697835"
 
 
-def schema_revision_matches(connection: Connection, expected_revision: str, *additional_revisions: str) -> bool:
+def schema_revision_matches(connection: Connection) -> bool:
     revisions = connection.scalars(text("SELECT version_num FROM alembic_version")).all()
-    return len(revisions) == 1 and revisions[0] in (expected_revision, *additional_revisions)
+    return revisions == [SCHEMA_REVISION]
 
 
 @lru_cache
