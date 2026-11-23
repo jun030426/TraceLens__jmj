@@ -1,7 +1,9 @@
 """Exact cosine retrieval; PostgreSQL JSON storage pending native pgvector build."""
 
+import hashlib
 import math
 import re
+import time
 
 from sqlalchemy import select
 from sqlalchemy.orm import defer
@@ -11,6 +13,69 @@ from lerny.inference import perform
 from lerny.models import Chunk, Material, MaterialVersion
 
 EMBED_MODEL = "qwen3-embedding:0.6b"
+
+# Supabase 공유 벡터 출석 체크 캐시: 과목의 공개 청크 구성이 바뀌지 않는 동안
+# 질문마다 /rpc/lerny_rag_fetch 전체 확인 왕복을 반복하지 않도록 1시간 동안 기억한다.
+_SUPABASE_INDEX_CACHE_TTL_SECONDS = 3600.0
+_SUPABASE_INDEX_CACHE_MAX_ENTRIES = 256
+_supabase_index_cache: dict[tuple, tuple[float, tuple]] = {}
+
+
+def clear_index_cache() -> None:
+    """Clear verified Supabase vector index cache."""
+    _supabase_index_cache.clear()
+
+
+def _supabase_chunks_fingerprint(rows) -> str:
+    hasher = hashlib.sha256()
+    for chunk, _, _ in rows:
+        hasher.update(str(chunk.id).encode("utf-8"))
+        hasher.update(b"\x00")
+        hasher.update(hashlib.sha256((chunk.content or "").encode("utf-8")).digest())
+        hasher.update(b"\n")
+    return hasher.hexdigest()
+
+
+def _supabase_index_verified(course_id, rows, rag_index_mod) -> bool:
+    store_fn = rag_index_mod.shared_store
+    indexed_fn = rag_index_mod.indexed_ids
+    fingerprint = _supabase_chunks_fingerprint(rows)
+    store_ref = None
+    if getattr(store_fn, "__module__", "") != "lerny.rag_index":
+        try:
+            store_ref = store_fn()
+        except Exception:
+            return False
+    cache_key = (
+        course_id,
+        settings().supabase_url,
+        fingerprint,
+        id(store_fn),
+        id(indexed_fn),
+        id(store_ref) if store_ref is not None else 0,
+    )
+    now_mono = time.monotonic()
+    entry = _supabase_index_cache.get(cache_key)
+    if entry is not None:
+        expires_at, saved_refs = entry
+        if expires_at > now_mono and saved_refs == (store_fn, indexed_fn, store_ref):
+            return True
+        _supabase_index_cache.pop(cache_key, None)
+
+    if len(indexed_fn(row[0] for row in rows)) != len(rows):
+        return False
+
+    if len(_supabase_index_cache) >= _SUPABASE_INDEX_CACHE_MAX_ENTRIES:
+        expired = [k for k, (exp, _) in _supabase_index_cache.items() if exp <= now_mono]
+        for k in expired:
+            _supabase_index_cache.pop(k, None)
+        if len(_supabase_index_cache) >= _SUPABASE_INDEX_CACHE_MAX_ENTRIES:
+            _supabase_index_cache.pop(next(iter(_supabase_index_cache)))
+    _supabase_index_cache[cache_key] = (
+        now_mono + _SUPABASE_INDEX_CACHE_TTL_SECONDS,
+        (store_fn, indexed_fn, store_ref),
+    )
+    return True
 
 
 def embed(texts):
@@ -138,7 +203,8 @@ def public_rows(session, course_id, *, version_ids=None, published_only=False, c
 
 
 def search_gemini(session, course_id, question, *, version_id=None, version_ids=None, max_week=None, published_only=False, limit=4):
-    from lerny.rag_index import indexed_ids, load_vector, shared_semantic
+    from lerny import rag_index
+    from lerny.rag_index import load_vector, shared_semantic
     from lerny.team_engine import make_engine
 
     rows = public_rows(session, course_id, version_ids=version_ids, published_only=published_only)
@@ -149,7 +215,7 @@ def search_gemini(session, course_id, question, *, version_id=None, version_ids=
     semantic_search = None
     vector_map = None
     if settings().rag_storage == "supabase":
-        if len(indexed_ids(row[0] for row in rows)) != len(rows):
+        if not _supabase_index_verified(course_id, rows, rag_index):
             raise ValueError("GEMINI_INDEX_REQUIRED")
         semantic_search = shared_semantic
     else:
