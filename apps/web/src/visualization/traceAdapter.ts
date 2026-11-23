@@ -49,8 +49,21 @@ function changesOf(prev: TraceStep | null, step: TraceStep): ObservationChanges 
 }
 
 export function adaptExecutionTrace(trace: ExecutionTrace, source: string): Recording {
-  const steps: Observation[] = trace.steps.map((step, index) => {
-    const prev = index > 0 ? trace.steps[index - 1] : null;
+  // A partial run should start with the first visible result, not the
+  // empty module-entry snapshots taken before the first statement ran.
+  const firstVisible = trace.blankStop ? trace.steps.findIndex(step =>
+    step.frames.some(frame => frame.variables.length > 0)
+    || Object.keys(step.objects).length > 0 || !!step.stdout || !!step.error
+  ) : -1;
+  const visibleSteps = firstVisible > 0 ? trace.steps.slice(firstVisible) : trace.steps;
+  const last = visibleSteps.at(-1);
+  // The stop snapshot also contains the effects of the preceding statement.
+  // Show that statement before moving the highlight to the empty slot.
+  const playbackSteps = trace.blankStop && last?.causedByLine && last.causedByLine !== trace.blankStop.line
+    ? [...visibleSteps, { ...last, causedByLine: null, stdout: "" }]
+    : visibleSteps;
+  const steps: Observation[] = playbackSteps.map((step, index) => {
+    const prev = index > 0 ? playbackSteps[index - 1] : null;
     const id = `step-${index}`;
     return {
       id,

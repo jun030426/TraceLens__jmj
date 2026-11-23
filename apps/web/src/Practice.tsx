@@ -16,7 +16,7 @@ import type { BlankQuiz } from "./blankQuizzes";
 import { checkBlanks } from "./visualizer/blankCheck";
 import { buildRunnable, circled, cleanFill, parseTemplate, showBlanks, type BlankTemplate } from "./visualizer/blanks";
 import "./practice-blanks.css";
-import { VizLineContext, type VizLine } from "./visualization/vizLine";
+import { VIZ_LINE_WORD, VizLineContext, type VizLine } from "./visualization/vizLine";
 import { lineComment } from "./visualization/screen/lineComment";
 import { PracticeChat, type PracticeChatContext } from "./PracticeChat";
 import "./practice-chat.css";
@@ -635,7 +635,7 @@ function BlankEditor({ readOnly, template, fills, onFill, onCommit, stopBlank, v
         <span className="blank-editor__measure" aria-hidden="true">{fills[p.blank] || " "}</span>
         {ghosts?.[p.blank] && (() => { const g = ghostRest(ghosts[p.blank], fills[p.blank] || ""); return <span className={`blank-editor__ghost ${g.matched ? "" : "is-miss"}`} aria-hidden="true" onCopy={e => e.preventDefault()}><span className="ghost-typed">{g.typed}</span>{g.rest}</span>; })()}
       </label>)}{parts.length === 1 && parts[0] === "" ? " " : null}</code>
-      {stop ? <span className="blank-editor__stop">빈칸 앞까지 실행</span> : viz ? <span className={`blank-editor__viz is-${viz.kind}`}>{viz.kind === "error" ? "✕ 오류" : viz.kind === "ran" ? "✓ 방금 실행" : "▶ 시각화 중"}</span> : null}
+      {stop ? <span className="blank-editor__stop">빈칸 앞까지 실행</span> : viz ? <span className={`blank-editor__viz is-${viz.kind}`}>{VIZ_LINE_WORD[viz.kind]}</span> : null}
     </li>]; })}
   </ol>;
 }
