@@ -312,8 +312,8 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
           {quiz.example_input && <div className="practice-example"><div><h4>예시 입력 선언</h4><pre><code>{quiz.example_input}</code></pre></div></div>}
           {latest ? <>
             <PracticeAnswerCopy key={latest.id} sectionId={sectionId} planId={archivePlan}
-              exerciseId={latest.exercise_id} starter={displayTemplate} isFull={isFull} language={language}
-              submittedSource={replaySource} running={!!stage} onRun={(code, stopLines) => {
+              exerciseId={latest.exercise_id} starter={displayTemplate} submissionTemplate={quiz.template} isFull={isFull} language={language}
+              submittedSource={latest.source} submittedSnapshot={latest.submission_snapshot} replaySource={replaySource} running={!!stage} onRun={(code, stopLines) => {
                 setCopyRan(true);
                 setResultTab("실행 결과");
                 void runCode(code, stopLines);
@@ -427,14 +427,43 @@ function FixBanner({ fixes }: { fixes: QuickFix[] }) {
   </div>;
 }
 
-function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, isFull, language, submittedSource, running, onRun }: {
+function recoverSubmittedBlanks(starter: string, source: string, blankCount: number) {
+  const template = parseTemplate(starter);
+  const submittedLines = source.split("\n");
+  if (!blankCount || template.blanks.length !== blankCount || template.lines.length !== submittedLines.length) return;
+  const fills: Record<number, string> = {};
+  for (const [index, parts] of template.lines.entries()) {
+    const actual = submittedLines[index];
+    const blankIndex = parts.findIndex(part => typeof part !== "string");
+    if (blankIndex < 0) {
+      if (parts.join("") !== actual) return;
+      continue;
+    }
+    const trailing = parts.slice(blankIndex + 1);
+    if (trailing.some(part => typeof part !== "string")) return;
+    const prefix = parts.slice(0, blankIndex).join("");
+    const suffix = trailing.join("");
+    if (!actual.startsWith(prefix) || !actual.endsWith(suffix) || actual.length <= prefix.length + suffix.length) return;
+    const blank = parts[blankIndex];
+    if (typeof blank === "string") return;
+    const value = actual.slice(prefix.length, actual.length - suffix.length);
+    if (!value.trim()) return;
+    fills[blank.blank] = value;
+  }
+  return fills;
+}
+
+function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, submissionTemplate, isFull, language, submittedSource, submittedSnapshot, replaySource, running, onRun }: {
   sectionId: string;
   planId?: string;
   exerciseId: string;
   starter: string;
+  submissionTemplate: string;
   isFull: boolean;
   language: Language;
   submittedSource?: string;
+  replaySource?: string;
+  submittedSnapshot?: SubmissionSnapshot | null;
   running: boolean;
   onRun: (code: string, stopLines: Record<number, number>) => void;
 }) {
@@ -465,7 +494,18 @@ function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, isFull, la
   const practiceSource = isFull
     ? (copyCode.trim() && copyCode !== starter ? copyCode : undefined)
     : (blankRun.unfilled.length === 0 ? blankRun.code : undefined);
-  const runnableSource = practiceSource ?? submittedSource;
+  const answerVisible = showAnswer && !!answers;
+  const snapshotFills = !answerVisible && submittedSource && submittedSnapshot?.kind === "blank"
+    && submittedSnapshot.spans.length === template.blanks.length
+    && submittedSnapshot.spans.every(({ number, start, end }, index, spans) =>
+      number === index + 1 && Number.isInteger(start) && Number.isInteger(end)
+      && start >= (spans[index - 1]?.end ?? 0) && end > start && end <= submittedSource.length)
+    ? Object.fromEntries(submittedSnapshot.spans.map(({ number, start, end }) => [number, submittedSource.slice(start, end)]))
+    : undefined;
+  const submittedFills = snapshotFills ?? (!answerVisible && !isFull && submittedSource && !submittedSnapshot
+    ? recoverSubmittedBlanks(submissionTemplate, submittedSource, template.blanks.length)
+    : undefined);
+  const runnableSource = answerVisible ? practiceSource ?? replaySource : replaySource;
   const fileName = language === "Python" ? "main.py" : language === "Java" ? "Main.java" : "main.c";
   const comments = showAnswer && answers && !isFull ? template.lines.map(parts => {
     const notes = parts.flatMap(part => typeof part === "string" ? [] : [answer?.explanation?.blank_comments?.[part.blank]]);
@@ -486,7 +526,7 @@ function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, isFull, la
             {showAnswer && answers ? "답지 숨기기" : "답지 보기"}
           </button>
           <span id="submitted-practice-answer-tip" className="practice-answer-tip" role="tooltip">
-            최종 제출을 마쳤어요. 회색 답지를 켜고 끌 수 있어요.
+            최종 제출을 마쳤어요. 답지를 숨기면 내 제출 코드를 볼 수 있어요.
           </span>
         </span>
         <button type="button" disabled={running || !runnableSource?.trim()}
@@ -498,24 +538,30 @@ function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, isFull, la
     </div>
     <div className="practice-file-bar">
       <span>{fileName}</span>
-      <span>{isFull ? `${copyCode.split("\n").length}줄` : `빈칸 ${template.blanks.length - blankRun.unfilled.length}/${template.blanks.length} 채움`}</span>
+      <span>{!answerVisible ? "내 제출 코드" : isFull ? `${copyCode.split("\n").length}줄` : `빈칸 ${template.blanks.length - blankRun.unfilled.length}/${template.blanks.length} 채움`}</span>
     </div>
     {error ? <>
       <ErrorNotice text={error} />
       <button type="button" onClick={() => setRetry(value => value + 1)}>답지 다시 불러오기</button>
     </> : !answers && <p className="practice-answer-rule" role="status">답지를 불러오는 중이에요…</p>}
-    {isFull
+    {!answerVisible
+      ? submittedFills
+        ? <BlankEditor template={template} fills={submittedFills} readOnly onFill={() => {}} onCommit={() => {}} />
+        : submittedSource
+        ? <CodeEditor value={submittedSource} readOnly onChange={() => {}} onCommit={() => {}} label="내 제출 코드" />
+        : <p className="practice-editor-note">표시할 제출 코드가 없어요.</p>
+      : isFull
       ? <CodeEditor value={copyCode} onChange={setCopyCode} onCommit={() => {}}
           ghost={showAnswer ? answers?.[0] : undefined} label={`${language} 답지 따라쓰기`} />
       : <BlankEditor template={template} fills={copyFills}
           onFill={(index, value) => setCopyFills(previous => ({ ...previous, [index]: value }))}
           onCommit={() => {}} comments={comments} commentMark={language === "Python" ? "#" : "//"}
           ghosts={showAnswer && answers ? Object.fromEntries(answers.map((answer, index) => [index + 1, answer])) : undefined} />}
-    <p className="practice-editor-note">회색 글씨를 따라 쓰면 친 만큼 지워져요. 답지 글씨는 복사할 수 없어요.</p>
+    {answerVisible && <p className="practice-editor-note">회색 글씨를 따라 쓰면 친 만큼 지워져요. 답지 글씨는 복사할 수 없어요.</p>}
   </section>;
 }
 
-function CodeEditor({ value, onChange, onCommit, ghost, fixes, vizLine, label, syntax }: { value: string; onChange: (v: string) => void; onCommit: () => void; ghost?: string; /** 실행 전 자동수정한 줄 — 빨간색으로 표시해요 (이때 ghost는 고친 코드) */ fixes?: QuickFix[]; vizLine?: VizLine | null; label: string; syntax?: SyntaxIssue | null }) {
+function CodeEditor({ readOnly, value, onChange, onCommit, ghost, fixes, vizLine, label, syntax }: { readOnly?: boolean; value: string; onChange: (v: string) => void; onCommit: () => void; ghost?: string; /** 실행 전 자동수정한 줄 — 빨간색으로 표시해요 (이때 ghost는 고친 코드) */ fixes?: QuickFix[]; vizLine?: VizLine | null; label: string; syntax?: SyntaxIssue | null }) {
   const lines = Math.max(value.split("\n").length, ghost ? ghost.split("\n").length : 0, 8);
   const textLines = value.split("\n");
   const fixed = new Map((fixes || []).map(f => [f.line, f]));
@@ -528,10 +574,10 @@ function CodeEditor({ value, onChange, onCommit, ghost, fixes, vizLine, label, s
       {fixed.size > 0 && <pre className="code-editor__fixes" aria-hidden="true">{textLines.map((t, i) => { const f = fixed.get(i + 1); return <span key={i}>{f ? <span className="fix-line" title={f.message}>{t}<span className="fix-add">{f.add}</span></span> : <span className="ghost-typed">{t}</span>}{"\n"}</span>; })}</pre>}
       {/* 문법 오류 줄에 빨간 물결 밑줄 */}
       {syntax?.line && <pre className="code-editor__syntax" aria-hidden="true">{textLines.map((t, i) => <span key={i}>{i + 1 === syntax.line ? <span className="syntax-squiggle" title={syntax.message}>{t || " "}</span> : <span className="ghost-typed">{t}</span>}{"\n"}</span>)}</pre>}
-      <textarea className="code-editor__input" value={value} aria-label={label} spellCheck={false} autoCapitalize="none" autoComplete="off" wrap="off"
+      <textarea className="code-editor__input" readOnly={readOnly} value={value} aria-label={label} spellCheck={false} autoCapitalize="none" autoComplete="off" wrap="off"
         onChange={e => onChange(e.target.value)} onBlur={onCommit}
         onKeyDown={e => {
-          if (e.key !== "Tab") return;
+          if (readOnly || e.key !== "Tab") return;
           e.preventDefault();
           const t = e.currentTarget, a = t.selectionStart, b = t.selectionEnd;
           onChange(value.slice(0, a) + "    " + value.slice(b));
@@ -541,7 +587,7 @@ function CodeEditor({ value, onChange, onCommit, ghost, fixes, vizLine, label, s
   </div>;
 }
 
-function BlankEditor({ template, fills, onFill, onCommit, stopBlank, vizLine, badBlanks = [], ghosts, syntax, comments, commentMark = "#" }: { template: BlankTemplate; fills: Record<number, string>; onFill: (n: number, text: string) => void; onCommit: () => void; stopBlank?: number; vizLine?: VizLine | null; badBlanks?: number[]; ghosts?: Record<number, string>; syntax?: SyntaxIssue | null; comments?: (string | null)[] | null; commentMark?: string }) {
+function BlankEditor({ readOnly, template, fills, onFill, onCommit, stopBlank, vizLine, badBlanks = [], ghosts, syntax, comments, commentMark = "#" }: { readOnly?: boolean; template: BlankTemplate; fills: Record<number, string>; onFill: (n: number, text: string) => void; onCommit: () => void; stopBlank?: number; vizLine?: VizLine | null; badBlanks?: number[]; ghosts?: Record<number, string>; syntax?: SyntaxIssue | null; comments?: (string | null)[] | null; commentMark?: string }) {
   // 시각화가 보여 주는 줄이 편집기 밖으로 나가면 편집기 안에서만 스크롤한다 (페이지는 움직이지 않는다)
   const box = useRef<HTMLOListElement>(null);
   useEffect(() => {
@@ -557,7 +603,7 @@ function BlankEditor({ template, fills, onFill, onCommit, stopBlank, vizLine, ba
       <span className="blank-editor__ln" aria-hidden="true">{i + 1}</span>
       <code className="blank-editor__line" style={{ paddingInlineStart: `min(${lead}ch, 35%)` }}>{parts.map((p, k) => typeof p === "string" ? <span key={k}>{k === 0 ? p.slice(indent.length) : p}</span> : <label key={k} style={{ width: `calc(${Math.max(6, (fills[p.blank] || "").length + 2, (ghosts?.[p.blank] || "").length + 2)}ch + 1.5em)` }} className={`blank-editor__slot ${cleanFill(fills[p.blank]) ? "is-filled" : ""} ${badBlanks.includes(p.blank) ? "is-bad" : ""} ${ghosts?.[p.blank] ? "has-ghost" : ""}`}>
         <span className="blank-editor__num" aria-hidden="true">{circled(p.blank)}</span>
-        <textarea rows={1} className="blank-editor__input" value={fills[p.blank] || ""} aria-label={`빈칸 ${p.blank}`} spellCheck={false} autoCapitalize="none" autoComplete="off"
+        <textarea rows={1} className="blank-editor__input" readOnly={readOnly} value={fills[p.blank] || ""} aria-label={`빈칸 ${p.blank}`} spellCheck={false} autoCapitalize="none" autoComplete="off"
           onChange={e => onFill(p.blank, e.target.value.replace(/\r?\n/g, " "))}
           onBlur={onCommit}
           onKeyDown={e => { if (e.key === "Enter" && !isComposingInput(e.nativeEvent)) { e.preventDefault(); onCommit(); } }} />
