@@ -18,7 +18,8 @@ from lerny.models import (AuditEvent, Chunk, Concept, Course, Enrollment, Job, M
     PracticeAttempt, PracticeExercise, PracticeSession, Section, User, now)
 from lerny.security import Actor, Db, deny
 from lerny.practice_snapshot import SubmissionEditor, submission_snapshot
-from lerny.practice_files import CODE_LANGUAGES, fixed_native_program, native_console_input, python_shape, verified_file
+from lerny.practice_files import (CODE_LANGUAGES, check_program_size, fixed_native_program, native_console_input,
+    python_shape, safe_full_prefix, verified_file)
 from lerny.practice_support import first_exercise_attempts, problem_attempts, problem_help_events
 
 router = APIRouter(prefix="/api/v1")
@@ -145,6 +146,7 @@ def prepare(session, job):
             if CODE_LANGUAGES[Path(v.filename).suffix.lower()] != language:
                 raise ValueError("PRACTICE_FILE_LANGUAGE")
             code, evidence = verified_file(v, [c for c in chunks if c.version_id == vid])
+            check_program_size(code)
             if language == "python":
                 shapes[key] = python_shape(code)
             elif native_console_input(language, code):
@@ -223,6 +225,8 @@ def prepare(session, job):
             continue
         try:
             reference = item.code
+            if item.source_id not in citations:
+                check_program_size(reference)
             statement = item.input_statement
             shape = shapes.get(item.source_id)
             if language == "python" and shape is None and "input" in item.code:
@@ -236,9 +240,13 @@ def prepare(session, job):
                     "variants": [v.replace("\r\n", "\n") for v in item.variants]})
             if statement and item.code.count(statement) != 1:
                 raise ValueError("INVALID_PRACTICE_SOURCE")
-            if shape and statement:
-                end = item.code.index(statement) + len(statement)
-                item = item.model_copy(update={"full_template":item.code[:end] + "\n# 구현하세요."})
+            allow_full = bool(statement)
+            if statement and language == "python":
+                prefix = item.code.partition(statement)[0]
+                allow_full = safe_full_prefix(prefix)
+                if shape:
+                    starter = prefix + statement + "\n# 구현하세요." if allow_full else ""
+                    item = item.model_copy(update={"full_template": starter})
             if shape and shape[0] == "stdin":
                 from lerny.practice_inputs import literal_inputs
                 if len(item.variants) < 3:
@@ -267,7 +275,7 @@ def prepare(session, job):
                 numbers = valid_numbers
             elif numbers != valid_numbers:
                 raise ValueError("INVALID_PRACTICE_BLANK")
-            if statement and (item.full_template.count(item.input_statement) != 1 or (not shape and len(item.full_template) >= len(item.code))):
+            if allow_full and (item.full_template.count(item.input_statement) != 1 or (not shape and len(item.full_template) >= len(item.code))):
                 raise ValueError("INVALID_PRACTICE_TEMPLATE")
             if language == "python":
                 from lerny.practice_support import python_blank_template
@@ -300,7 +308,7 @@ def prepare(session, job):
             held.append({"source_id":item.source_id,"reason":str(exc)})
             continue
         variants = [("blank", template)]
-        if statement:
+        if allow_full:
             variants.append(("full", item.full_template))
         for kind, template in variants:
             exercise = PracticeExercise(course_id=job.course_id, version_id=source_version_id,

@@ -120,6 +120,29 @@ def fixed_native_program(language, code):
     return language == "c" and re.search(r"\bmain\s*\(", code) is not None
 
 
+def check_program_size(code):
+    text = code.replace("\r\n", "\n").strip()
+    if len(text) < 20 or sum(bool(line.strip()) for line in text.splitlines()) < 3:
+        raise ValueError("PRACTICE_PROGRAM_TOO_SHORT")
+
+
+def safe_full_prefix(prefix):
+    """Only copy imports, comments and plain literal assignments into a full editor."""
+    try:
+        for node in ast.parse(prefix).body:
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                continue
+            if not isinstance(node, ast.Assign) or not all(isinstance(t, ast.Name) for t in node.targets):
+                return False
+            # literal_eval also accepts set() and complex-number arithmetic.
+            if any(isinstance(n, (ast.Call, ast.BinOp)) for n in ast.walk(node.value)):
+                return False
+            ast.literal_eval(node.value)
+    except (SyntaxError, ValueError, TypeError):
+        return False
+    return True
+
+
 def python_shape(code, *, stdin_only=False):
     """Identify the immutable declaration(s) and the types of their replacement literals."""
     from lerny.practice_inputs import literal_type, stdin_type
@@ -143,28 +166,24 @@ def python_shape(code, *, stdin_only=False):
         raise ValueError("PRACTICE_LOOP_INPUT")
     declarations = []
     literals = []
-    prefix = True
     lines = code.splitlines(keepends=True)
-    for node in tree.body:
+    for position, node in enumerate(tree.body):
         if not (
             isinstance(node, ast.Assign)
             and len(node.targets) == 1
             and isinstance(node.targets[0], ast.Name)
         ):
-            prefix = False
             continue
         name = node.targets[0].id
         last_line = lines[node.end_lineno - 1].rstrip("\r\n")
         if last_line.encode()[node.end_col_offset :].split(b"#", 1)[0].strip() or node.col_offset:
-            prefix = False
             continue
-        if prefix and node.lineno == node.end_lineno and (kind := stdin_type(node.value)):
-            declarations.append((node.lineno, name, kind))
+        if node.lineno == node.end_lineno and (kind := stdin_type(node.value)):
+            declarations.append((position, node.lineno, name, kind))
             continue
         try:
             value = ast.literal_eval(node.value)
         except (ValueError, TypeError, SyntaxError):
-            prefix = False
             continue
         try:
             kind = literal_type(value)
@@ -172,20 +191,19 @@ def python_shape(code, *, stdin_only=False):
             kind = None
         if kind and kind != "str":
             literals.append((node, name, kind))
-        if declarations:
-            prefix = False
     if calls:
         if (
             len(calls) != len(declarations)
             or len(calls) > 6
-            or len({name for _, name, _ in declarations}) != len(calls)
+            or len({name for _, _, name, _ in declarations}) != len(calls)
+            or declarations[-1][0] - declarations[0][0] + 1 != len(calls)
         ):
             raise ValueError("PRACTICE_INPUT_POSITION")
-        start, end = declarations[0][0], declarations[-1][0]
+        start, end = declarations[0][1], declarations[-1][1]
         return (
             "stdin",
             "".join(lines[start - 1 : end]).rstrip("\r\n"),
-            [(name, kind) for _, name, kind in declarations],
+            [(name, kind) for _, _, name, kind in declarations],
         )
     if literals:
         node, name, kind = next((d for d in literals if d[2] == "list"), literals[0])

@@ -50,7 +50,7 @@ export function practiceReason(reason: string) {
   const messages: Record<string, string> = {
     PRACTICE_LOOP_INPUT: "반복 중에 입력을 받는 프로그램은 아직 지원하지 않아요.",
     PRACTICE_NATIVE_STDIN: "C·Java 프로그램의 표준 입력을 사용하는 예제는 아직 지원하지 않아요.",
-    PRACTICE_INPUT_POSITION: "입력은 시작 부분에서 변수마다 한 번씩, 최대 6개까지 받을 수 있어요.",
+    PRACTICE_INPUT_POSITION: "입력 선언은 최상위에 연달아 두고, 변수마다 한 번씩 최대 6개까지 받을 수 있어요.",
     PRACTICE_FILE_GAP: "검색 청크에서 파일 전체의 코드 근거를 확인할 수 없어요.",
     PRACTICE_EXTERNAL_MODULE: "다른 파일의 모듈이 필요해 한 파일만으로 검증할 수 없어요.",
     PRACTICE_FILE_EVIDENCE: "파일 원본과 코드 인용 범위가 일치하지 않아요.",
@@ -58,6 +58,7 @@ export function practiceReason(reason: string) {
     PRACTICE_FILE_LANGUAGE: "자료의 프로그래밍 언어가 강의 설정과 달라요.",
     PRACTICE_FILE_SYNTAX: "완전한 프로그램으로 해석할 수 없어요.",
     PRACTICE_FILE_TOO_LONG: "파일이 실습 한 문제의 코드 길이 한도를 넘어요.",
+    PRACTICE_PROGRAM_TOO_SHORT: "실습 코드는 20자 이상이고 빈 줄을 제외하고 3줄 이상이어야 해요.",
     PRACTICE_NO_ENTRYPOINT: "함수 정의를 실행하는 호출이나 출력 코드가 없어요.",
     PRACTICE_NO_PROPOSAL: "자료에서 조건을 만족하는 완전한 예제를 찾지 못했어요.",
     PRACTICE_REFERENCE_UNVERIFIED: "격리 실행에서 길이 제한 안의 출력을 확인하지 못했어요.",

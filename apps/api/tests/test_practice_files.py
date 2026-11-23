@@ -179,6 +179,79 @@ def test_changed_literals_use_sandbox_and_keep_original_reference(
     assert all("input(" not in r for r in runs)
 
 
+@pytest.mark.parametrize("prefix", [
+    "def scale(x):\n    return x * 2",
+    "class Solution:\n    factor = 2",
+    "offset = sum([1, 2])",
+])
+@pytest.mark.parametrize("declaration,variants", [
+    ("items = [1, 2]", ["items = [3]", "items = [4, 5]"]),
+    ("items = input()", ["items = 'a'", "items = 'bb'", "items = 'ccc'"]),
+])
+def test_solution_before_declaration_only_creates_blank(weekly, tmp_path, monkeypatch, prefix, declaration, variants):
+    job, code, _, runs = setup_file(
+        weekly, tmp_path, monkeypatch,
+        [prefix, declaration + "\nsize = len(items)\nprint(size)"],
+        {"variants": variants, "full_template": prefix + "\n" + declaration},
+    )
+    result = practice.prepare(weekly[1], job)
+    (exercise_id,) = result["exercise_ids"]
+    exercise = weekly[1].get(PracticeExercise, exercise_id)
+    assert exercise.kind == "blank" and exercise.reference == code
+    assert len(runs) == len(exercise.tests) == 3
+
+
+@pytest.mark.parametrize("declaration,variants", [
+    ("items = [1, 2]", ["items = [3]", "items = [4, 5]"]),
+    ("items = input()", ["items = 'a'", "items = 'bb'", "items = 'ccc'"]),
+])
+def test_safe_preamble_is_preserved_in_full_starter(weekly, tmp_path, monkeypatch, declaration, variants):
+    prefix = "# fixture\nimport math\nfrom math import floor\nunit = -2"
+    job, _, _, _ = setup_file(
+        weekly, tmp_path, monkeypatch,
+        [prefix + "\n" + declaration + "\nsize = len(items)\nprint(size)"],
+        {"variants": variants, "blank_lines": [6]},
+    )
+    rows = [weekly[1].get(PracticeExercise, eid) for eid in practice.prepare(weekly[1], job)["exercise_ids"]]
+    assert {row.kind for row in rows} == {"full", "blank"}
+    full = next(row for row in rows if row.kind == "full")
+    assert full.template == prefix + "\n" + full.tests[0]["statement"] + "\n# 구현하세요."
+
+
+@pytest.mark.parametrize("code", [
+    'print("a single line longer than twenty characters")',
+    'label = "long enough"\n  \n\nprint(label)',
+    "v=1\nw=v+1\nprint(w)#",  # 19 characters after newline normalization
+])
+def test_short_verified_file_has_a_reason_without_model_or_sandbox(weekly, tmp_path, monkeypatch, code):
+    job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, [code], {})
+    monkeypatch.setattr(worker, "model_json", lambda *a: pytest.fail("short file sent to model"))
+    result = practice.prepare(weekly[1], job)
+    assert not result["exercise_ids"] and not runs
+    assert result["skipped"] == [{"source_id": "file:version", "reason": "PRACTICE_PROGRAM_TOO_SHORT"}]
+
+
+def test_twenty_characters_and_three_nonempty_lines_are_enough():
+    practice_files.check_program_size("v=1\nw=v+1\nprint(w)#x")
+
+
+def test_document_checks_the_proposed_program_size_not_the_chunk(weekly, tmp_path, monkeypatch):
+    _, db, _ = weekly
+    code = 'label = "a long literal"\nprint(label)'
+    job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, [code], {})
+    db.get(MaterialVersion, "version").filename = "synthetic.pdf"
+    chunk = db.get(Chunk, "piece-1")
+    chunk.content = "Example program\n" + code + "\nSample output"
+    db.flush()
+    monkeypatch.setattr(worker, "model_json", lambda *args: {"programs": [{
+        "source_id": chunk.id, "code": code, "title": "출력 연습", "prompt": "주어진 코드의 결과를 출력하세요.",
+        "input_statement": "", "variants": [], "blank_lines": [2], "full_template": "",
+    }]})
+    result = practice.prepare(db, job)
+    assert not result["exercise_ids"] and not runs
+    assert result["held"] == [{"source_id": chunk.id, "reason": "PRACTICE_PROGRAM_TOO_SHORT"}]
+
+
 def test_invented_code_rejected_before_sandbox(weekly, tmp_path, monkeypatch):
     job, _, _, runs = setup_file(
         weekly,
@@ -266,13 +339,11 @@ def test_probe_cannot_introduce_expressions_or_oversized_literals(bad):
         literal_inputs("v = ['a']", ["v = ['b']", bad])
 
 
-def test_multiline_literal_setup_can_precede_stdin_but_work_cannot():
+def test_multiline_literal_setup_can_precede_stdin_and_inputs_must_be_grouped():
     code = 'records = [\n    ["blue", 2]\n]\nlabel = input()\nprint(label in records[0])'
     assert practice_files.python_shape(code) == ("stdin", "label = input()", [("label", "str")])
     with pytest.raises(ValueError, match="PRACTICE_INPUT_POSITION"):
-        practice_files.python_shape(
-            code.replace("label = input()", "print(records)\nlabel = input()")
-        )
+        practice_files.python_shape(code + "\nother = input()")
     with pytest.raises(ValueError, match="PRACTICE_INPUT_POSITION"):
         practice_files.python_shape("\n".join(f"x{i} = input()" for i in range(7)))
 
