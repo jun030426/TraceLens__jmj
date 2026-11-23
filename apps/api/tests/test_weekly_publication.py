@@ -222,11 +222,13 @@ def test_weekly_worker_combines_files_and_tags_verified_practice(weekly,monkeypa
         if "concepts" in schema["properties"]:
             data=json.loads(prompt.rsplit("\n",1)[1]);assert {s["version_id"] for s in data}=={"version","code-v"}
             return {"concepts":[{"name":"stack","quote":"Synthetic public stack rule 1.","version_id":"version"}]}
-        assert "programs" in schema["properties"]
-        assert code in {s["text"] for s in json.loads(prompt.rsplit("\n",1)[1])["sources"]}
-        return {"programs":[{"source_id":"file:code-v","concept_id":"concept_stack","code":code,"title":"합 구하기",
-            "prompt":"배열 숫자의 합을 계산해 출력하세요.","input_statement":"numbers = [1, 2]","variants":["numbers = [3, 4]","numbers = [0, 0]"],
-            "blank_lines":[model_blank],"full_template":"numbers = [1, 2]\n# 구현하세요"}]}
+        request = json.loads(prompt.rsplit("\n",1)[1])
+        if "programs" in schema["properties"]:
+            assert code not in {s["text"] for s in request["sources"]}
+            return {"programs": []}
+        assert request["text"] == code and request["statement"] == "numbers = [1, 2]"
+        return {"title":"합 구하기", "prompt":"배열 숫자의 합을 계산해 출력하세요.",
+                "variants":["numbers = [3, 4]","numbers = [0, 0]"], "blank_lines":[model_blank]}
     monkeypatch.setattr(worker,"model_json",model)
     root=session.scalar(select(Job).where(Job.kind=="weekly_content"))
     weekly_content.generate_job(session,root);session.flush()

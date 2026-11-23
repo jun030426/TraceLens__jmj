@@ -3,15 +3,48 @@
 import ast
 import hashlib
 import io
+import json
 import re
 import sys
 import tokenize
+from contextlib import nullcontext
 from pathlib import Path
 
 from lerny.storage import source_file
 
 
 CODE_LANGUAGES = {".py": "python", ".java": "java", ".c": "c"}
+
+
+class FileProbeBudget:
+    # Two declarations × (original + four alternatives), plus the fixed-output check.
+    limit = 11
+
+    def __init__(self, receipt=None):
+        self.receipt = receipt
+        self.outputs = {}
+
+    def run(self, source, evaluate):
+        from lerny.gemini_provider import receipt_lock, save_json
+
+        key = hashlib.sha256(source.encode()).hexdigest()
+        with receipt_lock(self.receipt.with_suffix(".lock")) if self.receipt else nullcontext():
+            if self.receipt and self.receipt.is_file():
+                self.outputs = json.loads(self.receipt.read_text(encoding="utf-8"))
+            if key in self.outputs:
+                return self.outputs[key]
+            if len(self.outputs) >= self.limit:
+                raise ValueError("PRACTICE_PROBES_INEFFECTIVE")
+            # A deferred model request can replay the whole worker transaction.
+            # Reserve first so an interrupted sandbox submission is never sent twice.
+            self.outputs[key] = None
+            if self.receipt:
+                save_json(self.receipt, self.outputs)
+            output = evaluate(source)
+            self.outputs[key] = output if output and len(output) <= 4000 else None
+            if self.receipt:
+                save_json(self.receipt, self.outputs)
+            return self.outputs[key]
 
 
 def verified_file(version, chunks):
@@ -144,6 +177,11 @@ def safe_full_prefix(prefix):
 
 
 def python_shape(code, *, stdin_only=False):
+    shapes = python_shapes(code, stdin_only=stdin_only)
+    return shapes[0] if shapes else None
+
+
+def python_shapes(code, *, stdin_only=False):
     """Identify the immutable declaration(s) and the types of their replacement literals."""
     from lerny.practice_inputs import literal_type, stdin_type
 
@@ -157,7 +195,7 @@ def python_shape(code, *, stdin_only=False):
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "input"
     ]
     if stdin_only and not calls:
-        return None
+        return []
     if any(
         any(n in calls for n in ast.walk(loop))
         for loop in ast.walk(tree)
@@ -189,7 +227,7 @@ def python_shape(code, *, stdin_only=False):
             kind = literal_type(value)
         except (ValueError, TypeError, SyntaxError):
             kind = None
-        if kind and kind != "str" and not name.isupper():
+        if kind and kind != "str":
             literals.append((node, name, kind))
     if calls:
         if (
@@ -200,18 +238,15 @@ def python_shape(code, *, stdin_only=False):
         ):
             raise ValueError("PRACTICE_INPUT_POSITION")
         start, end = declarations[0][1], declarations[-1][1]
-        return (
-            "fixed_stdin" if not stdin_only and all(name.isupper() for _, _, name, _ in declarations) else "stdin",
+        return [(
+            "stdin",
             "".join(lines[start - 1 : end]).rstrip("\r\n"),
             [(name, kind) for _, _, name, kind in declarations],
-        )
-    if literals:
-        node, name, kind = next((d for d in literals if d[2] == "list"), literals[0])
-        return (
-            "literal",
-            "".join(lines[node.lineno - 1 : node.end_lineno]).rstrip("\r\n"),
-            [(name, kind)],
-        )
+        )]
+    if any(not name.isupper() for _, name, _ in literals):
+        ordered = sorted(literals, key=lambda candidate: (candidate[1].isupper(), candidate[2] != "list"))
+        return [("literal", "".join(lines[node.lineno - 1 : node.end_lineno]).rstrip("\r\n"), [(name, kind)])
+                for node, name, kind in ordered]
     if not any(
         not isinstance(
             n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Import, ast.ImportFrom)
@@ -220,4 +255,4 @@ def python_shape(code, *, stdin_only=False):
         for n in tree.body
     ):
         raise ValueError("PRACTICE_NO_ENTRYPOINT")
-    return "fixed", "", []
+    return [("fixed", "", [])]
