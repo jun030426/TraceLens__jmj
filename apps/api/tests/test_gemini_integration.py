@@ -459,13 +459,14 @@ def test_embedding_source_budget_is_bounded(count):
 @pytest.mark.parametrize("storage", ["local", "supabase"])
 def test_worker_embedding_budget_covers_unique_source_chunks(configured, monkeypatch, storage):
     from lerny import rag_index
+    from lerny.inference import current_material_version
     monkeypatch.setattr(configured, "gemini_max_calls_per_job", 1)
     monkeypatch.setattr(configured, "rag_storage", storage)
     calls, stored = [], []
     original_client = httpx.Client
 
     def transport(req):
-        calls.append(req)
+        calls.append(current_material_version())
         return httpx.Response(200, json={"embedding": {"values": VECTOR}})
 
     monkeypatch.setattr(provider.httpx, "Client", lambda **kwargs: original_client(
@@ -473,10 +474,12 @@ def test_worker_embedding_budget_covers_unique_source_chunks(configured, monkeyp
     monkeypatch.setattr(rag_index, "indexed_ids", lambda *a, **k: set())
     monkeypatch.setattr(rag_index, "load_local_vector", lambda _: None)
     monkeypatch.setattr(rag_index, "store_vector", lambda chunk, vector: stored.append(chunk.content))
-    chunks = [SimpleNamespace(id=str(i), content=text) for i, text in enumerate(["one", "two", "one"])]
+    chunks = [SimpleNamespace(id=str(i), content=text, version_id=version) for i, (text, version) in
+              enumerate([("one", "first"), ("two", "second"), ("one", "first")])]
     with job_context(SimpleNamespace(id="worker-source-budget", payload={})):
         worker.embed_chunks(chunks, SimpleNamespace(add=lambda _: None))
-    assert len(calls) == 2
+        assert current_material_version() is None
+    assert calls == ["first", "second"]
     assert stored == (["one", "two", "one"] if storage == "local" else ["one", "two"])
 
 

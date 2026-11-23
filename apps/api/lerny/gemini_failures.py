@@ -58,6 +58,9 @@ def latest_error(job):
 
 def prepare_retry(job, session=None):
     """Retain successful receipts for targeted PPT validation and explicit service retries."""
+    if job.error_code == "GEMINI_PAID_CALL_BUDGET_EXCEEDED":
+        # Budget changes are external to the job. Keep every cache and review round.
+        return
     if (session is not None and job.kind == "extract" and job.error_code in
             {"DOCUMENT_VALIDATION_INCOMPLETE", "DOCUMENT_MODEL_REVIEW_FAILED"}):
         from pathlib import Path

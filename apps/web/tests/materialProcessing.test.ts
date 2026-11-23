@@ -11,6 +11,14 @@ const job = (kind:string, status:string, extra:Partial<ProcessingJob>={}):Proces
 const processing = (jobs:ProcessingJob[]):Processing => ({material_id:"m",version_id:"v",source_status:"extracted",jobs});
 const ready = {...material,version:{...material.version!,status:"ready"}};
 
+test("paid version budget failure requires operator approval for either worker", () => {
+  for (const kind of ["extract", "embed"]) {
+    const failed = job(kind, "failed", {error_code: "GEMINI_PAID_CALL_BUDGET_EXCEEDED"});
+    assert.match(jobMessage(failed), /운영자의 한도 상향 승인/);
+    assert.match(jobMessage(failed), /완료된 결과는 보존/);
+  }
+});
+
 test("concept validation failures distinguish quote length from provider unavailability",()=>{
   const message=jobMessage(job("weekly_content","failed",{error_code:"CONCEPT_QUOTE_TOO_SHORT"}));
   assert.match(message,/인용문.*5자.*보정/); assert.doesNotMatch(message,/503|서비스.*지연/);
