@@ -319,7 +319,7 @@ def python_blank_template(reference, selected, statement):
         # Output-only examples can still ask for the printed expression.
         # AST columns are UTF-8 byte offsets; preserve labels, quotes and indentation.
         for i, line in enumerate(lines):
-            if i in protected:
+            if i in protected or i in returns:
                 continue
             code = line.lstrip()
             try:

@@ -32,7 +32,7 @@ class PracticeFunctionsAndClozeTests(unittest.TestCase):
         self.assertLessEqual(len(blanks), 3)
 
     def test_only_computed_returns_are_eligible_for_automatic_and_model_blanks(self):
-        for expr in ("x * 2", "f(x)", "a > b", "a and b", "x if c else y", "-x",
+        for expr in ("x * 2", "f(x)", "a > b", "a and b", "x if c else y", "-x", "not found",
                      "[x for x in items]", "items[i + 1]", "(a, f(x))"):
             with self.subTest(expr=expr):
                 line = "return " + expr
@@ -40,7 +40,8 @@ class PracticeFunctionsAndClozeTests(unittest.TestCase):
                 self.assertEqual([b["answer"] for b in ClozeGenerator.select_blanks(code)], [line])
                 self.assertEqual(python_blank_template(code, [1], "")[1], {"1": line})
         for line in ("return", "return total", "return a, b", "return items[0]", 'return "a+b"',
-                     "return 5", "return total  # [blank]", "return input()", "return print(x)"):
+                     "return 5", "return -1", "return +5", "return not True", "return --1",
+                     "return items[-1]", "return total  # [blank]", "return input()", "return print(x)"):
             with self.subTest(line=line):
                 code = "def example(total):\n    " + line
                 self.assertEqual(ClozeGenerator.select_blanks(code), [])
@@ -64,6 +65,14 @@ class PracticeFunctionsAndClozeTests(unittest.TestCase):
         code = "def pair(a, b):\n    return (\n        a, b\n    )"
         self.assertEqual(python_blank_template(code, [1, 2], ""), (code, {}))
 
+    def test_multiline_calculated_return_cannot_be_blank_on_any_line(self):
+        for expression in ("scale(x)", "x * 2", "print(x)"):
+            with self.subTest(expression=expression):
+                code = f"def helper(x):\n    return (\n        {expression}\n    )"
+                self.assertEqual(ClozeGenerator.select_blanks(code), [])
+                for i in (1, 2, 3):
+                    self.assertEqual(python_blank_template(code, [i], ""), (code, {}))
+
     def test_adaptation_repairs_or_holds_a_value_only_return(self):
         def adapt(body, tail):
             code = f"def helper(items):\n    {body}\nn = int(input())" + tail
@@ -79,6 +88,12 @@ class PracticeFunctionsAndClozeTests(unittest.TestCase):
         self.assertEqual(adapt("return print(items)", "\nprint(n * 2)"), ([[4]], []))
         self.assertEqual(adapt("return items[n + 1]", "\nprint(n)"), ([[2]], []))
         self.assertEqual(adapt("return items[0]", ""), ([], [{"source_id": "example", "reason": "INVALID_PRACTICE_BLANK"}]))
+        for body in ("return -1", "return +5", "return not True", "return (\n        sum(items)\n    )"):
+            with self.subTest(body=body):
+                self.assertEqual(adapt(body, ""), ([], [{"source_id": "example", "reason": "INVALID_PRACTICE_BLANK"}]))
+        for body in ("return -items", "return not items"):
+            with self.subTest(body=body):
+                self.assertEqual(adapt(body, ""), ([[2]], []))
 
     def test_short_code_never_blanks_more_than_half_of_lines(self):
         short_fn = (

@@ -9,6 +9,7 @@ import sys
 from decimal import Decimal
 from itertools import dropwhile
 
+from pydantic import ValidationError
 from rag_mvp.cloze_generator import is_blankable_return
 
 
@@ -332,7 +333,7 @@ def stdin_case(source, case):
     return '\n'.join(lines), tuple(values)
 
 
-def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None):
+def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None, proposed_inputs=None):
     page_shapes = {(v.id, review['source_sha256'], page['page'], shape['shape_id']): shape['text_sha256']
         for v in versions for entry in (v.extraction_report or {}).get('source_reviews', [])
         if (review := entry.get('review', {})) and review.get('source_sha256') == v.sha256
@@ -369,23 +370,36 @@ def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None
     if not isinstance(proposals, list):
         raise ValueError('INVALID_PRACTICE_SOURCE')
     from lerny.practice import SourceProgram
-    result, seen = [], set()
-    for proposal in proposals:
-        if (not isinstance(proposal, dict) or set(proposal) != {'source_id','title','prompt','cases','blank_lines'}
-                or proposal.get('source_id') not in sources or proposal['source_id'] in seen):
-            raise ValueError('INVALID_PRACTICE_SOURCE')
-        source = sources[proposal['source_id']];seen.add(proposal['source_id'])
+    def reject(reason, **location):
+        if held is None:
+            raise ValueError(reason)
+        held.append({**location, 'reason': reason})
+
+    grouped = {}
+    for index, proposal in enumerate(proposals, start=1):
+        key = proposal.get('source_id') if isinstance(proposal, dict) else None
+        if not isinstance(key, str) or key not in sources:
+            reject('INVALID_PRACTICE_SOURCE', proposal_index=index)
+            continue
+        grouped.setdefault(key, []).append(proposal)
+
+    result = []
+    for key, entries in grouped.items():
+        source = sources[key]
+        if proposed_inputs is not None:
+            proposed_inputs.add(input_program_identity(chunk_ids[key], source['code']))
+        if len(entries) != 1 or set(entries[0]) != {'source_id','title','prompt','cases','blank_lines'}:
+            reject('INVALID_PRACTICE_SOURCE', source_id=chunk_ids[key])
+            continue
+        proposal = entries[0]
         cases = proposal.get('cases')
-        key = proposal['source_id']
         rejected = discarded.setdefault(key, []) if discarded is not None else None
         try:
             if not isinstance(cases, list) or len(cases) > 4:
                 raise ValueError('INVALID_PRACTICE_PROBES')
             declarations = distinct_probes(cases, lambda case: stdin_case(source, case), rejected, start=1)
         except ValueError as exc:
-            if held is None:
-                raise
-            held.append({'source_id': chunk_ids[key], 'reason': str(exc)})
+            reject(str(exc), source_id=chunk_ids[key])
             continue
         # Editors normalize newlines. Use LF for editable fixtures while retaining
         # the original calculation/output suffix and source evidence unchanged.
@@ -400,6 +414,7 @@ def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None
         tree = ast.parse(adapted)
         core = []
         prints = []
+        excluded_returns = set()
 
         def collect_statements(body_nodes):
             for node in body_nodes:
@@ -411,8 +426,11 @@ def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None
                 if isinstance(node, (ast.If, ast.For, ast.While)):
                     core.append((1, node.lineno))
                     collect_statements(getattr(node, 'body', []) + getattr(node, 'orelse', []))
-                elif isinstance(node, ast.Return) and is_blankable_return(node):
-                    core.append((2, node.lineno))
+                elif isinstance(node, ast.Return):
+                    if is_blankable_return(node):
+                        core.append((2, node.lineno))
+                    else:
+                        excluded_returns.update(range(node.lineno, node.end_lineno + 1))
                 elif isinstance(node, (ast.Assign, ast.AugAssign)):
                     prio = 2 if isinstance(node, ast.AugAssign) or isinstance(getattr(node, 'value', None), (ast.BinOp, ast.Call)) else 3
                     core.append((prio, node.lineno))
@@ -427,13 +445,13 @@ def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None
         core.sort(key=lambda x: (x[0], x[1]))
         candidates = []
         for _, ln in core:
-            if ln not in candidates:
+            if ln not in candidates and ln not in excluded_returns:
                 candidates.append(ln)
 
         # 핵심 조건/계산 줄이 하나라도 있으면 print문은 빈칸 후보에서 뺀다.
         # 출력 줄만 있는 코드에서만 print문을 후보로 쓴다.
         if not candidates:
-            candidates.extend(prints)
+            candidates.extend(ln for ln in prints if ln not in excluded_returns)
 
         numbers = proposal.get('blank_lines')
         if (not isinstance(numbers, list) or not numbers or
@@ -441,10 +459,8 @@ def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None
             # Repair line metadata from verified syntax, never rewrite the source.
             numbers = candidates[:3]
         if not numbers:
-            if held is not None:
-                held.append({'source_id': chunk_ids[key], 'reason': 'INVALID_PRACTICE_BLANK'})
-                continue
-            raise ValueError('INVALID_PRACTICE_BLANK')
+            reject('INVALID_PRACTICE_BLANK', source_id=chunk_ids[key])
+            continue
         if source.get('has_def'):
             starter_prefix = source.get('import_prefix', '')
             guide = '# 구현하세요.'
@@ -452,11 +468,15 @@ def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None
             starter_prefix = before_inputs.replace('\r\n', '\n').replace('\r', '\n')
             guide = '# 계산과 출력을 구현하세요.'
         full_template = starter_prefix + declarations[0] + newline + newline + guide + newline
-        program = SourceProgram.model_validate({
-            'source_id':chunk_ids[proposal['source_id']],'concept_id':None,'code':adapted,
-            'input_statement':declarations[0],'variants':declarations[1:],
-            'title':proposal.get('title'),'prompt':proposal.get('prompt'),
-            'blank_lines':numbers,
-            'full_template':full_template})
+        try:
+            program = SourceProgram.model_validate({
+                'source_id':chunk_ids[key],'concept_id':None,'code':adapted,
+                'input_statement':declarations[0],'variants':declarations[1:],
+                'title':proposal.get('title'),'prompt':proposal.get('prompt'),
+                'blank_lines':numbers,
+                'full_template':full_template})
+        except ValidationError:
+            reject('INVALID_PRACTICE_SOURCE', source_id=chunk_ids[key])
+            continue
         result.append((program, source['code']))
     return result

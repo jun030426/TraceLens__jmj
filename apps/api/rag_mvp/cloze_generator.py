@@ -107,7 +107,7 @@ EXCLUSION_PATTERNS = [
 
 
 def is_blankable_return(node):
-    if node.value is None:
+    if node.value is None or node.lineno != node.end_lineno:
         return False
     calculations = (ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.Compare, ast.Call, ast.IfExp,
                     ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
@@ -115,6 +115,10 @@ def is_blankable_return(node):
     for child in ast.walk(node.value):
         if isinstance(child, ast.Call) and getattr(child.func, 'id', getattr(child.func, 'attr', None)) in {'print', 'input'}:
             return False
+        if isinstance(child, ast.UnaryOp) and isinstance(child.op, (ast.UAdd, ast.USub, ast.Not)):
+            # Each nested unary operator is visited separately, so e.g. --1 stays a literal.
+            if isinstance(child.operand, (ast.Constant, ast.UnaryOp)):
+                continue
         if isinstance(child, calculations):
             computed = True
     return computed
