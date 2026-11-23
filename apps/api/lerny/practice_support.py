@@ -6,6 +6,7 @@ from sqlalchemy import select
 from rag_mvp.cloze_generator import split_comment
 
 from lerny.models import AuditEvent, PracticeAttempt, PracticeExercise, PracticeSession
+from lerny.practice_display import editor_source, example_declaration
 
 
 def problem_attempts(student_id, section_id, *columns):
@@ -383,13 +384,14 @@ def blank_editor_templates(exercise):
     template, _ = normalize_blanks_and_template(exercise)
     if exercise.kind != "blank" or exercise.language != "python":
         return template, template
-    display = without_python_comments(template)
+    grading = without_python_comments(template)
     tests = getattr(exercise, "tests", None) or []
     statement = tests[0].get("statement", "") if tests else ""
     # The deployed grader replaces this exact, immutable input declaration for each case.
-    if statement and statement in template and statement not in display:
-        return without_python_comments(template, preserve=statement), display
-    return display, display
+    if statement and statement in template and statement not in grading:
+        grading = without_python_comments(template, preserve=statement)
+    display, _ = editor_source(grading, exercise.kind, exercise.language)
+    return grading, display
 
 
 def explanation(exercise):
@@ -446,4 +448,4 @@ def explanation(exercise):
             "reference": exercise.reference, "annotated_reference": annotated_reference,
             "blanks": clean_blank_answers(norm_blanks or {}),
             "blank_comments": blank_comments,
-            "example_input": sample.get("input", ""), "expected": sample["expected"]}
+            "example_input": example_declaration(sample.get("input", "")), "expected": sample["expected"]}
