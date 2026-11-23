@@ -36,6 +36,26 @@ def test_public_retrieval_keeps_citations_without_loading_version_payloads(api):
         event.remove(session.bind, 'before_cursor_execute', capture)
 
 
+def test_version_lookup_defers_large_payloads_until_accessed(api):
+    _, session, _ = api
+    version = session.get(MaterialVersion, 'version')
+    version.extraction_report = {'held_count': 3, 'native_evidence': {'pipeline': 'ocr'}}
+    session.commit()
+    session.expunge_all()
+    statements = []
+    def capture(_conn, _cursor, statement, _params, _context, _many):
+        statements.append(statement)
+    event.listen(session.bind, 'before_cursor_execute', capture)
+    try:
+        version = session.get(MaterialVersion, 'version')
+        assert version.status and {'extraction_report', 'extracted_text'} <= inspect(version).unloaded
+        assert not any('material_versions.extraction_report' in sql or
+                       'material_versions.extracted_text' in sql for sql in statements)
+        assert version.extraction_report['held_count'] == 3
+    finally:
+        event.remove(session.bind, 'before_cursor_execute', capture)
+
+
 def test_private_validation_reads_only_bounded_chunk_evidence(api):
     _, session, _ = api
     add_reference(session)
