@@ -46,6 +46,21 @@ export function emptyPracticeMessage(status: string | null) {
   return status === "no_verified_source_code" || status === "no_supported_language" ? "실습 문제를 만들지 못했어요." : null;
 }
 
+type GenerationJob = Pick<ProcessingJob, "status" | "result_status"> & {
+  required?: boolean;
+  held: { reason: string }[];
+  retryable_practice?: boolean;
+};
+
+export function generationRetryLabel(jobs: GenerationJob[]) {
+  const required = jobs.filter(job => job.required !== false);
+  if (required.some(job => job.held.length || (job.retryable_practice && emptyPracticeMessage(job.result_status))))
+    return "실습을 포함해 생성 작업 다시 시도";
+  if (required.some(job => job.status === "failed" || job.retryable_practice))
+    return "실패한 생성 작업 다시 시도";
+  return null;
+}
+
 export function practiceReason(reason: string) {
   const messages: Record<string, string> = {
     PRACTICE_LOOP_INPUT: "반복 중에 입력을 받는 프로그램은 아직 지원하지 않아요.",

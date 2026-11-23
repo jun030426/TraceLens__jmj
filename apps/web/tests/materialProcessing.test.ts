@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { conceptValidationMessage, emptyPracticeMessage, materialProgress, jobMessage, practiceReason, type Processing, type ProcessingJob } from "../src/materialProcessing.ts";
+import { conceptValidationMessage, emptyPracticeMessage, generationRetryLabel, materialProgress, jobMessage, practiceReason, type Processing, type ProcessingJob } from "../src/materialProcessing.ts";
 import type { Material } from "../src/api.ts";
 
 const material: Material = {id:"m",title:"자료",kind:"lecture",week:1,visibility:"public",internal_use:"none",revision:1,
@@ -10,6 +10,15 @@ const job = (kind:string, status:string, extra:Partial<ProcessingJob>={}):Proces
 });
 const processing = (jobs:ProcessingJob[]):Processing => ({material_id:"m",version_id:"v",source_status:"extracted",jobs});
 const ready = {...material,version:{...material.version!,status:"ready"}};
+
+test("held practice keeps the retry button available for partial and empty drafts", () => {
+  const ready = { status: "succeeded", result_status: "ready", held: [] };
+  const partial = { ...ready, held: [{ reason: "INVALID_PRACTICE_PROBES" }] };
+  assert.equal(generationRetryLabel([partial]), "실습을 포함해 생성 작업 다시 시도");
+  assert.equal(generationRetryLabel([{ ...partial, result_status: "no_verified_source_code" }]), generationRetryLabel([partial]));
+  assert.equal(generationRetryLabel([{ ...ready, status: "failed" }]), "실패한 생성 작업 다시 시도");
+  assert.equal(generationRetryLabel([ready, { ...partial, required: false }]), null);
+});
 
 test("paid version budget failure requires operator approval for either worker", () => {
   for (const kind of ["extract", "embed"]) {

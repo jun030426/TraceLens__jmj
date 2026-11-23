@@ -144,6 +144,29 @@ def test_publish_requires_ready_reviewed_and_unchanged_review(weekly):
     assert publish(client,gid).status_code==200
 
 
+@pytest.mark.parametrize("status", ["succeeded", "failed"])
+def test_practice_holds_warn_but_failed_job_blocks_publication(weekly, status):
+    from lerny.practice import week_exercises
+
+    client, session, _ = weekly
+    gid = start(client)
+    generation = completed(session, gid)
+    job = next(j for j in weekly_content.generation_jobs(session, generation) if j.kind == "practice_prepare")
+    held = [{"source_id": "file:synthetic-held", "reason": "INVALID_PRACTICE_PROBES"}]
+    job.status, job.result = status, {"held": held}
+    session.commit()
+    detail = client.get(f"/api/v1/courses/course/content-generations/{gid}").json()
+    practice_job = next(j for j in detail["jobs"] if j["kind"] == "practice_prepare")
+    assert detail["warnings"] and practice_job["held"] == held
+    if status == "failed":
+        assert not detail["can_publish"] and detail["blockers"]
+        assert publish(client, gid).status_code == 409
+    else:
+        assert detail["can_publish"] and not detail["blockers"] and practice_job["retryable_practice"]
+        assert publish(client, gid).status_code == 200
+        assert [e.id for e, _ in week_exercises(session, "course", 1)] == [gid + "-practice"]
+
+
 def test_draft_hidden_then_publication_enables_students_and_retrieval(weekly,monkeypatch):
     from lerny.learning import valid_sources
     from lerny.practice import current_source

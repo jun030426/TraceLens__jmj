@@ -189,8 +189,9 @@ def readiness(session, generation):
         blockers.append("완료하지 못한 생성 작업이 있어요. 세부 이유를 확인하고 다시 시도해 주세요.")
     if any(v.status in {"failed", "held", "needs_attention", "revoked", "cancelled"} for v in videos):
         blockers.append("영상 생성 또는 검증을 완료하지 못한 항목이 있어요.")
+    warnings = []
     if any((j.result or {}).get("held") for j in jobs if j.kind == "practice_prepare"):
-        blockers.append("실행 검증을 통과하지 못한 실습이 있어요. 예제 코드를 확인해 주세요.")
+        warnings.append("보류된 실습은 공개 대상에서 제외돼요. 필수 작업 상태에서 자료별 사유를 확인해 주세요.")
     from lerny.learning import valid_sources
     if questions and any(q.status != "active" or not valid_sources(session, q, require_published=False) for q in questions):
         blockers.append("문항의 공개 근거 또는 사용 상태를 확인해 주세요.")
@@ -213,7 +214,7 @@ def readiness(session, generation):
             blockers.append("개념 영상의 재생 준비가 끝나야 공개할 수 있어요.")
     state = (generation.status if generation.status in {"published","archived","cancelled"}
              else "stale" if not current else "failed" if blockers else "generating" if pending else "ready")
-    return {"state": state, "stale": not current, "blockers": list(dict.fromkeys(blockers)),
+    return {"state": state, "stale": not current, "blockers": list(dict.fromkeys(blockers)), "warnings": warnings,
         "can_publish": generation.status == "draft" and not pending and not blockers,
         "counts": {"concepts": len(generation.concept_ids), "questions": len(questions),
                    "practice": len(exercises), "videos_ready": sum(v.status == "ready" for v in videos),

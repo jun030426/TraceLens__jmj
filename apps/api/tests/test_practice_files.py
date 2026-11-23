@@ -257,6 +257,47 @@ def test_only_valid_values_reach_sandbox_and_discard_is_diagnostic(weekly, tmp_p
     assert not view["held"] and not view["skipped"] and "discarded_probes" not in view
 
 
+def test_fixed_file_ignores_unsolicited_variants(weekly, tmp_path, monkeypatch):
+    job, code, _, runs = setup_file(weekly, tmp_path, monkeypatch,
+        ["def square(value):\n    return value * value\nprint(square(3))"],
+        {"variants": ["other = 1", "other = 2", "other = 3", "other = 4", "other = 5"]})
+    result = practice.prepare(weekly[1], job)
+    assert not result["held"] and runs == [code]
+    (exercise_id,) = result["exercise_ids"]
+    exercise = weekly[1].get(PracticeExercise, exercise_id)
+    assert exercise.kind == "blank" and exercise.tests == [{"expected": "1"}]
+
+
+@pytest.mark.parametrize("selected", ["middle", "missing"])
+def test_literal_file_binds_only_a_verified_candidate(weekly, tmp_path, monkeypatch, selected):
+    declarations = ["first = [1]", "middle = [2]", "last = [3]"]
+    job, code, evidence, runs = setup_file(weekly, tmp_path, monkeypatch,
+        ["\n".join([*declarations, "print(sum(middle))"])], {})
+    variants = [f"{selected} = [4]", f"{selected} = [5]"]
+    calls = []
+    def propose(prompt, schema):
+        data = json.loads(prompt.rsplit("\n", 1)[1])
+        assert data["candidate_statements"] == declarations and data["statement"] == declarations[0]
+        calls.append(data["retry_reason"])
+        return file_metadata(variants, line=4)
+    monkeypatch.setattr(worker, "model_json", propose)
+    result = practice.prepare(weekly[1], job)
+    if selected == "missing":
+        assert calls == [None, "INVALID_PRACTICE_PROBES"] and not runs and not result["exercise_ids"]
+        assert result["held"] == [{"source_id": "file:version", "reason": "INVALID_PRACTICE_PROBES"}]
+        assert [p["reason"] for p in result["discarded_probes"]["file:version"]] == ["PRACTICE_PROBE_NAMES_MISMATCH"] * 4
+    else:
+        assert calls == [None] and not result["held"]
+        original = code.replace("\r\n", "\n")
+        assert runs == [original, *(original.replace(declarations[1], v) for v in variants)]
+        rows = [weekly[1].get(PracticeExercise, eid) for eid in result["exercise_ids"]]
+        assert {r.kind for r in rows} == {"blank", "full"}
+        assert all(r.sources == evidence and r.reference == code for r in rows)
+        for row in rows:
+            assert [c["input"] for c in row.tests] == [declarations[1], *variants]
+            assert all(c["statement"] == declarations[1] for c in row.tests)
+
+
 def test_first_stdin_fixture_can_be_discarded(weekly, tmp_path, monkeypatch):
     job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, ["n = int(input())\nvalue = n * 2\nprint(value)"],
                                 {"variants": ["n = wrong", "n = 2", "n = 3", "n = 4"]})
