@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from lerny.assessment import generate_job, grade_job, verify_choice
-from lerny.learning import apply_review, today
+from lerny.learning import apply_review, theory_hint, today
 from lerny.models import (
     Attempt,
     Chunk,
@@ -126,7 +126,7 @@ async def test_daily_persistent_answer_hidden_and_submission_idempotent(app_db):
         assert (await c.get(f"/api/v1/attempts/{first.json()['attempt_id']}")).status_code == 404
 
 
-async def test_hint_returns_only_the_requested_questions_verified_quote(app_db):
+async def test_help_keeps_source_checks_and_records_assisted_submission(app_db):
     app, session = app_db
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
         _, section, material = await seed(c, session)
@@ -143,17 +143,45 @@ async def test_hint_returns_only_the_requested_questions_verified_quote(app_db):
             route = f"/api/v1/learning-sessions/{daily['id']}/questions/{question.id}/help"
             response = await c.post(route)
             assert response.status_code == 200, response.text
-            assert response.json() == {"recorded": True, "hint": quote}
+            assert response.json()["recorded"] is True
+            assert quote not in response.json()["hint"]
+
+        submission = await c.post(route.removesuffix("/help") + "/submit",
+            headers={"Idempotency-Key": "used-hint"}, json={"answer": "0"})
+        assert submission.status_code == 202
+        assert session.get(Attempt, submission.json()["attempt_id"]).independent is False
 
         chunk.content = quotes[0]
         session.commit()
         assert (await c.post(route)).status_code == 409
         chunk.content = "\n".join(quotes)
+        questions[1].sources = [{"chunk_id": chunk.id, "quote": ""}]
+        session.commit()
+        assert (await c.post(route)).status_code == 409
+        questions[1].sources = [{"chunk_id": chunk.id, "quote": quotes[1]}]
         material.visibility = "private"
         session.commit()
         assert (await c.post(route)).status_code == 409
         await login(c, "student2")
         assert (await c.post(route)).status_code == 404
+
+
+@pytest.mark.parametrize(("hint", "quote", "modality"), [
+    (None, "보라색 칸이 두 개예요.", "text"),
+    (None, "자 여기서 두 번째 종을 울려요.", "audio"),
+    (None, "return marker.pop()", "code"),
+    ("보라색 칸이 두 개예요.", "보라색 칸이 두 개예요.", "text"),
+    ("작은 종이 두 번 울립니다!", "작은 종이 두 번 울렸습니다.", "audio"),
+    ("작은종이 두번 울려요!", "작은 종이 두 번 울려요.", "audio"),
+    ("print(2)", "간격을 관찰합니다.", "text"),
+])
+async def test_theory_hint_uses_neutral_guidance(hint, quote, modality):
+    question = SimpleNamespace(prompt="① 두 개 ② 세 개\n" + "긴 문항 " * 20,
+        solution={"hint": hint}, sources=[{"quote": "첫 번째 합성 근거"},
+            {"quote": quote, "modality": modality, "semantic_verified": False}])
+    assert theory_hint(question) == "핵심 개념의 정의와 동작 원리를 차근차근 떠올려 보세요."
+    question.solution["hint"] = "먼저 두 상황의 차이를 찾아보세요."
+    assert theory_hint(question) == question.solution["hint"]
 
 
 async def test_source_revocation_blocks_question_and_statistics_access(app_db):
