@@ -43,8 +43,10 @@ export function VisualizationHost({ recording, stale = false }: { recording: Rec
   const previous = current && current.index > 0 ? recording.steps[current.index - 1] : null;
   // 지금 보여 주는 줄을 바깥(실습 편집기)에도 알린다. 이전 실행 기록(stale)이면 줄이 안 맞을 수 있어 알리지 않는다
   const reportLine = useContext(VizLineContext);
-  const viz = stale ? null : vizLineOf(recording, current);
-  const vizKey = viz ? `${viz.line}:${viz.kind}:${viz.step}:${viz.total}` : "";
+  const line = stale ? null : vizLineOf(recording, current);
+  const finished = !state.playing && state.index === count - 1;
+  const viz = line ? { ...line, finished } : null;
+  const vizKey = viz ? `${viz.line}:${viz.kind}:${viz.step}:${viz.total}:${viz.finished}` : "";
   useLayoutEffect(() => { reportLine?.(viz); }, [reportLine, vizKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => () => reportLine?.(null), [reportLine]);
   return (

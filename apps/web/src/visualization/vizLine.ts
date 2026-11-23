@@ -3,7 +3,7 @@ import { createContext } from "react";
 import type { Recording } from "./contracts";
 
 export type VizLineKind = "next" | "ran" | "error" | "blank";
-export type VizLine = { line: number; kind: VizLineKind; step: number; total: number };
+export type VizLine = { line: number; kind: VizLineKind; step: number; total: number; finished?: boolean };
 
 /** 받는 쪽이 없으면 null — 그때는 아무것도 알리지 않는다 */
 export const VizLineContext = createContext<((v: VizLine | null) => void) | null>(null);
