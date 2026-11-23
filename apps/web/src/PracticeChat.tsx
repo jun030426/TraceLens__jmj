@@ -98,6 +98,7 @@ export function PracticeChat({ planId, sectionId, courseId, open, onClose, conte
   const [busy, setBusy] = useState(false);
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const sendBusy = useRef(false);
+  const fastPollUntil = useRef(0);
   const [history, setHistory] = useState<Saved[]>([]);
   const [showHistory, setShowHistory] = useState<string | null>(null);
   // 문제별로 묶어서 책갈피 하나씩 — 최근에 질문한 문제가 위로
@@ -152,7 +153,7 @@ export function PracticeChat({ planId, sectionId, courseId, open, onClose, conte
           const asked = askedRef.current;
           if (r.status === "succeeded" && r.result && asked) remember({ id: r.result.message_id, at: new Date().toISOString(), week: asked.week, problem: asked.problem, question: asked.question, answer: (r.result as Answer).answer, citations: (r.result as Answer).citations });
           setJob(undefined);
-        } else timer = setTimeout(poll, 2000);
+        } else timer = setTimeout(poll, performance.now() < fastPollUntil.current ? 700 : 2000);
       } catch (e) {
         if (!stopped) { settle({ error: (e as Error).message }); setJob(undefined); }
       }
@@ -165,6 +166,7 @@ export function PracticeChat({ planId, sectionId, courseId, open, onClose, conte
     const question = (text ?? draft).trim();
     if (!question || job || sendBusy.current) return;
     sendBusy.current = true;
+    fastPollUntil.current = performance.now() + 10_000;
     setBusy(true); setError("");
     try {
       const r = await api<{ job_id: string; thread_id: string; resource_id: string }>(`/sections/${sectionId}/chat/messages`, {

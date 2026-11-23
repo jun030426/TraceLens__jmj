@@ -74,6 +74,30 @@ export function VisualizationScreen(props: VisualizationScreenProps) {
   const before = useMemo(() => (animate ? sceneOf(previous) : after), [animate, previous, after]);
   const marks = useMemo(() => (current ? motionOf(current.events, current) : NO_MOTION), [current]);
   const motion = animate ? marks : NO_MOTION;
+  const branch = said?.kind === "cond-true" ? true : said?.kind === "cond-false" ? false : undefined;
+  const previousScene = useMemo(() => sceneOf(previous), [previous]);
+  const specialRows = after.rows.filter(row => row.type === "linked-list" || row.type === "deque"
+    || row.names.some(name => /queue|큐|stack|스택/i.test(name)));
+  const structure = specialRows.find(row => {
+    const prior = previousScene.rows.find(item => item.objectId === row.objectId);
+    if (row.type === "linked-list") {
+      return !prior || row.links?.length !== prior.links?.length
+        || row.links?.some((link, index) => link !== prior.links?.[index]);
+    }
+    return !prior || current?.events.some(event =>
+      (event.type === "array.insert" || event.type === "array.remove" || event.type === "array.set")
+      && event.target.objectId === row.objectId);
+  });
+  const regularScene = (scene: typeof after) => ({
+    ...scene,
+    rows: scene.rows.filter(row => !specialRows.some(special => special.objectId === row.objectId)),
+  });
+  const stageAfter = branch !== undefined ? EMPTY_SCENE : structure
+    ? { ...after, vars: [], signs: [], rows: [structure] } : specialRows.length ? regularScene(after) : after;
+  const stageBefore = branch !== undefined ? EMPTY_SCENE : structure
+    ? { ...before, vars: [], signs: [], rows: before.rows.filter(row => row.objectId === structure.objectId) }
+    : specialRows.length ? regularScene(before) : before;
+
   // 움직임은 단계 간격의 85%까지 (최대 1.7초) — 너무 빨리 끝나 무엇이 바뀌었는지 놓치지 않게
   const durationMs = animate ? Math.min(1700, playback.intervalMs * 0.85) : 0;
   const lines = useMemo(() => recording.source.split("\n"), [recording.source]);
@@ -111,7 +135,7 @@ export function VisualizationScreen(props: VisualizationScreenProps) {
           <Suspense fallback={<div className="vz-stage__fallback">3D 무대를 준비하고 있어요…</div>}>
             <CharacterStage
               key={theme /* 다크 · 밝은 모드가 바뀌면 무대 색도 새로 */}
-              input={{ before: before ?? EMPTY_SCENE, after, motion, marks, scale, error }}
+              input={{ before: stageBefore, after: stageAfter, motion, marks, scale, error, branch, focusedStructure: !!structure }}
               animKey={playback.transition.revision}
               durationMs={durationMs}
               reducedMotion={reducedMotion}
@@ -125,7 +149,7 @@ export function VisualizationScreen(props: VisualizationScreenProps) {
           )}
           {error && <div className="vz-screen__badge is-stop">⚠ 오류 장면</div>}
           {/* 보라색 화살표 설명 — 화살표에 마우스를 댈 때만 그 자리에 띄운다 */}
-          {arrowTip && after.rows.some(r => r.names.length > 0) && (
+          {arrowTip && !structure && branch === undefined && after.rows.some(r => r.names.length > 0) && (
             <p
               className={`vz-screen__legend is-tip${arrowTip.y < 110 ? " is-below" : ""}`}
               role="tooltip"

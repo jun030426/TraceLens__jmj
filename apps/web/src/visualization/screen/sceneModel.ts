@@ -5,7 +5,7 @@ import type { Observation, Recording, VisualizationEvent } from "../contracts.ts
 import { isArrayObject } from "../executionEvents.ts";
 
 export type Cell = { text: string; num: number | null };
-export type Row = { objectId: string; names: string[]; cells: Cell[]; hidden: number; type: string };
+export type Row = { objectId: string; names: string[]; cells: Cell[]; hidden: number; type: string; links?: string[] };
 export type Var = { key: string; name: string; text: string; num: number | null };
 export type Sign = { objectId: string; names: string[]; text: string };
 export type Scene = { frameId: string | null; stack: string[]; vars: Var[]; rows: Row[]; signs: Sign[] };
@@ -69,6 +69,33 @@ export function sceneOf(obs: Observation | null): Scene {
     const cells = o.items.map(it => ({ text: valueText(it, obs.objects), num: it.kind === "primitive" ? numOf(it.text) : null }));
     return { objectId, names, cells, hidden: Math.max(0, (o.length ?? cells.length) - cells.length), type: o.type };
   });
+  const covered = new Set<string>();
+  for (const { name, value } of top.variables) {
+    const object = value.object_id ? obs.objects[value.object_id] : undefined;
+    const head = object?.entries?.find(([key]) => key === "head")?.[1];
+    const root = head?.kind === "reference" ? head.object_id : value.object_id;
+    if (!root || covered.has(root)) continue;
+    const cells: Cell[] = [];
+    const links: string[] = [];
+    const indexes = new Map<string, number>();
+    for (let id: string | undefined = root; id && !indexes.has(id);) {
+      const fields: Map<string, TraceValue> = new Map(obs.objects[id]?.entries);
+      const next: TraceValue | undefined = fields.get("next");
+      const data = fields.get("value") ?? fields.get("data") ?? fields.get("val");
+      if (!next || !data) break;
+      indexes.set(id, cells.length);
+      covered.add(id);
+      cells.push({ text: valueText(data, obs.objects), num: null });
+      id = next.kind === "reference" ? next.object_id ?? undefined : undefined;
+      const target = id ? indexes.get(id) : undefined;
+      links.push(!id ? valueText(next, obs.objects) : target === undefined ? String(cells.length + 1) : String(target + 1));
+    }
+    if (cells.length) {
+      if (Number(links.at(-1)) > cells.length) links[links.length - 1] = "?";
+      rows.push({ objectId: `list:${root}`, names: [name], cells, links, hidden: 0, type: "linked-list" });
+      if (object) signNames.delete(object.id);
+    }
+  }
   const signs: Sign[] = [...signNames].map(([objectId, names]) => ({ objectId, names, text: objectSummary(obs.objects[objectId], obs.objects) }));
   return { frameId: top.id, stack: obs.frames.map(f => f.name), vars, rows, signs };
 }

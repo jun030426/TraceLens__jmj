@@ -190,6 +190,7 @@ export interface Material {
 export interface Classroom {
   teacher_name: string;
   current_week: number | null;
+  quiz_day_index?: number | null;
   enrollment_id: string;
   status: string;
   section: Section;

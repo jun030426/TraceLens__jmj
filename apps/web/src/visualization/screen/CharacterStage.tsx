@@ -14,7 +14,7 @@ import type { ErrorInfo } from "./errorModel";
 
 // error: 이 단계가 예외 단계일 때만 채운다 — 무대가 "어디서·왜" 멈췄는지 짚어 준다
 // pause: 빈칸 채우기 실습에서 안 채운 빈칸 앞에 멈췄을 때 무대 위에 띄울 안내 (오류가 아니라 보라색)
-export type CharacterStageInput = { before: Scene; after: Scene; motion: StageMotion; marks: StageMotion; scale: Scale; error?: ErrorInfo | null; pause?: string | null };
+export type CharacterStageInput = { before: Scene; after: Scene; motion: StageMotion; marks: StageMotion; scale: Scale; error?: ErrorInfo | null; pause?: string | null; branch?: boolean; focusedStructure?: boolean };
 
 const C = {
   background: "#f6f1f8",
@@ -56,7 +56,7 @@ const backOut = (p: number) => {
 };
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-const isStackRow = (row: Row) => row.names.some(n => /stack|스택/i.test(n));
+const isStackRow = (row: Row) => row.type !== "linked-list" && row.type !== "deque" && row.names.some(n => /stack|스택/i.test(n));
 
 // ── 재질·모양 (한 번만 만든다) ─────────────────────────────────────────
 
@@ -183,6 +183,39 @@ function makeJelly(seed: number, index: number): Char {
   idx.scale.set(0.32, 0.32, 1);
   root.add(idx);
   return { kind: "jelly", root, body, eyes, tint, value, tag, extra: idx, top: 1.05, text: "", tagText: "", seed };
+}
+
+function makeStructureCell(seed: number, index: number, train: boolean): Char {
+  const character = makeJelly(seed, index);
+  character.tint = undefined;
+  const body = new THREE.Group();
+  character.body.visible = false;
+  character.root.add(body);
+  const mesh = (geometry: THREE.BufferGeometry, color: string, x: number, y: number, z: number) => {
+    const part = new THREE.Mesh(geometry, mat(color));
+    part.position.set(x, y, z);
+    part.castShadow = true;
+    body.add(part);
+    return part;
+  };
+  if (train) {
+    mesh(new THREE.BoxGeometry(0.8, 0.52, 0.58), "#8063bd", 0, 0.49, 0);
+    mesh(new THREE.BoxGeometry(0.84, 0.12, 0.64), "#b9a1ec", 0, 0.81, 0);
+    mesh(new THREE.BoxGeometry(0.22, 0.09, 0.12), "#4b3970", 0.48, 0.32, 0);
+    for (const x of [-0.26, 0.26]) for (const z of [-0.29, 0.29]) {
+      mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.12, 12), "#382950", x, 0.2, z).rotation.x = Math.PI / 2;
+    }
+  } else {
+    mesh(new THREE.SphereGeometry(0.37, 20, 16), "#ffd34c", 0, 0.42, 0);
+    mesh(new THREE.SphereGeometry(0.28, 20, 16), "#ffe174", 0, 0.89, 0.05);
+    mesh(new THREE.ConeGeometry(0.11, 0.24, 12), "#e87924", 0, 0.86, 0.37).rotation.x = Math.PI / 2;
+    for (const x of [-0.11, 0.11]) {
+      mesh(new THREE.SphereGeometry(0.038, 12, 8), "#332532", x, 0.96, 0.29);
+      mesh(new THREE.BoxGeometry(0.14, 0.08, 0.19), "#ec8b29", x, 0.1, 0.1);
+    }
+  }
+  body.add(character.value);
+  return { ...character, body, eyes: [], top: train ? 0.9 : 1.18 };
 }
 
 function makePenguin(seed: number): Char {
@@ -328,11 +361,16 @@ function setWire(w: Wire, a: THREE.Vector3, b: THREE.Vector3, grow: number) {
   w.tube.userData.curve = curve; // 마우스가 화살표 위에 있는지 잴 때 쓴다
   w.tube.geometry.dispose();
   w.tube.geometry = new THREE.TubeGeometry(curve, 40, 0.075, 10, false);
-  const count = w.tube.geometry.index!.count;
-  w.tube.geometry.setDrawRange(0, Math.floor(count * clamp01(grow)));
-  const tan = curve.getTangent(1).normalize();
-  w.head.visible = grow >= 1;
-  w.head.position.copy(b).addScaledVector(tan, -0.22); // 뾰족한 끝이 배열 판에 닿게
+  const progress = clamp01(grow);
+  const shaftProgress = Math.max(0, progress - 0.22 / Math.max(curve.getLength(), 0.22));
+  // TubeGeometry subdivides by arc length. Draw complete rings and let the cone cover the join.
+  const rings = 40;
+  const indicesPerRing = w.tube.geometry.index!.count / rings;
+  w.tube.geometry.setDrawRange(0, Math.ceil(rings * shaftProgress) * indicesPerRing);
+  const tip = curve.getPointAt(progress);
+  const tan = curve.getTangentAt(progress).normalize();
+  w.head.visible = progress > 0.08;
+  w.head.position.copy(tip).addScaledVector(tan, -0.22);
   w.head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tan);
   w.label.visible = grow >= 1 && w.label.userData.first === true;
   w.label.position.copy(curve.getPoint(0.86)).add(new THREE.Vector3(0, 0.4, 0));
@@ -462,7 +500,7 @@ export function CharacterStage({
     const errBg = new THREE.Color(dk ? STAGE_DARK.err : "#fbe6e6");
     const calmBg = new THREE.Color(stageBg);
 
-    const draw = ({ before, after, motion, marks, scale, error, pause }: CharacterStageInput, p: number, t: number) => {
+    const draw = ({ before, after, motion, marks, scale, error, pause, branch, focusedStructure }: CharacterStageInput, p: number, t: number) => {
       const calm = calmRef.current;
       const used = { c: new Set<string>(), r: new Set<string>(), p: new Set<string>(), w: new Set<string>(), s: new Set<string>() };
       let minX = -2.5;
@@ -488,6 +526,23 @@ export function CharacterStage({
         });
         scene.add(o);
       };
+      if (branch !== undefined) {
+        const key = `branch:${branch}`;
+        used.r.add(key);
+        let signal = robots.get(key);
+        if (!signal) {
+          signal = makeRobot(++seedN, "조건 분기");
+          const color = branch ? "#38d487" : "#ff525d";
+          signal.ball!.scale.setScalar(2.8);
+          (signal.ball!.material as THREE.MeshPhysicalMaterial).emissive.set(color);
+          (signal.ball!.material as THREE.MeshPhysicalMaterial).color.set(color);
+          robots.set(key, signal);
+        }
+        add(signal.root);
+        signal.root.position.set(0, 0.22, 0);
+        setValue(signal, branch ? "참" : "거짓", true);
+        extend(0, 0, 1, 2.3);
+      }
       const rowAnchor = new Map<string, THREE.Vector3>(); // 관이 닿는 판 왼쪽 끝
 
       // 배치 — 겹치지 않게: 배열은 앞에서 뒤로 줄을 세우고, 키가 큰 스택 탑은 배열·로봇 줄의 오른쪽 옆으로 뺀다.
@@ -559,7 +614,7 @@ export function CharacterStage({
         const height = stack ? Math.max(1.4, n * 0.98 + 0.6) : 1.3;
         pn.board.scale.set(width, height, 0.08);
         pn.board.position.set(stack ? 0 : 0, height / 2, -0.75);
-        const caption = (stack ? "스택" : "배열") + (row.names.length ? ` · ${row.names.join(", ")}` : "") + (row.hidden ? `  +${row.hidden}칸` : "") + (n === 0 ? "  (비어 있음)" : "");
+        const caption = (row.type === "linked-list" ? "연결 리스트" : stack ? "스택" : row.type === "deque" || row.names.some(name => /queue|큐/i.test(name)) ? "큐" : "배열") + (row.names.length ? ` · ${row.names.join(", ")}` : "") + (row.hidden ? `  +${row.hidden}칸` : "") + (n === 0 ? "  (비어 있음)" : "");
         if (pn.label.userData.text !== caption) {
           pn.label.userData.text = caption;
           setSpriteText(pn.label, caption, "#5b3a8c");
@@ -588,17 +643,19 @@ export function CharacterStage({
             s.material = tagNew.has(i) ? freshSeat : seatMat;
           }
         });
-        rowAnchor.set(row.objectId, new THREE.Vector3(ox + (stack ? -0.45 : -width / 2 + 0.35), height + 0.05, z - 0.75));
+        rowAnchor.set(row.objectId, new THREE.Vector3(ox - width / 2 + 0.25, height + 0.12, z - 0.48));
         extend(ox - width / 2 - 1.2, z, 0.4, height + 0.6);
         extend(ox + width / 2, z, 0.4, height + 0.6);
 
         // 원소 캐릭터
         row.cells.forEach((cell, i) => {
-          const key = `${row.objectId}:${stack ? "s" : "a"}:${i}`;
+          const train = row.type === "linked-list";
+          const queue = !stack && (row.type === "deque" || row.names.some(name => /queue|큐/i.test(name)));
+          const key = `${row.objectId}:${train ? "train" : queue ? "queue" : stack ? "s" : "a"}:${i}`;
           used.c.add(key);
           let c = cells.get(key);
           if (!c) {
-            c = stack ? makePenguin(++seedN) : makeJelly(++seedN, i);
+            c = train || queue ? makeStructureCell(++seedN, i, train) : stack ? makePenguin(++seedN) : makeJelly(++seedN, i);
             cells.set(key, c);
           }
           add(c.root);
@@ -646,7 +703,13 @@ export function CharacterStage({
           if (isNew) setTag(c, "신규", TAG.fresh);
           else if (isSwap && swapWith) setTag(c, `↔ ${swapWith.i === i ? swapWith.k : swapWith.i}번과 교환`, TAG.swap);
           else if (isSet) setTag(c, diff ? `${diff.from} → ${diff.to}` : "변경", TAG.change);
-          else setTag(c, "");
+          else if (train) {
+            const link = row.links?.[i];
+            const oldLink = prevRow?.links?.[i];
+            setTag(c, `next → ${link ?? "?"}`, oldLink && oldLink !== link ? TAG.fresh : TAG.change);
+          } else if (queue && (i === 0 || i === row.cells.length - 1)) {
+            setTag(c, row.cells.length === 1 ? "앞 · 뒤" : i === 0 ? "앞" : "뒤");
+          } else setTag(c, "");
           const errHere = errTarget?.objectId === row.objectId;
           const active = isNew || isSwap || isSet || errHere;
           setDim(c, anyChange && !active ? 1 : 0, calm);
@@ -692,7 +755,7 @@ export function CharacterStage({
       type Bot = { key: string; name: string; text: string; num: number | null; ref?: string; ghost?: boolean };
       // 배열을 가리키는 로봇을 왼쪽에 먼저 세운다 — 화살표가 판 왼쪽 끝에 닿으므로 서로 덜 엇갈린다
       const bots: Bot[] = [
-        ...after.rows.flatMap(row => row.names.map(name => ({ key: `${after.frameId}:${name}`, name, text: `[${row.cells.length + row.hidden}칸]`, num: null, ref: row.objectId }))),
+        ...(focusedStructure ? [] : after.rows).flatMap(row => row.names.map(name => ({ key: `${after.frameId}:${name}`, name, text: `[${row.cells.length + row.hidden}칸]`, num: null, ref: row.objectId }))),
         ...after.vars.map(v => ({ key: v.key, name: v.name, text: v.text, num: v.num })),
       ];
       // 없는 이름 오류 — 그 이름의 로봇이 무대에 없으면, 빨간 투명 로봇(빈자리)을 세워 "없다"를 보여 준다
@@ -708,7 +771,7 @@ export function CharacterStage({
         return { x: (col - (inLine - 1) / 2) * VAR_GAP + (line % 2 ? VAR_GAP / 2 : 0), z: zz - line * BOT_LINE_GAP };
       };
       const beforeBots: Bot[] = [
-        ...before.rows.flatMap(row => row.names.map(name => ({ key: `${before.frameId}:${name}`, name, text: "", num: null, ref: row.objectId }))),
+        ...(focusedStructure ? [] : before.rows).flatMap(row => row.names.map(name => ({ key: `${before.frameId}:${name}`, name, text: "", num: null, ref: row.objectId }))),
         ...before.vars.map(v => ({ key: v.key, name: v.name, text: v.text, num: v.num })),
       ];
       const beforeZ = before.rows.length ? -(Math.max(1, before.rows.filter(r => !isStackRow(r)).length) - 1) * ROW_GAP - 3.4 : 0;
