@@ -23,15 +23,23 @@ class ModelPending(Exception):
 
 
 @contextmanager
-def job_context(job):
-    token = _context.set((job.id, job.payload.get("_ai_generation", 0)))
-    version_token = _material_version.set(job.payload.get("version_id"))
-    retry_token = _retry_round.set(job.payload.get("_gemini_retry_round", 0))
+def material_version_context(version_id):
+    token = _material_version.set(version_id)
     try:
         yield
     finally:
+        _material_version.reset(token)
+
+
+@contextmanager
+def job_context(job):
+    token = _context.set((job.id, job.payload.get("_ai_generation", 0)))
+    retry_token = _retry_round.set(job.payload.get("_gemini_retry_round", 0))
+    try:
+        with material_version_context(job.payload.get("version_id")):
+            yield
+    finally:
         _retry_round.reset(retry_token)
-        _material_version.reset(version_token)
         _context.reset(token)
 
 

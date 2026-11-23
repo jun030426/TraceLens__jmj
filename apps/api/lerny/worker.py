@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from lerny.config import settings
 from lerny.db import engine
-from lerny.inference import ModelPending, job_context, perform
+from lerny.inference import ModelPending, job_context, material_version_context, perform
 from lerny.models import (
     ChatMessage,
     Chunk,
@@ -140,7 +140,9 @@ def embed_chunks(chunks, session):
                 if chunk.content not in completed_texts:
                     # Existing local vectors are reusable only with matching source provenance.
                     cached = load_local_vector(chunk)
-                    vector = cached if cached is not None else embed([chunk.content])[0]
+                    # A course-wide reindex can contain chunks from several material versions.
+                    with material_version_context(chunk.version_id):
+                        vector = cached if cached is not None else embed([chunk.content])[0]
                     store_vector(chunk, vector)
                     if settings().rag_storage == "local":
                         local_vectors[chunk.content] = vector

@@ -143,15 +143,19 @@ def locked_row(session, key):
     return session.scalar(select(GeminiQuota).where(GeminiQuota.key == key).with_for_update())
 
 
-def reserve_paid_budget(session, policy, purpose):
+def reserve_paid_budget(session, config, purpose):
     from lerny.inference import current_material_version
 
-    if policy is None or purpose not in {"review", "embedding"} or current_material_version() != policy.version_id:
+    version_id = current_material_version()
+    if not version_id or purpose not in {"review", "embedding"}:
         return
-    insert_if_missing(session, GeminiPaidCallBudget, version_id=policy.version_id)
+    policy = config.gemini_paid_call_budget
+    limit = (policy.max_new_calls if policy and policy.version_id == version_id
+             else config.gemini_default_paid_call_budget)
+    insert_if_missing(session, GeminiPaidCallBudget, version_id=version_id)
     budget = session.scalar(select(GeminiPaidCallBudget).where(
-        GeminiPaidCallBudget.version_id == policy.version_id).with_for_update())
-    if budget.review + budget.embedding >= policy.max_new_calls:
+        GeminiPaidCallBudget.version_id == version_id).with_for_update())
+    if budget.review + budget.embedding >= limit:
         raise ValueError("GEMINI_PAID_CALL_BUDGET_EXCEEDED")
     setattr(budget, purpose, getattr(budget, purpose) + 1)
 
@@ -193,6 +197,8 @@ def reserve_slot(path, payload):
     try:
         with Session(engine()) as session:
             row = locked_row(session, key)
+            # Any later pacing deferral rolls back this reservation in the same transaction.
+            reserve_paid_budget(session, config, role)
             current = db_time(session)
             if row.blocked_until > current:
                 raise ProviderDeferred(row.blocked_code or "GEMINI_RATE_LIMITED", row.blocked_until)
@@ -216,7 +222,6 @@ def reserve_slot(path, payload):
                 total -= cost
             if wait_until > current:
                 raise ProviderDeferred("GEMINI_PACING_WAIT", wait_until)
-            reserve_paid_budget(session, config.gemini_paid_call_budget, role)
             token = uid()
             row.recent = [*recent, [current, units]]
             row.next_at = current + 60 / rpm

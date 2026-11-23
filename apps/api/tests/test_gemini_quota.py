@@ -430,7 +430,8 @@ def test_parallel_paid_requests_still_obey_tpm(paced, monkeypatch):
     assert pending("GEMINI_PACING_WAIT", lambda: quota.reserve_slot(PATH, BODY)) >= clock[0]+59
 
 
-def test_paid_gateway_counts_combined_admissions_and_deduplicates(paced, monkeypatch):
+@pytest.mark.parametrize("override", [None, 5])
+def test_paid_gateway_counts_combined_admissions_and_deduplicates(paced, monkeypatch, override):
     import threading
     import time
     from lerny.config import PaidCallBudget
@@ -438,7 +439,9 @@ def test_paid_gateway_counts_combined_admissions_and_deduplicates(paced, monkeyp
 
     config, _, db = paced
     GeminiPaidCallBudget.__table__.create(db)
-    config.gemini_paid_call_budget = PaidCallBudget(version_id="target", max_new_calls=5)
+    config.gemini_default_paid_call_budget = 5 if override is None else 1
+    if override is not None:
+        config.gemini_paid_call_budget = PaidCallBudget(version_id="target", max_new_calls=override)
     config.gemini_review_concurrency = 4
     config.gemini_review_requests_per_minute = config.gemini_embedding_requests_per_minute = 6000
     config.gemini_review_quota_project = "paid"
@@ -528,6 +531,116 @@ def test_postgres_parallel_paid_admissions_and_late_release(monkeypatch):
             budget=s.get(GeminiPaidCallBudget,"target")
             assert len(row.active_leases)==3 and row.day_count==4
             assert (budget.review,budget.embedding)==(4,1)
+    finally:
+        for table in reversed(tables):
+            table.drop(db)
+        db.dispose()
+
+
+def test_default_budget_reuses_existing_rows_and_exempts_unbound_requests(paced, monkeypatch):
+    from lerny.config import PaidCallBudget
+    from lerny.models import GeminiPaidCallBudget
+
+    config, clock, db = paced
+    GeminiPaidCallBudget.__table__.create(db)
+    config.gemini_paid_call_budget = PaidCallBudget(version_id="lower", max_new_calls=235)
+    monkeypatch.setattr(quota, "request_purpose", lambda *args: "embedding")
+    assert config.gemini_default_paid_call_budget == 1500
+    with Session(db) as session:
+        session.add_all([GeminiPaidCallBudget(version_id="lower", review=149, embedding=86),
+                         GeminiPaidCallBudget(version_id="default", review=762, embedding=95)])
+        session.commit()
+
+    def admit(version):
+        clock[0] += 61
+        with job_context(SimpleNamespace(id="synthetic", payload={"version_id": version})):
+            quota.release_slot(quota.reserve_slot("models/test:embedContent", BODY))
+
+    with pytest.raises(ValueError, match="GEMINI_PAID_CALL_BUDGET_EXCEEDED"):
+        admit("lower")
+    admit("default")
+    config.gemini_default_paid_call_budget = 858
+    with pytest.raises(ValueError, match="GEMINI_PAID_CALL_BUDGET_EXCEEDED"):
+        admit("default")
+    admit(None)
+    monkeypatch.setattr(quota, "request_purpose", lambda *_: "content")
+    clock[0] += 61
+    with job_context(SimpleNamespace(id="free-content", payload={"version_id": "lower"})):
+        quota.release_slot(quota.reserve_slot(PATH, BODY))
+    with Session(db) as session:
+        rows = session.scalars(select(GeminiPaidCallBudget)).all()
+        assert {r.version_id: (r.review, r.embedding) for r in rows} == {
+            "lower": (149, 86), "default": (762, 96)}
+
+
+def test_embedding_worker_retries_only_missing_vectors_after_budget_raise(integration, configured, monkeypatch):
+    from lerny import worker
+    from lerny.models import GeminiPaidCallBudget
+    from test_gemini_integration import VECTOR
+
+    client, session, _ = integration
+    monkeypatch.setattr(configured, "gemini_default_paid_call_budget", 1)
+    monkeypatch.setattr(quota, "engine", lambda: session.bind)
+    monkeypatch.setattr(provider, "reserve_slot", quota.reserve_slot)
+    monkeypatch.setattr(provider, "release_slot", quota.release_slot)
+    monkeypatch.setattr(worker, "heartbeat", lambda *_: None)
+    ticks = iter(range(1800000000, 1800001000, 61))
+    monkeypatch.setattr(quota, "db_time", lambda _: next(ticks))
+    calls = fake_http(monkeypatch, httpx.Response(200, json={"embedding": {"values": VECTOR}}))
+    job = Job(owner_id="teacher", course_id="course", kind="embed", payload={"version_id": "version"})
+    session.add(job)
+    session.commit()
+    for attempt in range(2):
+        if attempt:
+            assert client.post(f"/api/v1/jobs/{job.id}/retry").status_code == 202
+        assert worker.run_once(job.id)
+        session.expire_all()
+        assert job.status == "failed" and job.error_code == "GEMINI_PAID_CALL_BUDGET_EXCEEDED"
+        assert job.lease_until is None and not worker.run_once(job.id)
+        assert "_ai_generation" not in job.payload and len(calls) == 1
+    monkeypatch.setattr(configured, "gemini_default_paid_call_budget", 2)
+    assert client.post(f"/api/v1/jobs/{job.id}/retry").status_code == 202
+    assert worker.run_once(job.id)
+    session.expire_all()
+    assert job.status == "succeeded" and len(calls) == 2
+    assert session.get(GeminiPaidCallBudget, "version").embedding == 2
+
+
+def test_postgres_two_workers_compete_for_last_default_call(monkeypatch):
+    from threading import Barrier
+    from sqlalchemy.engine import make_url
+    from lerny.models import GeminiPaidCallBudget
+
+    url = os.environ.get("LERNY_INGESTION_TEST_URL")
+    if not url:
+        pytest.skip("Requires disposable loopback PostgreSQL")
+    assert make_url(url).host == "127.0.0.1" and make_url(url).database.startswith("lerny_ingestion_test_")
+    db = create_engine(url)
+    tables = [GeminiQuota.__table__, GeminiPaidCallBudget.__table__]
+    for table in tables:
+        table.create(db)
+    config = Settings()
+    monkeypatch.setattr(quota, "engine", lambda: db)
+    monkeypatch.setattr(quota, "settings", lambda: config)
+    monkeypatch.setattr(quota, "request_purpose", lambda path, _: "review" if path == PATH else "embedding")
+    barrier = Barrier(2)
+
+    def send(role, path):
+        with job_context(SimpleNamespace(id=role, payload={"version_id": "shared"})):
+            barrier.wait(timeout=10)
+            return quota.reserve_slot(path, BODY)
+
+    try:
+        with Session(db) as session:
+            session.add(GeminiPaidCallBudget(version_id="shared", review=1400, embedding=99))
+            session.commit()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(send, "material", PATH), pool.submit(send, "embedding", "models/test:embedContent")]
+        assert sum(f.exception() is None for f in futures) == 1
+        assert [str(f.exception()) for f in futures if f.exception()] == ["GEMINI_PAID_CALL_BUDGET_EXCEEDED"]
+        with Session(db) as session:
+            row = session.get(GeminiPaidCallBudget, "shared")
+            assert (row.review, row.embedding) in {(1401, 99), (1400, 100)}
     finally:
         for table in reversed(tables):
             table.drop(db)

@@ -24,6 +24,7 @@ WORKER_POLICY_NAMES = (
     "LERNY_GEMINI_PAID_FROM_WEEK", "LERNY_GEMINI_PAID_UPLOADS_SINCE",
     "LERNY_GEMINI_REVIEW_REQUESTS_PER_MINUTE", "LERNY_GEMINI_EMBEDDING_REQUESTS_PER_MINUTE",
     "LERNY_GEMINI_CONTENT_REQUESTS_PER_MINUTE", "LERNY_GEMINI_REVIEW_CONCURRENCY", "LERNY_GEMINI_PAID_CALL_BUDGET",
+    "LERNY_GEMINI_DEFAULT_PAID_CALL_BUDGET",
 )
 
 
@@ -87,6 +88,8 @@ def update_worker_policy(ssm, patch, expected_version, *, apply=False):
                 or type(budget["max_new_calls"]) is not int or not 0 <= budget["max_new_calls"] <= 10000
             ):
                 raise ValueError("Invalid material version or paid call budget")
+        if name == "LERNY_GEMINI_DEFAULT_PAID_CALL_BUDGET" and not (value.isdecimal() and 0 <= int(value) <= 10000):
+            raise ValueError("Default paid call budget must be between 0 and 10000")
     current = ssm.get_parameter(Name=PARAMETER, WithDecryption=True)["Parameter"]
     if current["Type"] != "SecureString" or expected_version != current["Version"]:
         raise ValueError("Worker parameter type or version differs from the reviewed version")

@@ -74,6 +74,7 @@ def site(integration, monkeypatch):
 def synthetic_engine(monkeypatch):
     state = SimpleNamespace(calls=[], roles=[], unsafe=False, failure=None, candidate_calls=0, text=TEXT, boundary_texts={})
     fallback = gemini_provider.request
+    state.gateway = fallback
 
     def render(path, folder, config, kind=None):
         folder.mkdir(parents=True, exist_ok=True)
@@ -326,6 +327,39 @@ def test_quota_wait_retains_progress_then_resumes(site, synthetic_engine):
     worker.run_once(job.id)
     session.expire_all()
     assert job.status == "succeeded" and TEXT in version.extracted_text
+
+
+def test_paid_limit_is_terminal_and_manual_retry_keeps_ppt_cache(site, synthetic_engine, configured, monkeypatch):
+    from lerny import gemini_quota
+    from lerny.config import PaidCallBudget
+    from lerny.models import GeminiPaidCallBudget
+
+    client, session, _ = site
+    job, version = upload(site, ".pptx")
+    # Run the real gateway at the first model stage, including the material version context.
+    monkeypatch.setattr(gemini_provider, "request", synthetic_engine.gateway)
+    monkeypatch.setattr(gemini_provider, "reserve_slot", gemini_quota.reserve_slot)
+    monkeypatch.setattr(gemini_quota, "engine", lambda: session.bind)
+    monkeypatch.setattr(gemini_quota, "request_purpose", lambda *_: "review")
+    monkeypatch.setattr(gemini_provider, "request_purpose", lambda *_: "review")
+    from pydantic import SecretStr
+    monkeypatch.setattr(configured, "gemini_embedding_api_key", SecretStr("fixture"))
+    monkeypatch.setattr(configured, "gemini_paid_call_budget", PaidCallBudget(version_id=version.id, max_new_calls=2))
+    session.add(GeminiPaidCallBudget(version_id=version.id, review=1, embedding=1))
+    original_payload = dict(job.payload)
+    session.commit()
+    for attempt in range(2):
+        if attempt:
+            assert client.post(f"/api/v1/jobs/{job.id}/retry").status_code == 202
+        assert worker.run_once(job.id)
+        session.expire_all()
+        assert job.status == version.status == "failed"
+        assert job.error_code == version.error_code == "GEMINI_PAID_CALL_BUDGET_EXCEEDED"
+        assert job.lease_until is None and job.payload == original_payload
+        assert not worker.run_once(job.id)
+    row = session.get(GeminiPaidCallBudget, version.id)
+    assert (row.review, row.embedding) == (1, 1)
+    assert not list((configured.runtime_root / "gemini-calls").glob("*/attempts/*.json"))
 
 
 def test_document_slice_budget_reuses_prior_responses(site, synthetic_engine, configured, monkeypatch):

@@ -81,6 +81,7 @@ export function jobMessage(
     GEMINI_MEDIA_INPUT_UNSUPPORTED: "AI 검토용 미디어 형식을 처리하지 못했어요. 관리자에게 확인을 요청해 주세요.",
     GEMINI_MEDIA_PAYLOAD_TOO_LARGE: "AI 검토용 구간 크기가 전송 한도를 넘었어요. 원본은 유지돼요. 관리자에게 구간 분할 확인을 요청해 주세요.",
     GEMINI_CALL_BUDGET_EXCEEDED: "자료 한 건의 AI 분석 한도에 도달했어요. 관리자가 처리 범위와 재시도를 확인해야 해요.",
+    GEMINI_PAID_CALL_BUDGET_EXCEEDED: "이 자료 버전의 유료 검토·임베딩 호출 한도에 도달했어요. 완료된 결과는 보존돼요. 계속하려면 운영자의 한도 상향 승인이 필요해요.",
     LEGACY_BACKFILL_DEFERRED:
       "이전 자료의 자동 생성을 보류했어요. 관리자에게 재개 여부를 확인해 주세요.",
     LOCAL_MODEL_MISSING:
