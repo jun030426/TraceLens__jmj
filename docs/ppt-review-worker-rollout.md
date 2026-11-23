@@ -51,7 +51,8 @@ python deploy/aws/manage.py worker-policy --file worker-policy.json --expected-v
 검증 인스턴스에서 두 환경을 읽기 전용으로 대조하는 예시다. 실행할 셸에서 AI Studio로 확인한 유료 검증 키의 마지막 네 글자를 환경변수 `EXPECTED_PAID_REVIEW_KEY_SUFFIX`로 내보낸다. 인스턴스 역할의 SSM 읽기 권한으로 실행하며 키 비교 결과에는 값이 표시되지 않는다.
 
 ```sh
-sudo --preserve-env=EXPECTED_PAID_REVIEW_KEY_SUFFIX /opt/lerny/venv/bin/python - <<'PY'
+release=$(readlink -f /opt/lerny/current)
+sudo --preserve-env=EXPECTED_PAID_REVIEW_KEY_SUFFIX "/opt/lerny/runtimes/$(basename "$release")/bin/python" - <<'PY'
 import json
 import os
 from pathlib import Path
@@ -87,6 +88,13 @@ systemctl is-active lerny-material.service lerny-embedding.service lerny-interac
 ```
 
 이 명령들은 승인 이후 사용할 운영안이다. 분리한 material 서비스만 시작하면 임베딩 작업은 전용 워커가 시작될 때까지 대기한다. 되돌릴 때는 먼저 현재 작업이 끝날 때까지 기다리고, 역할 분리 전의 material 릴리스와 서비스 구성을 함께 복원한다.
+
+### AWS 설치기의 Python 기동 검사
+
+1. 릴리스 아카이브를 Git 원본과 바이트 단위로 대조한다. 첫 전환에서는 **새 릴리스의** `deploy/aws/remote_install.py`를 사용한다. 이전 설치기를 호출하거나 의존성 파일이 같다는 이유로 새 런타임 준비를 생략하면 새 시작 스크립트가 실행할 Python이 없다.
+2. 설치기는 시스템 `/usr/bin/python3.12`로 릴리스별 `/opt/lerny/runtimes/<digest>`를 준비한다. uv의 관리형 Python 탐색과 다운로드를 끄고 잠금 파일로 동기화한다. 수동 복구했던 공유 `/opt/lerny/venv`는 이전 릴리스의 복원을 위해 보존한다. 새 릴리스 관련 운영 명령에서는 새 런타임의 `bin/python`을 쓴다.
+3. 설치기는 활성 릴리스를 교체하기 전에 `lerny-worker`와 `lerny-code`로 각각 Python을 실행한다. 실제 인터프리터가 시스템 Python과 같고, 워커 진입 모듈을 새 릴리스에서 읽을 수 있어야 한다. 검사 실패 시 설치 명령은 실패하고 `installed=false`, `services_started=false`를 출력한다. 기존 릴리스와 서비스 PID를 확인한 뒤 원인을 해결한다.
+4. 다음 배포에서 두 계정의 검사 통과, 설치 성공 및 `services_started=false`, 기존 PID 유지를 확인한다. 큐를 확인하며 interactive → embedding → material → code → video 순서로 재시작하고 매번 새 PID의 실행 파일, 릴리스별 실행 인자와 생존 신호를 확인한다. 복원 시 이전 릴리스로 `current`를 되돌려 해당 릴리스의 런처와 가상환경을 함께 사용한다.
 
 ### 학생 채팅·채점 전용 워커로 전환
 
