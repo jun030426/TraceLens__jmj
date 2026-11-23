@@ -48,15 +48,11 @@ def source_hash(sources):
                         for s in sources])
 
 
-def sources_available(session, generation):
+def _generation_sources_valid(generation, rows):
     if not generation or generation.status == "cancelled" or not generation.sources:
         return False
-    rows={v.id:(m,v) for m,v in session.execute(select(Material,MaterialVersion).join(
-        MaterialVersion,MaterialVersion.material_id==Material.id).where(
-        MaterialVersion.id.in_([s["version_id"] for s in generation.sources]))
-        .execution_options(populate_existing=True))}
     for source in generation.sources:
-        material,version=rows.get(source["version_id"],(None,None))
+        material, version = rows.get(source["version_id"], (None, None))
         if not material or not version or version.material_id != material.id or (
             material.id != source["material_id"] or material.course_id != generation.course_id or material.week != generation.week
             or material.deleted or material.visibility != "public" or material.internal_use != "none"
@@ -65,6 +61,16 @@ def sources_available(session, generation):
         ):
             return False
     return True
+
+
+def sources_available(session, generation):
+    if not generation or generation.status == "cancelled" or not generation.sources:
+        return False
+    rows = {v.id: (m, v) for m, v in session.execute(select(Material, MaterialVersion).join(
+        MaterialVersion, MaterialVersion.material_id == Material.id).where(
+        MaterialVersion.id.in_([s["version_id"] for s in generation.sources]))
+        .execution_options(populate_existing=True))}
+    return _generation_sources_valid(generation, rows)
 
 
 def is_current(session, generation):
@@ -87,9 +93,18 @@ def generation_for_job(session, job):
 
 
 def published_generations(session, course_id):
-    return [g for g in session.scalars(select(ContentGeneration).where(
-        ContentGeneration.course_id == course_id, ContentGeneration.status == "published").order_by(ContentGeneration.week))
-        if sources_available(session, g)]
+    generations = list(session.scalars(select(ContentGeneration).where(
+        ContentGeneration.course_id == course_id, ContentGeneration.status == "published").order_by(ContentGeneration.week)))
+    version_ids = list(dict.fromkeys(
+        s["version_id"] for g in generations if g.sources for s in g.sources
+    ))
+    if not version_ids:
+        return []
+    rows = {v.id: (m, v) for m, v in session.execute(select(Material, MaterialVersion).join(
+        MaterialVersion, MaterialVersion.material_id == Material.id).where(
+        MaterialVersion.id.in_(version_ids))
+        .execution_options(populate_existing=True))}
+    return [g for g in generations if _generation_sources_valid(g, rows)]
 
 
 def published_version_ids(session, course_id):

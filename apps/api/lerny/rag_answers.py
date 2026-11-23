@@ -11,7 +11,7 @@ from sqlalchemy import select
 from lerny.chat_topics import EXAMPLE_EVIDENCE, EXAMPLE_REQUEST, mentions_topic, previous_topic, topic_terms
 from lerny.evaluation import ensure_epoch, review_references
 from lerny.lecture_contract import StrictModel
-from lerny.lecture_specs import source_snapshot
+from lerny.lecture_specs import source_snapshots
 from lerny.models import ChatMessage, Course, Enrollment, Section
 from lerny.retrieval import internal_validation_context, public_rows, search_public
 
@@ -87,18 +87,24 @@ def review_units(units, sources, generate):
 
 
 def authorized_message(session, job):
-    message = session.get(ChatMessage, job.payload["message_id"])
-    if message is None or message.student_id != job.owner_id:
-        raise ValueError("ACCESS_REVOKED")
-    section = session.get(Section, message.section_id, populate_existing=True)
-    active = session.scalar(
-        select(Enrollment).where(
-            Enrollment.student_id == message.student_id,
-            Enrollment.section_id == message.section_id,
+    message = session.scalar(
+        select(ChatMessage)
+        .join(Section, Section.id == ChatMessage.section_id)
+        .join(
+            Enrollment,
+            (Enrollment.section_id == ChatMessage.section_id)
+            & (Enrollment.student_id == ChatMessage.student_id),
+        )
+        .where(
+            ChatMessage.id == job.payload["message_id"],
+            ChatMessage.student_id == job.owner_id,
+            Section.course_id == job.course_id,
             Enrollment.status == "active",
         )
+        .execution_options(populate_existing=True)
+        .limit(1)
     )
-    if not active or section is None or section.course_id != job.course_id:
+    if message is None:
         raise ValueError("ACCESS_REVOKED")
     return message
 
@@ -170,14 +176,23 @@ def answer_job(session, job):
         result["answer"] = "어떤 개념이나 함수에 대해 설명할까요? 이름을 알려주시면 강의 자료에서 찾아볼게요."
     if rows:
         sources = [{"source_id": c.id, "text": c.content} for c, _, _ in rows]
-        snapshots = [source_snapshot(session, job.course_id, c.id, published=True)[0] for c, _, _ in rows]
+        chunk_ids = [c.id for c, _, _ in rows]
+        initial = source_snapshots(session, job.course_id, chunk_ids, published=True)
+        snapshots = [initial.get(cid, (None, None))[0] for cid in chunk_ids]
+        if any(old is None for old in snapshots):
+            raise ValueError("SOURCE_CHANGED")
+
+        def snapshots_current():
+            current = source_snapshots(session, job.course_id, chunk_ids, published=True)
+            return all(current.get(old["chunk_id"], (None, None))[0] == old for old in snapshots)
+
+        model_calls = 0
 
         def checked_model(prompt, schema):
+            nonlocal model_calls
+            model_calls += 1
             authorized_message(session, job)
-            if any(
-                old is None or source_snapshot(session, job.course_id, old["chunk_id"], published=True)[0] != old
-                for old in snapshots
-            ):
+            if model_calls > 1 and not snapshots_current():
                 raise ValueError("SOURCE_CHANGED")
             ensure_epoch(session, job.course_id, epoch)
             result = model_json(prompt, schema)
@@ -252,10 +267,7 @@ def answer_job(session, job):
             else:
                 result["validation"] = "held"
                 result["validation_reason"] = "private_conflict"
-        if any(
-            old is None or source_snapshot(session, job.course_id, old["chunk_id"], published=True)[0] != old
-            for old in snapshots
-        ):
+        if not snapshots_current():
             raise ValueError("SOURCE_CHANGED")
     authorized_message(session, job)
     course = session.scalar(

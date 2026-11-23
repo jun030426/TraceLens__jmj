@@ -26,29 +26,7 @@ class CreateRequest(StrictModel):
     allow_generated_examples: bool = False
 
 
-def source_snapshot(session, course_id, chunk_id, *, published=False):
-    from lerny.weekly_content import published_version_ids
-    allowed = published_version_ids(session, course_id) if published else None
-    row = session.execute(
-        select(Chunk, MaterialVersion, Material)
-        .options(defer(MaterialVersion.extraction_report), defer(MaterialVersion.extracted_text))
-        .join(MaterialVersion, Chunk.version_id == MaterialVersion.id)
-        .join(Material, MaterialVersion.material_id == Material.id)
-        .where(
-            Chunk.id == chunk_id,
-            Material.course_id == course_id,
-            Material.deleted.is_(False),
-            Material.visibility == "public",
-            Material.internal_use == "none",
-            Material.kind != "answer",
-            MaterialVersion.id.in_(allowed) if published else Material.active_version_id == MaterialVersion.id,
-            MaterialVersion.status == "ready",
-        )
-        .execution_options(populate_existing=True)
-    ).first()
-    if row is None:
-        return None, None
-    chunk, version, material = row
+def _snapshot_pair(chunk, version, material):
     fingerprint = digest(
         json.dumps(
             {"content": chunk.content, "locator": chunk.locator}, sort_keys=True, ensure_ascii=False
@@ -62,6 +40,38 @@ def source_snapshot(session, course_id, chunk_id, *, published=False):
         "version_sha256": version.sha256,
         "fingerprint": fingerprint,
     }, {"source_id": chunk.id, "text": chunk.content, "locator": chunk.locator}
+
+
+def source_snapshots(session, course_id, chunk_ids, *, published=False):
+    ids = list(dict.fromkeys(chunk_ids))
+    if not ids:
+        return {}
+    from lerny.weekly_content import published_version_ids
+    allowed = published_version_ids(session, course_id) if published else None
+    if published and not allowed:
+        return {}
+    rows = session.execute(
+        select(Chunk, MaterialVersion, Material)
+        .options(defer(MaterialVersion.extraction_report), defer(MaterialVersion.extracted_text))
+        .join(MaterialVersion, Chunk.version_id == MaterialVersion.id)
+        .join(Material, MaterialVersion.material_id == Material.id)
+        .where(
+            Chunk.id.in_(ids),
+            Material.course_id == course_id,
+            Material.deleted.is_(False),
+            Material.visibility == "public",
+            Material.internal_use == "none",
+            Material.kind != "answer",
+            MaterialVersion.id.in_(allowed) if published else Material.active_version_id == MaterialVersion.id,
+            MaterialVersion.status == "ready",
+        )
+        .execution_options(populate_existing=True)
+    ).all()
+    return {chunk.id: _snapshot_pair(chunk, version, material) for chunk, version, material in rows}
+
+
+def source_snapshot(session, course_id, chunk_id, *, published=False):
+    return source_snapshots(session, course_id, [chunk_id], published=published).get(chunk_id, (None, None))
 
 
 def snapshot_is_current(session, course, payload):
