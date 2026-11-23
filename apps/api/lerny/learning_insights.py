@@ -19,6 +19,7 @@ def my_practice(section_id: str, session: Db, actor: Actor, response: Response,
                 offset: int = Query(default=0, ge=0), limit: int = Query(default=10, ge=1, le=50)):
     from lerny.jobs import section_student
     from lerny.practice import current_source, student_exercise_template
+    from lerny.practice_display import attempt_display
     section = section_student(session, actor, section_id)
     first, last, start, end = metrics.window(date_from, date_to)
     response.headers["Cache-Control"] = "private, no-store"
@@ -45,7 +46,8 @@ def my_practice(section_id: str, session: Db, actor: Actor, response: Response,
         a = attempts[record.id]
         material = current_source(session, exercise)
         items.append({"id": a.id, "created_at": a.created_at, "status": a.status,
-            "correct": a.correct, "independent": a.independent, "feedback": a.feedback if material else None, "source": a.source,
+            "correct": a.correct, "independent": a.independent, "source": a.source,
+            "feedback": attempt_display(a, exercise.kind, exercise.language)["feedback"] if material else None,
             "title": exercise.title if material else "공개 범위가 변경된 실습",
             "concept": concepts.get(exercise.concept_id, "개념 미지정") if material else "",
             "kind": exercise.kind, "language": exercise.language, "source_available": bool(material),

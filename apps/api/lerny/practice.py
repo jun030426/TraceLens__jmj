@@ -17,6 +17,7 @@ from lerny.models import (AuditEvent, Chunk, Concept, Course, Enrollment, Job, M
     PracticeAttempt, PracticeExercise, PracticeSession, Section, User, now)
 from lerny.security import Actor, Db, deny
 from lerny.practice_snapshot import SubmissionEditor, submission_snapshot
+from lerny.practice_display import attempt_display, example_declaration, leading_blank_lines
 from lerny.practice_files import (CODE_LANGUAGES, check_program_size, fixed_native_program, native_console_input,
     python_shape, safe_full_prefix, verified_file)
 from lerny.practice_support import first_exercise_attempts, problem_attempts, problem_help_events
@@ -334,6 +335,13 @@ def attempt_view(attempt, *, source_available=True):
             "submission_snapshot":attempt.submission_snapshot if source_available else None}
 
 
+def student_attempt_view(attempt, kind, language):
+    view = attempt_view(attempt, source_available=kind is not None)
+    if kind is not None:
+        view.update(attempt_display(attempt, kind, language))
+    return {**view, "source": attempt.source}
+
+
 def student_exercise_template(exercise):
     from lerny.practice_support import blank_editor_templates
     return blank_editor_templates(exercise)[0]
@@ -343,13 +351,13 @@ def exercise_view(session, exercise, material=None):
     material = material or current_source(session, exercise)
     if not material:
         return None
-    from lerny.practice_support import blank_editor_templates, metadata, without_python_comments
+    from lerny.practice_support import blank_editor_templates, metadata
     template, display = blank_editor_templates(exercise)
     example = exercise.tests[0].get("input", "")
     return {**metadata(exercise), "id":exercise.id,"title":exercise.title,"description":exercise.prompt,"kind":exercise.kind,
             "language":exercise.language,"template":template,"expected":exercise.tests[0]["expected"],
             "display_template":display if display != template else None,
-            "example_input":without_python_comments(example) if exercise.language == "python" else example,
+            "example_input":example_declaration(example),
             "week":material.week,"source_title":material.title,"concept_id":exercise.concept_id}
 
 
@@ -374,7 +382,7 @@ def problem_items(session, student_id, section_id, exercises):
     attempts = first_exercise_attempts(session, student_id, section_id, list(groups))
     def submitted(view):
         attempt = attempts.get(view["id"])
-        return {**attempt_view(attempt), "source": attempt.source} if attempt else None
+        return student_attempt_view(attempt, view["kind"], view["language"]) if attempt else None
     items = []
     for problem_id, variants in groups.items():
         # Variants are submitted independently. The top-level fields describe the variant
@@ -386,7 +394,8 @@ def problem_items(session, student_id, section_id, exercises):
         selected = next((v for v in variants.values() if v["id"] == submitted_id), default)
         items.append({**selected, "problem_id": problem_id,
                       "variants": {kind: {"exercise_id": v["id"], "template": v["template"],
-                                          "display_template": v["display_template"], "hint_steps": v["hint_steps"], "attempt": submitted(v)}
+                                          "display_template": v["display_template"], "example_input": v["example_input"],
+                                          "hint_steps": v["hint_steps"], "attempt": submitted(v)}
                                    for kind, v in variants.items()},
                       "submitted_exercise_id": submitted_id,
                       "attempt": submitted(selected) if attempt else None})
@@ -506,6 +515,8 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
         assisted = session.scalar(problem_help_events(actor.id, section_id, exercise)
                                   .with_only_columns(AuditEvent.id).limit(1))
         snapshot = submission_snapshot(exercise.kind, student_exercise_template(exercise), source, body.editor)
+        if exercise.kind == "full" and (leading := leading_blank_lines(body.source)):
+            snapshot["editor_leading_lines"] = leading
         if exercise.kind == "blank" and exercise.tests and "input" not in exercise.tests[0] and snapshot is None:
             deny(422, "빈칸 밖의 시작 코드를 유지해 주세요.")
         attempt = PracticeAttempt(student_id=actor.id, section_id=section_id, exercise_id=exercise.id,
@@ -517,7 +528,7 @@ def submit(section_id: str, body: Submission, session: Db, actor: Actor,
         session.add(job)
         session.flush()
         attempt.job_id = job.id
-        return {**attempt_view(attempt), "source": attempt.source}
+        return student_attempt_view(attempt, exercise.kind, exercise.language)
     payload = body.model_dump()
     payload["source"] = source
     if body.editor is None:
@@ -601,8 +612,8 @@ def attempts(section_id: str, session: Db, actor: Actor, plan_id: str | None = N
     items = []
     for attempt in rows:
         exercise = exercise_view(session, session.get(PracticeExercise, attempt.exercise_id))
-        items.append({**attempt_view(attempt, source_available=exercise is not None),
-                      "source": attempt.source, "exercise": exercise})
+        view = student_attempt_view(attempt, exercise["kind"] if exercise else None, exercise["language"] if exercise else None)
+        items.append({**view, "exercise": exercise})
     return {"items": items}
 
 

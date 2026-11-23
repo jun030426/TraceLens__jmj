@@ -66,6 +66,68 @@ def test_blank_offsets_use_utf16_code_units_and_exact_editor_boundaries():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["blank", "full"])
+async def test_feedback_uses_editor_lines_on_all_student_routes(cloud_db, monkeypatch, kind):
+    from rag_mvp.cloze_generator import ClozeGenerator
+
+    app, engine, _ = cloud_db
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://lerny.example") as c:
+        with Session(engine) as db:
+            ctx = await prepare_test_data(c, db, monkeypatch)
+            base = ctx["base"]
+            exercise = db.get(PracticeExercise, ctx[kind + "_id"])
+            statement = "# 원본 😀\n\nscore = 85.5"
+            prefix = "\n \t\n" + statement
+            template = prefix + "\n[[빈칸]]\n    grade = [[빈칸]]" if kind == "blank" else prefix
+            exercise.template = template
+            exercise.tests = [{"input": statement, "statement": statement, "expected": "B"}]
+            exercise.reference = prefix + "\nif score >= 80:\n    grade = 'B'"
+            exercise.blanks = {"1": "if score >= 80:", "2": "'B'"} if kind == "blank" else {}
+            db.commit()
+            fills = ["grade = '😀'", "'B'"]
+            typed = prefix + "\n" + fills[0] + "\n    grade = " + fills[1]
+            editor = {"template": template}
+            if kind == "blank":
+                editor["fills"] = fills
+            # Simulate a tab opened before deployment, using the original grading template.
+            res = await c.post(base + "/practice/submit", json={"exercise_id": exercise.id, "source": typed, "editor": editor},
+                               headers={"Idempotency-Key": "before-display-change"})
+            assert res.status_code == 202, res.text
+            grade(db, res)
+            attempt = db.get(PracticeAttempt, res.json()["id"])
+            original_feedback = attempt.feedback
+            snapshot = attempt.submission_snapshot
+            saved = typed if kind == "blank" else typed.strip()
+            visible = typed.split("\n", 2)[2] if kind == "blank" else typed
+            line = ClozeGenerator.check_ast_syntax(visible)["error_line"]
+            assert line == (5 if kind == "blank" else 7)
+            assert original_feedback["syntax"]["error_line"] != line
+            if kind == "blank":
+                encoded = saved.encode("utf-16-le")
+                assert [encoded[s["start"]*2:s["end"]*2].decode("utf-16-le") for s in snapshot["spans"]] == fills
+            for page in [base + "/practice/daily", base + "/quiz-archive/3/practice"]:
+                problem, = (await c.post(page)).json()["items"]
+                v = problem["variants"][kind]
+                replay = v["attempt"]["replay_source"]
+                assert ClozeGenerator.check_ast_syntax(replay)["error_line"] == line
+                assert v["attempt"]["feedback"]["message"].startswith(f"{line}번째 줄")
+            for path in ["/practice/attempts", "/my-practice"]:
+                item, = (await c.get(base + path)).json()["items"]
+                assert item["feedback"]["message"].startswith(f"{line}번째 줄")
+                assert item["feedback"]["syntax"]["error_line"] == line
+                assert item["feedback"]["syntax"]["error_message"] == item["feedback"]["message"]
+                assert item["source"] == saved and item["submission_snapshot"] == snapshot
+            db.refresh(attempt)
+            assert attempt.feedback == original_feedback and attempt.submission_snapshot == snapshot
+            # Older attempts may only carry the worker's human-readable error.
+            attempt.feedback = {"message": original_feedback["message"]}
+            db.commit()
+            item, = (await c.get(base + "/practice/attempts")).json()["items"]
+            assert item["feedback"] == {"message": original_feedback["message"].replace(
+                f'{original_feedback["syntax"]["error_line"]}번째 줄', f"{line}번째 줄", 1)}
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("leading,with_editor", [("  ", False), ("\n\n", True), ("\n\n  ", True)])
 async def test_full_submission_keeps_legacy_grading_whitespace(cloud_db, monkeypatch, leading, with_editor):
     app, engine, _ = cloud_db
@@ -83,7 +145,10 @@ async def test_full_submission_keeps_legacy_grading_whitespace(cloud_db, monkeyp
             assert response.json()["source"] == code
             attempt = db.get(PracticeAttempt, response.json()["id"])
             assert attempt.source == code
-            assert attempt.submission_snapshot == {"kind": "full", "starter_code": starter}
+            expected = {"kind": "full", "starter_code": starter}
+            if leading.count("\n"):
+                expected["editor_leading_lines"] = leading.count("\n")
+            assert attempt.submission_snapshot == expected
             assert grade(db, response)["correct"] is True
 
 
@@ -116,7 +181,7 @@ async def test_submission_snapshots_survive_template_changes_on_both_routes(clou
             start = len(source.partition(value)[0].encode("utf-16-le")) // 2
             expected = {first.json()["id"]: {"kind": "blank", "spans": [
                 {"number": 1, "start": start, "end": start + len(value.encode("utf-16-le")) // 2}]},
-                second.json()["id"]: {"kind": "full", "starter_code": starter}}
+                second.json()["id"]: {"kind": "full", "starter_code": starter, "editor_leading_lines": 2}}
             for ex in (ctx["blank_id"], ctx["full_id"]):
                 db.get(PracticeExercise, ex).template = "changed after submission"
             db.commit()

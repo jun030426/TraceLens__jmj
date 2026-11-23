@@ -48,12 +48,12 @@ function PracticeOutput({ tab, run, stage, code, incomplete, blankLines = [], fi
   // 오래된 기록 안내(stale)·오류·부분 기록 안내는 시각화 호스트가 보여 줘요
   return <div className="practice-run"><Suspense fallback={<Notice>시각화 화면을 불러오는 중이에요…</Notice>}><CodeTracePlayer trace={run.trace} source={run.code} stale={run.code !== code} /></Suspense></div>;
 }
-type PracticeAttempt = { id: string; practice_session_id: string; exercise_id: string; status: string; correct: boolean | null; independent: boolean; source?: string; submission_snapshot?: SubmissionSnapshot | null; created_at: string; job_id?: string; feedback?: { message: string; passed?: number; total?: number }; exercise?: { title: string; kind: string } | null };
+type PracticeAttempt = { id: string; practice_session_id: string; exercise_id: string; status: string; correct: boolean | null; independent: boolean; source?: string; replay_source?: string; submission_snapshot?: SubmissionSnapshot | null; created_at: string; job_id?: string; feedback?: { message: string; passed?: number; total?: number }; exercise?: { title: string; kind: string } | null };
 type PracticeKind = "blank" | "full";
 type PracticeProblem = BlankQuiz & {
   display_template?: string | null;
   problem_id?: string;
-  variants?: Partial<Record<PracticeKind, { exercise_id: string; template: string; display_template?: string | null; hint_steps: number; attempt?: PracticeAttempt | null }>>;
+  variants?: Partial<Record<PracticeKind, { exercise_id: string; template: string; display_template?: string | null; example_input?: string; hint_steps: number; attempt?: PracticeAttempt | null }>>;
   submitted_exercise_id?: string | null;
   attempt?: PracticeAttempt | null;
 };
@@ -128,8 +128,9 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   const shownKind = selectedKind && kinds.includes(selectedKind)
     ? selectedKind : problem.kind && kinds.includes(problem.kind) ? problem.kind : kinds[0];
   const variant = problem.variants?.[shownKind];
-  const quiz = variant ? { ...problem, kind: shownKind, id: variant.exercise_id, template: variant.template, display_template: variant.display_template } : problem;
+  const quiz = variant ? { ...problem, kind: shownKind, id: variant.exercise_id, template: variant.template, display_template: variant.display_template, example_input: variant.example_input ?? problem.example_input } : problem;
   const latest = attemptFor(quiz.id, variant?.attempt ?? problem.attempt);
+  const replaySource = latest?.replay_source ?? latest?.source;
   const editable = !!submissions.data && !latest;
   // 문제 유형 — 빈칸 채우기 / 직접 작성(풀코딩). 직접 작성은 학생 코드 전체를 fills[0]에 담아 같은 저장·실행·채점 흐름을 써요.
   const isFull = quiz.kind === "full";
@@ -312,7 +313,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
           {latest ? <>
             <PracticeAnswerCopy key={latest.id} sectionId={sectionId} planId={archivePlan}
               exerciseId={latest.exercise_id} starter={displayTemplate} isFull={isFull} language={language}
-              submittedSource={latest.source} running={!!stage} onRun={(code, stopLines) => {
+              submittedSource={replaySource} running={!!stage} onRun={(code, stopLines) => {
                 setCopyRan(true);
                 setResultTab("실행 결과");
                 void runCode(code, stopLines);
@@ -363,11 +364,11 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
               <SubmittedCode source={latest.source ?? ""} snapshot={latest.submission_snapshot} />
             </section>}
             {resultTab !== "내 제출 코드" && <VizLineContext.Provider value={setVizLine}><PracticeOutput tab={resultTab} run={run} stage={stage} code={copyRan ? run?.code ?? "" : runnable.code} incomplete={!copyRan && runnable.unfilled.length > 0} blankLines={template.blanks} fixes={!copyRan && fixShown ? fix!.fixes : undefined} /></VizLineContext.Provider>}
-            {resultTab === "시각화" && latest?.source && !stage && (run?.kind !== "ran" || !run.trace) &&
+            {resultTab === "시각화" && replaySource && !stage && (run?.kind !== "ran" || !run.trace) &&
               <div className="practice-run">
                 <button type="button" onClick={() => {
                   setCopyRan(true);
-                  void runCode(latest.source!);
+                  void runCode(replaySource);
                 }}>제출 코드로 시각화 보기</button>
               </div>}
             {resultTab === "실행 결과" && <div className="practice-expected"><span>예시 출력</span><code>{quiz.expected || "(출력 없음)"}</code></div>}

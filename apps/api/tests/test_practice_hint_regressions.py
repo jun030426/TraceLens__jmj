@@ -115,13 +115,42 @@ def test_real_string_length_and_binary_search_keep_their_guides():
         assert Generator.resolve_mnemonic_flow("", code)["flow_title"] == Generator.MNEMONIC_FLOW_CATALOG[key]["flow_title"]
 
 
-def test_commented_worker_fixture_is_preserved_but_hidden_while_solving():
+@pytest.mark.parametrize("statement,example", [
+    ("# 입력 안내\n\nscore = 85.5", "# 입력 안내\n\nscore = 85.5"),
+    (" \t\n\nscore = 85.5", "score = 85.5"),
+    ("score = 85.5\n# 두 번째 입력\nbonus = 2", "score = 85.5\n# 두 번째 입력\nbonus = 2"),
+    ('text = "#문자열"  # 입력', 'text = "#문자열"  # 입력'),
+    ("score = 85.5", "score = 85.5"),
+])
+@pytest.mark.parametrize("kind", ["blank", "full"])
+def test_editor_and_grader_templates(kind, statement, example):
     from lerny.practice import exercise_view
-    statement = "# 입력 안내\n\nn = 3"
-    src = statement + "\nresult = n * 2  # 답지 전용\nprint(result)"
-    e = exercise(src, src.replace("n * 2", "[[빈칸]]"), {"1": "n * 2"}, statement)
+    implementation = "\n\nif True:\n    result = [[빈칸]] + [[빈칸]]\n\nprint(result)\n"
+    template = statement + (implementation if kind == "blank" else "\n")
+    stored = template.replace("if True:", "# 정답 해설\nif True:  # 정답 유래")
+    reference = stored.replace("[[빈칸]]", "1")
+    e = exercise(reference, stored, {"1": "1", "2": "2"}, statement, kind)
+    e.tests[0]["input"] += "\n \t\n"
     e.id, e.concept_id = "exercise", None
     view = exercise_view(None, e, SimpleNamespace(week=1, title="fixture"))
-    assert statement in view["template"] and "답지 전용" not in view["template"]
-    assert view["display_template"].lstrip("\n") == "n = 3\nresult = [[빈칸]]\nprint(result)"
-    assert view["example_input"].lstrip("\n") == "n = 3"
+    assert view["example_input"] == example
+    assert view["template"] == template
+    assert e.template == stored and e.tests[0]["statement"] == statement
+    display = example + implementation if kind == "blank" else template
+    assert view["display_template"] == (display if display != template else None)
+
+
+def test_only_leading_empty_rows_are_dropped_after_removing_solution_comments():
+    from lerny.practice_support import blank_editor_templates
+
+    stored = "# 답지에서 만든 설명\n \t\n\nif ready:\n    [[빈칸]]\n\n    [[빈칸]]\n"
+    e = exercise("", stored, {"1": "a = 1", "2": "b = 2"}, statement="")
+    grading, display = blank_editor_templates(e)
+    assert grading == stored.partition("\n")[2]
+    assert display == "if ready:\n    [[빈칸]]\n\n    [[빈칸]]\n"
+
+
+def test_example_keeps_crlf_and_indentation_between_nonempty_lines():
+    from lerny.practice_display import example_declaration
+
+    assert example_declaration("\r\n  # 설명\r\n\r\n  n = 3  \r\n\t\r\n") == "  # 설명\r\n\r\n  n = 3  "
