@@ -133,7 +133,7 @@ export function QuizCatalog() {
               <div className="quiz-mode-grid">
                 <Link className="quiz-mode-card" to={done ? `/quiz/results/${record.id}` : `/quiz/${r.section.id}`}
                   aria-label={done ? "이론 결과·해설 보기" : record ? "이론 이어서 풀기" : "이론 풀기"}>
-                  <div className="quiz-mode-top"><span className="quiz-mode-tag">이론</span><span className="quiz-mode-arrow go-arrow" aria-hidden="true">→</span></div>
+                  <div className="quiz-mode-top"><span className="quiz-mode-tag">이론{r.current_week ? ` · ${r.current_week}주차${r.quiz_day_index ? ` ${r.quiz_day_index}번째` : ""} 퀴즈` : ""}</span><span className="quiz-mode-arrow go-arrow" aria-hidden="true">→</span></div>
                   <h4>배운 개념을 확인해요.</h4>
                   <p className="quiz-mode-description">하루 5문항 · 주차별 7일 · 4일차부터 나의 오답 복습</p>
                   <div className="quiz-mode-footer">
@@ -145,7 +145,7 @@ export function QuizCatalog() {
                   </div>
                 </Link>
                 <Link className="quiz-mode-card quiz-practice-card" to={`/classrooms/${r.section.id}/practice${practiceDone ? "/results?plan="+encodeURIComponent(progress.session_id) : ""}`} aria-label={practiceDone ? "실습 결과 보기" : "실습 풀기"}>
-                  <div className="quiz-mode-top"><span className="quiz-mode-tag">실습 · {({ python: "Python", java: "Java", c: "C" } as { [key: string]: string })[r.course.teaching_language.toLowerCase()] || r.course.teaching_language}</span><span className="quiz-mode-arrow go-arrow" aria-hidden="true">→</span></div>
+                  <div className="quiz-mode-top"><span className="quiz-mode-tag">실습 · {({ python: "Python", java: "Java", c: "C" } as { [key: string]: string })[r.course.teaching_language.toLowerCase()] || r.course.teaching_language}{r.current_week ? ` · ${r.current_week}주차 실습 퀴즈` : ""}</span><span className="quiz-mode-arrow go-arrow" aria-hidden="true">→</span></div>
                   <h4>직접 풀며 연결해요.</h4>
                   <p className="quiz-mode-description">이번 주 강의 코드로 빈칸과 풀코딩을 연습해요.</p>
                   <div className="quiz-mode-footer"><p className={`quiz-progress-status ${practiceDone ? "is-done" : progress?.submitted ? "is-progress" : ""}`}>
