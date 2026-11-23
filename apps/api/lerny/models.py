@@ -147,10 +147,12 @@ class MaterialVersion(Identity, Base):
     object_key: Mapped[str] = mapped_column(String(100))
     sha256: Mapped[str] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(30), default="queued")
-    extracted_text: Mapped[str | None] = mapped_column(Text)
+    # Large payloads (reports reach several MB); load only on attribute access
+    # so metadata checks do not ship them over the shared database link.
+    extracted_text: Mapped[str | None] = mapped_column(Text, deferred=True)
     concept_ids: Mapped[list] = mapped_column(JSON, default=list)
     error_code: Mapped[str | None] = mapped_column(String(50))
-    extraction_report: Mapped[dict | None] = mapped_column(JSON)
+    extraction_report: Mapped[dict | None] = mapped_column(JSON, deferred=True)
 
 
 class Chunk(Identity, Base):

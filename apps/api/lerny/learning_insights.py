@@ -125,15 +125,19 @@ def processing(course_id: str, session: Db, actor: Actor):
     from lerny.media_progress import public_progress
     versions = {}
     for material in session.scalars(select(Material).where(Material.course_id == course_id, Material.deleted.is_(False))):
-        version = session.scalar(select(MaterialVersion).where(MaterialVersion.material_id == material.id)
-                                 .order_by(MaterialVersion.version_no.desc()).limit(1))
-        if version:
-            evidence=(version.extraction_report or {}).get('native_evidence')
-            pipeline=evidence.get('pipeline','native') if isinstance(evidence,dict) else 'native'
-            versions[version.id] = {"material_id": material.id, "title": material.title,
-                "week": material.week, "version_id": version.id, "source_status": version.status, "jobs": [],
-                "held_count":(version.extraction_report or {}).get('held_count',0),
-                "extraction_pipeline":pipeline}
+        # Read only the two report fields; the full OCR report can be several MB.
+        report = MaterialVersion.extraction_report
+        row = session.execute(select(MaterialVersion.id, MaterialVersion.status,
+                                     report['native_evidence']['pipeline'].as_string(),
+                                     report['held_count'].as_integer())
+                              .where(MaterialVersion.material_id == material.id)
+                              .order_by(MaterialVersion.version_no.desc()).limit(1)).first()
+        if row:
+            version_id, status, pipeline, held_count = row
+            versions[version_id] = {"material_id": material.id, "title": material.title,
+                "week": material.week, "version_id": version_id, "source_status": status, "jobs": [],
+                "held_count": held_count or 0,
+                "extraction_pipeline": pipeline or 'native'}
     for job in session.scalars(select(Job).where(Job.course_id == course_id,
             Job.kind.in_(["extract", "embed", "auto_concepts", "questions", "practice_prepare", "narration_lesson"]))
             .order_by(Job.created_at, Job.id)):
