@@ -7,10 +7,11 @@ export function useCodeTrace(language: PracticeLanguage, sectionId: string) {
   const [run, setRun] = useState<PracticeRun | null>(null);
   const [stage, setStage] = useState<TraceStage | null>(null);
   // stopLines: 빈칸 채우기 — 안 채운 빈칸 줄 직전에서 실행을 멈춘다
-  const execute = useCallback(async (code: string, stopLines: StopLines = {}) => {
+  const execute = useCallback(async (code: string, stopLines: StopLines = {}, displayCode = code) => {
     setStage("executing");
     try {
-      setRun(await runPractice(language, code, sectionId, setStage, stopLines));
+      const result = await runPractice(language, code, sectionId, setStage, stopLines);
+      setRun({ ...result, code: displayCode });
     } finally {
       setStage(null);
     }

@@ -325,6 +325,7 @@ export type QuizAsk = { title: string; question: string; context: string; /** �
 export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId: string; courseId: string; speaker?: string }) {
   const handouts = useStudentHandouts(courseId);
   const sendingRequest = useRef(false);
+  const fastPollUntil = useRef(0);
   const feedbackRequest = useRef(false);
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -400,6 +401,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
           setQuizConversation(!!r.thread_id && r.items.some(
             item => item.thread_id === r.thread_id && isQuizQuestion(item),
           ));
+          fastPollUntil.current = 0;
           setJob(r.job_id || undefined);
         }
       })
@@ -498,7 +500,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
               ? "AI 연결을 기다리고 있어요. 연결이 준비되면 답변을 이어서 처리해요."
               : undefined,
           } : item));
-          timer = setTimeout(poll, 2000);
+          timer = setTimeout(poll, performance.now() < fastPollUntil.current ? 700 : 2000);
         }
       } catch (e) {
         if (!stopped) {
@@ -534,6 +536,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
     if (job || historyLoading || pastLoading || sendingRequest.current) throw new Error("이전 답변을 기다려 주세요.");
     const conceptId = quizAsk?.conceptId || threadConcept;
     sendingRequest.current = true;
+    fastPollUntil.current = performance.now() + 10_000;
     try {
       const r = await api<{ job_id: string; thread_id: string; resource_id: string }>(
         `/sections/${sectionId}/chat/messages`, {

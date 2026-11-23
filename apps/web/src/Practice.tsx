@@ -142,6 +142,30 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
   // 수정 제안은 회색으로 표시하며, 학생이 적용한 코드만 실행·제출한다.
   const fix = useMemo(() => isFull ? quickFix(fullCode, language) : null, [isFull, fullCode, language]);
   const runnable = useMemo(() => isFull ? { code: fullCode, stopLines: {}, unfilled: [] as number[] } : buildRunnable(template, fills), [isFull, fullCode, template, fills]);
+  const replay = useMemo(() => {
+    if (isFull || language !== "Python" || !replaySource) return null;
+    const sourceLines = replaySource.split("\n");
+    const rawSource = latest?.source ?? replaySource;
+    const rawLines = rawSource.split("\n");
+    const offset = rawLines.length - sourceLines.length;
+    const rawProjection = offset >= 0 && rawLines.slice(0, offset).every(line => !line.trim())
+      && rawLines.slice(offset).join("\n") === replaySource;
+    const matchingTemplate = rawProjection
+      ? quiz.template.split("\n").slice(offset).join("\n")
+      : displayTemplate;
+    const matched = [matchingTemplate, displayTemplate].find(starter =>
+      recoverSubmittedBlanks(starter, replaySource, parseTemplate(starter).blanks.length));
+    if (!matched) return null;
+    const template = parseTemplate(matched);
+    const restored = recoverSubmittedBlanks(matched, replaySource, template.blanks.length)!;
+    const first = template.blanks.find(({ n }) => !restored[n]?.trim());
+    if (!first) return null;
+    const prefix = sourceLines.slice(0, first.line - 1);
+    const indent = sourceLines[first.line - 1]?.match(/^[ \t]*/)?.[0] ?? "";
+    // The trace stops before this placeholder executes. The rest of the submitted
+    // source is only used for display, so a missing block header can't prevent compilation.
+    return { code: [...prefix, indent + "pass"].join("\n"), stopLines: { [first.line]: first.n } };
+  }, [displayTemplate, isFull, language, latest?.source, quiz.template, replaySource]);
   const [resultTab, setResultTab] = useState("실행 결과"); // 처음엔 실행 결과를 보여 주고, 시각화는 탭을 눌러 따로 봐요
   const [vizLine, setVizLine] = useState<VizLine | null>(null);
   // "빈칸 앞까지 실행" 표시는 학생이 직접 실행한 뒤에만 — 문제를 열 때 자동으로 도는 미리보기에는 붙이지 않는다
@@ -313,10 +337,10 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
           {latest ? <>
             <PracticeAnswerCopy key={latest.id} sectionId={sectionId} planId={archivePlan}
               exerciseId={latest.exercise_id} starter={displayTemplate} submissionTemplate={quiz.template} isFull={isFull} language={language}
-              submittedSource={latest.source} submittedSnapshot={latest.submission_snapshot} replaySource={replaySource} running={!!stage} onRun={(code, stopLines) => {
+              submittedSource={latest.source} submittedSnapshot={latest.submission_snapshot} replaySource={replaySource} replay={replay} running={!!stage} onRun={(code, stopLines) => {
                 setCopyRan(true);
                 setResultTab("실행 결과");
-                void runCode(code, stopLines);
+                void runCode(code, stopLines, code === replay?.code ? replaySource : undefined);
               }} />
           </> : editable ? <>
           <details className="practice-hint-drawer" key={quiz.id}><summary>막힐 때 단계별 힌트 보기</summary><PracticeHints planId={archivePlan} sectionId={sectionId} exerciseId={quiz.id} onBusyChange={setAssistBusy} /></details>
@@ -368,7 +392,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
               <div className="practice-run">
                 <button type="button" onClick={() => {
                   setCopyRan(true);
-                  void runCode(replaySource);
+                  void runCode(replay?.code ?? replaySource, replay?.stopLines, replay ? replaySource : undefined);
                 }}>제출 코드로 시각화 보기</button>
               </div>}
             {resultTab === "실행 결과" && <div className="practice-expected"><span>예시 출력</span><code>{quiz.expected || "(출력 없음)"}</code></div>}
@@ -443,17 +467,16 @@ function recoverSubmittedBlanks(starter: string, source: string, blankCount: num
     if (trailing.some(part => typeof part !== "string")) return;
     const prefix = parts.slice(0, blankIndex).join("");
     const suffix = trailing.join("");
-    if (!actual.startsWith(prefix) || !actual.endsWith(suffix) || actual.length <= prefix.length + suffix.length) return;
+    if (!actual.startsWith(prefix) || !actual.endsWith(suffix) || actual.length < prefix.length + suffix.length) return;
     const blank = parts[blankIndex];
     if (typeof blank === "string") return;
     const value = actual.slice(prefix.length, actual.length - suffix.length);
-    if (!value.trim()) return;
     fills[blank.blank] = value;
   }
   return fills;
 }
 
-function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, submissionTemplate, isFull, language, submittedSource, submittedSnapshot, replaySource, running, onRun }: {
+function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, submissionTemplate, isFull, language, submittedSource, submittedSnapshot, replaySource, replay, running, onRun }: {
   sectionId: string;
   planId?: string;
   exerciseId: string;
@@ -463,6 +486,7 @@ function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, submission
   language: Language;
   submittedSource?: string;
   replaySource?: string;
+  replay: { code: string; stopLines: Record<number, number> } | null;
   submittedSnapshot?: SubmissionSnapshot | null;
   running: boolean;
   onRun: (code: string, stopLines: Record<number, number>) => void;
@@ -505,7 +529,8 @@ function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, submission
   const submittedFills = snapshotFills ?? (!answerVisible && !isFull && submittedSource && !submittedSnapshot
     ? recoverSubmittedBlanks(submissionTemplate, submittedSource, template.blanks.length)
     : undefined);
-  const runnableSource = answerVisible ? practiceSource ?? replaySource : replaySource;
+  const practiceRunSource = answerVisible ? practiceSource : undefined;
+  const runnableSource = practiceRunSource ?? replay?.code ?? replaySource;
   const fileName = language === "Python" ? "main.py" : language === "Java" ? "Main.java" : "main.c";
   const comments = showAnswer && answers && !isFull ? template.lines.map(parts => {
     const notes = parts.flatMap(part => typeof part === "string" ? [] : [answer?.explanation?.blank_comments?.[part.blank]]);
@@ -530,7 +555,7 @@ function PracticeAnswerCopy({ sectionId, planId, exerciseId, starter, submission
           </span>
         </span>
         <button type="button" disabled={running || !runnableSource?.trim()}
-          onClick={() => { if (runnableSource) onRun(runnableSource, {}); }}>
+          onClick={() => { if (runnableSource) onRun(runnableSource, practiceRunSource ? {} : replay?.stopLines ?? {}); }}>
           {running ? "실행 중…" : "코드 실행"}
         </button>
         <button type="button" className="primary" disabled>제출 완료 ✓</button>
