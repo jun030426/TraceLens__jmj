@@ -160,7 +160,7 @@ def test_chat_private_check_never_supplies_the_answer(integration, fake_provider
     result = answer_job(session, job)
     assert len(private_calls) == 1
     assert SECRET not in json.dumps(result) and 'teacher answer' not in json.dumps(result)
-    assert result['validation'] == ('citation_and_model_review' if verdict == 'consistent' else 'held')
+    assert result['validation'] == ('citation_checked' if verdict == 'consistent' else 'held')
     job.result, job.status = result, 'succeeded'
     session.commit()
     student(client, tokens)
