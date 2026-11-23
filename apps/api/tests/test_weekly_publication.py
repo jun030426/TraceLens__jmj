@@ -144,15 +144,22 @@ def test_publish_requires_ready_reviewed_and_unchanged_review(weekly):
     assert publish(client,gid).status_code==200
 
 
-@pytest.mark.parametrize("status", ["succeeded", "failed"])
-def test_practice_holds_warn_but_failed_job_blocks_publication(weekly, status):
+@pytest.mark.parametrize("status,has_verified", [("succeeded", True), ("succeeded", False), ("failed", True)])
+def test_practice_holds_warn_but_failed_job_blocks_publication(weekly, status, has_verified):
     from lerny.practice import week_exercises
 
     client, session, _ = weekly
+    session.add(Material(id="held-example", course_id="course", week=1, title="held-example.py", kind="example",
+                         visibility="public", active_version_id="held-version"))
+    session.add(MaterialVersion(id="held-version", material_id="held-example", version_no=1, filename="held-example.py",
+                                sha256="a" * 64, object_key="synthetic", status="ready"))
+    session.commit()
     gid = start(client)
     generation = completed(session, gid)
+    if not has_verified:
+        session.delete(session.get(PracticeExercise, gid + "-practice"))
     job = next(j for j in weekly_content.generation_jobs(session, generation) if j.kind == "practice_prepare")
-    held = [{"source_id": "file:synthetic-held", "reason": "INVALID_PRACTICE_PROBES"}]
+    held = [{"source_id": "file:held-version", "reason": "INVALID_PRACTICE_PROBES"}]
     job.status, job.result = status, {"held": held}
     session.commit()
     detail = client.get(f"/api/v1/courses/course/content-generations/{gid}").json()
@@ -164,7 +171,7 @@ def test_practice_holds_warn_but_failed_job_blocks_publication(weekly, status):
     else:
         assert detail["can_publish"] and not detail["blockers"] and practice_job["retryable_practice"]
         assert publish(client, gid).status_code == 200
-        assert [e.id for e, _ in week_exercises(session, "course", 1)] == [gid + "-practice"]
+        assert [e.id for e, _ in week_exercises(session, "course", 1)] == ([gid + "-practice"] if has_verified else [])
 
 
 def test_draft_hidden_then_publication_enables_students_and_retrieval(weekly,monkeypatch):
