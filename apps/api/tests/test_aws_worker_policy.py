@@ -47,6 +47,9 @@ def test_configuration_and_clean_ssm_only_launcher(tmp_path, monkeypatch, role):
     monkeypatch.setattr(os,"execv",lambda _,argv:captured.append(argv))
     runpy.run_path(str(AWS/"start_worker.py"))
     assert captured[0][-2:] == ["lerny.material_daemon",role]
+    release = AWS.parents[1]
+    assert Path(captured[0][0]) == Path("/opt/lerny/runtimes") / release.name / "bin/python"
+    assert Path(os.environ["PYTHONPATH"]) == release / "apps/api"
     config = Settings(**{k.removeprefix("LERNY_").lower():os.environ[k] for k in POLICY})
     assert config.paid_upload_week("course",5) and not config.paid_upload_week("course",4)
     assert config.gemini_review_requests_per_minute == 60 and config.gemini_embedding_requests_per_minute == 120
