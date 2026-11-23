@@ -106,13 +106,48 @@ EXCLUSION_PATTERNS = [
 ]
 
 
+def is_blankable_return(node):
+    if node.value is None:
+        return False
+    calculations = (ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.Compare, ast.Call, ast.IfExp,
+                    ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+    computed = False
+    for child in ast.walk(node.value):
+        if isinstance(child, ast.Call) and getattr(child.func, 'id', getattr(child.func, 'attr', None)) in {'print', 'input'}:
+            return False
+        if isinstance(child, calculations):
+            computed = True
+    return computed
+
+
+def return_lines(code):
+    """Classify physical lines using the complete return expression, including continuations."""
+    if 'return' not in code:
+        return {}
+    try:
+        tree = ast.parse(code)
+    except (SyntaxError, ValueError):
+        return {}
+    lines = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Return):
+            computed = is_blankable_return(node)
+            for i in range(node.lineno - 1, node.end_lineno):
+                lines[i] = lines.get(i, True) and computed
+    return lines
+
+
 class ClozeGenerator:
     """Automated Blank Selection & Cloze Problem Generator for DS & Algorithms."""
 
     @staticmethod
-    def is_excluded_line(line):
+    def is_excluded_line(line, *, return_computed=None):
         stripped = line.strip()
         if not stripped or stripped.startswith('#'):
+            return True
+        if return_computed is None and re.match(r'return\b', stripped):
+            return_computed = return_lines(stripped).get(0, False)
+        if return_computed is False:
             return True
         for pattern in EXCLUSION_PATTERNS:
             if re.search(pattern, stripped):
@@ -120,9 +155,9 @@ class ClozeGenerator:
         return False
 
     @classmethod
-    def score_line(cls, line):
+    def score_line(cls, line, *, return_computed=None):
         """Calculate DSA pedagogical score for a line of code."""
-        if cls.is_excluded_line(line):
+        if cls.is_excluded_line(line, return_computed=return_computed):
             return 0, None
 
         stripped = line.strip()
@@ -144,10 +179,14 @@ class ClozeGenerator:
         code_lines = sum(1 for line in lines if line.strip() and not line.strip().startswith('#'))
         effective_max = max(1, min(max_blanks, code_lines // 2)) if code_lines else max_blanks
         candidates = []
+        returns = return_lines(code)
         for idx, line in enumerate(lines):
-            if idx in protected_lines or cls.is_excluded_line(line):
+            computed = returns.get(idx)
+            if idx in protected_lines or cls.is_excluded_line(line, return_computed=computed):
                 continue
-            score, category = cls.score_line(line)
+            score, category = cls.score_line(line, return_computed=computed)
+            if not score and computed and re.match(r'return\b', line.lstrip()):
+                score, category = 65, "return_expression"
             if not score:
                 stripped = line.strip()
                 parse_target = stripped + "\n    pass" if stripped.endswith(":") else stripped
@@ -155,11 +194,8 @@ class ClozeGenerator:
                     stmt = ast.parse(parse_target).body[0]
                 except (SyntaxError, IndexError, ValueError):
                     continue
-                if isinstance(stmt, ast.Return) and stmt.value is not None:
-                    if isinstance(stmt.value, (ast.BinOp, ast.Call, ast.Compare, ast.BoolOp, ast.IfExp, ast.Subscript, ast.UnaryOp)):
-                        score, category = 65, "return_expression"
-                    else:
-                        score, category = 55, "return_value"
+                if isinstance(stmt, ast.Return) and is_blankable_return(stmt):
+                    score, category = 65, "return_expression"
                 elif isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
                     score, category = 65, "loop_control"
                 elif isinstance(stmt, ast.AugAssign):
@@ -175,7 +211,7 @@ class ClozeGenerator:
                                "answer": line.strip(), "indentation": line[:len(line) - len(line.lstrip())],
                                "score": score, "category": category})
 
-        for threshold in (min_score, 70, 60, 55):
+        for threshold in (min_score, 70, 60):
             eligible = [candidate for candidate in candidates if candidate["score"] >= threshold]
             if eligible:
                 candidates = eligible

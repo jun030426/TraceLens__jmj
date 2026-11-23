@@ -3,6 +3,7 @@ import unittest
 from types import SimpleNamespace
 
 from lerny.practice_inputs import adapted_programs, numeric_program, numeric_source, stdin_case
+from lerny.practice_support import python_blank_template
 from rag_mvp.cloze_generator import ClozeGenerator
 
 
@@ -30,14 +31,54 @@ class PracticeFunctionsAndClozeTests(unittest.TestCase):
         # 7 code lines -> at most 3 blanks (<= half)
         self.assertLessEqual(len(blanks), 3)
 
-    def test_return_expression_and_simple_return_fallback(self):
-        expr_fn = "def double(x):\n    return x * 2\nx = 4\nprint(double(x))\n"
-        blanks = ClozeGenerator.select_blanks(expr_fn, protected_lines={2})
-        self.assertEqual([b["answer"] for b in blanks], ["return x * 2"])
+    def test_only_computed_returns_are_eligible_for_automatic_and_model_blanks(self):
+        for expr in ("x * 2", "f(x)", "a > b", "a and b", "x if c else y", "-x",
+                     "[x for x in items]", "items[i + 1]", "(a, f(x))"):
+            with self.subTest(expr=expr):
+                line = "return " + expr
+                code = "def example(x):\n    " + line
+                self.assertEqual([b["answer"] for b in ClozeGenerator.select_blanks(code)], [line])
+                self.assertEqual(python_blank_template(code, [1], "")[1], {"1": line})
+        for line in ("return", "return total", "return a, b", "return items[0]", 'return "a+b"',
+                     "return 5", "return total  # [blank]", "return input()", "return print(x)"):
+            with self.subTest(line=line):
+                code = "def example(total):\n    " + line
+                self.assertEqual(ClozeGenerator.select_blanks(code), [])
+                self.assertEqual(python_blank_template(code, [1], ""), (code, {}))
 
-        val_fn = "def identity(x):\n    return x\n"
-        blanks2 = ClozeGenerator.select_blanks(val_fn)
-        self.assertEqual([b["answer"] for b in blanks2], ["return x"])
+    def test_model_simple_return_is_replaced_with_calculation_or_print_argument(self):
+        code = "def scale(x):\n    total = x * 2\n    return total"
+        self.assertEqual(python_blank_template(code, [2], "")[1], {"1": "total = x * 2"})
+        code = "def identity(x):\n    return x\nprint(identity(2))"
+        template, blanks = python_blank_template(code, [1], "")
+        self.assertEqual(template, "def identity(x):\n    return x\nprint([[빈칸]])")
+        self.assertEqual(blanks, {"1": "identity(2)"})
+
+    def test_recursive_return_keeps_its_high_priority(self):
+        code = "def fib(n):\n    other = n * 2\n    return fib(n - 1) + fib(n - 2)"
+        blank, = ClozeGenerator.select_blanks(code, max_blanks=1)
+        self.assertEqual((blank["line_no"], blank["score"], blank["category"]),
+                         (3, 100, "algorithm_recursive_call"))
+
+    def test_multiline_value_return_is_excluded_even_on_a_model_selected_continuation(self):
+        code = "def pair(a, b):\n    return (\n        a, b\n    )"
+        self.assertEqual(python_blank_template(code, [1, 2], ""), (code, {}))
+
+    def test_adaptation_repairs_or_holds_a_value_only_return(self):
+        def adapt(body, tail):
+            code = f"def helper(items):\n    {body}\nn = int(input())" + tail
+            chunk = SimpleNamespace(id="example", version_id="v", content=f"```python\n{code}\n```", locator={})
+            proposal = {"source_id": "example", "title": "연습", "prompt": "함수의 결과를 계산해 출력하세요.",
+                        "cases": [[1], [2], [3]], "blank_lines": [2]}
+            held = []
+            programs = adapted_programs([chunk], lambda *_: {"programs": [proposal]}, held=held)
+            return [p.blank_lines for p, _ in programs], held
+
+        self.assertEqual(adapt("return items[0]", "\nresult = n * 2\nprint(result)"), ([[4]], []))
+        self.assertEqual(adapt("return items[0]", "\nprint(n * 2)"), ([[4]], []))
+        self.assertEqual(adapt("return print(items)", "\nprint(n * 2)"), ([[4]], []))
+        self.assertEqual(adapt("return items[n + 1]", "\nprint(n)"), ([[2]], []))
+        self.assertEqual(adapt("return items[0]", ""), ([], [{"source_id": "example", "reason": "INVALID_PRACTICE_BLANK"}]))
 
     def test_short_code_never_blanks_more_than_half_of_lines(self):
         short_fn = (

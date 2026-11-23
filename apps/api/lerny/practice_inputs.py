@@ -9,6 +9,8 @@ import sys
 from decimal import Decimal
 from itertools import dropwhile
 
+from rag_mvp.cloze_generator import is_blankable_return
+
 
 def input_program_identity(chunk_id, code):
     """Compare duplicate proposals only. The stored citation keeps its original bytes."""
@@ -409,9 +411,8 @@ def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None
                 if isinstance(node, (ast.If, ast.For, ast.While)):
                     core.append((1, node.lineno))
                     collect_statements(getattr(node, 'body', []) + getattr(node, 'orelse', []))
-                elif isinstance(node, ast.Return) and node.value is not None:
-                    prio = 2 if isinstance(node.value, (ast.BinOp, ast.Call, ast.Compare, ast.BoolOp)) else 3
-                    core.append((prio, node.lineno))
+                elif isinstance(node, ast.Return) and is_blankable_return(node):
+                    core.append((2, node.lineno))
                 elif isinstance(node, (ast.Assign, ast.AugAssign)):
                     prio = 2 if isinstance(node, ast.AugAssign) or isinstance(getattr(node, 'value', None), (ast.BinOp, ast.Call)) else 3
                     core.append((prio, node.lineno))
@@ -440,6 +441,9 @@ def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None
             # Repair line metadata from verified syntax, never rewrite the source.
             numbers = candidates[:3]
         if not numbers:
+            if held is not None:
+                held.append({'source_id': chunk_ids[key], 'reason': 'INVALID_PRACTICE_BLANK'})
+                continue
             raise ValueError('INVALID_PRACTICE_BLANK')
         if source.get('has_def'):
             starter_prefix = source.get('import_prefix', '')
