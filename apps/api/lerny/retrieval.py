@@ -117,7 +117,7 @@ def internal_validation_context(session, course_id, question, source_ids=None):
     return [content for _, _, content in ranked[:4]]
 
 
-def public_rows(session, course_id, *, version_ids=None, published_only=False):
+def public_rows(session, course_id, *, version_ids=None, published_only=False, chunk_ids=None):
     if published_only:
         from lerny.weekly_content import published_version_ids
         published = published_version_ids(session, course_id)
@@ -132,6 +132,8 @@ def public_rows(session, course_id, *, version_ids=None, published_only=False):
                Material.internal_use == "none", Material.kind != "answer", Material.deleted.is_(False),
                MaterialVersion.status == "ready"))
     query = query.where(Material.active_version_id == MaterialVersion.id) if version_ids is None else query.where(MaterialVersion.id.in_(version_ids))
+    if chunk_ids is not None:
+        query = query.where(Chunk.id.in_(chunk_ids))
     return session.execute(query.order_by(Chunk.id)).all()
 
 

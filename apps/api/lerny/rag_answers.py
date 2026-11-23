@@ -1,17 +1,17 @@
 """Grounded answers and bounded per-student memory on Lerny's authenticated data."""
 
 import json
-import re
 from typing import Literal
 
 from pydantic import Field
 from sqlalchemy import select
 
+from lerny.chat_topics import EXAMPLE_EVIDENCE, EXAMPLE_REQUEST, mentions_topic, previous_topic, topic_terms
 from lerny.evaluation import ensure_epoch, review_references
 from lerny.lecture_contract import StrictModel
 from lerny.lecture_specs import source_snapshot
-from lerny.models import ChatMessage, Chunk, Course, Enrollment, Material, MaterialVersion, Section
-from lerny.retrieval import internal_validation_context, search_public
+from lerny.models import ChatMessage, Course, Enrollment, Section
+from lerny.retrieval import internal_validation_context, public_rows, search_public
 
 
 class Citation(StrictModel):
@@ -120,39 +120,26 @@ def answer_job(session, job):
         for m in reversed(history)
         if m.answer
     ]
-    # 1단계: 기본 질문으로 검색
-    rows = search_public(session, job.course_id, message.question, published_only=True)
-
-    # 2단계 [방법 3: 직전 키워드 결합 2차 검색]
-    # 후속 질문("예시로 설명해줘", "다시 설명해줘")으로 인해 검색 결과가 0건인 경우
-    if not rows and memory:
-        last_q = memory[-1]["question"]
-        kw_matches = re.findall(r"[a-zA-Z0-9_]+(?:\(\))?|[가-힣]{2,}", last_q)
-        stopwords = {"뭐야", "어떻게", "왜", "알려줘", "설명해줘", "알려", "무엇", "인가요", "대해", "설명", "질문"}
-        filtered_kws = [k for k in kw_matches if k not in stopwords]
-        combined_q = f"{' '.join(filtered_kws[:3])} {message.question}" if filtered_kws else f"{last_q} {message.question}"
-        rows = search_public(session, job.course_id, combined_q, published_only=True)
-
-    # 3단계 [방법 2: 직전 검색 자료(슬라이드) 이어받기 폴백]
-    # 키워드 결합으로도 검색 결과가 없으면 직전 턴에서 성공했던 슬라이드 인용 자료를 그대로 계승
-    if not rows and history:
-        last_msg = history[0]
-        last_ans = last_msg.answer or {}
-        prev_chunk_ids = []
-        if isinstance(last_ans, dict):
-            for c in last_ans.get("citations", []):
-                cid = c.get("chunk_id") or c.get("source_id")
-                if cid:
-                    prev_chunk_ids.append(cid)
-        if prev_chunk_ids:
-            chunk_rows = session.execute(
-                select(Chunk, Material, MaterialVersion)
-                .join(MaterialVersion, Chunk.version_id == MaterialVersion.id)
-                .join(Material, MaterialVersion.material_id == Material.id)
-                .where(Chunk.id.in_(prev_chunk_ids))
-            ).all()
-            rows = [row for row in chunk_rows
-                    if source_snapshot(session, job.course_id, row[0].id, published=True)[0] is not None]
+    followup = not topic_terms(message.question)
+    terms, prior_ids = previous_topic(history, context) if followup else ([], [])
+    practice = context.get("mode") == "practice"
+    query_terms = terms
+    if followup and practice and not terms:
+        query_terms = topic_terms(context.get("practice_title") or "")
+    query = " ".join([*query_terms, message.question])
+    rows = search_public(session, job.course_id, query, published_only=True) if terms or not followup or practice else []
+    needs_example = bool(terms and EXAMPLE_REQUEST.search(message.question))
+    if terms:
+        found = {row[0].id for row in rows}
+        missing = set(prior_ids) - found
+        if missing:
+            rows = [*rows, *public_rows(session, job.course_id, published_only=True, chunk_ids=missing)]
+        rows = [row for row in rows if row[0].id in prior_ids or mentions_topic(row[0].content, terms)]
+        rows.sort(key=lambda row: (not (needs_example and EXAMPLE_EVIDENCE.search(row[0].content)),
+                                   row[0].id not in prior_ids))
+        rows = rows[:4]
+        if needs_example and not any(EXAMPLE_EVIDENCE.search(row[0].content) for row in rows):
+            rows = []
 
     result = {
         "message_id": message.id,
@@ -163,6 +150,8 @@ def answer_job(session, job):
         "mode": "gemini_grounded",
         "engine": ENGINE_VERSION,
     }
+    if followup and not terms and not practice:
+        result["answer"] = "어떤 개념이나 함수에 대해 설명할까요? 이름을 알려주시면 강의 자료에서 찾아볼게요."
     if rows:
         sources = [{"source_id": c.id, "text": c.content} for c, _, _ in rows]
         snapshots = [source_snapshot(session, job.course_id, c.id, published=True)[0] for c, _, _ in rows]
@@ -191,7 +180,11 @@ def answer_job(session, job):
         candidate = team.ask_chat(message.question, history=turns)
         output = Answer.model_validate(candidate["candidate"])
         citation_check = check_answer(output.model_dump(), candidate["hits"], message.question)
-        if output.answerable and citation_check["status"] == "citation_checked" and citations_valid(output.claims, evidence):
+        on_topic = not terms or all(c.source_id in prior_ids or mentions_topic(c.quote, terms)
+                                    for c in output.claims)
+        example_cited = not needs_example or any(EXAMPLE_EVIDENCE.search(c.quote) for c in output.claims)
+        if (output.answerable and citation_check["status"] == "citation_checked"
+                and citations_valid(output.claims, evidence) and on_topic and example_cited):
             units = [
                 {"target": str(i), "text": c.text, "source_ids": [c.source_id]}
                 for i, c in enumerate(output.claims)
@@ -200,15 +193,12 @@ def answer_job(session, job):
                 session, job.course_id, message.question,
                 source_ids=[c.id for c, _, _ in rows],
             )
-            # 2차 중복 LLM 검증(review_units)을 1차 고속 인용 일치 검사(citations_valid)로 갈음하여
-            # 응답 시간을 대폭 단축(12초 ➔ 3초)하고 "예시를 알려줘" 같은 후속 질문의 오판 기각을 원천 방지
-            # 비공개 평가 참조(references)가 존재하는 경우에만 안전성 검토(review_references) 수행
             if review_references(units, references, checked_model):
                 lookup = {c.id: (c, m, v) for c, m, v in rows}
                 result.update(
                     answer_kind="grounded",
                     answer="\n\n".join(c.text for c in output.claims),
-                    validation="citation_and_model_review",
+                    validation="citation_checked",
                 )
                 for claim in output.claims:
                     chunk, material, version = lookup[claim.source_id]
