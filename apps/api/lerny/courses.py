@@ -218,7 +218,7 @@ def enroll(body: EnrollInput, session: Db, actor: Actor):
 
 @router.get("/classrooms")
 def classrooms(session: Db, actor: Actor):
-    from lerny.automatic import current_section_week
+    from lerny.automatic import calendar_week
     from lerny.learning import today
     from lerny.theory_week import day_index, week_starts
 
@@ -245,7 +245,7 @@ def classrooms(session: Db, actor: Actor):
                 "quiz_day_index": day_index(week_starts(session, s), week, day) if week else None,
             }
             for e, s, c, t, teacher_name in entries
-            for week in (current_section_week(session, s, day),)
+            for week in (calendar_week(session, s, day) if s.progress_mode == "auto" else s.progress_week,)
         ]
     }
 
