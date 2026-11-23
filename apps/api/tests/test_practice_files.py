@@ -201,6 +201,144 @@ def test_solution_before_declaration_only_creates_blank(weekly, tmp_path, monkey
     assert len(runs) == len(exercise.tests) == 3
 
 
+@pytest.mark.parametrize("extension,kinds", [("py", {"blank"}), ("pptx", {"blank", "full"})])
+@pytest.mark.parametrize("decl", ["amount = 3", "amount = int(input())"])
+def test_same_program_uses_the_starter_from_its_source(weekly, tmp_path, monkeypatch, extension, kinds, decl):
+    _, db, _ = weekly
+    code = f"def scale(value):\n    return value * 2\n{decl}\nprint(scale(amount))"
+    starter = decl + "\n# Write the calculation"
+    variants = ["amount=4", "amount=5"] if decl == "amount = 3" else ["amount=3", "amount=4", "amount=5"]
+    proposal = {"variants": variants, "full_template": starter}
+    job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, [code], proposal)
+    if extension == "pptx":
+        db.get(MaterialVersion, "version").filename = "synthetic.pptx"
+        monkeypatch.setattr(worker, "model_json", lambda *args: {"programs": [{
+            "source_id": "piece-1", "code": code, "title": "출력 연습", "prompt": "예제의 결과를 계산하고 출력하세요.",
+            "input_statement": decl, "blank_lines": [2], **proposal,
+        }]})
+    result = practice.prepare(db, job)
+    rows = [db.get(PracticeExercise, eid) for eid in result["exercise_ids"]]
+    assert len(runs) == 3 and {row.kind for row in rows} == kinds
+    assert all(row.template == starter.replace(decl, row.tests[0]["statement"]) for row in rows if row.kind == "full")
+
+
+@pytest.mark.parametrize("invalid", ["missing", "repeated", "entire_program"])
+def test_ppt_starter_is_checked_before_substituting_stdin(weekly, tmp_path, monkeypatch, invalid):
+    _, db, _ = weekly
+    decl = "amount = int(input())"
+    code = f"def scale(value):\n    return value * 2\n{decl}\nprint(scale(amount))"
+    job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, [code], {})
+    db.get(MaterialVersion, "version").filename = "synthetic.pptx"
+    starter = {"missing": "# implement", "repeated": decl + "\n" + decl, "entire_program": code}[invalid]
+    monkeypatch.setattr(worker, "model_json", lambda *args: {"programs": [{
+        "source_id": "piece-1", "code": code, "title": "출력 연습", "prompt": "예제의 결과를 계산하고 출력하세요.",
+        "input_statement": decl, "variants": ["amount=3", "amount=4", "amount=5"],
+        "blank_lines": [2], "full_template": starter,
+    }]})
+    result = practice.prepare(db, job)
+    assert not runs and result["held"] == [{"source_id": "piece-1", "reason": "INVALID_PRACTICE_TEMPLATE"}]
+
+
+@pytest.mark.parametrize("language,decl,variants", [
+    ("python", "amount = 3", ["amount = 3 + 8", "amount=4", "amount=5", "amount=1001"]),
+    ("java", "int amount = 3;", ["int amount = 3 + 8;", "int amount=4;", "int amount=5;", "int amount=1001;"]),
+    ("c", "int amount = 3;", ["int amount = 3 + 8;", "int amount=4;", "int amount=5;", "int amount=1001;"]),
+])
+def test_only_valid_values_reach_sandbox_and_discard_is_diagnostic(weekly, tmp_path, monkeypatch, language, decl, variants):
+    _, db, _ = weekly
+    code = {
+        "python": f"{decl}\nvalue = amount * 2\nprint(value)",
+        "java": f"class Main {{\npublic static void main(String[] args) {{\n{decl}\nSystem.out.println(amount * 2);\n}}\n}}",
+        "c": f'#include <stdio.h>\nint main(void) {{\n{decl}\nprintf("%d", amount * 2);\n}}',
+    }[language]
+    job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, [code], {})
+    db.get(MaterialVersion, "version").filename = "synthetic.pptx"
+    db.get(Course, "course").teaching_language = language
+    db.flush()
+    monkeypatch.setattr(worker, "model_json", lambda *args: {"programs": [{
+        "source_id": "piece-1", "code": code, "title": "출력 연습", "prompt": "예제의 결과를 계산하고 출력하세요.",
+        "input_statement": decl, "variants": variants, "blank_lines": [2 if language == "python" else 4],
+        "full_template": decl + "\n",
+    }]})
+    result = practice.prepare(db, job)
+    assert len(result["exercise_ids"]) == 2 and not result["held"] and not result["skipped"]
+    assert [entry["index"] for entry in result["discarded_probes"]["piece-1"]] == [1, 4]
+    assert runs == [code, code.replace(decl, variants[1]), code.replace(decl, variants[2])]
+    from lerny.weekly_content import job_view
+    job.result = result
+    view = job_view(job)
+    assert not view["held"] and not view["skipped"] and "discarded_probes" not in view
+
+
+def test_first_stdin_fixture_can_be_discarded(weekly, tmp_path, monkeypatch):
+    job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, ["n = int(input())\nvalue = n * 2\nprint(value)"],
+                                {"variants": ["n = wrong", "n = 2", "n = 3", "n = 4"]})
+    result = practice.prepare(weekly[1], job)
+    assert len(result["exercise_ids"]) == 2 and not result["held"]
+    assert len(runs) == 3 and all("wrong" not in src and "input(" not in src for src in runs)
+    assert result["discarded_probes"]["file:version"][0]["index"] == 1
+
+
+@pytest.mark.parametrize("language,decl,variants", [
+    ("python", "n=1", ["n=+1", "other=2", "n=3.0", "n=2"]),
+    ("c", "int n=1;", ["int n=+1;", "int other=2;", "int n=3.0;", "int n=2;"]),
+    ("java", "int n=1;", ["int n=+1;", "int other=2;", "int n=3.0;", "int n=2;"]),
+])
+def test_semantic_duplicates_wrong_names_and_types_do_not_count(language, decl, variants):
+    rejected = []
+    with pytest.raises(ValueError, match="INVALID_PRACTICE_PROBES"):
+        practice.input_variants(decl, variants, language, rejected=rejected)
+    assert [r["index"] for r in rejected] == [1, 2, 3]
+    assert [r["reason"] for r in rejected] == [
+        "DUPLICATE_PRACTICE_INPUT", "PRACTICE_PROBE_NAMES_MISMATCH", "PRACTICE_PROBE_TYPE_MISMATCH"]
+
+
+@pytest.mark.parametrize("decl,expected", [
+    ("PI = 3.14\nMAX_SIZE = [1,2]", "fixed"),
+    ("MAX_SIZE = [1,2]\ncount = 4", "count = 4"),
+    ("PI = 3.14\ncount = 4\nitems = [1,2]", "items = [1,2]"),
+    ("items = [1,2]\nname = input()", "name = input()"),
+])
+def test_file_input_priority(decl, expected):
+    mode, statement, _ = practice_files.python_shape(decl + "\nprint(1)")
+    assert (statement or mode) == expected
+
+
+@pytest.mark.parametrize("decl,variants", [
+    ("MAX_SIZE = 7", []),
+    ("MAX_SIZE = int(input())", ["MAX_SIZE = 7"]),
+])
+def test_uppercase_only_file_uses_a_single_fixed_blank(weekly, tmp_path, monkeypatch, decl, variants):
+    job, original, _, runs = setup_file(weekly, tmp_path, monkeypatch,
+        [decl + "\nvalue = MAX_SIZE * 2\nprint(value)"], {"variants": variants})
+    result = practice.prepare(weekly[1], job)
+    (exercise,) = [weekly[1].get(PracticeExercise, eid) for eid in result["exercise_ids"]]
+    assert exercise.reference == original and exercise.kind == "blank"
+    assert len(runs) == len(exercise.tests) == 1 and "input(" not in runs[0]
+    assert "input" not in exercise.tests[0] and "statement" not in exercise.tests[0]
+
+
+@pytest.mark.parametrize("language,keyword", [("java", "final"), ("c", "const")])
+def test_native_constants_cannot_be_proposed_by_quoting_only_the_assignment(language, keyword):
+    code = f"{keyword} int limit = 2;\nint SIZE = 5;\nint count = 3;"
+    for stmt in (f"{keyword} int limit = 2;", "int limit = 2;", "limit = 2;", "int SIZE = 5;"):
+        with pytest.raises(ValueError, match="UNSUPPORTED_PRACTICE_INPUT"):
+            practice.input_variants(stmt, [stmt.replace("2", "6"), stmt.replace("2", "8")], language, source=code)
+    assert len(practice.input_variants("int count = 3;", ["int count=4;", "int count=5;"], language, source=code)) == 3
+    rejected = []
+    accepted = practice.input_variants("int count = 3;", ["intcount=8;", "int count=4;", "int count=5;"],
+                                      language, rejected=rejected, source=code)
+    assert len(accepted) == 3 and rejected == [{"index": 1, "reason": "PRACTICE_PROBE_NAMES_MISMATCH"}]
+
+
+@pytest.mark.parametrize("language", ["java", "c"])
+def test_native_float_rounding_does_not_create_a_distinct_probe(language):
+    rejected = []
+    result = practice.input_variants("float n=1.0f;", [
+        "float n=1.00000001f;", "float n=2.0f;", "float n=3.0f;"], language, rejected=rejected)
+    assert len(result) == 3 and rejected == [{"index": 1, "reason": "DUPLICATE_PRACTICE_INPUT"}]
+
+
 @pytest.mark.parametrize("declaration,variants", [
     ("items = [1, 2]", ["items = [3]", "items = [4, 5]"]),
     ("items = input()", ["items = 'a'", "items = 'bb'", "items = 'ccc'"]),

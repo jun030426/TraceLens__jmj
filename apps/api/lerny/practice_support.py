@@ -256,7 +256,7 @@ def editor_reference(exercise):
     reference = exercise.reference or ""
     tests = getattr(exercise, "tests", None) or []
     if tests and (original := tests[0].get("source_statement")):
-        return reference.replace(original, tests[0]["statement"], 1)
+        return reference.replace(original, tests[0].get("fixture_statement") or tests[0]["statement"], 1)
     return reference
 
 
@@ -347,7 +347,7 @@ def normalize_blanks_and_template(exercise):
     if exercise.language != "python" or exercise.kind != "blank" or not reference:
         return template, blanks
     tests = getattr(exercise, "tests", None) or []
-    statement = tests[0].get("statement", "") if tests else ""
+    statement = (tests[0].get("statement") or tests[0].get("fixture_statement", "")) if tests else ""
     hidden_input = statement and statement in reference and statement not in template
     forbidden = any(re.match(r"(?:print|input)\s*\(", answer.lstrip()) for answer in blanks.values())
     if hidden_input or forbidden or len(blanks) > 4:

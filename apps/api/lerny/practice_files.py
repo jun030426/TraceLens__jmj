@@ -189,7 +189,7 @@ def python_shape(code, *, stdin_only=False):
             kind = literal_type(value)
         except (ValueError, TypeError, SyntaxError):
             kind = None
-        if kind and kind != "str":
+        if kind and kind != "str" and not name.isupper():
             literals.append((node, name, kind))
     if calls:
         if (
@@ -201,7 +201,7 @@ def python_shape(code, *, stdin_only=False):
             raise ValueError("PRACTICE_INPUT_POSITION")
         start, end = declarations[0][1], declarations[-1][1]
         return (
-            "stdin",
+            "fixed_stdin" if not stdin_only and all(name.isupper() for _, _, name, _ in declarations) else "stdin",
             "".join(lines[start - 1 : end]).rstrip("\r\n"),
             [(name, kind) for _, _, name, kind in declarations],
         )

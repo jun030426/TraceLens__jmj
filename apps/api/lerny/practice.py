@@ -1,12 +1,11 @@
 """Weekly source-code exercises; final grading always uses the isolated worker."""
 import hashlib
 import json
-import re
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Header, Response
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, WithJsonSchema
 from sqlalchemy import func, select
 
 from lerny.auth import Input
@@ -33,7 +32,8 @@ class SourceProgram(BaseModel):
     title: str = Field(min_length=2, max_length=150)
     prompt: str = Field(min_length=10, max_length=2000)
     input_statement: str = Field(max_length=500)
-    variants: list[Annotated[str, Field(max_length=1500)]] = Field(max_length=4)
+    # Keep the model's response schema bounded; malformed individual proposals are reported separately.
+    variants: list[Annotated[Any, WithJsonSchema({"type":"string", "maxLength":1500})]] = Field(max_length=4)
     blank_lines: list[int] = Field(min_length=1, max_length=5)
     full_template: str = Field(max_length=3000)
 
@@ -82,34 +82,11 @@ def output_of(language, source, *, owner_id=None, section_id=None):
     return "".join(event.get("stdout", "") for event in envelope["events"]).replace("\r\n", "\n").rstrip()
 
 
-def input_variants(statement, variants, language="python"):
+def input_variants(statement, variants, language="python", *, rejected=None, source=None):
+    from lerny.practice_inputs import literal_inputs, native_inputs
     if language == "python":
-        from lerny.practice_inputs import literal_inputs
-        return literal_inputs(statement, variants)
-    match = re.fullmatch(r"\s*(?:(?:int|long|short|float|double|const|static|final)\s*(?:\[\])?\s*)*"
-                         r"[A-Za-z_]\w*(?:\[\])?\s*=\s*(.+)", statement)
-    if not match or "\n" in statement:
-        raise ValueError("UNSUPPORTED_PRACTICE_INPUT")
-    # Numeric array length is input data too. Preserve assignment/type/brackets
-    # and reject expressions or executable tokens while allowing more/fewer values.
-    def skeleton(value):
-        numeric = re.sub(r"\s+", "", re.sub(r"(?<![\w.])[+-]?\d+(?:\.\d+)?", "#", value))
-        return re.sub(r"(?<=[\[{])#(?:,#)+(?=[\]}])", "#", numeric)
-    number = r"[+-]?\d+(?:\.\d+)?"
-    sequence = rf"{number}(?:\s*,\s*{number}){{0,63}}"
-    values = list(dict.fromkeys([statement, *variants]))
-    for value in values:
-        if skeleton(value) != skeleton(statement):
-            raise ValueError("INVALID_PRACTICE_PROBES")
-        rhs = value.split("=", 1)[1].strip().removesuffix(";").strip()
-        rhs = re.sub(r"^new\s+(?:int|long|float|double)\s*\[\]\s*", "", rhs)
-        if not re.fullmatch(rf"(?:{number}|\{{\s*{sequence}\s*\}}|\[\s*{sequence}\s*\])", rhs):
-            raise ValueError("UNSUPPORTED_PRACTICE_INPUT")
-    if len(values) < 3:
-        raise ValueError("INVALID_PRACTICE_PROBES")
-    if any(int(n) > 1000 for value in values for n in re.findall(r"\d+", value)):
-        raise ValueError("PRACTICE_INPUT_TOO_LARGE")
-    return values
+        return literal_inputs(statement, variants, rejected=rejected, source=source)
+    return native_inputs(statement, variants, language=language, rejected=rejected, source=source)
 
 
 def prepare(session, job):
@@ -163,7 +140,10 @@ def prepare(session, job):
         "file: 출처는 code를 빈 문자열로 반환하라. 서버가 인용으로 검증된 파일 전체를 그대로 사용한다. "
         "input_statement는 원문 입력 선언이다. 파일에 주어진 statement를 그대로 쓴다. "
         "variants에는 변수명과 순서를 유지한 리터럴 대입만 쓴다. 숫자·문자열·리스트를 지원한다. "
-        "stdin 유형은 input()을 대체할 리터럴 선언 3개, literal은 원래 선언 외 2개 이상을 제시한다. "
+        "stdin 유형은 input()을 대체할 리터럴 선언 3~4개, literal은 원래 선언 외 2개 이상을 제시한다. "
+        "명시적 입력과 리스트를 우선하고 다른 후보가 있으면 대문자 상수를 입력으로 고르지 않는다. "
+        "Java final과 C const는 입력에서 제외한다. stdin의 대문자 변수는 같은 값을 유지한다. "
+        "fixed_stdin은 대문자 입력만 있는 빈칸형이다. 예시 리터럴 선언 하나만 제시한다. "
         "fixed 또는 입력 없는 완전한 프로그램은 input_statement와 full_template이 빈 문자열, variants는 빈 배열이다. "
         "서로 다른 출력을 만들고 경계값도 포함한다. 숫자는 절댓값 1000 이내. "
         "blank_lines는 핵심 계산/제어 코드의 1부터 시작하는 줄 번호, 입력 선언과 껍데기 괄호만인 줄은 제외한다. "
@@ -189,10 +169,11 @@ def prepare(session, job):
         if any(item.source_id not in allowed for item in output.programs):
             raise ValueError("INVALID_PRACTICE_SOURCE")
         found.extend(output.programs)
-    original_quotes = {}
+    original_quotes, discarded = {}, {}
+    held = []
     if language == "python":
         from lerny.practice_inputs import adapted_programs, input_program_identity
-        adapted = adapted_programs(ordinary, model_json, versions)
+        adapted = adapted_programs(ordinary, model_json, versions, discarded=discarded, held=held)
         for program, quote in adapted:
             original_quotes[(program.source_id, program.code)] = quote
         # A direct model proposal can repeat the stdin original using LF or
@@ -202,7 +183,7 @@ def prepare(session, job):
             p for p in found if input_program_identity(p.source_id, p.code) not in adapted_inputs]
     proposed = {p.source_id for p in found}
     skipped.extend({"source_id": k, "reason": "PRACTICE_NO_PROPOSAL"} for k in citations if k not in proposed)
-    created, held = [], []
+    created = []
     reused = False
     for position, item in enumerate(found, 1):
         source = sources.get(item.source_id)
@@ -225,6 +206,7 @@ def prepare(session, job):
             continue
         try:
             reference = item.code
+            rejected = discarded.setdefault(item.source_id, [])
             if item.source_id not in citations:
                 check_program_size(reference)
             statement = item.input_statement
@@ -237,21 +219,27 @@ def prepare(session, job):
                 statement = statement.replace("\r\n", "\n")
                 item = item.model_copy(update={"code": item.code.replace("\r\n", "\n"), "input_statement": statement,
                     "full_template": item.full_template.replace("\r\n", "\n"),
-                    "variants": [v.replace("\r\n", "\n") for v in item.variants]})
+                    "variants": [v.replace("\r\n", "\n") if isinstance(v, str) else v for v in item.variants]})
             if statement and item.code.count(statement) != 1:
                 raise ValueError("INVALID_PRACTICE_SOURCE")
             allow_full = bool(statement)
-            if statement and language == "python":
+            server_starter = shape is not None and (item.source_id in citations or not item.full_template.strip())
+            if allow_full and not server_starter and (
+                item.full_template.count(statement) != 1 or len(item.full_template) >= len(item.code)
+            ):
+                raise ValueError("INVALID_PRACTICE_TEMPLATE")
+            if statement and server_starter:
                 prefix = item.code.partition(statement)[0]
-                allow_full = safe_full_prefix(prefix)
-                if shape:
-                    starter = prefix + statement + "\n# 구현하세요." if allow_full else ""
-                    item = item.model_copy(update={"full_template": starter})
-            if shape and shape[0] == "stdin":
+                allow_full = shape[0] != "fixed_stdin" and safe_full_prefix(prefix)
+                starter = prefix + statement + "\n# 구현하세요." if allow_full else ""
+                item = item.model_copy(update={"full_template": starter})
+            fixed_stdin = shape is not None and shape[0] == "fixed_stdin"
+            if shape and shape[0] in ("stdin", "fixed_stdin"):
                 from lerny.practice_inputs import literal_inputs
-                if len(item.variants) < 3:
+                if not item.variants:
                     raise ValueError("INVALID_PRACTICE_PROBES")
-                inputs = literal_inputs(item.variants[0], item.variants[1:], expected=shape[2])
+                inputs = literal_inputs(item.variants[0], item.variants[1:], expected=shape[2], rejected=rejected,
+                    minimum=1 if fixed_stdin else 3, freeze_upper=item.source_id in citations)
                 # The immutable reference remains the cited file. Editors and sandbox cases use literal fixtures.
                 first_line = item.code[:item.code.index(statement)].count("\n") + 1
                 last_line = first_line + len(statement.splitlines()) - 1
@@ -259,8 +247,10 @@ def prepare(session, job):
                 numbers = [n if n < first_line else n + offset for n in item.blank_lines if not first_line <= n <= last_line]
                 item = item.model_copy(update={"code":item.code.replace(statement, inputs[0], 1), "blank_lines":numbers,
                     "full_template":item.full_template.replace(statement, inputs[0], 1), "input_statement":inputs[0]})
+                if fixed_stdin:
+                    inputs = [None]
             elif statement:
-                inputs = input_variants(statement, item.variants, language)
+                inputs = input_variants(statement, item.variants, language, rejected=rejected, source=item.code)
             elif not item.variants and (language == "python" and (shape or python_shape(item.code))[0] == "fixed"
                                          or item.source_id in citations and fixed_native_program(language, item.code)):
                 inputs = [None]
@@ -275,7 +265,7 @@ def prepare(session, job):
                 numbers = valid_numbers
             elif numbers != valid_numbers:
                 raise ValueError("INVALID_PRACTICE_BLANK")
-            if allow_full and (item.full_template.count(item.input_statement) != 1 or (not shape and len(item.full_template) >= len(item.code))):
+            if allow_full and item.full_template.count(item.input_statement) != 1:
                 raise ValueError("INVALID_PRACTICE_TEMPLATE")
             if language == "python":
                 from lerny.practice_support import python_blank_template
@@ -297,12 +287,14 @@ def prepare(session, job):
                 if output is None or not output or len(output) > 4000:
                     raise ValueError("PRACTICE_REFERENCE_UNVERIFIED")
                 case = {"expected": output}
-                if statement:
+                if fixed_stdin:
+                    case.update(source_statement=shape[1], fixture_statement=item.input_statement)
+                elif statement:
                     case.update(statement=item.input_statement, input=input_code)
                     if shape and shape[0] == "stdin":
                         case["source_statement"] = shape[1]
                 tests.append(case)
-            if statement and len({test["expected"] for test in tests}) < 2:
+            if statement and not fixed_stdin and len({test["expected"] for test in tests}) < 2:
                 raise ValueError("PRACTICE_PROBES_INEFFECTIVE")
         except ValueError as exc:
             held.append({"source_id":item.source_id,"reason":str(exc)})
@@ -315,8 +307,8 @@ def prepare(session, job):
                 generation_id=job.payload.get("generation_id"),
                 concept_id=item.concept_id if item.concept_id in concept_ids else None,
                 source_key=key, position=position, kind=kind, language=language, title=item.title,
-                prompt=item.prompt + ("\n원문의 입력은 실습용 값으로 미리 지정했어요." if (shape and shape[0] == "stdin") or quote != reference else "")
-                    + ("\n입력 선언은 그대로 두고 알고리즘을 구현하세요. 다른 입력으로도 검증해요." if statement else "\n빈칸을 채워 예시 출력을 완성하세요."),
+                prompt=item.prompt + ("\n원문의 입력은 실습용 값으로 미리 지정했어요." if (shape and shape[0] in ("stdin","fixed_stdin")) or quote != reference else "")
+                    + ("\n입력 선언은 그대로 두고 알고리즘을 구현하세요. 다른 입력으로도 검증해요." if statement and not fixed_stdin else "\n빈칸을 채워 예시 출력을 완성하세요."),
                 template=template, reference=reference, blanks=blanks if kind == "blank" else {},
                 tests=tests, sources=citations.get(item.source_id, [{"chunk_id":item.source_id,"quote":quote}]), status="ready")
             session.add(exercise)
@@ -331,7 +323,8 @@ def prepare(session, job):
         generation_for_job(session,job)
     if not created and not reused and not held and not skipped:
         skipped.append({"reason": "PRACTICE_NO_PROPOSAL"})
-    return {"exercise_ids":created,"held":held,"skipped":skipped,"status":"ready" if created or reused else "no_verified_source_code"}
+    return {"exercise_ids":created,"held":held,"skipped":skipped,"discarded_probes":{k:v for k,v in discarded.items() if v},
+            "status":"ready" if created or reused else "no_verified_source_code"}
 
 
 def attempt_view(attempt, *, source_available=True):

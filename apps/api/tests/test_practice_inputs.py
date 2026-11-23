@@ -83,6 +83,21 @@ def test_only_distinct_finite_numeric_fixtures(cases):
     with pytest.raises(ValueError): adapt(cases=cases)
 
 
+def test_attested_stdin_adapter_discards_only_the_bad_case():
+    chunk = SimpleNamespace(id='numeric', content='```python\n'+CODE+'\n```')
+    discarded, held = {}, []
+    def model(*args):
+        return {'programs':[proposal(cases=[['wrong',4],[2,4],[0,2],[-2,8]])]}
+    (program, _), = adapted_programs([chunk], model, discarded=discarded, held=held)
+    assert not held and discarded == {'numeric':[{'index':1, 'reason':'PRACTICE_PROBE_TYPE_MISMATCH'}]}
+    assert program.input_statement == 'a = 2\nb = 4.0'
+    assert program.variants == ['a = 0\nb = 2.0','a = -2\nb = 8.0']
+    def insufficient(*args):
+        return {'programs':[proposal(cases=[[2,4],[0,2],[2.0,4.0]])]}
+    assert adapted_programs([chunk], insufficient, discarded=discarded, held=held) == []
+    assert held == [{'source_id':'numeric','reason':'INVALID_PRACTICE_PROBES'}]
+
+
 def test_multiline_variants_cannot_change_logic_or_variable_order():
     for changed in ['a = 3\nb = 4\nprint(a)', 'b = 3\na = 4', 'a = 3\nb = 2+4']:
         with pytest.raises(ValueError): literal_inputs('a = 1\nb = 2',['a = 2\nb = 3',changed])
