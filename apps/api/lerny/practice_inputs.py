@@ -123,7 +123,7 @@ def python_literals(text):
     return names, tuple(values)
 
 
-def literal_inputs(statement, variants, *, expected=None, rejected=None, minimum=3, freeze_upper=False, source=None):
+def literal_inputs(statement, variants, *, expected=None, rejected=None, source=None):
     """The cited declaration is mandatory. For stdin all supplied fixtures are proposals."""
     original = ()
     if expected is None:
@@ -134,8 +134,6 @@ def literal_inputs(statement, variants, *, expected=None, rejected=None, minimum
             if any(not name.isupper() and (name, kind) not in expected for name, kind in preferred):
                 raise ValueError('UNSUPPORTED_PRACTICE_INPUT')
 
-    constants = {}
-
     def inspect(text):
         names, values = python_literals(text)
         if [name for name, _ in names] != [name for name, _ in expected]:
@@ -145,13 +143,9 @@ def literal_inputs(statement, variants, *, expected=None, rejected=None, minimum
         for base, value in zip(original, values):
             if isinstance(base, tuple) and base and not {type(v) for v in value} <= {type(v) for v in base}:
                 raise ValueError('PRACTICE_PROBE_TYPE_MISMATCH')
-        if freeze_upper:
-            for (name, _), value in zip(names, values):
-                if name.isupper() and constants.setdefault(name, value) != value:
-                    raise ValueError('PRACTICE_PROBE_CONSTANT_CHANGED')
         return text, values
 
-    return distinct_probes([statement, *variants], inspect, rejected, start=0 if original else 1, minimum=minimum)
+    return distinct_probes([statement, *variants], inspect, rejected, start=0 if original else 1)
 
 
 NATIVE_DECL = re.compile(
@@ -211,7 +205,7 @@ def native_literals(text, declared_type=None, language=None):
 def native_candidates(source):
     """Find primitive declarations even if a proposal omits a modifier from its quote."""
     code = re.sub(r'//[^\n]*|/\*[\s\S]*?\*/|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'', ' ', source)
-    constants, mutable, types = set(), {}, {}
+    constants, types = set(), {}
     for match in re.finditer(r'\b(?:(?:public|private|protected|static|volatile|const|final|signed|unsigned)\s+)*'
                              r'(?P<type>int|long|short|float|double)\b'
                              r'\s*(?:const\s+)?(?:\[\s*\]\s*)?(?P<name>[A-Za-z_]\w*)', code):
@@ -219,22 +213,14 @@ def native_candidates(source):
         types[name] = match['type']
         if re.search(r'\b(?:const|final)\b', match[0]):
             constants.add(name)
-            continue
-        statement = code[match.start('type'):].partition(';')[0] + ';'
-        try:
-            signature, _ = native_literals(statement)
-        except ValueError:
-            continue
-        mutable[name] = (name.isupper(), not bool(signature[2]))
-    return constants, mutable, types
+    return constants, types
 
 
 def native_inputs(statement, variants, *, language, rejected=None, source=None):
-    constants, candidates, types = native_candidates(source or '')
+    constants, types = native_candidates(source or '')
     signature, _ = native_literals(statement)
     selected = NATIVE_DECL.fullmatch(statement.partition('=')[0].strip())['name']
-    rank = (selected.isupper(), not bool(signature[2]))
-    if (source and selected not in types) or selected in constants or any(option < rank for option in candidates.values()):
+    if (source and selected not in types) or selected in constants or selected.isupper():
         raise ValueError('UNSUPPORTED_PRACTICE_INPUT')
     native_literals(statement, types.get(selected), language)
 

@@ -71,23 +71,10 @@ def setup_file(weekly, tmp_path, monkeypatch, parts, response):
     monkeypatch.setattr(practice_files, "source_file", lambda v: nullcontext(path))
 
     def model(prompt, schema):
-        (entry,) = json.loads(prompt.rsplit("\n", 1)[1])["sources"]
+        entry = json.loads(prompt.rsplit("\n", 1)[1])
         assert entry["text"] == code and entry["source_id"] == "file:version"
-        return {
-            "programs": [
-                {
-                    "source_id": entry["source_id"],
-                    "code": "",
-                    "title": "출력 계산",
-                    "prompt": "주어진 프로그램을 완성하고 출력값을 확인하세요.",
-                    "input_statement": entry["statement"],
-                    "variants": [],
-                    "blank_lines": [2],
-                    "full_template": "",
-                    **response,
-                }
-            ]
-        }
+        return {"title": "출력 계산", "prompt": "주어진 프로그램을 완성하고 출력값을 확인하세요.",
+                "variants": [], "blank_lines": [2], **response}
 
     monkeypatch.setattr(worker, "model_json", model)
     runs = []
@@ -168,7 +155,7 @@ def test_changed_literals_use_sandbox_and_keep_original_reference(
         tmp_path,
         monkeypatch,
         [first + "\nresult = len(" + name + ")\nprint(result)"],
-        {"variants": variants, "full_template": first + "\n# 구현"},
+        {"variants": variants},
     )
     result = practice.prepare(db, job)
     rows = list(
@@ -192,7 +179,7 @@ def test_solution_before_declaration_only_creates_blank(weekly, tmp_path, monkey
     job, code, _, runs = setup_file(
         weekly, tmp_path, monkeypatch,
         [prefix, declaration + "\nsize = len(items)\nprint(size)"],
-        {"variants": variants, "full_template": prefix + "\n" + declaration},
+        {"variants": variants},
     )
     result = practice.prepare(weekly[1], job)
     (exercise_id,) = result["exercise_ids"]
@@ -209,7 +196,7 @@ def test_same_program_uses_the_starter_from_its_source(weekly, tmp_path, monkeyp
     starter = decl + "\n# Write the calculation"
     variants = ["amount=4", "amount=5"] if decl == "amount = 3" else ["amount=3", "amount=4", "amount=5"]
     proposal = {"variants": variants, "full_template": starter}
-    job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, [code], proposal)
+    job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, [code], {"variants": variants})
     if extension == "pptx":
         db.get(MaterialVersion, "version").filename = "synthetic.pptx"
         monkeypatch.setattr(worker, "model_json", lambda *args: {"programs": [{
@@ -304,13 +291,9 @@ def test_file_input_priority(decl, expected):
     assert (statement or mode) == expected
 
 
-@pytest.mark.parametrize("decl,variants", [
-    ("MAX_SIZE = 7", []),
-    ("MAX_SIZE = int(input())", ["MAX_SIZE = 7"]),
-])
-def test_uppercase_only_file_uses_a_single_fixed_blank(weekly, tmp_path, monkeypatch, decl, variants):
+def test_uppercase_only_literal_file_uses_a_single_fixed_blank(weekly, tmp_path, monkeypatch):
     job, original, _, runs = setup_file(weekly, tmp_path, monkeypatch,
-        [decl + "\nvalue = MAX_SIZE * 2\nprint(value)"], {"variants": variants})
+        ["MAX_SIZE = 7\nvalue = MAX_SIZE * 2\nprint(value)"], {})
     result = practice.prepare(weekly[1], job)
     (exercise,) = [weekly[1].get(PracticeExercise, eid) for eid in result["exercise_ids"]]
     assert exercise.reference == original and exercise.kind == "blank"
@@ -529,20 +512,8 @@ def test_attested_native_file_uses_fixed_output_gate(weekly, monkeypatch, langua
     monkeypatch.setattr(
         worker,
         "model_json",
-        lambda *a: {
-            "programs": [
-                {
-                    "source_id": "file:version",
-                    "code": "",
-                    "title": "출력 연습",
-                    "prompt": "빈칸을 완성하고 결과를 출력하세요.",
-                    "input_statement": "",
-                    "variants": [],
-                    "blank_lines": [3],
-                    "full_template": "",
-                }
-            ]
-        },
+        lambda *a: {"title": "출력 연습", "prompt": "빈칸을 완성하고 결과를 출력하세요.",
+                    "variants": [], "blank_lines": [3]},
     )
     runs = []
     monkeypatch.setattr(
@@ -551,3 +522,173 @@ def test_attested_native_file_uses_fixed_output_gate(weekly, monkeypatch, langua
     result = practice.prepare(db, job)
     (ex,) = [db.get(PracticeExercise, e) for e in result["exercise_ids"]]
     assert ex.kind == "blank" and ex.reference == code and runs == [(language, code)]
+
+
+def file_metadata(variants=(), line=2):
+    return {"title": "출력 계산", "prompt": "주어진 프로그램을 완성하고 출력값을 확인하세요.",
+            "blank_lines": [line], "variants": list(variants)}
+
+
+@pytest.mark.parametrize("missing_first", [False, True])
+def test_each_file_gets_a_proposal_and_retry_adds_only_missing(weekly, monkeypatch, missing_first):
+    client, db, _ = weekly
+    db.get(MaterialVersion, "version").filename = "synthetic.pptx"
+    for n in range(3):
+        vid = f"example-{n}"
+        source = f"def scale(value):\n    return value * {n+2}\nprint(scale(3))"
+        db.add(Material(id=vid, course_id="course", title=vid, kind="example", week=1,
+                        visibility="public", active_version_id=vid))
+        db.add(MaterialVersion(id=vid, material_id=vid, version_no=1, filename=vid+".py", object_key="unused",
+                               sha256=hashlib.sha256(source.encode()).hexdigest(), status="ready"))
+        db.add(Chunk(version_id=vid, content=source, locator={}))
+        if n == 0:
+            db.add(Chunk(id="slide-example", version_id="version", content=source, locator={}))
+    db.commit()
+    generation = start(client)
+    job = Job(owner_id="teacher", course_id="course", kind="practice_prepare", payload={"generation_id": generation,
+              "source_version_id": "version", "source_version_ids": ["version", "example-0", "example-1", "example-2"]})
+    db.add(job)
+    db.commit()
+    file_calls, document_batches, executions = [], [], []
+    def propose(prompt, schema):
+        data = json.loads(prompt.rsplit("\n", 1)[1])
+        if "sources" in data:
+            document_batches.append([s["source_id"] for s in data["sources"]])
+            assert all(not s.startswith("file:") for s in document_batches[-1])
+            slide = next(s for s in data["sources"] if s["source_id"] == "slide-example")
+            return {"programs": [{**file_metadata(), "source_id": slide["source_id"], "code": slide["text"],
+                                  "input_statement": "", "full_template": ""}]}
+        assert set(schema["properties"]) == {"title", "prompt", "variants", "blank_lines"}
+        file_calls.append(data["source_id"])
+        if missing_first and data["source_id"] == "file:example-2":
+            return {}
+        return file_metadata()
+    monkeypatch.setattr(worker, "model_json", propose)
+    monkeypatch.setattr(practice, "output_of", lambda lang, src, **kw: executions.append(src) or "6")
+    result = practice.prepare(db, job)
+    assert len(document_batches) == 1
+    assert set(file_calls) == {f"file:example-{n}" for n in range(3)}
+    assert all(db.get(PracticeExercise, eid).version_id != "version" for eid in result["exercise_ids"])
+    if not missing_first:
+        assert len(file_calls) == len(result["exercise_ids"]) == len(executions) == 3 and not result["held"]
+        return
+    assert file_calls.count("file:example-2") == 2 and len(executions) == 2
+    assert result["held"] == [{"source_id": "file:example-2", "reason": "PRACTICE_NO_PROPOSAL"}]
+    job.status, job.result = "succeeded", result
+    db.commit()
+    assert client.post(f"/api/v1/courses/course/content-generations/{generation}/retry").json() == {"retried": 1}
+    file_calls.clear()
+    missing_first = False
+    recovered = practice.prepare(db, job)
+    assert file_calls == ["file:example-2"] and len(executions) == 3 and len(recovered["exercise_ids"]) == 1
+    rows = list(db.scalars(select(PracticeExercise).where(PracticeExercise.generation_id == generation)))
+    assert {r.id for r in rows} == set(result["exercise_ids"] + recovered["exercise_ids"])
+    assert sorted(r.position for r in rows) == [1, 2, 3]
+
+
+@pytest.mark.parametrize("alternate", ["effective", "unchanged", "invalid_output"])
+def test_ineffective_list_tries_next_declaration_then_fixed(weekly, tmp_path, monkeypatch, alternate):
+    job, code, _, _ = setup_file(weekly, tmp_path, monkeypatch, [
+        "buffer = [1]\ncount = 2\nvalue = count * 3\nprint(value)"
+    ], {})
+    calls, executions = [], []
+    def propose(prompt, schema):
+        data = json.loads(prompt.rsplit("\n", 1)[1])
+        calls.append(data["statement"])
+        if len(calls) == 1:
+            return file_metadata(["buffer = [3]", "buffer = [4]"], line=3)
+        assert data["retry_reason"] == "PRACTICE_PROBES_INEFFECTIVE"
+        return file_metadata(["count = 3", "count = 4"], line=3)
+    def sandbox(language, src, **kw):
+        executions.append(src)
+        if "count = 3" in src and alternate == "invalid_output":
+            return None
+        return "9" if alternate == "effective" and "count = 3" in src else "6"
+    monkeypatch.setattr(worker, "model_json", propose)
+    monkeypatch.setattr(practice, "output_of", sandbox)
+    result = practice.prepare(weekly[1], job)
+    rows = [weekly[1].get(PracticeExercise, eid) for eid in result["exercise_ids"]]
+    assert not result["held"] and calls == ["buffer = [1]", "count = 2"]
+    assert all(row.reference == code for row in rows)
+    assert len(set(executions)) == len(executions) <= practice_files.FileProbeBudget.limit
+    if alternate == "effective":
+        assert {r.kind for r in rows} == {"blank", "full"}
+        assert all(r.tests[0]["statement"] == "count = 2" for r in rows)
+    else:
+        assert [r.kind for r in rows] == ["blank"] and rows[0].tests == [{"expected": "6"}]
+
+
+def test_uppercase_stdin_has_variable_fixtures_and_legacy_fixed_fixture_still_reads(weekly, tmp_path, monkeypatch):
+    from lerny.practice_support import editor_reference
+    job, code, _, runs = setup_file(weekly, tmp_path, monkeypatch,
+        ["N = int(input())\nvalue = N * 2\nprint(value)"], {"variants": ["N = 2", "N = 3", "N = 4"]})
+    result = practice.prepare(weekly[1], job)
+    rows = [weekly[1].get(PracticeExercise, eid) for eid in result["exercise_ids"]]
+    assert {row.kind for row in rows} == {"blank", "full"} and len(runs) == 3
+    assert all([case["input"] for case in row.tests] == ["N = 2", "N = 3", "N = 4"] for row in rows)
+    blank = next(row for row in rows if row.kind == "blank")
+    blank.tests = [{"source_statement": "N = int(input())", "fixture_statement": "N = 2", "expected": "4"}]
+    weekly[1].commit()
+    weekly[1].refresh(blank)
+    assert editor_reference(blank) == code.replace("N = int(input())", "N = 2")
+    assert practice.exercise_view(weekly[1], blank, weekly[1].get(Material, "material"))["example_input"] == ""
+
+
+@pytest.mark.parametrize("language", ["java", "c"])
+def test_native_file_with_array_allows_selected_scalar(weekly, monkeypatch, language):
+    client, db, _ = weekly
+    prefix, suffix = (("class Main {\npublic static void main(String[] args) {", "System.out.println(count);\n}\n}")
+                      if language == "java" else ("#include <stdio.h>\nint main(void) {", 'printf("%d", count);\n}'))
+    array = "int[] items = {1, 2};" if language == "java" else "int items[] = {1, 2};"
+    code = "\n".join([prefix, array, "int count = 3;", suffix])
+    v = db.get(MaterialVersion, "version")
+    v.filename, v.sha256 = "example."+language, hashlib.sha256(code.encode()).hexdigest()
+    db.get(Course, "course").teaching_language = language
+    db.execute(delete(Chunk).where(Chunk.version_id == v.id))
+    db.add(Chunk(version_id=v.id, content=code, locator={}))
+    db.commit()
+    job = Job(owner_id="teacher", course_id="course", kind="practice_prepare",
+              payload={"generation_id": start(client), "source_version_id": v.id})
+    monkeypatch.setattr(worker, "model_json", lambda *_: file_metadata(
+        ["int count = 3;", "int count = 4;", "int count = 5;"], line=5))
+    runs = []
+    monkeypatch.setattr(practice, "output_of", lambda lang, src, **kw: runs.append(src) or str(len(runs)))
+    result = practice.prepare(db, job)
+    assert not result["held"] and len(runs) == 3
+    assert {db.get(PracticeExercise, eid).kind for eid in result["exercise_ids"]} == {"blank", "full"}
+
+
+def test_legacy_skipped_file_proposal_can_retry_but_permanent_skips_cannot(weekly):
+    client, db, _ = weekly
+    gid = start(client)
+    job = Job(owner_id="teacher", course_id="course", kind="practice_prepare", status="succeeded",
+              payload={"generation_id": gid, "source_version_id": "version"},
+              result={"status":"no_verified_source_code", "exercise_ids":[], "held":[],
+                      "skipped":[{"source_id":"file:synthetic", "reason":"PRACTICE_NO_PROPOSAL"}]})
+    db.add(job)
+    db.commit()
+    url = f"/api/v1/courses/course/content-generations/{gid}/retry"
+    assert client.post(url).json() == {"retried": 1}
+    job.status, job.result = "succeeded", {"skipped":[{"source_id":"file:synthetic", "reason":"PRACTICE_LOOP_INPUT"}]}
+    db.commit()
+    assert client.post(url).status_code == 409
+
+
+def test_file_sandbox_limit_and_cached_outputs_survive_worker_replay(tmp_path):
+    receipt = tmp_path / "probes.json"
+    calls = []
+    def evaluate(source):
+        calls.append(source)
+        return "12"
+    for n in range(practice_files.FileProbeBudget.limit):
+        assert practice_files.FileProbeBudget(receipt).run(f"synthetic-{n}", evaluate) == "12"
+    resumed = practice_files.FileProbeBudget(receipt)
+    assert resumed.run("synthetic-0", evaluate) == "12"
+    with pytest.raises(ValueError, match="PRACTICE_PROBES_INEFFECTIVE"):
+        resumed.run("one more", evaluate)
+    assert len(calls) == 11
+
+
+def test_python_alternate_order_leaves_uppercase_literals_last():
+    source = "factor=2\nCAP=[3]\nvalues=[1]\nprint(factor)"
+    assert [s[1] for s in practice_files.python_shapes(source)] == ["values=[1]", "factor=2", "CAP=[3]"]

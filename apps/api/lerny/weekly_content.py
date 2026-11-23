@@ -144,7 +144,9 @@ def retryable_practice(job):
         return False
     result = job.result or {}
     # Earlier workers finished empty drafts without recording per-source reasons.
-    return bool(result.get("held")) or (result.get("status") == "no_verified_source_code"
+    missed_file = any(entry.get("reason") == "PRACTICE_NO_PROPOSAL" and
+                      str(entry.get("source_id", "")).startswith("file:") for entry in result.get("skipped", []))
+    return missed_file or bool(result.get("held")) or (result.get("status") == "no_verified_source_code"
         and result.get("exercise_ids") == [] and "skipped" not in result)
 
 
