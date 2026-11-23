@@ -139,12 +139,22 @@ def generation_jobs(session, generation):
         Job.payload["generation_id"].as_string() == generation.id).order_by(Job.created_at, Job.id)))
 
 
+def retryable_practice(job):
+    if job.kind != "practice_prepare" or job.status != "succeeded":
+        return False
+    result = job.result or {}
+    # Earlier workers finished empty drafts without recording per-source reasons.
+    return bool(result.get("held")) or (result.get("status") == "no_verified_source_code"
+        and result.get("exercise_ids") == [] and "skipped" not in result)
+
+
 def job_view(job):
     return {"id": job.id, "kind": job.kind, "status": job.status, "error_code": job.error_code,
             "concept_id": job.payload.get("concept_id"), "retry_at": job.lease_until,
             "result_status": (job.result or {}).get("status"),
             "validation_issues": (job.result or {}).get("validation_error", {}).get("issues", []),
-            "held": (job.result or {}).get("held", [])}
+            "held": (job.result or {}).get("held", []),
+            "skipped": (job.result or {}).get("skipped", []), "retryable_practice": retryable_practice(job)}
 
 
 def artifacts(session, generation):
@@ -401,7 +411,7 @@ def retry(course_id: str, generation_id: str, session: Db, actor: Actor):
     for job in generation_jobs(session,generation):
         if (generation.options or {}).get("video_mode") == "none" and job.kind == "narration_lesson":
             continue
-        if job.status=="failed" or (job.kind=="practice_prepare" and job.status=="succeeded" and (job.result or {}).get("held")):
+        if job.status=="failed" or retryable_practice(job):
             if job.kind == "weekly_content" and job.error_code in {
                 "PROCESSING_FAILED", "CONCEPT_QUOTE_TOO_SHORT", "CONCEPT_RESPONSE_INVALID",
                 "INVALID_CONCEPT_EVIDENCE", "GEMINI_SERVICE_RETRY_EXHAUSTED",

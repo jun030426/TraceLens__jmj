@@ -61,13 +61,18 @@ def test_verified_ppt_shape_preserves_numeric_example(combined):
 
 @pytest.mark.parametrize('code',[
     'a = int(input()); print(a)',
-    'name = input("이름:")\nprint(name)',
-    'a = int(input())\nb = input()\nprint(a,b)',
+    'while True:\n    name = input()\n    print(name)',
     'a = int(input(fetch()))\nprint(a)',
     'a = int(input())\na = int(input())\nprint(a)',
 ])
 def test_unsupported_inputs_are_not_adapted(code):
     assert numeric_source('```python\n'+code+'\n```') is None
+
+
+def test_mixed_number_and_string_prefix_is_adapted_as_literals():
+    source = 'a = int(input())\nb = input()\nprint(b * a)'
+    program, original = adapt(source, cases=[[1,'a'],[2,'b'],[3,'c']])[0]
+    assert original == source and program.input_statement == "a = 1\nb = 'a'"
 
 
 @pytest.mark.parametrize('cases',[
@@ -76,6 +81,21 @@ def test_unsupported_inputs_are_not_adapted(code):
 ])
 def test_only_distinct_finite_numeric_fixtures(cases):
     with pytest.raises(ValueError): adapt(cases=cases)
+
+
+def test_attested_stdin_adapter_discards_only_the_bad_case():
+    chunk = SimpleNamespace(id='numeric', content='```python\n'+CODE+'\n```')
+    discarded, held = {}, []
+    def model(*args):
+        return {'programs':[proposal(cases=[['wrong',4],[2,4],[0,2],[-2,8]])]}
+    (program, _), = adapted_programs([chunk], model, discarded=discarded, held=held)
+    assert not held and discarded == {'numeric':[{'index':1, 'reason':'PRACTICE_PROBE_TYPE_MISMATCH'}]}
+    assert program.input_statement == 'a = 2\nb = 4.0'
+    assert program.variants == ['a = 0\nb = 2.0','a = -2\nb = 8.0']
+    def insufficient(*args):
+        return {'programs':[proposal(cases=[[2,4],[0,2],[2.0,4.0]])]}
+    assert adapted_programs([chunk], insufficient, discarded=discarded, held=held) == []
+    assert held == [{'source_id':'numeric','reason':'INVALID_PRACTICE_PROBES'}]
 
 
 def test_multiline_variants_cannot_change_logic_or_variable_order():

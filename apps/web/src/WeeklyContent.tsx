@@ -3,12 +3,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { api, post } from "./api";
 import { ErrorNotice, Notice, useLoad } from "./components";
 import { featureBlock, useServiceStatus } from "./ServiceStatus";
-import { conceptValidationMessage, jobMessage, taskName, type ConceptValidationIssue } from "./materialProcessing";
+import { conceptValidationMessage, emptyPracticeMessage, jobMessage, practiceReason, taskName, type ConceptValidationIssue } from "./materialProcessing";
 import "./weekly-content.css";
 import { GoogleSlidesConnection, TeachingSlides } from "./GoogleSlides";
 
 type Source = { material_id: string; title: string; kind: string; version_id: string; ready: boolean; status: string };
-type Work = { id: string; kind: string; status: string; required?: boolean; error_code: string | null; retry_at: string | null; result_status: string | null; held: { reason: string }[]; validation_issues?: ConceptValidationIssue[] };
+type Work = { id: string; kind: string; status: string; required?: boolean; error_code: string | null; retry_at: string | null; result_status: string | null; held: { reason: string }[]; skipped?: { reason: string }[]; retryable_practice?: boolean; validation_issues?: ConceptValidationIssue[] };
 type Generation = {
   id: string; week: number; status: string; state: string; stale: boolean; can_publish: boolean;
   published_at: string | null; sources: Source[]; blockers: string[]; jobs: Work[];
@@ -19,7 +19,7 @@ type Week = { week: number; sources: Source[]; source_hash: string; sources_read
 type Question = { id: string; concept_id: string; kind: string; prompt: string; options: string[]; sources_current: boolean;
   solution: { answer_index: number; explanation: string; criteria: string[] }; sources: { chunk_id: string; quote: string }[] };
 type Exercise = { id: string; title: string; kind: string; language: string; prompt: string; template: string; reference: string;
-  tests: { input: string; expected: string }[]; sources: { quote: string }[]; status: string };
+  tests: { input?: string; expected: string }[]; sources: { quote: string }[]; status: string };
 type Video = { id: string; title: string; concept_id: string; included?: boolean; status: string; play_url: string | null; poster_url?: string | null; error_code?: string;
   script?: { lesson?: { narration: string[]; key_facts: string[] } } };
 type Review = Generation & { review_token: string; concepts: { id: string; name: string; description: string; version_id: string }[];
@@ -30,6 +30,14 @@ const stateName: Record<string, string> = {
 };
 const jobState: Record<string, string> = { succeeded: "완료", queued: "대기", running: "처리 중", waiting_ai: "AI 연결 대기", failed: "실패", cancelled: "중단" };
 const videoState: Record<string, string> = { ready: "재생 가능", script_pending: "대본 준비 중", queued: "영상 생성 대기", processing: "영상 생성 중", submitting: "영상 요청 중", failed: "실패", held: "검토 필요", waiting_ai: "AI 연결 대기", waiting_credits: "API 크레딧 충전 대기", cancelled: "중단" };
+
+function PracticeReasons({ job }: { job: Work }) {
+  const reasons = [...new Set([...job.held, ...(job.skipped ?? [])].map(item => practiceReason(item.reason)))];
+  const message = emptyPracticeMessage(job.result_status);
+  return <>{message && <p>{message}</p>}
+    {reasons.length > 0 && <ul>{reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+    {!reasons.length && message && <p>{practiceReason(job.result_status === "no_supported_language" ? "PRACTICE_FILE_LANGUAGE" : "PRACTICE_NO_PROPOSAL")}</p>}</>;
+}
 
 function GenerationFailures({ jobs }: { jobs: Work[] }) {
   const failed = jobs.filter(job => job.required !== false && job.status === "failed");
@@ -177,12 +185,11 @@ export function WeeklyContent({ courseId, refreshKey }: { courseId: string; refr
             <strong>{taskName[job.kind] || job.kind} · {jobState[job.status] || job.status}{job.required === false && " · 이번 공개에서 제외"}</strong>
             {job.error_code && <p>{jobMessage(job)}</p>}
             {job.retry_at && job.error_code && <small>다시 처리할 시각: {new Date(job.retry_at).toLocaleString("ko-KR")}</small>}
-            {job.result_status === "no_verified_source_code" && <p>실행 가능한 예제 코드가 없어 실습을 생성하지 않았어요.</p>}
-            {job.held.map((item, index) => <p key={index}>실습 검증 보류: {item.reason}</p>)}
+            {job.kind === "practice_prepare" && <PracticeReasons job={job} />}
           </article>)}</div>
-          {detail.status === "draft" && !detail.stale && detail.jobs.some(j => j.required !== false && (j.status === "failed" || j.held.length > 0)) && <button disabled={busy || !!block} onClick={() => void run(async () => {
-            await api(`/courses/${courseId}/content-generations/${detail.id}/retry`, post({})); setMessage("실패한 AI 작업의 재시도를 요청했어요.");
-          })}>실패한 생성 작업 다시 시도</button>}
+          {detail.status === "draft" && !detail.stale && detail.jobs.some(j => j.required !== false && (j.status === "failed" || j.held.length > 0 || j.retryable_practice)) && <button disabled={busy || !!block} onClick={() => void run(async () => {
+            await api(`/courses/${courseId}/content-generations/${detail.id}/retry`, post({})); setMessage("생성 작업의 재시도를 요청했어요.");
+          })}>{detail.jobs.some(j => j.retryable_practice && emptyPracticeMessage(j.result_status)) ? "실습을 포함해 생성 작업 다시 시도" : "실패한 생성 작업 다시 시도"}</button>}
         </details>
         <div className="weekly-content-tabs" role="group" aria-label="검토 항목">{[
           ["concepts", `개념 ${detail.concepts.length}`], ["questions", `문항 ${detail.questions.length}`],
@@ -206,8 +213,10 @@ export function WeeklyContent({ courseId, refreshKey }: { courseId: string; refr
             <h4>{exercise.title} · {exercise.kind === "blank" ? "빈칸 채우기" : "전체 구현"}</h4><p>{exercise.prompt}</p>
             <details><summary>학생용 코드</summary><pre>{exercise.template}</pre></details>
             <details><summary>기준 코드와 실행 검증 {exercise.tests.length}건</summary><pre>{exercise.reference}</pre>
-              {exercise.tests.map((test, i) => <div key={i}><strong>검증 {i + 1}</strong><pre>{test.input}</pre><p>기대 출력</p><pre>{test.expected}</pre></div>)}</details>
-          </article>) : <p>{detail.jobs.some(j => j.result_status === "no_verified_source_code") ? "자료에 검증 가능한 예제 코드가 없어 실습을 생성하지 않았어요. 코드 자료를 추가한 뒤 새 버전을 생성할 수 있어요." : "실습 코드와 실행 결과를 준비하고 있어요."}</p>)}
+              {exercise.tests.map((test, i) => <div key={i}><strong>검증 {i + 1}</strong>{test.input && <pre>{test.input}</pre>}<p>기대 출력</p><pre>{test.expected}</pre></div>)}</details>
+          </article>) : detail.jobs.some(j => emptyPracticeMessage(j.result_status))
+            ? detail.jobs.filter(j => emptyPracticeMessage(j.result_status)).map(job => <PracticeReasons key={job.id} job={job} />)
+            : <p>실습 코드와 실행 결과를 준비하고 있어요.</p>)}
           {tab === "videos" && detail.status === "draft" && !detail.stale && <div className="weekly-content-actions">
             {detail.video_mode !== "none" && <button type="button" disabled={busy || !!block} onClick={() => void run(async () => {
               await api(`/courses/${courseId}/content-generations/${detail.id}/video-selection`, post({ mode: "none", review_token: detail.review_token }));

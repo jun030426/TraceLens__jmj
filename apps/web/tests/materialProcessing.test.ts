@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { conceptValidationMessage, materialProgress, jobMessage, type Processing, type ProcessingJob } from "../src/materialProcessing.ts";
+import { conceptValidationMessage, emptyPracticeMessage, materialProgress, jobMessage, practiceReason, type Processing, type ProcessingJob } from "../src/materialProcessing.ts";
 import type { Material } from "../src/api.ts";
 
 const material: Material = {id:"m",title:"자료",kind:"lecture",week:1,visibility:"public",internal_use:"none",revision:1,
@@ -48,6 +48,11 @@ test("all current concepts and questions must complete before usage is ready",()
   assert.equal(materialProgress(ready,processing([job("auto_concepts","succeeded"),job("questions","succeeded")])).tone,"ready");
 });
 test("no source code is not presented as successful practice generation",()=>{
+  assert.match(emptyPracticeMessage("no_verified_source_code")!, /실습 문제를 만들지 못/);
+  assert.equal(emptyPracticeMessage("ready"), null);
+  assert.match(practiceReason("PRACTICE_LOOP_INPUT"), /반복.*입력/);
+  assert.match(practiceReason("PRACTICE_PROGRAM_TOO_SHORT"), /20자.*빈 줄.*3줄/);
+  assert.doesNotMatch(practiceReason("UNRECOGNIZED_INTERNAL_DETAIL"), /UNRECOGNIZED/);
   const result=materialProgress(ready,processing([job("auto_concepts","succeeded"),job("questions","succeeded"),job("practice_prepare","succeeded",{result_status:"no_verified_source_code"})]));
   assert.equal(result.tone,"ready");assert.match(result.hint,/실습은 생성하지 않았/);
 });

@@ -42,6 +42,36 @@ export const taskName: Record<string, string> = {
   practice_prepare: "실습 준비",
   narration_lesson: "영상 대본 준비",
 };
+export function emptyPracticeMessage(status: string | null) {
+  return status === "no_verified_source_code" || status === "no_supported_language" ? "실습 문제를 만들지 못했어요." : null;
+}
+
+export function practiceReason(reason: string) {
+  const messages: Record<string, string> = {
+    PRACTICE_LOOP_INPUT: "반복 중에 입력을 받는 프로그램은 아직 지원하지 않아요.",
+    PRACTICE_NATIVE_STDIN: "C·Java 프로그램의 표준 입력을 사용하는 예제는 아직 지원하지 않아요.",
+    PRACTICE_INPUT_POSITION: "입력 선언은 최상위에 연달아 두고, 변수마다 한 번씩 최대 6개까지 받을 수 있어요.",
+    PRACTICE_FILE_GAP: "검색 청크에서 파일 전체의 코드 근거를 확인할 수 없어요.",
+    PRACTICE_EXTERNAL_MODULE: "다른 파일의 모듈이 필요해 한 파일만으로 검증할 수 없어요.",
+    PRACTICE_FILE_EVIDENCE: "파일 원본과 코드 인용 범위가 일치하지 않아요.",
+    INVALID_PRACTICE_SOURCE: "제안된 코드가 자료 원문과 일치하지 않아요.",
+    PRACTICE_FILE_LANGUAGE: "자료의 프로그래밍 언어가 강의 설정과 달라요.",
+    PRACTICE_FILE_SYNTAX: "완전한 프로그램으로 해석할 수 없어요.",
+    PRACTICE_FILE_TOO_LONG: "파일이 실습 한 문제의 코드 길이 한도를 넘어요.",
+    PRACTICE_PROGRAM_TOO_SHORT: "실습 코드는 20자 이상이고 빈 줄을 제외하고 3줄 이상이어야 해요.",
+    PRACTICE_NO_ENTRYPOINT: "함수 정의를 실행하는 호출이나 출력 코드가 없어요.",
+    PRACTICE_NO_PROPOSAL: "자료에서 조건을 만족하는 완전한 예제를 찾지 못했어요.",
+    PRACTICE_REFERENCE_UNVERIFIED: "격리 실행에서 길이 제한 안의 출력을 확인하지 못했어요.",
+    PRACTICE_PROBES_INEFFECTIVE: "입력을 바꿔도 서로 다른 출력이 두 가지 이상 나오지 않았어요.",
+    INVALID_PRACTICE_PROBES: "검증 입력의 개수·자료형 또는 변수 순서가 맞지 않아요.",
+    UNSUPPORTED_PRACTICE_INPUT: "검증 입력이 허용된 숫자·문자열·리스트 리터럴이 아니에요.",
+    PRACTICE_INPUT_TOO_LARGE: "검증 입력이 허용된 크기를 넘어요.",
+    INVALID_PRACTICE_BLANK: "입력 선언을 보존하면서 채울 수 있는 빈칸을 찾지 못했어요.",
+    INVALID_PRACTICE_TEMPLATE: "시작 코드가 원문의 입력 선언을 보존하지 않았어요.",
+  };
+  return Object.prototype.hasOwnProperty.call(messages, reason) ? messages[reason] : "실습의 원문 또는 실행 결과를 확인하지 못했어요.";
+}
+
 export function jobMessage(
   job: Pick<ProcessingJob, "error_code" | "status" | "result_status">,
 ) {
