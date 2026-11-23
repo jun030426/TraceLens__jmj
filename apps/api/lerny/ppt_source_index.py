@@ -29,8 +29,15 @@ symbols, uncertain order or overlapping regions. Do not generate explanations.
 DATA:\n"""
 
 
-def matches(expected, observed):
+def table_cells(text):
+    rows = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    return [["".join(cell.split()) for cell in row.split(" | ")] for row in rows]
+
+
+def matches(expected, observed, kind):
     # The readback attests to visible characters. The PPT supplies the stored spacing.
+    if kind == "table":
+        return table_cells(expected) == table_cells(observed)
     return "".join(expected.split()) == "".join(observed.split())
 
 
@@ -147,7 +154,7 @@ def supplement(path, plan, result, folder, client, check):
                     if (again["readable"] and not again["uncertainties"] and not again["source_conflicts"]
                             and readback == again["text"]):
                         value = readback
-                if not readback or not matches(value, readback):
+                if not readback or not matches(value, readback, spec["kind"]):
                     log["unresolved"].append({**proof, "reason": "independent_readback_mismatch"})
                     continue
                 if spec["kind"] == "picture" and link_dependent and depends_on_held_link(link_dependent, rect, size, value):

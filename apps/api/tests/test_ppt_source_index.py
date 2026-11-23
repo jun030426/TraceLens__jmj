@@ -11,7 +11,7 @@ from video_extraction.shared.gemini import Gemini, SYSTEM
 
 
 def slide_case(tmp_path, original, observed, *, kind="text", complete=True, clear=True,
-               held=None, use_cache=False):
+               held=None, use_cache=False, merge_first_column=False):
     path = tmp_path / "demo.pptx"
     page = tmp_path / "page.png"
     Image.new("RGB", (320, 240), "white").save(page)
@@ -23,6 +23,8 @@ def slide_case(tmp_path, original, observed, *, kind="text", complete=True, clea
         for row_index, row in enumerate(rows):
             for column, value in enumerate(row):
                 shape.table.cell(row_index, column).text = value
+        if merge_first_column:
+            shape.table.cell(0, 0).merge(shape.table.cell(1, 0))
     else:
         shape = slide.shapes.add_textbox(0, 0, deck.slide_width, deck.slide_height)
         shape.text = original
@@ -124,3 +126,24 @@ def test_shifted_table_cell_is_unresolved(tmp_path, original, observed):
     assert [r["reason"] for r in result["evidence"]["ppt_page_review"]["unresolved"]] == [
         "independent_readback_mismatch"
     ]
+
+
+def test_table_cell_spacing_keeps_native_text(tmp_path):
+    original = "unit cost | 3 700\nnew total | 4 800"
+    result = slide_case(tmp_path, original, "unitcost | 3700\nnew  total | 4800", kind="table")
+    chunk, = result["chunks"]
+    assert chunk["text"] == original
+
+
+@pytest.mark.parametrize("observed", ["A | 7 | B", "A | 7 | \nB"], ids=["row-count", "cell-count"])
+def test_table_requires_the_same_dimensions(tmp_path, observed):
+    result = slide_case(tmp_path, "A | 7\n | B", observed, kind="table")
+    assert not result["chunks"]
+    assert result["evidence"]["ppt_page_review"]["unresolved"][0]["reason"] == "independent_readback_mismatch"
+
+
+def test_merged_table_cell_matches_its_repeated_native_value(tmp_path):
+    expected = "group | 2\ngroup | 3"
+    result = slide_case(tmp_path, "group | 2\n | 3", expected, kind="table", merge_first_column=True)
+    chunk, = result["chunks"]
+    assert chunk["text"] == expected
