@@ -3,15 +3,16 @@ import { useEffect, useId, useRef, useState } from "react";
 import { api, post } from "./api";
 import { ErrorNotice, Notice, useLoad } from "./components";
 import { featureBlock, useServiceStatus } from "./ServiceStatus";
-import { conceptValidationMessage, emptyPracticeMessage, jobMessage, practiceReason, taskName, type ConceptValidationIssue } from "./materialProcessing";
+import { conceptValidationMessage, emptyPracticeMessage, generationRetryLabel, jobMessage, practiceReason, taskName, type ConceptValidationIssue } from "./materialProcessing";
 import "./weekly-content.css";
 import { GoogleSlidesConnection, TeachingSlides } from "./GoogleSlides";
 
 type Source = { material_id: string; title: string; kind: string; version_id: string; ready: boolean; status: string };
-type Work = { id: string; kind: string; status: string; required?: boolean; error_code: string | null; retry_at: string | null; result_status: string | null; held: { reason: string }[]; skipped?: { reason: string }[]; retryable_practice?: boolean; validation_issues?: ConceptValidationIssue[] };
+type PracticeIssue = { source_id?: string; reason: string };
+type Work = { id: string; kind: string; status: string; required?: boolean; error_code: string | null; retry_at: string | null; result_status: string | null; held: PracticeIssue[]; skipped?: PracticeIssue[]; retryable_practice?: boolean; validation_issues?: ConceptValidationIssue[] };
 type Generation = {
   id: string; week: number; status: string; state: string; stale: boolean; can_publish: boolean;
-  published_at: string | null; sources: Source[]; blockers: string[]; jobs: Work[];
+  published_at: string | null; sources: Source[]; blockers: string[]; warnings?: string[]; jobs: Work[];
   video_mode?: "all" | "ready_only" | "none";
   counts: { concepts: number; questions: number; practice: number; videos: number; videos_ready: number; videos_deferred?: number };
 };
@@ -31,11 +32,16 @@ const stateName: Record<string, string> = {
 const jobState: Record<string, string> = { succeeded: "완료", queued: "대기", running: "처리 중", waiting_ai: "AI 연결 대기", failed: "실패", cancelled: "중단" };
 const videoState: Record<string, string> = { ready: "재생 가능", script_pending: "대본 준비 중", queued: "영상 생성 대기", processing: "영상 생성 중", submitting: "영상 요청 중", failed: "실패", held: "검토 필요", waiting_ai: "AI 연결 대기", waiting_credits: "API 크레딧 충전 대기", cancelled: "중단" };
 
-function PracticeReasons({ job }: { job: Work }) {
-  const reasons = [...new Set([...job.held, ...(job.skipped ?? [])].map(item => practiceReason(item.reason)))];
+function PracticeReasons({ job, sources }: { job: Work; sources: Source[] }) {
+  const issues = [...job.held, ...(job.skipped ?? [])];
+  const reasons = issues.map(issue => {
+    const source = sources.find(s => issue.source_id === `file:${s.version_id}`);
+    const reason = practiceReason(issue.reason);
+    return source ? `${source.title} · ${reason}` : reason;
+  });
   const message = emptyPracticeMessage(job.result_status);
   return <>{message && <p>{message}</p>}
-    {reasons.length > 0 && <ul>{reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+    {reasons.length > 0 && <ul>{reasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
     {!reasons.length && message && <p>{practiceReason(job.result_status === "no_supported_language" ? "PRACTICE_FILE_LANGUAGE" : "PRACTICE_NO_PROPOSAL")}</p>}</>;
 }
 
@@ -110,6 +116,7 @@ export function WeeklyContent({ courseId, refreshKey }: { courseId: string; refr
     (!term || String(week.week) === term || (String(week.week) + "주차").includes(term) ||
       week.sources.some(source => source.title.toLocaleLowerCase().includes(term))));
   const detail = review.data?.id === selected ? review.data : undefined;
+  const retryLabel = detail && generationRetryLabel(detail.jobs);
   const includedVideos = detail?.videos.filter((video): video is Video => !!video && video.included !== false) || [];
   const deferredVideos = detail?.videos.filter((video): video is Video => !!video && video.included === false) || [];
   return <section className="weekly-content weekly-content-panel" aria-label="주차별 콘텐츠 생성·공개">
@@ -180,16 +187,17 @@ export function WeeklyContent({ courseId, refreshKey }: { courseId: string; refr
         {detail.video_mode === "ready_only" && <p className="weekly-content-notice">완성된 영상 {includedVideos.length}개만 해당 개념에 포함했어요. 나머지 {deferredVideos.length}개는 대본과 제작 기록을 보존하고 제작을 대기해요. 학생 공개는 아래에서 검토 후 별도로 결정해 주세요.</p>}
         <GenerationFailures jobs={detail.jobs} />
         {!!detail.blockers.length && <ul className="weekly-content-blockers">{detail.blockers.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+        {detail.warnings?.map(warning => <p className="weekly-content-notice" key={warning}>{warning}</p>)}
         <details className="weekly-content-jobs"><summary>필수 작업 상태 · {detail.jobs.filter(j => j.required !== false && j.status === "succeeded").length}/{detail.jobs.filter(j => j.required !== false).length}개 완료</summary>
           <div className="weekly-content-scroll">{detail.jobs.map(job => <article key={job.id}>
             <strong>{taskName[job.kind] || job.kind} · {jobState[job.status] || job.status}{job.required === false && " · 이번 공개에서 제외"}</strong>
             {job.error_code && <p>{jobMessage(job)}</p>}
             {job.retry_at && job.error_code && <small>다시 처리할 시각: {new Date(job.retry_at).toLocaleString("ko-KR")}</small>}
-            {job.kind === "practice_prepare" && <PracticeReasons job={job} />}
+            {job.kind === "practice_prepare" && <PracticeReasons job={job} sources={detail.sources} />}
           </article>)}</div>
-          {detail.status === "draft" && !detail.stale && detail.jobs.some(j => j.required !== false && (j.status === "failed" || j.held.length > 0 || j.retryable_practice)) && <button disabled={busy || !!block} onClick={() => void run(async () => {
+          {detail.status === "draft" && !detail.stale && retryLabel && <button disabled={busy || !!block} onClick={() => void run(async () => {
             await api(`/courses/${courseId}/content-generations/${detail.id}/retry`, post({})); setMessage("생성 작업의 재시도를 요청했어요.");
-          })}>{detail.jobs.some(j => j.retryable_practice && emptyPracticeMessage(j.result_status)) ? "실습을 포함해 생성 작업 다시 시도" : "실패한 생성 작업 다시 시도"}</button>}
+          })}>{retryLabel}</button>}
         </details>
         <div className="weekly-content-tabs" role="group" aria-label="검토 항목">{[
           ["concepts", `개념 ${detail.concepts.length}`], ["questions", `문항 ${detail.questions.length}`],
@@ -215,7 +223,7 @@ export function WeeklyContent({ courseId, refreshKey }: { courseId: string; refr
             <details><summary>기준 코드와 실행 검증 {exercise.tests.length}건</summary><pre>{exercise.reference}</pre>
               {exercise.tests.map((test, i) => <div key={i}><strong>검증 {i + 1}</strong>{test.input && <pre>{test.input}</pre>}<p>기대 출력</p><pre>{test.expected}</pre></div>)}</details>
           </article>) : detail.jobs.some(j => emptyPracticeMessage(j.result_status))
-            ? detail.jobs.filter(j => emptyPracticeMessage(j.result_status)).map(job => <PracticeReasons key={job.id} job={job} />)
+            ? detail.jobs.filter(j => emptyPracticeMessage(j.result_status)).map(job => <PracticeReasons key={job.id} job={job} sources={detail.sources} />)
             : <p>실습 코드와 실행 결과를 준비하고 있어요.</p>)}
           {tab === "videos" && detail.status === "draft" && !detail.stale && <div className="weekly-content-actions">
             {detail.video_mode !== "none" && <button type="button" disabled={busy || !!block} onClick={() => void run(async () => {

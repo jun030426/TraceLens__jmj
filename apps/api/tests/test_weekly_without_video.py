@@ -226,15 +226,15 @@ def test_existing_draft_can_exclude_video_without_changing_assets_or_retrying_na
     assert client.get(f"/api/v1/concept-videos/{video.id}/file").status_code == 404
 
 
-@pytest.mark.parametrize("problem", ["question_failed","practice_held","source_changed","student","stale_token"])
+@pytest.mark.parametrize("problem", ["question_failed","practice_failed","source_changed","student","stale_token"])
 def test_excluding_video_never_bypasses_other_checks(weekly, configured, monkeypatch, problem):
     client, session, tokens = weekly
     monkeypatch.setattr(configured, "heygen_rendering_enabled", False)
     gid = start(client); g = completed(session, gid)
     if problem == "question_failed":
         next(j for j in weekly_content.generation_jobs(session, g) if j.kind == "questions").status = "failed"
-    if problem == "practice_held":
-        next(j for j in weekly_content.generation_jobs(session, g) if j.kind == "practice_prepare").result = {"held":[{"reason":"UNVERIFIED"}]}
+    if problem == "practice_failed":
+        next(j for j in weekly_content.generation_jobs(session, g) if j.kind == "practice_prepare").status = "failed"
     if problem == "source_changed": session.get(Material, "material").revision += 1
     session.commit()
     if problem == "student":
