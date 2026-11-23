@@ -2,6 +2,8 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -38,9 +40,40 @@ def test_frozen_sync_uses_system_python_and_separate_runtime(tmp_path, monkeypat
     assert sync.kwargs["cwd"] == release
     env = sync.kwargs["env"]
     assert env["UV_PROJECT_ENVIRONMENT"] == str(runtime)
-    assert env["UV_PYTHON_PREFERENCE"] == "only-system" and env["UV_PYTHON_DOWNLOADS"] == "never"
+    assert env["UV_PYTHON_DOWNLOADS"] == "never"
     installer.prepare_runtime(release)
     assert run.call_count == 3
+
+
+def test_installer_uv_sync_dry_run(tmp_path, monkeypatch):
+    """Exercise the installer's sync options using its pinned uv and the real lockfile."""
+    release = Path(__file__).resolve().parents[3]
+    runtimes = tmp_path / "runtimes"
+    system_python = os.environ.get("WORKER_INSTALL_TEST_PYTHON", sys._base_executable)
+    monkeypatch.setattr(installer, "SYSTEM_PYTHON", system_python)
+    monkeypatch.setattr(installer, "RUNTIMES", runtimes)
+    uv = shutil.which("uv")
+    assert uv, "Install the worker installer's pinned uv on PATH for the release check"
+    run = subprocess.run
+    version = run([uv, "--version"], check=True, capture_output=True, text=True).stdout.split()[1]
+    syncs = []
+
+    def dry_run(argv, **kwargs):
+        if argv[1:3] == ["-m", "venv"]:
+            return
+        if argv[1:4] == ["-m", "pip", "install"]:
+            assert argv[-1] == f"uv=={version}"
+            return
+        assert argv[1] == "sync"
+        env = dict(kwargs["env"], UV_CACHE_DIR=str(tmp_path / "uv-cache"))
+        run([uv, *argv[1:], "--dry-run"], **{**kwargs, "env": env})
+        # prepare_runtime writes its marker after sync. A dry run creates no venv.
+        Path(env["UV_PROJECT_ENVIRONMENT"]).mkdir()
+        syncs.append(argv[1])
+
+    monkeypatch.setattr(subprocess, "run", dry_run)
+    installer.prepare_runtime(release)
+    assert syncs == ["sync"]
 
 
 @pytest.mark.parametrize("denied", ["lerny-worker", "lerny-code", None])

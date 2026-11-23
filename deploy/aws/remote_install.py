@@ -40,7 +40,7 @@ def prepare_runtime(release):
             subprocess.run([SYSTEM_PYTHON, "-m", "venv", bootstrap], check=True)
             subprocess.run([tools / "python", "-m", "pip", "install", "uv==0.13.7"], check=True)
             env = dict(os.environ, UV_PROJECT_ENVIRONMENT=str(runtime), UV_CACHE_DIR="/var/cache/lerny-uv",
-                       UV_PYTHON_DOWNLOADS="never", UV_PYTHON_PREFERENCE="only-system")
+                       UV_PYTHON_DOWNLOADS="never")
             subprocess.run([tools / "uv", "sync", "--python", SYSTEM_PYTHON, "--no-managed-python",
                             "--no-python-downloads", "--frozen", "--no-dev", "--extra", "engine-media"],
                            cwd=release, env=env, check=True)
