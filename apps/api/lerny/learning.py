@@ -2,7 +2,10 @@
 
 import csv
 import io
+import re
+import unicodedata
 from datetime import date, datetime, time, timedelta, timezone
+from difflib import SequenceMatcher
 from typing import Literal
 
 from fastapi import APIRouter, Header, Query
@@ -447,6 +450,29 @@ class AnswerInput(Input):
     answer: str = Field(min_length=1, max_length=4000)
 
 
+def theory_hint(question):
+    fallback = "핵심 개념의 정의와 동작 원리를 차근차근 떠올려 보세요."
+    hint = question.solution.get("hint")
+    if not isinstance(hint, str) or not hint.strip() or re.search(
+        r"```|\b(?:def|class|import|return)\s|\bprint\s*\(|정답(?:은|는)\s*\d+\s*번", hint
+    ):
+        return fallback
+
+    def normalized(value):
+        return "".join(c for c in unicodedata.normalize("NFKC", value).casefold() if c.isalnum())
+
+    wording = normalized(hint)
+    if not wording:
+        return fallback
+    for source in question.sources:
+        quote = normalized(source["quote"])
+        if not quote:
+            continue
+        if wording in quote or quote in wording or SequenceMatcher(None, wording, quote, autojunk=False).ratio() >= 0.85:
+            return fallback
+    return hint.strip()
+
+
 @router.post("/learning-sessions/{learning_id}/questions/{question_id}/help")
 def record_theory_help(learning_id: str, question_id: str, session: Db, actor: Actor):
     learning = session.get(LearningSession, learning_id)
@@ -468,17 +494,7 @@ def record_theory_help(learning_id: str, question_id: str, session: Db, actor: A
     if attempt and attempt.status != "graded":
         attempt.independent = False
     session.commit()
-    hint = question.solution.get("hint")
-    if not hint or any(kw in str(hint) for kw in ["```", "def ", "class ", "import "]) or str(hint).strip().startswith("print("):
-        # 문제에 생성된 hint가 없거나 코드 조각이 포함된 경우의 0-스포일러 동적 폴백
-        if quote and not any(kw in quote for kw in ["```", "def ", "class ", "=", "print(", "import "]) and len(quote) < 80:
-            hint = quote
-        elif question.prompt:
-            stem = question.prompt.split("\n")[0].replace("?", "").strip()
-            hint = f"{stem}의 핵심 원리와 동작 규칙을 차근차근 떠올려 보세요." if len(stem) <= 35 else "핵심 개념의 정의와 동작 원리를 차근차근 떠올려 보세요."
-        else:
-            hint = "핵심 개념의 정의와 동작 원리를 차근차근 떠올려 보세요."
-    return {"recorded": True, "hint": hint}
+    return {"recorded": True, "hint": theory_hint(question)}
 
 
 @router.post("/learning-sessions/{learning_id}/questions/{question_id}/submit", status_code=202)
