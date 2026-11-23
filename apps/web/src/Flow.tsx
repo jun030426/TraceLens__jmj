@@ -96,7 +96,7 @@ export function QuizCatalog() {
     <section className="student-home quiz-catalog">
       <Link className="cr-back" to="/courses"><span aria-hidden="true">←</span> 내 강의로</Link>
       <div className="quiz-titlebar">
-        <h1><span className="quiz-title-mark"><time className="quiz-today-date" dateTime={today}>{`${Number(today.slice(0, 4))}년 ${Number(today.slice(5, 7))}월 ${Number(today.slice(8, 10))}일`}</time> 오늘의 학습</span><small className="quiz-title-desc">강의별 이론과 실습을 이어가세요.</small></h1>
+        <h1><span className="quiz-title-mark"><time className="quiz-today-date" dateTime={today}>{`${Number(today.slice(0, 4))}년 ${Number(today.slice(5, 7))}월 ${Number(today.slice(8, 10))}일`}</time> 오늘의 학습{metaRoom?.current_week ? ` (현재 ${metaRoom.current_week}주차)` : ""}</span><small className="quiz-title-desc">강의별 이론과 실습을 이어가세요.</small></h1>
         <div className="quiz-header-meta">
           <strong className="quiz-header-streak" role="status" title={streak.error ? "연속 학습 기록을 불러오지 못했어요." : undefined}>{streak.data ? `${streak.data.current_streak}일 연속 학습` : "연속 학습"}</strong>
           {metaRoom && <p className="quiz-course-meta">{metaRoom.course.title} · {metaRoom.term.name} · {metaRoom.teacher_name} · {metaRoom.section.title}</p>}

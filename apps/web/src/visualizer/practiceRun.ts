@@ -33,7 +33,19 @@ export async function runPractice(
 ): Promise<PracticeRun> {
   const lang = LANG[language]
   try {
-    const r = await traceCode(lang, code, sectionId, onStage, stopLines)
+    let r = await traceCode(lang, code, sectionId, onStage, stopLines)
+    if (lang === 'python' && r.syntaxError && Object.keys(stopLines).length) {
+      const firstLine = Math.min(...Object.keys(stopLines).map(Number))
+      if (r.syntaxError.line !== null && r.syntaxError.line >= firstLine) {
+        const lines = code.split('\n')
+        const indent = lines[firstLine - 1].match(/^[ \t]*/)?.[0] ?? ''
+        // Keep the original source for the scene, but compile only the prefix and
+        // a stop marker so a missing block header cannot block earlier steps.
+        const prefix = [...lines.slice(0, firstLine - 1), indent + 'pass'].join('\n')
+        const partial = await traceCode(lang, prefix, sectionId, onStage, { [firstLine]: stopLines[firstLine] })
+        if (partial.stoppedAtBlank || (partial.error && partial.events.length)) r = partial
+      }
+    }
     if (r.blocked) return { kind: 'blocked', code, text: r.blocked }
     if (r.syntaxError) return { kind: 'syntax', code, info: r.syntaxError }
     onStage('building')

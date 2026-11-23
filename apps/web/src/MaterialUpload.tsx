@@ -11,10 +11,10 @@ import "./material-upload.css";
 
 export const MATERIAL_ACCEPT = ".pdf,.pptx,.docx,.txt,.md,.c,.java,.py,.mp4";
 const kinds = [
-  ["lecture", "일반 강의 자료"],
+  ["lecture", "강의자료"],
   ["example", "예제 코드"],
   ["assignment", "과제 안내"],
-  ["transcript", "강의자료"],
+  ["transcript", "강의영상"],
   ["past_exam", "기출"],
   ["answer", "정답·해설"],
 ];

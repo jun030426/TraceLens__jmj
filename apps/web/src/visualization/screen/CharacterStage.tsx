@@ -346,8 +346,9 @@ function setSquash(c: Char, sy: number) {
 // ── 관(튜브) — 변수 로봇에서 배열 판으로 ─────────────────────────────
 
 // 관 = "이 변수가 저 배열을 가리킨다(참조)"는 뜻. 값을 복사해 든 게 아니라 배열이 있는 곳을 알고 있다는 표시다.
-type Wire = { tube: THREE.Mesh; head: THREE.Mesh; label: THREE.Sprite; key: string };
+type Wire = { tube: THREE.Mesh; head: THREE.Mesh; label: THREE.Sprite; targetLabel: THREE.Sprite; key: string };
 const ARROW = "#8a3fd1";
+const ARROW_TARGET_BACKGROUND = "rgba(255,255,255,0.48)";
 const wireMat = new THREE.MeshStandardMaterial({ color: ARROW, roughness: 0.3, emissive: ARROW, emissiveIntensity: 0.35 });
 
 function setWire(w: Wire, a: THREE.Vector3, b: THREE.Vector3, grow: number) {
@@ -357,6 +358,7 @@ function setWire(w: Wire, a: THREE.Vector3, b: THREE.Vector3, grow: number) {
   w.tube.userData.sig = sig;
   const mid = a.clone().lerp(b, 0.5);
   mid.y += 1.1;
+  if (Math.abs(a.x - b.x) < 0.6) mid.x += 1.25;
   const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
   w.tube.userData.curve = curve; // 마우스가 화살표 위에 있는지 잴 때 쓴다
   w.tube.geometry.dispose();
@@ -373,7 +375,9 @@ function setWire(w: Wire, a: THREE.Vector3, b: THREE.Vector3, grow: number) {
   w.head.position.copy(tip).addScaledVector(tan, -0.22);
   w.head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tan);
   w.label.visible = grow >= 1 && w.label.userData.first === true;
-  w.label.position.copy(curve.getPoint(0.86)).add(new THREE.Vector3(0, 0.4, 0));
+  w.label.position.copy(curve.getPoint(0.64)).add(new THREE.Vector3(0, 0.4, 0));
+  w.targetLabel.visible = w.label.visible;
+  w.targetLabel.position.copy(w.label.position).add(new THREE.Vector3(0, 0.52, 0));
 }
 
 // ── 무대 ─────────────────────────────────────────────────────────────
@@ -543,7 +547,7 @@ export function CharacterStage({
         setValue(signal, branch ? "참" : "거짓", true);
         extend(0, 0, 1, 2.3);
       }
-      const rowAnchor = new Map<string, THREE.Vector3>(); // 관이 닿는 판 왼쪽 끝
+      const rowAnchor = new Map<string, { point: THREE.Vector3; title: string }>(); // 관이 닿는 판 왼쪽 끝
 
       // 배치 — 겹치지 않게: 배열은 앞에서 뒤로 줄을 세우고, 키가 큰 스택 탑은 배열·로봇 줄의 오른쪽 옆으로 뺀다.
       // (스택을 앞에 두면 뒤에 있는 로봇과 배열을 가린다)
@@ -614,7 +618,8 @@ export function CharacterStage({
         const height = stack ? Math.max(1.4, n * 0.98 + 0.6) : 1.3;
         pn.board.scale.set(width, height, 0.08);
         pn.board.position.set(stack ? 0 : 0, height / 2, -0.75);
-        const caption = (row.type === "linked-list" ? "연결 리스트" : stack ? "스택" : row.type === "deque" || row.names.some(name => /queue|큐/i.test(name)) ? "큐" : "배열") + (row.names.length ? ` · ${row.names.join(", ")}` : "") + (row.hidden ? `  +${row.hidden}칸` : "") + (n === 0 ? "  (비어 있음)" : "");
+        const targetTitle = (row.type === "linked-list" ? "연결 리스트" : stack ? "스택" : row.type === "deque" || row.names.some(name => /queue|큐/i.test(name)) ? "큐" : "배열") + (row.names.length ? ` · ${row.names.join(", ")}` : "");
+        const caption = targetTitle + (row.hidden ? `  +${row.hidden}칸` : "") + (n === 0 ? "  (비어 있음)" : "");
         if (pn.label.userData.text !== caption) {
           pn.label.userData.text = caption;
           setSpriteText(pn.label, caption, "#5b3a8c");
@@ -643,7 +648,8 @@ export function CharacterStage({
             s.material = tagNew.has(i) ? freshSeat : seatMat;
           }
         });
-        rowAnchor.set(row.objectId, new THREE.Vector3(ox - width / 2 + 0.25, height + 0.12, z - 0.48));
+        // References point to the board as a whole, above the row of indexed cells.
+        rowAnchor.set(row.objectId, { point: new THREE.Vector3(ox, height + 0.08, z + 0.28), title: targetTitle });
         extend(ox - width / 2 - 1.2, z, 0.4, height + 0.6);
         extend(ox + width / 2, z, 0.4, height + 0.6);
 
@@ -825,21 +831,30 @@ export function CharacterStage({
             if (!w) {
               const label = pill("가리킴", "#ffffff", ARROW);
               label.scale.set(0.9, 0.36, 1);
-              w = { key: b.key, tube: new THREE.Mesh(new THREE.BufferGeometry(), wireMat), head: new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.44, 18), wireMat), label };
+              const targetLabel = pill(end.title, "#5b3a8c", ARROW_TARGET_BACKGROUND);
+              targetLabel.material.opacity = 0.78;
+              targetLabel.scale.set(1.15, 1.15 * 112 / 256, 1);
+              targetLabel.userData.title = end.title;
+              w = { key: b.key, tube: new THREE.Mesh(new THREE.BufferGeometry(), wireMat), head: new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.44, 18), wireMat), label, targetLabel };
               w.tube.castShadow = true;
               wires.set(b.key, w);
             }
             add(w.tube);
             add(w.head);
             add(w.label);
-            const start = new THREE.Vector3(x, 0.9 * ROBOT, zz + 0.3);
+            add(w.targetLabel);
+            if (w.targetLabel.userData.title !== end.title) {
+              setPill(w.targetLabel, end.title, "#5b3a8c", ARROW_TARGET_BACKGROUND);
+              w.targetLabel.userData.title = end.title;
+            }
+            const start = new THREE.Vector3(x, 1.12 * ROBOT, zz + 0.38);
             // 같은 배열을 여러 변수가 가리키면 "가리킴" 글자는 첫 화살표에만 단다 (겹치지 않게)
             w.label.userData.first = bots.find(o => o.ref === b.ref)?.key === b.key;
             if (w.label.userData.sigFirst !== w.label.userData.first) {
               w.label.userData.sigFirst = w.label.userData.first;
               w.tube.userData.sig = "";
             }
-            setWire(w, start, end, existed ? 1 : ease(p * 1.2));
+            setWire(w, start, end.point, existed ? 1 : ease(p * 1.2));
           }
         }
       }
@@ -876,7 +891,7 @@ export function CharacterStage({
       for (const [k, c] of cells) if (!used.c.has(k)) c.root.removeFromParent();
       for (const [k, c] of robots) if (!used.r.has(k)) c.root.removeFromParent();
       for (const [k, pn] of panels) if (!used.p.has(k)) pn.g.removeFromParent();
-      for (const [k, w] of wires) if (!used.w.has(k)) (w.tube.removeFromParent(), w.head.removeFromParent(), w.label.removeFromParent());
+      for (const [k, w] of wires) if (!used.w.has(k)) (w.tube.removeFromParent(), w.head.removeFromParent(), w.label.removeFromParent(), w.targetLabel.removeFromParent());
       for (const [k, s] of signs) if (!used.s.has(k)) s.removeFromParent();
 
       // 카메라 — 무대 전체가 들어오게 부드럽게 따라간다

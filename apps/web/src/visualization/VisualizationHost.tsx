@@ -1,7 +1,7 @@
 // 재생 엔진과 화면(VisualizationScreen)을 잇는 호스트.
 // 실행 오류·부분 기록·stale 안내는 여기서도 보여 준다 (화면 CSS가 가려도 남도록).
 // 화면 코드가 터져도 실습 페이지 전체가 멈추지 않게 오류 경계로 감싼다.
-import { Component, useContext, useEffect, useState, type ReactNode } from "react";
+import { Component, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import type { Recording } from "./contracts";
 import { usePlayback } from "./playback";
 import { VisualizationScreen } from "./VisualizationScreen";
@@ -43,10 +43,12 @@ export function VisualizationHost({ recording, stale = false }: { recording: Rec
   const previous = current && current.index > 0 ? recording.steps[current.index - 1] : null;
   // 지금 보여 주는 줄을 바깥(실습 편집기)에도 알린다. 이전 실행 기록(stale)이면 줄이 안 맞을 수 있어 알리지 않는다
   const reportLine = useContext(VizLineContext);
-  const viz = stale ? null : vizLineOf(recording, current);
-  const vizKey = viz ? `${viz.line}:${viz.kind}:${viz.step}:${viz.total}` : "";
-  useEffect(() => { reportLine?.(viz); }, [reportLine, vizKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => reportLine?.(null), [reportLine]);
+  const line = stale ? null : vizLineOf(recording, current);
+  const finished = !state.playing && state.index === count - 1;
+  const viz = line ? { ...line, finished } : null;
+  const vizKey = viz ? `${viz.line}:${viz.kind}:${viz.step}:${viz.total}:${viz.finished}` : "";
+  useLayoutEffect(() => { reportLine?.(viz); }, [reportLine, vizKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => () => reportLine?.(null), [reportLine]);
   return (
     <div className="vz-host">
       {stale && <p className="vz-host__notice is-stale">코드가 바뀌었어요. 지금 장면은 이전 실행 기록이에요.</p>}
