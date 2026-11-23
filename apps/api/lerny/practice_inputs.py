@@ -5,6 +5,7 @@ import json
 import math
 import re
 import struct
+import sys
 from decimal import Decimal
 from itertools import dropwhile
 
@@ -51,34 +52,75 @@ def literal_type(value):
     raise ValueError('UNSUPPORTED_PRACTICE_INPUT')
 
 
+NON_DETERMINISTIC_STDLIB_MODULES = frozenset({'random', 'time', 'datetime', 'secrets', 'uuid'})
+
+
+def _is_stdlib_import(node):
+    if isinstance(node, ast.Import):
+        modules = [alias.name for alias in node.names]
+    elif isinstance(node, ast.ImportFrom) and not node.level:
+        modules = [node.module or '']
+    else:
+        return False
+    roots = [name.split('.')[0] for name in modules]
+    return bool(roots) and all(
+        root in sys.stdlib_module_names and root not in NON_DETERMINISTIC_STDLIB_MODULES
+        for root in roots
+    )
+
+
 def numeric_program(code):
     try:
         tree = ast.parse(code)
     except (SyntaxError, ValueError):
         return None
     inputs = []
+    import_lines = []
+    has_def = False
+    raw_lines = code.splitlines()
     for node in tree.body:
+        if not inputs:
+            if _is_stdlib_import(node):
+                import_lines.extend(raw_lines[node.lineno - 1 : node.end_lineno])
+                continue
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                has_def = True
+                continue
         value = node.value if isinstance(node, ast.Assign) else None
         if not (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
                 and (kind := stdin_type(value))):
             break
-        line = code.splitlines()[node.lineno-1]
+        line = raw_lines[node.lineno - 1]
         tail = line.encode('utf-8')[node.end_col_offset:].decode('utf-8').strip()
         if node.lineno != node.end_lineno or (tail and not tail.startswith('#')):
             return None
         inputs.append({'name': node.targets[0].id, 'type': kind, 'line': node.lineno})
     if not 1 <= len(inputs) <= 6 or len({item['name'] for item in inputs}) != len(inputs):
         return None
-    # Only straight input prefixes are adapted; all other input forms stay held.
+    # Only straight input blocks (optionally preceded by stdlib imports / helper defs) are adapted.
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
              and isinstance(node.func, ast.Name) and node.func.id == 'input']
     if len(calls) != len(inputs):
         return None
     lines = code.splitlines(keepends=True)
-    prefix = ''.join(lines[:inputs[-1]['line']]).rstrip('\r\n')
-    if len(prefix) > 500:
+    input_start = inputs[0]['line']
+    input_end = inputs[-1]['line']
+    before_inputs = ''.join(lines[:input_start - 1])
+    input_block = ''.join(lines[input_start - 1 : input_end]).rstrip('\r\n')
+    prefix = ''.join(lines[:input_end]).rstrip('\r\n')
+    if len(input_block) > 500:
         return None
-    return {'code': code, 'prefix': prefix, 'inputs': inputs}
+    import_prefix = ('\n'.join(import_lines) + '\n') if import_lines else ''
+    return {
+        'code': code,
+        'prefix': prefix,
+        'before_inputs': before_inputs,
+        'input_block': input_block,
+        'input_start': input_start,
+        'import_prefix': import_prefix,
+        'has_def': has_def,
+        'inputs': inputs,
+    }
 
 
 def distinct_probes(candidates, inspect, rejected, *, start=0, minimum=3):
@@ -255,7 +297,7 @@ def reviewed_programs(chunk, page_shapes):
     # lines are kept when reconstructing the exact hash-verified source.
     blocks = chunk.content.split('\n\n')
     for first, block in enumerate(blocks):
-        if not re.match(r'\s*\w+\s*=\s*(?:int|float|input)\s*\(', block):
+        if not re.match(r'\s*(?:(?:import|from|def)\b|\w+\s*=\s*(?:int|float|input)\s*\()', block):
             continue
         for end in range(first + 1, len(blocks) + 1):
             code = '\n\n'.join(blocks[first:end])
@@ -267,7 +309,9 @@ def reviewed_programs(chunk, page_shapes):
 def stdin_case(source, case):
     if not isinstance(case, list) or len(case) != len(source['inputs']):
         raise ValueError('INVALID_PRACTICE_PROBES')
-    lines = source['prefix'].splitlines()
+    input_start = source.get('input_start', 1)
+    block = source.get('input_block', source['prefix'])
+    lines = block.splitlines()
     values = []
     for spec, value in zip(source['inputs'], case, strict=True):
         if spec['type'] == 'str':
@@ -282,7 +326,7 @@ def stdin_case(source, case):
         else:
             value = int(value) if spec['type'] == 'int' else float(value)
         values.append(value)
-        lines[spec['line']-1] = spec['name'] + ' = ' + repr(value)
+        lines[spec['line'] - input_start] = spec['name'] + ' = ' + repr(value)
     return '\n'.join(lines), tuple(values)
 
 
@@ -344,29 +388,40 @@ def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None
         # Editors normalize newlines. Use LF for editable fixtures while retaining
         # the original calculation/output suffix and source evidence unchanged.
         newline = '\n'
-        adapted = declarations[0] + source['code'][len(source['prefix']):]
+        before_inputs = source.get('before_inputs', '')
+        adapted = before_inputs + declarations[0] + source['code'][len(source['prefix']):]
         # The suffix containing every calculation and output remains byte-for-byte identical.
-        assert adapted[len(declarations[0]):] == source['code'][len(source['prefix']):]
+        assert adapted[len(before_inputs) + len(declarations[0]):] == source['code'][len(source['prefix']):]
+        input_start = source.get('input_start', 1)
         input_end = source['inputs'][-1]['line']
+        input_line_range = set(range(input_start, input_end + 1))
         tree = ast.parse(adapted)
         core = []
         prints = []
-        for node in tree.body:
-            if node.lineno <= input_end:
-                continue
-            # 1순위: If, For, While 제어문 조건식 헤더 라인
-            if isinstance(node, (ast.If, ast.For, ast.While)):
-                core.append((1, node.lineno))
-                for sub in getattr(node, 'body', []) + getattr(node, 'orelse', []):
-                    if isinstance(sub, (ast.Assign, ast.AugAssign)) and sub.lineno > input_end:
-                        prio = 2 if isinstance(getattr(sub, 'value', None), ast.BinOp) else 3
-                        core.append((prio, sub.lineno))
-            elif isinstance(node, (ast.Assign, ast.AugAssign)):
-                prio = 2 if isinstance(getattr(node, 'value', None), ast.BinOp) else 3
-                core.append((prio, node.lineno))
-            elif (isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
-                  and isinstance(getattr(node.value, 'func', None), ast.Name) and node.value.func.id == 'print'):
-                prints.append(node.lineno)
+
+        def collect_statements(body_nodes):
+            for node in body_nodes:
+                if node.lineno in input_line_range:
+                    continue
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    collect_statements(node.body)
+                    continue
+                if isinstance(node, (ast.If, ast.For, ast.While)):
+                    core.append((1, node.lineno))
+                    collect_statements(getattr(node, 'body', []) + getattr(node, 'orelse', []))
+                elif isinstance(node, ast.Return) and node.value is not None:
+                    prio = 2 if isinstance(node.value, (ast.BinOp, ast.Call, ast.Compare, ast.BoolOp)) else 3
+                    core.append((prio, node.lineno))
+                elif isinstance(node, (ast.Assign, ast.AugAssign)):
+                    prio = 2 if isinstance(node, ast.AugAssign) or isinstance(getattr(node, 'value', None), (ast.BinOp, ast.Call)) else 3
+                    core.append((prio, node.lineno))
+                elif isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+                    if isinstance(getattr(node.value, 'func', None), ast.Name) and node.value.func.id == 'print':
+                        prints.append(node.lineno)
+                    else:
+                        core.append((2, node.lineno))
+
+        collect_statements(tree.body)
 
         core.sort(key=lambda x: (x[0], x[1]))
         candidates = []
@@ -386,11 +441,18 @@ def adapted_programs(chunks, generate, versions=(), *, discarded=None, held=None
             numbers = candidates[:3]
         if not numbers:
             raise ValueError('INVALID_PRACTICE_BLANK')
+        if source.get('has_def'):
+            starter_prefix = source.get('import_prefix', '')
+            guide = '# 구현하세요.'
+        else:
+            starter_prefix = before_inputs.replace('\r\n', '\n').replace('\r', '\n')
+            guide = '# 계산과 출력을 구현하세요.'
+        full_template = starter_prefix + declarations[0] + newline + newline + guide + newline
         program = SourceProgram.model_validate({
             'source_id':chunk_ids[proposal['source_id']],'concept_id':None,'code':adapted,
             'input_statement':declarations[0],'variants':declarations[1:],
             'title':proposal.get('title'),'prompt':proposal.get('prompt'),
             'blank_lines':numbers,
-            'full_template':declarations[0]+newline+newline+'# 계산과 출력을 구현하세요.'+newline})
+            'full_template':full_template})
         result.append((program, source['code']))
     return result

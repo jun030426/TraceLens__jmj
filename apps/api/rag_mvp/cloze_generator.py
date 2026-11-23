@@ -3,6 +3,7 @@
 Analyzes Python lecture and lab code to automatically identify critical pedagogical
 algorithmic and data structure points for fill-in-the-blank code practice.
 """
+from __future__ import annotations
 import ast
 import re
 
@@ -101,7 +102,7 @@ EXCLUSION_PATTERNS = [
     r'^\s*from\s+',
     r'^\s*pass\s*$',
     r'^\s*class\s+',
-    r'^\s*def\s+__init__'
+    r'^\s*(?:async\s+)?def\s+'
 ]
 
 
@@ -138,27 +139,43 @@ class ClozeGenerator:
 
     @classmethod
     def select_blanks(cls, code, min_score=80, max_blanks=4, *, protected_lines=()):
-        """Select top 1~3 critical DSA lines from code as cloze blanks."""
+        """Select top critical lines from code as cloze blanks (at most half of code lines)."""
         lines = code.splitlines()
+        code_lines = sum(1 for line in lines if line.strip() and not line.strip().startswith('#'))
+        effective_max = max(1, min(max_blanks, code_lines // 2)) if code_lines else max_blanks
         candidates = []
         for idx, line in enumerate(lines):
             if idx in protected_lines or cls.is_excluded_line(line):
                 continue
             score, category = cls.score_line(line)
             if not score:
+                stripped = line.strip()
+                parse_target = stripped + "\n    pass" if stripped.endswith(":") else stripped
                 try:
-                    stmt = ast.parse(line.strip()).body[0]
+                    stmt = ast.parse(parse_target).body[0]
                 except (SyntaxError, IndexError, ValueError):
                     continue
-                if not (isinstance(stmt, (ast.Assign, ast.AugAssign, ast.AnnAssign))
-                        and isinstance(stmt.value, (ast.BinOp, ast.Call, ast.Compare, ast.BoolOp))):
+                if isinstance(stmt, ast.Return) and stmt.value is not None:
+                    if isinstance(stmt.value, (ast.BinOp, ast.Call, ast.Compare, ast.BoolOp, ast.IfExp, ast.Subscript, ast.UnaryOp)):
+                        score, category = 65, "return_expression"
+                    else:
+                        score, category = 55, "return_value"
+                elif isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
+                    score, category = 65, "loop_control"
+                elif isinstance(stmt, ast.AugAssign):
+                    score, category = 60, "calculation"
+                elif (isinstance(stmt, (ast.Assign, ast.AnnAssign))
+                      and isinstance(stmt.value, (ast.BinOp, ast.Call, ast.Compare, ast.BoolOp, ast.IfExp, ast.Subscript))):
+                    score, category = 60, "calculation"
+                elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+                    score, category = 60, "function_call"
+                else:
                     continue
-                score, category = 60, "calculation"
             candidates.append({"line_index": idx, "line_no": idx + 1, "raw_line": line,
                                "answer": line.strip(), "indentation": line[:len(line) - len(line.lstrip())],
                                "score": score, "category": category})
 
-        for threshold in (min_score, 70, 60):
+        for threshold in (min_score, 70, 60, 55):
             eligible = [candidate for candidate in candidates if candidate["score"] >= threshold]
             if eligible:
                 candidates = eligible
@@ -172,19 +189,19 @@ class ClozeGenerator:
         chosen_line_indices = set()
         for cand in candidates:
             idx = cand['line_index']
-            # Allow at most max_blanks
-            if len(chosen) >= max_blanks:
+            # Allow at most effective_max (never blank more than half the code lines)
+            if len(chosen) >= effective_max:
                 break
             # Prefer non-adjacent lines for readability
-            if len(candidates) > max_blanks and any(abs(idx - c_idx) <= 1 for c_idx in chosen_line_indices):
+            if len(candidates) > effective_max and any(abs(idx - c_idx) <= 1 for c_idx in chosen_line_indices):
                 continue
             chosen.append(cand)
             chosen_line_indices.add(idx)
 
         # If not enough non-adjacent candidates, take next highest
-        if len(chosen) < min(max_blanks, len(candidates)):
+        if len(chosen) < min(effective_max, len(candidates)):
             for cand in candidates:
-                if len(chosen) >= max_blanks:
+                if len(chosen) >= effective_max:
                     break
                 if cand['line_index'] not in chosen_line_indices:
                     chosen.append(cand)
