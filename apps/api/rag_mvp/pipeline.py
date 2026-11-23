@@ -3,6 +3,7 @@
 import html
 import re
 import time
+import unicodedata
 
 from video_extraction.shared.common import now, save, signature, validate
 from .corpus import canonical
@@ -20,6 +21,20 @@ def insufficient_evidence_message(question):
     return message+'질문과 관련된 자료의 해당 부분이나 구체적인 상황을 더 알려주시면 그 근거로 다시 확인하겠습니다.'
 
 
+def _quote_in_text(quote, text):
+    if not quote:
+        return False
+    canon_text = canonical(text)
+    if quote in canon_text:
+        return True
+    # 코드 블록·인라인 코드가 아닌 일반 자연어 문장은 줄바꿈·연속 공백만 단일 공백으로 정규화해 비교한다.
+    if '`' in quote or re.search(r'(?m)^\s*~{3,}', quote):
+        return False
+    norm_quote = re.sub(r'\s+', ' ', unicodedata.normalize('NFC', quote)).strip()
+    norm_text = re.sub(r'\s+', ' ', unicodedata.normalize('NFC', text))
+    return len(norm_quote) >= 4 and norm_quote in norm_text
+
+
 def check_answer(candidate, hits, question=''):
     validate(candidate, ANSWER_SCHEMA)
     byid={h['id']:h for h in hits}
@@ -31,7 +46,7 @@ def check_answer(candidate, hits, question=''):
     for claim in candidate['claims']:
         source=byid.get(claim['source_id'])
         quote=canonical(claim['quote']).strip()
-        if source is None or len(quote)<4 or not any(quote in canonical(t) for t in citation_texts(source)) or not claim['text'].strip():
+        if source is None or len(quote)<4 or not any(_quote_in_text(quote, t) for t in citation_texts(source)) or not claim['text'].strip():
             return {'status':'held','claims':[], 'reason':'출처 또는 원문 인용 검증에 실패해 답변을 보류했습니다.'}
         try:
             if not supported_code(claim['text'],source):
@@ -39,8 +54,8 @@ def check_answer(candidate, hits, question=''):
         except ValueError:
             return {'status':'held','claims':[], 'reason':'코드 블록이 닫히지 않았거나 불완전해 답변을 보류했습니다.'}
         locator=source.get('source_locator',f"슬라이드 {source['slide_number']}")
-        if quote not in canonical(source['text']):
-            c=next(c for c in linked_comments(source) if quote in canonical(c['text']))
+        if not _quote_in_text(quote, source['text']):
+            c=next(c for c in linked_comments(source) if _quote_in_text(quote, c['text']))
             locator=f"주석 줄 {c['line_start']}–{c['line_end']} (관련 코드 {locator})"
         checked.append({**claim,'source_file':source['source_file'],'slide_number':source['slide_number'],
                         'source_locator':locator})

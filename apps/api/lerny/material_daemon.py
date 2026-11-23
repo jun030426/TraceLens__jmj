@@ -7,11 +7,19 @@ from lerny.config import settings
 from lerny.worker import run_once
 
 
+IDLE_SLEEP_SECONDS = {
+    "interactive": 0.5,
+    "material": 2.0,
+    "embedding": 2.0,
+}
+
+
 def main(role="material"):
-    if role not in {"material", "embedding", "interactive"}:
+    if role not in IDLE_SLEEP_SECONDS:
         raise ValueError("Unknown worker role")
     if not settings().dedicated_worker:
         raise SystemExit("Dedicated worker configuration required")
+    idle_sleep = IDLE_SLEEP_SECONDS[role]
     next_cleanup = 0.0
     while True:
         try:
@@ -19,7 +27,7 @@ def main(role="material"):
                 cleanup()
                 next_cleanup = time.monotonic() + 60
             if not run_once(worker_kind=role):
-                time.sleep(2)
+                time.sleep(idle_sleep)
         except Exception as exc:
             # Avoid printing private source, configuration, or database connection strings.
             print(role, "worker retry:", type(exc).__name__, flush=True)

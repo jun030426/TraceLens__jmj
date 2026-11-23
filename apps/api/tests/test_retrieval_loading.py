@@ -82,7 +82,8 @@ def test_longer_lesson_evidence_keeps_week_scope_and_private_exclusion(api, monk
             content='STACK' if i < 4 else '스택은 맨 위에서 값을 넣고 꺼내는 자료구조입니다.', locator={}))
     session.commit()
     from lerny import rag_index, team_engine
-    monkeypatch.setattr(retrieval, 'settings', lambda:SimpleNamespace(ai_provider='gemini',rag_storage='supabase'))
+    monkeypatch.setattr(retrieval, 'settings', lambda:SimpleNamespace(
+        ai_provider='gemini', rag_storage='supabase', supabase_url='https://retrieval-test.invalid'))
     monkeypatch.setattr(rag_index, 'indexed_ids', lambda chunks:{c.id for c in chunks})
     def engine(rows, course_id, **_):
         # Model-independent ranking: reproduce several short labels preceding prose.
