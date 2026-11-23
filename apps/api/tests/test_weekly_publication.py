@@ -1,4 +1,5 @@
 """Instructor review is the authorization boundary; all fixtures are isolated SQLite."""
+import hashlib
 import json
 from uuid import uuid4
 from datetime import date
@@ -213,7 +214,8 @@ def test_weekly_worker_combines_files_and_tags_verified_practice(weekly,monkeypa
     client,session,_=weekly
     code="numbers = [1, 2]\ntotal = sum(numbers)\nprint(total)"
     session.add(Material(id="code",course_id="course",title="example.py",kind="example",week=1,visibility="public",active_version_id="code-v"))
-    session.add(MaterialVersion(id="code-v",material_id="code",version_no=1,filename="example.py",object_key="unused",sha256="b"*64,status="ready",extracted_text=code))
+    session.add(MaterialVersion(id="code-v",material_id="code",version_no=1,filename="example.py",object_key="unused",
+                                sha256=hashlib.sha256(code.encode()).hexdigest(),status="ready",extracted_text=code))
     session.add(Chunk(id="code-chunk",version_id="code-v",content=code,locator={"line":1}));session.commit()
     gid=start(client)
     def model(prompt,schema):
@@ -222,7 +224,7 @@ def test_weekly_worker_combines_files_and_tags_verified_practice(weekly,monkeypa
             return {"concepts":[{"name":"stack","quote":"Synthetic public stack rule 1.","version_id":"version"}]}
         assert "programs" in schema["properties"]
         assert code in {s["text"] for s in json.loads(prompt.rsplit("\n",1)[1])["sources"]}
-        return {"programs":[{"source_id":"code-chunk","concept_id":"concept_stack","code":code,"title":"합 구하기",
+        return {"programs":[{"source_id":"file:code-v","concept_id":"concept_stack","code":code,"title":"합 구하기",
             "prompt":"배열 숫자의 합을 계산해 출력하세요.","input_statement":"numbers = [1, 2]","variants":["numbers = [3, 4]","numbers = [0, 0]"],
             "blank_lines":[model_blank],"full_template":"numbers = [1, 2]\n# 구현하세요"}]}
     monkeypatch.setattr(worker,"model_json",model)

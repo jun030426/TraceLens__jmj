@@ -39,6 +39,9 @@ def metadata(exercise):
             requirements = ClozeGenerator.infer_dynamic_requirements(ref_code, slide_text=exercise.prompt, input_statement=statement)
         except Exception:
             pass
+    tests = getattr(exercise, "tests", None) or []
+    if tests and "input" not in tests[0]:
+        requirements = ["빈칸 밖의 시작 코드를 유지하세요.", *requirements[1:]]
 
     # 가이드라인(helpers_guide_text)은 계획대로 완전히 제거하여 화면을 깔끔하게 유지
     return {"requirements": requirements, "helpers_guide_text": "",
@@ -249,13 +252,21 @@ def answer_key(exercise) -> list[str]:
     return [full_answer_on_template(exercise)]
 
 
+def editor_reference(exercise):
+    reference = exercise.reference or ""
+    tests = getattr(exercise, "tests", None) or []
+    if tests and (original := tests[0].get("source_statement")):
+        return reference.replace(original, tests[0]["statement"], 1)
+    return reference
+
+
 def full_answer_on_template(exercise) -> str:
     """전체 구현 답지를 시작 코드 위에 줄을 맞춰 얹습니다.
 
     따라쓰기는 편집기와 답지를 같은 줄 번호끼리 겹쳐 그려요. 시작 코드의 안내 주석 줄을 그대로 두고
     그 다음 줄부터 모범 코드의 본문이 오게 해야 글자가 겹치지 않습니다.
     """
-    reference = (exercise.reference or "").replace("\r\n", "\n")
+    reference = editor_reference(exercise).replace("\r\n", "\n")
     template_lines = (exercise.template or "").replace("\r\n", "\n").rstrip().split("\n")
     comment = "#" if exercise.language == "python" else "//"
     lines = reference.split("\n")
@@ -332,7 +343,7 @@ def normalize_blanks_and_template(exercise):
     """Repair invalid stored slots for display, keeping the saved exercise unchanged."""
     template = getattr(exercise, "template", "") or ""
     blanks = ordered_blanks(getattr(exercise, "blanks", {}) or {})
-    reference = exercise.reference or ""
+    reference = editor_reference(exercise)
     if exercise.language != "python" or exercise.kind != "blank" or not reference:
         return template, blanks
     tests = getattr(exercise, "tests", None) or []
@@ -435,4 +446,4 @@ def explanation(exercise):
             "reference": exercise.reference, "annotated_reference": annotated_reference,
             "blanks": clean_blank_answers(norm_blanks or {}),
             "blank_comments": blank_comments,
-            "example_input": sample["input"], "expected": sample["expected"]}
+            "example_input": sample.get("input", ""), "expected": sample["expected"]}

@@ -1,4 +1,4 @@
-"""Adapt numeric input prefixes to literal fixtures without executing source locally."""
+"""Adapt supported input prefixes to literal fixtures without executing source locally."""
 import ast
 import hashlib
 import json
@@ -19,6 +19,29 @@ def numeric_source(text):
     return numeric_program(match[1]) if match else None
 
 
+def stdin_type(value):
+    kind, call = 'str', value
+    if isinstance(value, ast.Call) and isinstance(value.func, ast.Name) and value.func.id in {'int', 'float'}:
+        if value.keywords or len(value.args) != 1:
+            return None
+        kind, call = value.func.id, value.args[0]
+    if (isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == 'input'
+            and not call.keywords and len(call.args) <= 1
+            and all(isinstance(arg, ast.Constant) and isinstance(arg.value, str) for arg in call.args)):
+        return kind
+    return None
+
+
+def literal_type(value):
+    if type(value) in {int, float} and abs(value) <= 1000:
+        return type(value).__name__
+    if type(value) is str and len(value) <= 120:
+        return 'str'
+    if type(value) is list and len(value) <= 64 and all(type(v) in {int, float, str} and literal_type(v) for v in value):
+        return 'list'
+    raise ValueError('UNSUPPORTED_PRACTICE_INPUT')
+
+
 def numeric_program(code):
     try:
         tree = ast.parse(code)
@@ -28,22 +51,16 @@ def numeric_program(code):
     for node in tree.body:
         value = node.value if isinstance(node, ast.Assign) else None
         if not (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
-                and isinstance(value, ast.Call) and isinstance(value.func, ast.Name)
-                and value.func.id in {'int', 'float'} and len(value.args) == 1 and not value.keywords):
-            break
-        call = value.args[0]
-        if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == 'input'
-                and not call.keywords and len(call.args) <= 1
-                and all(isinstance(arg, ast.Constant) and isinstance(arg.value, str) for arg in call.args)):
+                and (kind := stdin_type(value))):
             break
         line = code.splitlines()[node.lineno-1]
         tail = line.encode('utf-8')[node.end_col_offset:].decode('utf-8').strip()
         if node.lineno != node.end_lineno or (tail and not tail.startswith('#')):
             return None
-        inputs.append({'name': node.targets[0].id, 'type': value.func.id, 'line': node.lineno})
+        inputs.append({'name': node.targets[0].id, 'type': kind, 'line': node.lineno})
     if not 1 <= len(inputs) <= 6 or len({item['name'] for item in inputs}) != len(inputs):
         return None
-    # Only straight numeric input prefixes are adapted; all other input forms stay held.
+    # Only straight input prefixes are adapted; all other input forms stay held.
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
              and isinstance(node.func, ast.Name) and node.func.id == 'input']
     if len(calls) != len(inputs):
@@ -55,8 +72,8 @@ def numeric_program(code):
     return {'code': code, 'prefix': prefix, 'inputs': inputs}
 
 
-def literal_inputs(statement, variants):
-    """Accept assignments to finite numeric constants only, with identical variable order."""
+def literal_inputs(statement, variants, *, expected=None):
+    """Accept bounded literal assignments with the declared names, types and order."""
     def parse(value):
         try:
             tree = ast.parse(value)
@@ -70,13 +87,11 @@ def literal_inputs(statement, variants):
                 number = ast.literal_eval(node.value)
             except (ValueError, TypeError, SyntaxError):
                 raise ValueError('UNSUPPORTED_PRACTICE_INPUT') from None
-            if type(number) not in {int, float} or not math.isfinite(number) or abs(number) > 1000:
-                raise ValueError('PRACTICE_INPUT_TOO_LARGE')
-            names.append(node.targets[0].id)
-        if not 1 <= len(names) <= 6 or len(names) != len(set(names)):
+            names.append((node.targets[0].id, literal_type(number)))
+        if not 1 <= len(names) <= 6 or len(names) != len({n for n, _ in names}):
             raise ValueError('UNSUPPORTED_PRACTICE_INPUT')
         return names
-    names = parse(statement)
+    names = expected if expected is not None else parse(statement)
     values = list(dict.fromkeys([statement, *variants]))
     if len(values) < 3 or any(parse(value) != names for value in values):
         raise ValueError('INVALID_PRACTICE_PROBES')
@@ -102,7 +117,7 @@ def reviewed_programs(chunk, page_shapes):
     # lines are kept when reconstructing the exact hash-verified source.
     blocks = chunk.content.split('\n\n')
     for first, block in enumerate(blocks):
-        if not re.match(r'\s*\w+\s*=\s*(?:int|float)\s*\(', block):
+        if not re.match(r'\s*\w+\s*=\s*(?:int|float|input)\s*\(', block):
             continue
         for end in range(first + 1, len(blocks) + 1):
             code = '\n\n'.join(blocks[first:end])
@@ -129,7 +144,7 @@ def adapted_programs(chunks, generate, versions=()):
         return []
     output = generate(
         '공개 Python 원문 예제의 실습 입력 사례를 설계하라. 코드·계산식·출력문은 생성하거나 바꾸지 않는다. '
-        '각 원문의 input 변수 순서대로 숫자 3세트를 제시한다. int 변수에는 정수만, float에는 유한 수를 쓴다. '
+        '각 원문의 input 변수 순서대로 입력 3세트를 제시한다. str은 120자 이하 문자열, int는 정수, float는 유한 수다. '
         '절댓값은 1000 이하이며 0으로 나누기 등 원문 실행 오류를 피한다. 서로 다른 결과를 만드는 입력을 고른다. '
         'blank_lines는 입력 줄과 단순 출력문(print)을 제외한 핵심 조건문(if), 반복문, 계산 로직의 1부터 시작하는 줄 번호 1~3개다. 단순 print문은 제어/계산 코드가 있을 때 절대 빈칸으로 두지 않는다. '
         'title과 prompt는 원문에서 실제 수행하는 계산과 출력 목표를 한국어로 설명한다. '
@@ -140,7 +155,7 @@ def adapted_programs(chunks, generate, versions=()):
             'type':'object','properties':{'source_id':{'type':'string','enum':list(sources)},
                 'title':{'type':'string','minLength':2,'maxLength':150},
                 'prompt':{'type':'string','minLength':10,'maxLength':1500},
-                'cases':{'type':'array','minItems':3,'maxItems':3,'items':{'type':'array','minItems':1,'maxItems':6,'items':{'type':'number'}}},
+                'cases':{'type':'array','minItems':3,'maxItems':3,'items':{'type':'array','minItems':1,'maxItems':6,'items':{'anyOf':[{'type':'number'},{'type':'string'}]}}},
                 'blank_lines':{'type':'array','minItems':1,'maxItems':3,'items':{'type':'integer'}}},
             'required':['source_id','title','prompt','cases','blank_lines'],'additionalProperties':False}}},
          'required':['programs'],'additionalProperties':False})
@@ -166,10 +181,14 @@ def adapted_programs(chunks, generate, versions=()):
                 raise ValueError('INVALID_PRACTICE_PROBES')
             lines = source['prefix'].splitlines()
             for spec, value in zip(source['inputs'], case, strict=True):
-                if (type(value) not in {int, float} or not math.isfinite(value) or abs(value) > 1000
+                if spec['type'] == 'str':
+                    if literal_type(value) != 'str':
+                        raise ValueError('INVALID_PRACTICE_PROBES')
+                elif (type(value) not in {int, float} or abs(value) > 1000 or not math.isfinite(value)
                         or (spec['type'] == 'int' and not float(value).is_integer())):
                     raise ValueError('INVALID_PRACTICE_PROBES')
-                value = int(value) if spec['type'] == 'int' else float(value)
+                else:
+                    value = int(value) if spec['type'] == 'int' else float(value)
                 lines[spec['line']-1] = spec['name'] + ' = ' + repr(value)
             declarations.append(newline.join(lines))
         literal_inputs(declarations[0], declarations[1:])
@@ -198,11 +217,9 @@ def adapted_programs(chunks, generate, versions=()):
                 prints.append(node.lineno)
 
         core.sort(key=lambda x: (x[0], x[1]))
-        seen = set()
         candidates = []
         for _, ln in core:
-            if ln not in seen:
-                seen.add(ln)
+            if ln not in candidates:
                 candidates.append(ln)
 
         # 핵심 조건/계산 줄이 하나라도 있으면 print문은 빈칸 후보에서 뺀다.

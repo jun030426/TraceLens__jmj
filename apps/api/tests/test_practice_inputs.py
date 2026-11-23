@@ -61,13 +61,18 @@ def test_verified_ppt_shape_preserves_numeric_example(combined):
 
 @pytest.mark.parametrize('code',[
     'a = int(input()); print(a)',
-    'name = input("이름:")\nprint(name)',
-    'a = int(input())\nb = input()\nprint(a,b)',
+    'while True:\n    name = input()\n    print(name)',
     'a = int(input(fetch()))\nprint(a)',
     'a = int(input())\na = int(input())\nprint(a)',
 ])
 def test_unsupported_inputs_are_not_adapted(code):
     assert numeric_source('```python\n'+code+'\n```') is None
+
+
+def test_mixed_number_and_string_prefix_is_adapted_as_literals():
+    source = 'a = int(input())\nb = input()\nprint(b * a)'
+    program, original = adapt(source, cases=[[1,'a'],[2,'b'],[3,'c']])[0]
+    assert original == source and program.input_statement == "a = 1\nb = 'a'"
 
 
 @pytest.mark.parametrize('cases',[
