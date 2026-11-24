@@ -10,3 +10,6 @@
 - Keep models, package caches, virtual environments and runtime data outside the source tree. Use `LERNY_RUNTIME_ROOT`, defaulting to `%USERPROFILE%\LernyData`. Never commit secrets or student/professor data.
 - Run student code only in browser Pyodide or in the disposable AWS sandbox. Never execute student code on the host. Preserve the sandbox's CPU, memory, process and time limits, network isolation and prohibition on host mounts. See `deploy/trace-sandbox/run_isolated.py`.
 - Do not restart the user's PC automatically. Record environmental blockers accurately; do not mark P0 complete before its checks pass.
+- Keep HeyGen video generation disabled. Enabling it or making a paid HeyGen video call requires the user's explicit approval.
+- Verify the requester can access the course and source materials before searching shared embeddings. Keep the original file bucket private.
+- Keep secrets out of screens, logs, reports and commits. For operational comparisons, compare hashes in memory and report only whether they match.
