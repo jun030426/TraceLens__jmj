@@ -3849,6 +3849,7 @@ details.signup-privacy:not([open]) > summary.signup-privacy-title { margin-botto
   tab-size: 4;
 }
 #root .code-editor__ln li { position: relative; }
+#root .code-editor__line-measure { visibility: hidden; }
 #root .code-editor__line-number {
   position: absolute;
   inset-inline-end: calc(100% + 16px);
@@ -3868,11 +3869,13 @@ details.signup-privacy:not([open]) > summary.signup-privacy-title { margin-botto
 #root .code-editor :is(.code-editor__ln, .code-editor__ghost, .code-editor__syntax, .code-editor__fixes) {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  word-break: break-all;
 }
 #root .code-editor > .code-editor__body > .code-editor__ghost {
   position: relative;
   inset: auto;
   box-sizing: border-box;
+  font-weight: inherit;
 }
 #root .practice-card .practice-editor-panel > :is(.blank-editor, .code-editor) {
   overflow-x: hidden;
