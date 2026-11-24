@@ -14,7 +14,7 @@ import type { ErrorInfo } from "./errorModel";
 
 // error: 이 단계가 예외 단계일 때만 채운다 — 무대가 "어디서·왜" 멈췄는지 짚어 준다
 // pause: 빈칸 채우기 실습에서 안 채운 빈칸 앞에 멈췄을 때 무대 위에 띄울 안내 (오류가 아니라 보라색)
-export type CharacterStageInput = { before: Scene; after: Scene; motion: StageMotion; marks: StageMotion; scale: Scale; error?: ErrorInfo | null; pause?: string | null; branch?: boolean; focusedStructure?: boolean };
+export type CharacterStageInput = { before: Scene; after: Scene; motion: StageMotion; marks: StageMotion; scale: Scale; error?: ErrorInfo | null; pause?: string | null; branch?: boolean; idleLabel?: string; focusedStructure?: boolean };
 
 const C = {
   background: "#f6f1f8",
@@ -504,7 +504,7 @@ export function CharacterStage({
     const errBg = new THREE.Color(dk ? STAGE_DARK.err : "#fbe6e6");
     const calmBg = new THREE.Color(stageBg);
 
-    const draw = ({ before, after, motion, marks, scale, error, pause, branch, focusedStructure }: CharacterStageInput, p: number, t: number) => {
+    const draw = ({ before, after, motion, marks, scale, error, pause, branch, idleLabel, focusedStructure }: CharacterStageInput, p: number, t: number) => {
       const calm = calmRef.current;
       const used = { c: new Set<string>(), r: new Set<string>(), p: new Set<string>(), w: new Set<string>(), s: new Set<string>() };
       let minX = -2.5;
@@ -530,21 +530,23 @@ export function CharacterStage({
         });
         scene.add(o);
       };
-      if (branch !== undefined) {
-        const key = `branch:${branch}`;
+      if (branch !== undefined || idleLabel) {
+        const key = branch === undefined ? "execution" : `branch:${branch}`;
         used.r.add(key);
         let signal = robots.get(key);
         if (!signal) {
-          signal = makeRobot(++seedN, "조건 분기");
+          signal = makeRobot(++seedN, branch === undefined ? "프로그램" : "조건 분기");
           const color = branch ? "#38d487" : "#ff525d";
-          signal.ball!.scale.setScalar(2.8);
-          (signal.ball!.material as THREE.MeshPhysicalMaterial).emissive.set(color);
-          (signal.ball!.material as THREE.MeshPhysicalMaterial).color.set(color);
+          if (branch !== undefined) {
+            signal.ball!.scale.setScalar(2.8);
+            (signal.ball!.material as THREE.MeshPhysicalMaterial).emissive.set(color);
+            (signal.ball!.material as THREE.MeshPhysicalMaterial).color.set(color);
+          }
           robots.set(key, signal);
         }
         add(signal.root);
         signal.root.position.set(0, 0.22, 0);
-        setValue(signal, branch ? "참" : "거짓", true);
+        setValue(signal, idleLabel ?? (branch ? "참" : "거짓"), branch !== undefined);
         extend(0, 0, 1, 2.3);
       }
       const rowAnchor = new Map<string, { point: THREE.Vector3; title: string }>(); // 관이 닿는 판 왼쪽 끝

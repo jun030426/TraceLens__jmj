@@ -17,7 +17,7 @@ export const STAGE_LABEL: Record<TraceStage, string> = {
 /** 한 번의 "코드 실행" 결과 — 실행 결과 탭과 시각화 탭이 같은 기록을 나눠 쓴다 */
 export type PracticeRun =
   | { kind: 'ran'; code: string; stdout: string; error?: string; clipped: boolean; trace: ExecutionTrace | null; blankStop?: { blank: number; line: number } }
-  | { kind: 'syntax'; code: string; info: SyntaxErrorInfo }
+  | { kind: 'syntax'; code: string; info: SyntaxErrorInfo; trace: ExecutionTrace }
   | { kind: 'blocked'; code: string; text: string }
 
 /**
@@ -47,7 +47,18 @@ export async function runPractice(
       }
     }
     if (r.blocked) return { kind: 'blocked', code, text: r.blocked }
-    if (r.syntaxError) return { kind: 'syntax', code, info: r.syntaxError }
+    if (r.syntaxError) {
+      const info = r.syntaxError
+      const error = `${info.name}: ${info.msg}`
+      // Compilation failed before any user code ran. Show the parser's
+      // diagnostic as an error scene without inventing execution steps.
+      const trace = toExecutionTrace(lang, [{
+        seq: 0, kind: 'exception', frameId: 0, parentFrameId: null, func: '<module>',
+        causedByLine: info.line, observedAtLine: info.line ?? 0,
+        localsDelta: [], objectsDelta: [], stdout: '', error,
+      }], { clipped: false, error })
+      return { kind: 'syntax', code, info, trace }
+    }
     onStage('building')
     return {
       kind: 'ran',
