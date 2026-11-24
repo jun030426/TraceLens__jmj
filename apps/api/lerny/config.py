@@ -50,6 +50,9 @@ class Settings(BaseModel):
     gemini_paid_call_budget: PaidCallBudget | None = None
     gemini_default_paid_call_budget: int = Field(default=1500, ge=0, le=10000)
     gemini_review_concurrency: int = Field(default=1, ge=1, le=32)
+    # In-flight calls shared by every worker process for one quota project and model.
+    gemini_content_concurrency: int = Field(default=1, ge=1, le=32)
+    gemini_embedding_concurrency: int = Field(default=1, ge=1, le=32)
     gemini_review_requests_per_minute: int | None = Field(default=None, ge=1, le=6000)
     gemini_content_requests_per_minute: int = Field(default=12, ge=1, le=6000)
     gemini_embedding_requests_per_minute: int = Field(default=12, ge=1, le=6000)

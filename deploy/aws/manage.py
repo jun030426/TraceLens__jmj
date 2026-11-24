@@ -25,6 +25,7 @@ WORKER_POLICY_NAMES = (
     "LERNY_GEMINI_REVIEW_REQUESTS_PER_MINUTE", "LERNY_GEMINI_EMBEDDING_REQUESTS_PER_MINUTE",
     "LERNY_GEMINI_CONTENT_REQUESTS_PER_MINUTE", "LERNY_GEMINI_REVIEW_CONCURRENCY", "LERNY_GEMINI_PAID_CALL_BUDGET",
     "LERNY_GEMINI_DEFAULT_PAID_CALL_BUDGET",
+    "LERNY_GEMINI_CONTENT_CONCURRENCY", "LERNY_GEMINI_EMBEDDING_CONCURRENCY",
 )
 
 
@@ -78,8 +79,8 @@ def update_worker_policy(ssm, patch, expected_version, *, apply=False):
     for name, value in patch.items():
         if name.endswith("_REQUESTS_PER_MINUTE") and not (value.isdecimal() and 1 <= int(value) <= 6000):
             raise ValueError("Invalid RPM for " + name)
-        if name == "LERNY_GEMINI_REVIEW_CONCURRENCY" and not (value.isdecimal() and 1 <= int(value) <= 32):
-            raise ValueError("Review concurrency must be between 1 and 32")
+        if name.endswith("_CONCURRENCY") and not (value.isdecimal() and 1 <= int(value) <= 32):
+            raise ValueError("Concurrency must be between 1 and 32 for " + name)
         if name == "LERNY_GEMINI_PAID_CALL_BUDGET":
             budget = json.loads(value)
             if budget is not None and (

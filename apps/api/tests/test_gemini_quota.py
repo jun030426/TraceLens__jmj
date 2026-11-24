@@ -418,6 +418,32 @@ def test_review_slots_keep_rolling_limits_and_expire_independently(paced, monkey
         assert leases[0][1] not in keys and leases[2][1] in keys
 
 
+@pytest.mark.parametrize("role", ["content", "embedding", "draft"])
+def test_role_concurrency_admits_parallel_calls_but_keeps_rpm_spacing(paced, monkeypatch, role):
+    config, clock, _ = paced
+    monkeypatch.setattr(quota, "request_purpose", lambda *_: role)
+    config.gemini_content_concurrency = config.gemini_embedding_concurrency = 3
+    config.gemini_content_requests_per_minute = config.gemini_embedding_requests_per_minute = 120
+    config.gemini_review_quota_project = "paid-draft"
+    first = quota.reserve_slot(PATH, BODY)
+    # RPM spacing still applies even with free in-flight slots.
+    pending("GEMINI_PACING_WAIT", lambda: quota.reserve_slot(PATH, BODY))
+    clock[0] += 0.6
+    if role == "draft":
+        # Paid drafts are not widened by the content setting.
+        pending("GEMINI_PACING_WAIT", lambda: quota.reserve_slot(PATH, BODY))
+        quota.release_slot(first)
+        quota.reserve_slot(PATH, BODY)
+        return
+    quota.reserve_slot(PATH, BODY)
+    clock[0] += 0.6
+    quota.reserve_slot(PATH, BODY)
+    clock[0] += 0.6
+    pending("GEMINI_PACING_WAIT", lambda: quota.reserve_slot(PATH, BODY))
+    quota.release_slot(first)
+    quota.reserve_slot(PATH, BODY)
+
+
 def test_parallel_paid_requests_still_obey_tpm(paced, monkeypatch):
     config, clock, _ = paced
     monkeypatch.setattr(quota, "request_purpose", lambda *_: "review")
