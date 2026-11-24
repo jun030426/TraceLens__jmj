@@ -341,7 +341,8 @@ def chat_history(
 
 
 class ChatFeedback(Input):
-    value: Literal["understood", "confused", "aborted"]
+    # "unknown"(모르겠어요) is the primary value; "aborted" is retained for backward compatibility.
+    value: Literal["understood", "confused", "unknown", "aborted"]
 
 
 @router.put("/sections/{section_id}/chat/messages/{message_id}/feedback")

@@ -7,6 +7,8 @@ from sqlalchemy import select
 
 from lerny.models import Attempt, AuditEvent, ChatMessage, Course, Section, LearningSession, Question
 
+FEEDBACK_SCORES = {"understood": 20, "confused": 65, "unknown": 80, "aborted": 80}
+
 
 def weakness(session, student_id, section_id, concept_ids):
     ids = list(dict.fromkeys(concept_ids))
@@ -52,8 +54,7 @@ def weakness(session, student_id, section_id, concept_ids):
         cid = (message.learning_context or {}).get("concept_id")
         if cid in rows and cid not in feedback_seen:
             feedback_seen.add(cid)
-            rows[cid]["feedback"] = {"understood": 20, "confused": 80, "aborted": 65}.get(
-                message.feedback.get("value"), 50)
+            rows[cid]["feedback"] = FEEDBACK_SCORES.get(message.feedback.get("value"), 50)
     for cid, row in rows.items():
         samples = scores[cid]
         row["samples"] = len(samples)

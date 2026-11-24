@@ -36,8 +36,23 @@ def chat(integration, monkeypatch):
         return {"embeddings": [VECTOR]}
 
     def model(prompt, schema):
+        data = json.loads(prompt.rsplit("\n", 1)[1])
+        if "conversation_memory" in data:
+            q = data["current_question"]
+            if not topic_terms(q):
+                last_terms = []
+                for turn in reversed(data["conversation_memory"]):
+                    last_terms = topic_terms(turn["question"])
+                    if last_terms:
+                        break
+                return {
+                    "is_followup": True,
+                    "standalone_query": " ".join([*last_terms, q]),
+                    "topic_keywords": last_terms,
+                }
+            return {"is_followup": False, "standalone_query": q, "topic_keywords": topic_terms(q)}
         prompts.append(prompt)
-        evidence = json.loads(prompt.rsplit("\n", 1)[1])["sources"][0]
+        evidence = data["sources"][0]
         return {"answerable": True, "reason": "", "claims": [
             {"source_id": evidence["source_id"], "quote": evidence["text"], "text": evidence["text"]}]}
 
@@ -60,9 +75,35 @@ def chat(integration, monkeypatch):
                            queries=queries, prompts=prompts)
 
 
-@pytest.mark.parametrize("question", ["다시 설명해 주세요", "왜 그런가요?", "더 쉽게", "예시로 설명해줘"])
+@pytest.mark.parametrize(
+    "question",
+    ["다시 설명해 주세요", "왜 그런가요?", "더 쉽게", "예시로 설명해줘", "다른 예시도 알려줘"],
+)
 def test_context_only_requests(question):
     assert not topic_terms(question)
+
+
+def test_ai_query_rewrite_handles_unlisted_natural_followup(chat, monkeypatch):
+    assert chat.ask("upper()에 대해 설명해줘")["citations"][0]["chunk_id"] == chat.first.id
+
+    def rewrite_and_answer(prompt, schema):
+        data = json.loads(prompt.rsplit("\n", 1)[1])
+        if "conversation_memory" in data:
+            return {
+                "is_followup": True,
+                "standalone_query": "upper() 실무 활용 예시",
+                "topic_keywords": ["upper"],
+            }
+        evidence = data["sources"][0]
+        return {"answerable": True, "reason": "", "claims": [
+            {"source_id": evidence["source_id"], "quote": evidence["text"], "text": evidence["text"]}]}
+
+    monkeypatch.setattr(worker, "model_json", rewrite_and_answer)
+    # Phrasing intentionally contains words not in any static rule list.
+    result = chat.ask("실무 코딩할 때 쓰이는 딴 케이스도 보여줄래?")
+    assert result["answer_kind"] == "grounded"
+    assert {c["chunk_id"] for c in result["citations"]} == {chat.first.id}
+    assert chat.queries[-1] == "upper() 실무 활용 예시"
 
 
 def test_concept_terms_and_identifiers_are_new_topics():

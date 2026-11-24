@@ -33,6 +33,8 @@ async def test_feedback_is_owned_persisted_idempotent_and_epoch_bound(app_db, mo
         assert answer.feedback == saved
         history = (await c.get(f"/api/v1/sections/{sec.id}/chat/history")).json()
         assert history["items"][0]["feedback"] == "confused"
+        assert weakness(db, student.id, sec.id, sec.progress)[sec.progress[0]]["feedback"] == 65
+        assert (await c.put(route, json={"value": "unknown"})).status_code == 200
         assert weakness(db, student.id, sec.id, sec.progress)[sec.progress[0]]["feedback"] == 80
         other = db.scalar(select(User).where(User.login_id == "student2"))
         db.add(Enrollment(student_id=other.id, course_id=course["id"], section_id=sec.id, status="active")); db.commit()
