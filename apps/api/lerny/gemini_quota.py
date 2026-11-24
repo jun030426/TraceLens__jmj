@@ -182,7 +182,10 @@ def reserve_slot(path, payload):
     rpm = getattr(config, f"gemini_{purpose}_requests_per_minute")
     role = request_purpose(path, config)
     review = role == "review"
-    concurrency = config.gemini_review_concurrency if review else 1
+    # Paid drafts keep one in-flight call; only their own role settings widen a slot.
+    concurrency = {"review": config.gemini_review_concurrency,
+                   "content": config.gemini_content_concurrency,
+                   "embedding": config.gemini_embedding_concurrency}.get(role, 1)
     if review and config.gemini_review_requests_per_minute is not None:
         rpm = config.gemini_review_requests_per_minute
     tpm = getattr(config, f"gemini_{purpose}_tokens_per_minute")

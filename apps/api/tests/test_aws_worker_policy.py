@@ -77,6 +77,20 @@ def test_policy_plan_preserves_unrelated_values_and_kms_metadata(capsys):
     assert "sensitive-fixture" not in capsys.readouterr().out
 
 
+def test_content_and_embedding_concurrency_are_allowlisted():
+    patch = {"LERNY_GEMINI_CONTENT_CONCURRENCY": "4", "LERNY_GEMINI_EMBEDDING_CONCURRENCY": "4",
+             "LERNY_GEMINI_CONTENT_REQUESTS_PER_MINUTE": "120"}
+    writes = []
+    fake = SimpleNamespace(
+        get_parameter=lambda **k:{"Parameter":{"Value":"{}","Type":"SecureString","Version":3}},
+        describe_parameters=lambda **k:{"Parameters":[{"Version":3,"Tier":"Standard"}]},
+        put_parameter=lambda **k:writes.append(k) or {"Version":4})
+    manage.update_worker_policy(fake, patch, 3, apply=True)
+    assert json.loads(writes[0]["Value"]) == patch
+    config = Settings(**{k.removeprefix("LERNY_").lower(): v for k, v in patch.items()})
+    assert config.gemini_content_concurrency == config.gemini_embedding_concurrency == 4
+
+
 def test_windows_release_matches_linux_engine_bytes(tmp_path):
     import io
     import tarfile
@@ -97,6 +111,8 @@ def test_windows_release_matches_linux_engine_bytes(tmp_path):
 
 @pytest.mark.parametrize("patch", [
     {"LERNY_GEMINI_REVIEW_CONCURRENCY": "33"},
+    {"LERNY_GEMINI_CONTENT_CONCURRENCY": "0"},
+    {"LERNY_GEMINI_EMBEDDING_CONCURRENCY": "33"},
     {"LERNY_GEMINI_DEFAULT_PAID_CALL_BUDGET": "-1"},
     {"LERNY_GEMINI_PAID_CALL_BUDGET": '{"version_id":"test","max_new_calls":-1}'},
 ])
