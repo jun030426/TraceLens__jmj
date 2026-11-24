@@ -128,11 +128,13 @@ export function VisualizationScreen(props: VisualizationScreenProps) {
 
   if (!current) return <section className="vz-screen" aria-label="실행 장면"><p className="vz-screen__caption">실행 기록 없음</p></section>;
   const stack = current.frames.map(f => f.name);
-  const stageEmpty = branch === undefined && !error
-    && !stageAfter.vars.length && !stageAfter.rows.length && !stageAfter.signs.length;
-  const newOutput = current.stdout.slice(previous?.stdout.length ?? 0);
-  const stageOutput = newOutput || (stageEmpty ? current.stdout : "");
-  const stageMessage = blankStop ? "빈칸 앞에서 멈췄어요" : said?.text || facts;
+  const stageEmpty = !stageAfter.vars.length && !stageAfter.rows.length && !stageAfter.signs.length;
+  const idleLabel = stageEmpty && branch === undefined
+    ? error ? "오류"
+      : blankStop ? "빈칸 앞 멈춤"
+      : said?.kind === "print" || current.stdout.length > (previous?.stdout.length ?? 0) ? "출력"
+      : current.index === 0 ? "실행 시작" : "실행"
+    : undefined;
   return (
     <section className="vz-screen" aria-label="실행 장면" tabIndex={0} onKeyDown={onKey}>
       <div className="vz-screen__main">
@@ -140,21 +142,13 @@ export function VisualizationScreen(props: VisualizationScreenProps) {
           <Suspense fallback={<div className="vz-stage__fallback">3D 무대를 준비하고 있어요…</div>}>
             <CharacterStage
               key={theme /* 다크 · 밝은 모드가 바뀌면 무대 색도 새로 */}
-              input={{ before: stageBefore, after: stageAfter, motion, marks, scale, error, branch, focusedStructure: !!structure }}
+              input={{ before: stageBefore, after: stageAfter, motion, marks, scale, error, branch, idleLabel, focusedStructure: !!structure }}
               animKey={playback.transition.revision}
               durationMs={durationMs}
               reducedMotion={reducedMotion}
               onArrowHover={setArrowTip}
             />
           </Suspense>
-          {stageOutput ? (
-            <div className="vz-screen__stage-feedback">
-              <strong>{newOutput ? "출력 결과" : "지금까지의 출력"}</strong>
-              <pre className="vz-screen__stdout" tabIndex={0}>{stageOutput === "\n" ? "(빈 줄)" : stageOutput}</pre>
-            </div>
-          ) : (stageEmpty || said?.kind === "print") && (
-            <p className="vz-screen__stage-feedback">{said?.kind === "print" ? "이 단계에 기록된 출력이 없어요." : stageMessage}</p>
-          )}
           {stack.length > 1 && (
             <ol className="vz-screen__stack" aria-label="함수 호출">
               {stack.map((f, i) => <li key={i}>{f}</li>)}

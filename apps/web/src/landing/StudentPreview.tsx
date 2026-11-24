@@ -1074,7 +1074,7 @@ function ChatPage({ p }: { p: number }) {
               💡 이해했어요
             </span>
             <span className="sp-state is-confused">❓ 헷갈려요</span>
-            <span className="sp-state is-stop">⛔ 중단</span>
+            <span className="sp-state is-stop">🤯 모르겠어요</span>
           </div>
           <div className={`sp-toast${picked ? " on" : ""}`}>
             이해했어요로 기록했어요 · 학습 기록에 반영돼요

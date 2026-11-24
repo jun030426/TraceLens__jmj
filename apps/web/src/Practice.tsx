@@ -39,6 +39,11 @@ function PracticeOutput({ tab, run, stage, code, incomplete, blankLines = [], fi
   if (run.kind === "blocked") return <div className="practice-output-empty">{stale}<strong>실행하지 못했어요.</strong><p>{run.text}</p></div>;
   if (run.kind === "syntax") {
     if (incomplete) return <div className="practice-output-empty"><strong>코드 구조의 빈칸을 먼저 채워 주세요.</strong><p>반복문이나 조건문이 빈칸이면 부분 실행이 어려울 수 있어요. 빈칸을 완성하면 문법과 실행 결과를 확인할 수 있어요.</p></div>;
+    if (tab === "시각화") return <div className="practice-run">
+      <Suspense fallback={<Notice>시각화 화면을 불러오는 중이에요…</Notice>}>
+        <CodeTracePlayer trace={run.trace} source={run.code} stale={run.code !== code} />
+      </Suspense>
+    </div>;
     // 빈칸 실습: 문법 오류가 빈칸이 있는 줄이면 "빈칸 ②를 확인해 보세요"라고 짚어 준다
     const inBlank = blankLines.filter(b => b.line === run.info.line).map(b => circled(b.n)).join("·");
     return <div className="practice-run">{stale}<div className="practice-run-error" role="alert"><strong>{inBlank ? `빈칸 ${inBlank}에 쓴 내용을 확인해 보세요` : run.info.line ? `${run.info.line}번째 줄에서 실행 전에 멈췄어요` : "실행 전에 멈췄어요"} · {run.info.name}</strong>{run.info.text && <code>{showBlanks(run.info.text)}</code>}<p>{run.info.msg}</p></div></div>;
@@ -394,7 +399,7 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
               <SubmittedCode source={latest.source ?? ""} snapshot={latest.submission_snapshot} />
             </section>}
             {resultTab !== "내 제출 코드" && <VizLineContext.Provider value={setVizLine}><PracticeOutput tab={resultTab} run={run} stage={stage} code={copyRan ? run?.code ?? "" : runnable.code} incomplete={!copyRan && runnable.unfilled.length > 0} blankLines={template.blanks} fixes={!copyRan && fixShown ? fix!.fixes : undefined} /></VizLineContext.Provider>}
-            {resultTab === "시각화" && replaySource && !stage && (run?.kind !== "ran" || !run.trace) &&
+            {resultTab === "시각화" && replaySource && !stage && (!run || run.kind === "blocked" || !run.trace) &&
               <div className="practice-run">
                 <button type="button" onClick={() => {
                   setCopyRan(true);

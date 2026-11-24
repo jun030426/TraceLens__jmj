@@ -3,7 +3,7 @@
 // 소스 코드 글자는 분석하지 않는다. 예외 문구와 그 순간 장면(배열 길이·변수 이름)만 쓴다.
 import type { Scene } from "./sceneModel.ts";
 
-export type ErrorKind = "index" | "zero" | "name" | "key" | "null" | "type" | "recursion" | "attribute" | "value" | "other";
+export type ErrorKind = "index" | "zero" | "name" | "key" | "null" | "type" | "recursion" | "attribute" | "value" | "indentation" | "syntax" | "other";
 
 export type ErrorInfo = {
   kind: ErrorKind;
@@ -28,6 +28,27 @@ export function explainError(raw: string, scene: Scene): ErrorInfo {
   const name = nameOf(raw) || "오류";
   const msg = raw.replace(/^[^:]*:\s*/, "");
   const base = { name, raw };
+
+  if (name === "IndentationError" || name === "TabError") {
+    return {
+      ...base,
+      kind: "indentation",
+      title: "들여쓰기 오류로 실행 전에 멈췄어요",
+      why: msg,
+      hint: name === "TabError"
+        ? "탭과 공백을 섞어 쓴 부분을 찾아 공백으로 통일해 보세요."
+        : "표시된 줄과 바로 위 줄을 보고, 같은 블록에 속한 줄의 들여쓰기를 맞춰 보세요.",
+    };
+  }
+  if (name === "SyntaxError") {
+    return {
+      ...base,
+      kind: "syntax",
+      title: "문법 오류로 실행 전에 멈췄어요",
+      why: msg,
+      hint: "표시된 줄과 바로 위 줄의 괄호, 따옴표, 콜론을 확인해 보세요.",
+    };
+  }
 
   // ── 없는 칸 (인덱스 범위 밖) ──
   if (/IndexError|IndexOutOfBounds/i.test(raw)) {

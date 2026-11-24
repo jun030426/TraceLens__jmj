@@ -567,16 +567,20 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
     setFeedbackBusy(true);
     try {
       await saveTutorChoice(api, sectionId, kind, item.id || item.answer?.message_id, job);
-      setItems(old => old.map((x, i) => i === index ? { ...x, reaction: kind } : x));
+      if (!job) setItems(old => old.map((x, i) => i === index ? { ...x, reaction: kind } : x));
       if (kind === "confused") {
         await sendQuestion("방금 설명이 헷갈려요. 더 쉬운 예로, 한 단계씩 다시 설명해 주세요.");
       } else if (kind === "stop") {
-        if (job) setItems(old => old.map((x, i) => i === index ? { ...x, pending: undefined, error: "질문을 중단했어요." } : x));
-        setJob(undefined);
-        setThread(undefined);
-        setThreadConcept(undefined);
-        setQuizConversation(false);
-        setTutorNote("대화를 중단했어요. 새로 질문하면 새 대화로 시작해요.");
+        if (job) {
+          setItems(old => old.map((x, i) => i === index ? { ...x, pending: undefined, error: "질문을 중단했어요." } : x));
+          setJob(undefined);
+          setThread(undefined);
+          setThreadConcept(undefined);
+          setQuizConversation(false);
+          setTutorNote("대화를 중단했어요. 새로 질문하면 새 대화로 시작해요.");
+        } else {
+          setTutorNote("모르겠어요로 기록했어요. 이해가 안 된 부분을 이어서 물어보세요.");
+        }
       } else {
         setTutorNote("좋아요! 이해한 내용을 오늘의 퀴즈로 확인해 보세요.");
       }
@@ -654,7 +658,7 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
                 </TypedAnswer> : item.error ? <p role="alert">{item.error}</p> : item.pending ? <p role="status">{item.pending}</p> : <p className="chat-typing" role="status"><span className="chat-dots" aria-hidden="true"><i /><i /><i /></span><span>{speaker}가 답변을 적고 있어요</span></p>}
                 {item.answer?.follow_up && <p className="chat-followup"><b>🤔 생각해 볼 질문</b>{item.answer.follow_up}</p>}
               </div>
-              {/* 답변 바로 아래 줄: 왼쪽은 시간, 오른쪽은 이해했어요·헷갈려요·중단. 하나 고르면 답변에 이모티콘이 달리고 선택지는 사라져요 (11-15) */}
+              {/* 답변 바로 아래 줄: 왼쪽은 시간, 오른쪽은 이해했어요·헷갈려요·모르겠어요. 하나 고르면 답변에 이모티콘이 달리고 선택지는 사라져요 (11-15) */}
               {(() => { const react = !past && ((i === items.length - 1 && !item.reaction && !item.error) || (reEdit === i && !!item.answer)); return <div className={`chat-ai-foot ${react ? "has-react" : ""}`}>
               {item.answer ? <ChatTime iso={item.answeredAt || item.at} /> : <span />}
               {react && (item.answer
@@ -741,7 +745,7 @@ const QUESTION_EXAMPLES = [
   "예: 이번 주 강의에서 꼭 알아야 할 개념은 뭐예요?",
 ];
 
-const REACTIONS = [["understood", "💡", "이해했어요"], ["confused", "❓", "헷갈려요"], ["stop", "⛔️", "중단"]] as const;
+const REACTIONS = [["understood", "💡", "이해했어요"], ["confused", "❓", "헷갈려요"], ["stop", "🤯", "모르겠어요"]] as const;
 
 /* 새로 도착한 답변은 한 글자씩 적히듯 보여 줘요. 예전 대화나 '동작 줄이기' 설정에서는 바로 다 보여요.
    글이 길어도 2.5초 안에 다 나오도록 한 번에 나오는 글자 수를 늘려요. 다 나온 뒤에 출처 링크가 붙어요. */
