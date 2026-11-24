@@ -5,7 +5,7 @@ import { isComposingInput } from "./inputKeyboard";
 import { MaterialUpload, MATERIAL_ACCEPT } from "./MaterialUpload";
 import { WeeklyContent } from "./WeeklyContent";
 import { HeldMaterialReview } from "./HeldMaterialReview";
-import { chatDailyWaitMessage, theoryChatBody, saveTutorChoice, type TutorChoice } from "./learningRequests";
+import { chatPollState, theoryChatBody, saveTutorChoice, type TutorChoice } from "./learningRequests";
 import type { FeedbackValue } from "./ChatFeedback";
 import { MaterialProcessingDetails, MediaProcessingProgress, useCourseProcessing } from "./AutomaticLearning";
 import { materialProgress, type Tone } from "./materialProcessing";
@@ -495,13 +495,14 @@ export function Chat({ sectionId, courseId, speaker = "AI 강사" }: { sectionId
           setJob(undefined);
           setArchiveRevision(value => value + 1);
         } else {
+          const { message, delayMs } = chatPollState(r, performance.now() < fastPollUntil.current);
           setItems(old => old.map((item, i) => i === old.length - 1 ? {
             ...item,
             pending: r.status === "waiting_ai"
               ? "AI 연결을 기다리고 있어요. 연결이 준비되면 답변을 이어서 처리해요."
-              : chatDailyWaitMessage(r),
+              : message,
           } : item));
-          timer = setTimeout(poll, performance.now() < fastPollUntil.current ? 700 : 2000);
+          timer = setTimeout(poll, delayMs);
         }
       } catch (e) {
         if (!stopped) {

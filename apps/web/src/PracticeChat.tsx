@@ -2,7 +2,7 @@ import { VanishPlaceholder } from "./VanishPlaceholder";
 import { useAutosizeTextarea } from "./useAutosizeTextarea";
 import { isComposingInput } from "./inputKeyboard";
 import { TutorFeedback } from "./TutorFeedback";
-import { chatDailyWaitMessage, practiceChatBody } from "./learningRequests";
+import { chatPollState, practiceChatBody } from "./learningRequests";
 // 실습 퀴즈 옆에서 바로 여는 질문 창 — 지금 푸는 문제·빈칸·채점 결과·시각화 위치를 함께 보내요.
 // 답변은 AI 질문 화면과 같은 방식(공개 강의 자료의 원문 근거)으로 오고, 같은 질문 기록에 쌓여요.
 // 정답 코드는 보내지도 받지도 않아요: 함께 보내는 건 학생이 쓴 내용과 화면에 이미 보이는 정보뿐이에요.
@@ -154,8 +154,9 @@ export function PracticeChat({ planId, sectionId, courseId, open, onClose, conte
           if (r.status === "succeeded" && r.result && asked) remember({ id: r.result.message_id, at: new Date().toISOString(), week: asked.week, problem: asked.problem, question: asked.question, answer: (r.result as Answer).answer, citations: (r.result as Answer).citations });
           setJob(undefined);
         } else {
-          settle({ pending: chatDailyWaitMessage(r) });
-          timer = setTimeout(poll, performance.now() < fastPollUntil.current ? 700 : 2000);
+          const { message, delayMs } = chatPollState(r, performance.now() < fastPollUntil.current);
+          settle({ pending: message });
+          timer = setTimeout(poll, delayMs);
         }
       } catch (e) {
         if (!stopped) { settle({ error: (e as Error).message }); setJob(undefined); }
