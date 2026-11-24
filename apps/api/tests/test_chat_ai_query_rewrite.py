@@ -149,6 +149,14 @@ class ChatAIQueryRewriteTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "ACCESS_REVOKED"):
             rag_answers.rewrite_chat_query("다른 예시도 알려줘", memory, {"mode": "theory"}, raise_revoked)
 
+    def test_feedback_scores_swap_confused_and_unknown(self):
+        from lerny import learning_signals
+
+        self.assertEqual(
+            learning_signals.FEEDBACK_SCORES,
+            {"understood": 20, "confused": 65, "unknown": 80, "aborted": 80},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
