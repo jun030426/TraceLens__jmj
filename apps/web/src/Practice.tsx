@@ -153,12 +153,17 @@ function PracticeEditor({ room, quizzes, planId, week }: { room: Classroom; quiz
     const matchingTemplate = rawProjection
       ? quiz.template.split("\n").slice(offset).join("\n")
       : displayTemplate;
-    const matched = [matchingTemplate, displayTemplate].find(starter =>
-      recoverSubmittedBlanks(starter, replaySource, parseTemplate(starter).blanks.length));
-    if (!matched) return null;
-    const template = parseTemplate(matched);
-    const restored = recoverSubmittedBlanks(matched, replaySource, template.blanks.length)!;
-    const first = template.blanks.find(({ n }) => !restored[n]?.trim());
+    // Older submissions may contain explicit placeholders or use a template
+    // whose display-only comments differ from the stored source.
+    const candidates = [...new Set([matchingTemplate, displayTemplate, quiz.template])].map(parseTemplate);
+    const restoredStop = candidates.flatMap(candidate => {
+      const restored = recoverSubmittedBlanksFromTemplate(candidate, replaySource, true);
+      return restored ? candidate.blanks.filter(({ n }) => !restored[n]?.trim()) : [];
+    });
+    const explicitStop = candidates.flatMap(candidate => candidate.blanks.filter(({ n, line }) =>
+      candidate.lines.length === sourceLines.length && sourceLines[line - 1].trim() === `__blank${n}__`,
+    ));
+    const first = [...restoredStop, ...explicitStop].sort((a, b) => a.line - b.line || a.n - b.n)[0];
     if (!first) return null;
     const prefix = sourceLines.slice(0, first.line - 1);
     const indent = sourceLines[first.line - 1]?.match(/^[ \t]*/)?.[0] ?? "";
@@ -454,14 +459,21 @@ function FixBanner({ fixes }: { fixes: QuickFix[] }) {
 
 function recoverSubmittedBlanks(starter: string, source: string, blankCount: number) {
   const template = parseTemplate(starter);
+  if (template.blanks.length !== blankCount) return;
+  return recoverSubmittedBlanksFromTemplate(template, source);
+}
+
+function recoverSubmittedBlanksFromTemplate(template: BlankTemplate, source: string, forReplay = false) {
   const submittedLines = source.split("\n");
-  if (!blankCount || template.blanks.length !== blankCount || template.lines.length !== submittedLines.length) return;
+  if (!template.blanks.length || template.lines.length !== submittedLines.length) return;
   const fills: Record<number, string> = {};
   for (const [index, parts] of template.lines.entries()) {
     const actual = submittedLines[index];
     const blankIndex = parts.findIndex(part => typeof part !== "string");
     if (blankIndex < 0) {
-      if (parts.join("") !== actual) return;
+      const expected = parts.join("");
+      const displayOnly = forReplay && /^\s*(?:#.*)?$/.test(expected) && /^\s*(?:#.*)?$/.test(actual);
+      if (expected !== actual && !displayOnly) return;
       continue;
     }
     const trailing = parts.slice(blankIndex + 1);
@@ -472,7 +484,7 @@ function recoverSubmittedBlanks(starter: string, source: string, blankCount: num
     const blank = parts[blankIndex];
     if (typeof blank === "string") return;
     const value = actual.slice(prefix.length, actual.length - suffix.length);
-    fills[blank.blank] = value;
+    fills[blank.blank] = forReplay && value.trim() === `__blank${blank.blank}__` ? "" : value;
   }
   return fills;
 }
@@ -609,7 +621,7 @@ function CodeEditor({ readOnly, value, onChange, onCommit, ghost, fixes, vizLine
   const textLines = value.split("\n");
   const fixed = new Map((fixes || []).map(f => [f.line, f]));
   return <div className={`code-editor ${ghost ? "has-ghost" : ""} ${fixes?.length ? "has-fix" : ""}`}>
-    <ol className="code-editor__ln" aria-hidden="true">{Array.from({ length: lines }, (_, i) => <li key={i} className={`${vizLine?.line === i + 1 ? `is-viz is-viz-${vizLine.kind}` : ""} ${syntax?.line === i + 1 ? "is-syntax" : ""} ${fixed.has(i + 1) ? "is-fixed" : ""}`}><span className="code-editor__line-number">{i + 1}</span>{textLines[i] || " "}</li>)}</ol>
+    <ol className="code-editor__ln" aria-hidden="true">{Array.from({ length: lines }, (_, i) => <li key={i} className={`${vizLine?.line === i + 1 ? `is-viz is-viz-${vizLine.kind}` : ""} ${syntax?.line === i + 1 ? "is-syntax" : ""} ${fixed.has(i + 1) ? "is-fixed" : ""}`}><span className="code-editor__line-number">{i + 1}</span><span className="code-editor__line-measure">{textLines[i] || " "}</span></li>)}</ol>
     <div className="code-editor__body">
       {/* 회색 따라쓰기: 학생이 친 글자는 투명하게 자리만 차지하고, 남은 글씨만 회색으로 보여요. 선택·복사·클릭이 안 돼요. */}
       {ghost && <pre className="code-editor__ghost" aria-hidden="true" onCopy={e => e.preventDefault()}>{ghostLines(ghost, value).map((g, i) => <span key={i} className={`code-editor__ghost-line ${g.matched ? "" : "is-miss"}`}><span className="ghost-typed">{g.typed}</span>{g.rest}{"\n"}</span>)}</pre>}

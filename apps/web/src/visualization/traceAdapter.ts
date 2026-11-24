@@ -60,7 +60,7 @@ export function adaptExecutionTrace(trace: ExecutionTrace, source: string): Reco
   // The stop snapshot also contains the effects of the preceding statement.
   // Show that statement before moving the highlight to the empty slot.
   const playbackSteps = trace.blankStop && last?.causedByLine && last.causedByLine !== trace.blankStop.line
-    ? [...visibleSteps, { ...last, causedByLine: null, stdout: "" }]
+    ? [...visibleSteps, { ...last, causedByLine: null }]
     : visibleSteps;
   const steps: Observation[] = playbackSteps.map((step, index) => {
     const prev = index > 0 ? playbackSteps[index - 1] : null;
