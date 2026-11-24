@@ -12,15 +12,19 @@ DEICTIC = re.compile(
     r"(?:쉽게|자세히|간단히|다르게)(?:\s*(?:말|설명|풀어)\s*(?:해)?\s*(?:줘|주세요))?)"
     r"[\s?？.!]*"
 )
-PARTICLE = re.compile(r"(?:에서는|으로는|이란|이랑|에서|으로|에게|처럼|까지|은|는|이|가|을|를|와|과|의|로)$")
+PARTICLE = re.compile(
+    r"(?:에서는|으로는|에서도|으로도|이라면|이라도|이란|이랑|에서|으로|에게|한테|처럼|까지|부터|이나|하고|"
+    r"은|는|이|가|을|를|와|과|의|로|도|만|에|나|랑|께)$"
+)
 REQUEST = re.compile(
-    r"(?:예시|예제|예|사례|이유|원리|의미|방법|차이|뜻|질문|내용|부분|거|것|그거|이거|그것|이것|"
+    r"(?:예시|예제|예|사례|비유|이유|원리|의미|방법|차이|차이점|장단점|뜻|질문|내용|부분|거|것|그거|이거|그것|이것|"
+    r"다른|다른거|다른것|또|비슷한|추가|추가로|계속|이어서|방금|아까|그럼|그러면|언제|어디서|어디에|"
     r"예를|들어|들어서|들어줘|들어주세요|들면|그|이|이걸|그걸|좀|조금|더|다시|쉽게|간단히|자세히|왜|어떻게|뭐|뭔지|"
     r"(?:뭐|무엇|왜)(?:야|지|죠|예요|에요|인가요|일까|일까요)?|"
     r"(?:설명|정리|비교|보여|알려|말|풀어)(?:해|하여|해서|해줄|주실|줄|주|줘|줘요|주세요|줄래|줄래요|줄까요|해줘|해주세요|해줘요|하나요|해줄래요)?|"
     r"한다면|한번|하나만|하나|대해|대한|주세요|줘|해줘|해|인가요|인가|일까요|있어|있나요|수|있을까요|"
-    r"what|why|how|is|it|a|an|the|me|give|show|explain|example[s]?|again|please|"
-    r"can|you|more|simply|simpler|that|this|does|do|mean)", re.I
+    r"what|why|how|is|it|a|an|the|me|give|show|explain|example[s]?|another|other|more|again|please|"
+    r"can|you|simply|simpler|that|this|does|do|mean)", re.I
 )
 ALIASES = {
     "upper": ("대문자", "uppercase", "upper case"),
@@ -69,6 +73,22 @@ def mentions_topic(text, terms):
             elif variant in text:
                 return True
     return False
+
+
+def prior_citations(history, context):
+    """Return chunk IDs from the most recent grounded turn in the same mode/exercise."""
+    for message in history:
+        prev = message.learning_context or {}
+        if (prev.get("mode", "theory"), prev.get("exercise_id")) != (
+                context.get("mode", "theory"), context.get("exercise_id")):
+            break
+        answer = message.answer or {}
+        if answer.get("answer_kind") == "grounded":
+            ids = [c.get("chunk_id") or c["source_id"] for c in answer.get("citations", [])
+                   if c.get("chunk_id") or c.get("source_id")]
+            if ids:
+                return list(dict.fromkeys(ids))[:6]
+    return []
 
 
 def previous_topic(history, context):
