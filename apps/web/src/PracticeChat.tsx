@@ -2,7 +2,7 @@ import { VanishPlaceholder } from "./VanishPlaceholder";
 import { useAutosizeTextarea } from "./useAutosizeTextarea";
 import { isComposingInput } from "./inputKeyboard";
 import { TutorFeedback } from "./TutorFeedback";
-import { practiceChatBody } from "./learningRequests";
+import { chatPollState, practiceChatBody } from "./learningRequests";
 // 실습 퀴즈 옆에서 바로 여는 질문 창 — 지금 푸는 문제·빈칸·채점 결과·시각화 위치를 함께 보내요.
 // 답변은 AI 질문 화면과 같은 방식(공개 강의 자료의 원문 근거)으로 오고, 같은 질문 기록에 쌓여요.
 // 정답 코드는 보내지도 받지도 않아요: 함께 보내는 건 학생이 쓴 내용과 화면에 이미 보이는 정보뿐이에요.
@@ -74,7 +74,7 @@ export function suggestedQuestions(ctx: PracticeChatContext): string[] {
   return [...new Set(out)].slice(0, 3);
 }
 
-type Item = { id?: string; question: string; withContext: boolean; answer?: Answer; error?: string; fresh?: boolean };
+type Item = { id?: string; pending?: string; question: string; withContext: boolean; answer?: Answer; error?: string; fresh?: boolean };
 /** 실습 질문 이력 한 줄 — AI 질문 화면과 따로, 서버에 저장된 실습 질문만 모아 보여 줘요 */
 type Saved = { id?: string; feedback?: FeedbackValue; at: string; week?: number | null; problem: string; question: string; answer: string; citations?: Answer["citations"] };
 export function PracticeChat({ planId, sectionId, courseId, open, onClose, context, draftRequest }: {
@@ -149,11 +149,15 @@ export function PracticeChat({ planId, sectionId, courseId, open, onClose, conte
         const r = await api<Job>("/jobs/" + job);
         if (stopped) return;
         if (["succeeded", "failed", "cancelled"].includes(r.status)) {
-          settle({ answer: r.result || undefined, fresh: !!r.result, error: r.error ? "답변 처리에 실패했어요. 다시 질문해 주세요." : r.status === "cancelled" ? "취소됐어요." : undefined });
+          settle({ pending: undefined, answer: r.result || undefined, fresh: !!r.result, error: r.error ? "답변 처리에 실패했어요. 다시 질문해 주세요." : r.status === "cancelled" ? "취소됐어요." : undefined });
           const asked = askedRef.current;
           if (r.status === "succeeded" && r.result && asked) remember({ id: r.result.message_id, at: new Date().toISOString(), week: asked.week, problem: asked.problem, question: asked.question, answer: (r.result as Answer).answer, citations: (r.result as Answer).citations });
           setJob(undefined);
-        } else timer = setTimeout(poll, performance.now() < fastPollUntil.current ? 700 : 2000);
+        } else {
+          const { message, delayMs } = chatPollState(r, performance.now() < fastPollUntil.current);
+          settle({ pending: message });
+          timer = setTimeout(poll, delayMs);
+        }
       } catch (e) {
         if (!stopped) { settle({ error: (e as Error).message }); setJob(undefined); }
       }
@@ -217,7 +221,7 @@ export function PracticeChat({ planId, sectionId, courseId, open, onClose, conte
                 {item.answer.citations?.map((c, n) => <ChatCitation key={n} citation={c} handouts={handouts} newTab />)}
                 {item.answer.follow_up && <p className="practice-chat__followup"><b>🤔 생각해 볼 질문</b>{item.answer.follow_up}</p>}
               </TypedAnswer>
-            </> : item.error ? <p className="practice-chat__error" role="alert">{item.error}</p> : <p className="practice-chat__typing chat-typing" role="status"><span className="chat-dots" aria-hidden="true"><i /><i /><i /></span><span>AI 강사가 답변을 적고 있어요</span></p>}
+            </> : item.error ? <p className="practice-chat__error" role="alert">{item.error}</p> : item.pending ? <p className="practice-chat__typing" role="status">{item.pending}</p> : <p className="practice-chat__typing chat-typing" role="status"><span className="chat-dots" aria-hidden="true"><i /><i /><i /></span><span>AI 강사가 답변을 적고 있어요</span></p>}
           </div>
         </article>)}
       </div>

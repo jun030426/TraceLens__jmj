@@ -227,4 +227,5 @@ export interface Job {
   result: Answer | null;
   error: { code: string; retryable: boolean } | null;
   ai_status?: string | null;
+  retry_at?: string | null;
 }

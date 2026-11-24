@@ -1,5 +1,6 @@
 import json
 import secrets
+from datetime import UTC
 from typing import Literal
 
 from fastapi import APIRouter, Header, Query
@@ -7,7 +8,7 @@ from pydantic import Field
 from sqlalchemy import func, select, text
 
 from lerny.auth import Input
-from lerny.models import ChatMessage, Course, Enrollment, Idempotency, Job, Section, grading_attempt, uid
+from lerny.models import ChatMessage, Course, Enrollment, Idempotency, Job, Section, grading_attempt, now, uid
 from lerny.security import Actor, Db, course_access, deny, digest, staff_access
 
 router = APIRouter(prefix="/api/v1")
@@ -175,12 +176,21 @@ def get_job(job_id: str, session: Db, actor: Actor):
                 "answer": "자료 공개 범위가 변경되어 답변을 다시 요청해 주세요.",
                 "citations": [],
             }
+    retry_at = None
+    if job.kind == "chat" and job.status == "queued" and job.error_code == "GEMINI_DAILY_WAIT" and job.lease_until:
+        deadline = job.lease_until
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=UTC)
+        if deadline > now():
+            retry_at = deadline
+
     from lerny.cloud_jobs import ai_status
     return {
         "id": job.id,
         "kind": job.kind,
         "status": job.status,
         "attempt": job.attempt,
+        "retry_at": retry_at,
         "result": result,
         "error": {"code": job.error_code, "retryable": True} if job.error_code else None,
         "ai_status": ai_status(session) if job.status == "waiting_ai" else None,
@@ -355,7 +365,6 @@ def chat_feedback(section_id: str, message_id: str, body: ChatFeedback, session:
     if not message.answer or message.access_epoch != session.get(Course, section.course_id).access_epoch:
         deny(409, "현재 자료로 작성된 답변이 도착한 뒤 평가해 주세요.")
     if (message.feedback or {}).get("value") != body.value:
-        from lerny.models import now
         message.feedback = {"value": body.value, "updated_at": now().isoformat()}
         session.commit()
     return {"message_id": message.id, "value": body.value}

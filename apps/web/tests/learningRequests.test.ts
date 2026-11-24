@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { theoryChatBody, practiceChatBody, practiceSubmitBody, saveTutorChoice } from "../src/learningRequests.ts";
+import { chatPollState, theoryChatBody, practiceChatBody, practiceSubmitBody, saveTutorChoice } from "../src/learningRequests.ts";
 
 test("이론 해설 질문은 실습 전용 필드 없이 문제와 답안을 보내요", () => {
   const body = theoryChatBody("왜 틀렸나요?", "thread", "concept", "문제: 반복문\n내 답: 3");
@@ -48,4 +48,41 @@ test("저장 실패나 답변 없는 피드백을 성공으로 대체하지 않�
   assert.equal(writes, 0);
   await assert.rejects(saveTutorChoice(request, "s", "understood", "m"), /연결 실패/);
   await assert.rejects(saveTutorChoice(request, "s", "stop", "m", "j"), /연결 실패/);
+});
+
+test("일일 한도에 도달하면 한국 시간으로 질문 처리 재개 시각을 안내해요", () => {
+  const job = { status: "queued", error: { code: "GEMINI_DAILY_WAIT", retryable: true } };
+  const { message } = chatPollState({ ...job, retry_at: "2030-01-01T16:00:00Z" }, false, Date.UTC(2030, 0, 1));
+  assert.match(message ?? "", /오늘 질문 처리 한도/);
+  assert.match(message ?? "", /1월 2일.*1:00.*한국 시간/);
+  assert.equal(chatPollState(job, false).message, undefined);
+});
+
+test("분당 대기에는 일일 한도 안내를 표시하지 않아요", () => {
+  assert.equal(chatPollState({ status: "queued", error: { code: "GEMINI_PACING_WAIT", retryable: true },
+    retry_at: "2030-01-01T16:00:00Z" }, false).message, undefined);
+});
+
+test("정상 답변에는 이전 대기 시각이 있어도 한도 안내를 표시하지 않아요", () => {
+  assert.equal(chatPollState({ status: "succeeded", error: null, retry_at: "2030-01-01T16:00:00Z" }, false).message, undefined);
+});
+
+test("일일 한도 안내 중에는 60초마다 확인하고 마지막에는 재개 시각에 맞춰요", () => {
+  const job = { status: "queued", error: { code: "GEMINI_DAILY_WAIT", retryable: true }, retry_at: "2030-01-01T16:00:00Z" };
+  const resume = Date.parse(job.retry_at);
+  for (const fast of [true, false]) {
+    assert.equal(chatPollState(job, fast, resume - 90_000).delayMs, 60_000);
+    assert.equal(chatPollState(job, fast, resume - 250).delayMs, 250);
+    for (const now of [resume, resume + 1]) {
+      assert.deepEqual(chatPollState(job, fast, now), { message: undefined, delayMs: fast ? 700 : 2000 });
+    }
+  }
+});
+
+test("안내가 없으면 분당 대기와 일반 처리 모두 기존 빠른 확인과 일반 확인 간격을 써요", () => {
+  for (const code of [null, "GEMINI_PACING_WAIT"]) {
+    const job = { status: "queued", error: code ? { code, retryable: true } : null, retry_at: "2030-01-01T16:00:00Z" };
+    assert.equal(chatPollState(job, true, Date.UTC(2030, 0, 1)).delayMs, 700);
+    assert.equal(chatPollState(job, false, Date.UTC(2030, 0, 1)).delayMs, 2000);
+  }
 });
