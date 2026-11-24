@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { theoryChatBody, practiceChatBody, practiceSubmitBody, saveTutorChoice } from "../src/learningRequests.ts";
+import { chatDailyWaitMessage, theoryChatBody, practiceChatBody, practiceSubmitBody, saveTutorChoice } from "../src/learningRequests.ts";
 
 test("이론 해설 질문은 실습 전용 필드 없이 문제와 답안을 보내요", () => {
   const body = theoryChatBody("왜 틀렸나요?", "thread", "concept", "문제: 반복문\n내 답: 3");
@@ -48,4 +48,21 @@ test("저장 실패나 답변 없는 피드백을 성공으로 대체하지 않�
   assert.equal(writes, 0);
   await assert.rejects(saveTutorChoice(request, "s", "understood", "m"), /연결 실패/);
   await assert.rejects(saveTutorChoice(request, "s", "stop", "m", "j"), /연결 실패/);
+});
+
+test("일일 한도에 도달하면 한국 시간으로 질문 처리 재개 시각을 안내해요", () => {
+  const job = { status: "queued", error: { code: "GEMINI_DAILY_WAIT", retryable: true } };
+  const message = chatDailyWaitMessage({ ...job, retry_at: "2030-01-01T16:00:00Z" });
+  assert.match(message ?? "", /오늘 질문 처리 한도/);
+  assert.match(message ?? "", /1월 2일.*1:00.*한국 시간/);
+  assert.equal(chatDailyWaitMessage(job), undefined);
+});
+
+test("분당 대기에는 일일 한도 안내를 표시하지 않아요", () => {
+  assert.equal(chatDailyWaitMessage({ status: "queued", error: { code: "GEMINI_PACING_WAIT", retryable: true },
+    retry_at: "2030-01-01T16:00:00Z" }), undefined);
+});
+
+test("정상 답변에는 이전 대기 시각이 있어도 한도 안내를 표시하지 않아요", () => {
+  assert.equal(chatDailyWaitMessage({ status: "succeeded", error: null, retry_at: "2030-01-01T16:00:00Z" }), undefined);
 });

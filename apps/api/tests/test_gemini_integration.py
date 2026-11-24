@@ -1,7 +1,7 @@
 """Synthetic local integration tests. No live database, secrets, or provider requests."""
 
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import httpx
@@ -13,6 +13,7 @@ from lerny.config import Settings, settings
 from lerny.inference import job_context, perform
 from lerny.models import (
     ChatMessage,
+    Course,
     Chunk,
     Enrollment,
     Job,
@@ -721,3 +722,31 @@ def test_shared_narration_contract_matches_server():
     draft = LessonDraft.model_validate(example)
     assert draft.generation_status == "draft"
     assert draft.lesson.language == "ko-KR"
+
+
+@pytest.mark.parametrize(("status", "code", "wait_seconds", "show_deadline"), [
+    ("queued", "GEMINI_DAILY_WAIT", 3600, True),
+    ("queued", "GEMINI_PACING_WAIT", 5, False),
+    ("queued", "GEMINI_DAILY_WAIT", -1, False),
+    ("succeeded", None, 0, False),
+])
+def test_student_chat_poll_shows_only_active_daily_deadline(integration, status, code, wait_seconds, show_deadline):
+    client, session, tokens = integration
+    session.add(Enrollment(student_id="student", section_id="section", course_id="course", status="active"))
+    deadline = now() + timedelta(seconds=wait_seconds)
+    job = Job(owner_id="student", course_id="course", kind="chat", status=status, error_code=code,
+              lease_until=deadline, payload={})
+    if status == "succeeded":
+        job.result = {"answer": "Synthetic answer", "access_epoch": session.get(Course, "course").access_epoch}
+    session.add(job)
+    session.commit()
+    client.cookies.set(COOKIE, tokens["student"][0])
+    response = client.get(f"/api/v1/jobs/{job.id}")
+    assert response.status_code == 200
+    if status == "succeeded":
+        assert response.json()["result"]["answer"] == "Synthetic answer"
+    retry_at = response.json()["retry_at"]
+    if show_deadline:
+        assert datetime.fromisoformat(retry_at) == deadline
+    else:
+        assert retry_at is None

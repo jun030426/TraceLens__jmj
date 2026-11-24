@@ -1,4 +1,15 @@
-// Request bodies shared by the UI and contract tests. Server remains authoritative.
+import type { Job } from "./api";
+
+const chatResumeTime = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
+});
+
+export function chatDailyWaitMessage(job: Pick<Job, "status" | "error" | "retry_at">): string | undefined {
+  if (job.status !== "queued" || job.error?.code !== "GEMINI_DAILY_WAIT" || !job.retry_at) return;
+  const resumeAt = Date.parse(job.retry_at);
+  if (!Number.isFinite(resumeAt)) return;
+  return `오늘 질문 처리 한도에 도달했어요. ${chatResumeTime.format(resumeAt)}(한국 시간)부터 대기 중인 질문을 다시 처리해요.`;
+}
 export function theoryChatBody(question: string, threadId?: string, conceptId?: string, context?: string) {
   const text = question.trim();
   const prefix = "\n\n[함께 보내는 퀴즈와 내 답안]\n";
