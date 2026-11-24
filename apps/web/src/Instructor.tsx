@@ -5,7 +5,6 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { type Classroom, type Material } from "./api";
 import { ErrorNotice, Notice, useLoad } from "./components";
 import { ResourceBrowser } from "./ResourceBrowser";
-import { LectureSummary } from "./LectureSummary";
 import { matchesSearch } from "./listNavigation";
 import "./instructor.css";
 
@@ -37,9 +36,6 @@ function InstructorContent({ room }: { room: Classroom }) {
   const weekVideos = items.filter(v => v.week === week);
   const selectedVideo = weekVideos.find(v => v.id === params.get("video")) || weekVideos[0];
   const weekSources = sources.filter(m => m.week === week);
-  const selectedMaterial = weekSources.find(m => m.id === selectedVideo?.material_id) || weekSources[0];
-  const summaryMaterialId = selectedVideo?.material_id || selectedMaterial?.id;
-  const summaryTitle = selectedVideo?.source_title || selectedMaterial?.title || "수업 학습 근거";
   const pending = items.some(v => ["script_pending","queued","submitting","processing","storing","waiting_ai"].includes(v.status));
   useEffect(() => {
     if (!videos.data || !pending && items.length) return;
@@ -82,9 +78,8 @@ function InstructorContent({ room }: { room: Classroom }) {
       <div className="instructor-lecture-heading is-stacked"><div className="instructor-lecture-label-row"><span className="instructor-week-label">{week ? `${week}주차${selectedVideo ? ` · 개념 ${selectedVideo.position}` : ""}` : "개념별 강의"}</span></div><div className="instructor-lecture-title-row"><h2>{selectedVideo?.title || "콘텐츠 공개를 기다리고 있어요."}</h2></div></div>
       <div className="instructor-action-bar"><Link className="primary instructor-study-action" to={`/quiz?section=${room.section.id}`}>오늘의 문제 풀기 ↗</Link>
         {nextVideo && <button onClick={() => choose(nextVideo.week,nextVideo.id)}>다음 개념: {nextVideo.title} →</button>}</div>
-      <section className="instructor-details"><div className="instructor-info-tabs" role="group" aria-label="강의 부가 정보">{["관련 자료","강의 안내","강의 자료 요약"].map(tab => <button key={tab} aria-pressed={infoTab===tab} onClick={() => setInfoTab(tab)}>{tab}</button>)}</div>
+      <section className="instructor-details"><div className="instructor-info-tabs" role="group" aria-label="강의 부가 정보">{["관련 자료","강의 안내"].map(tab => <button key={tab} aria-pressed={infoTab===tab} onClick={() => setInfoTab(tab)}>{tab}</button>)}</div>
         {infoTab==="강의 안내" && <div className="instructor-info-content"><h3>개념별 짧은 설명, 나에게 맞는 문제</h3><p>영상은 같은 강의실의 모든 학생에게 동일하게 제공돼요. 이론은 하루 5문항으로, 4일차부터 나의 오답과 취약 개념을 반영해 복습해요.</p></div>}
-        {infoTab==="강의 자료 요약" && (summaryMaterialId ? <LectureSummary key={`${summaryMaterialId}:${selectedVideo?.concept_id || ""}`} materialId={summaryMaterialId} title={summaryTitle} viewUrl={weekSources.find(m => m.id === summaryMaterialId)?.view_url} conceptId={selectedVideo?.concept_id}/> : <Notice>공개된 자료가 아직 없어요.</Notice>)}
         {infoTab==="관련 자료" && <div className="instructor-info-content"><h3>교수님이 공개한 원본 자료</h3><ResourceBrowser key={week} items={weekSources} label="관련 자료">{visible => <ul className="instructor-source-list">{visible.map(m => <li key={m.id}><span>{m.title}</span><Link to={m.view_url!}>자료 열기 ↗</Link></li>)}</ul>}</ResourceBrowser></div>}
       </section>
     </div><aside id="instructor-side-panel" className="instructor-curriculum" aria-label="주차별 개념 영상"><div id="instructor-list-panel">
