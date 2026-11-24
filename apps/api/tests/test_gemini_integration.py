@@ -130,6 +130,12 @@ def fake_provider(monkeypatch):
                 ],
                 "reason": "",
             }
+        elif "conversation_memory" in data:
+            result = {
+                "is_followup": False,
+                "standalone_query": data["current_question"],
+                "topic_keywords": [],
+            }
         else:
             source = data["sources"][0]
             result = {
