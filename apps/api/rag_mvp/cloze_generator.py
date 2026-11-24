@@ -3,6 +3,7 @@
 Analyzes Python lecture and lab code to automatically identify critical pedagogical
 algorithmic and data structure points for fill-in-the-blank code practice.
 """
+from __future__ import annotations
 import ast
 import re
 
@@ -101,17 +102,56 @@ EXCLUSION_PATTERNS = [
     r'^\s*from\s+',
     r'^\s*pass\s*$',
     r'^\s*class\s+',
-    r'^\s*def\s+__init__'
+    r'^\s*(?:async\s+)?def\s+'
 ]
+
+
+def is_blankable_return(node):
+    if node.value is None or node.lineno != node.end_lineno:
+        return False
+    calculations = (ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.Compare, ast.Call, ast.IfExp,
+                    ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+    computed = False
+    for child in ast.walk(node.value):
+        if isinstance(child, ast.Call) and getattr(child.func, 'id', getattr(child.func, 'attr', None)) in {'print', 'input'}:
+            return False
+        if isinstance(child, ast.UnaryOp) and isinstance(child.op, (ast.UAdd, ast.USub, ast.Not)):
+            # Each nested unary operator is visited separately, so e.g. --1 stays a literal.
+            if isinstance(child.operand, (ast.Constant, ast.UnaryOp)):
+                continue
+        if isinstance(child, calculations):
+            computed = True
+    return computed
+
+
+def return_lines(code):
+    """Classify physical lines using the complete return expression, including continuations."""
+    if 'return' not in code:
+        return {}
+    try:
+        tree = ast.parse(code)
+    except (SyntaxError, ValueError):
+        return {}
+    lines = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Return):
+            computed = is_blankable_return(node)
+            for i in range(node.lineno - 1, node.end_lineno):
+                lines[i] = lines.get(i, True) and computed
+    return lines
 
 
 class ClozeGenerator:
     """Automated Blank Selection & Cloze Problem Generator for DS & Algorithms."""
 
     @staticmethod
-    def is_excluded_line(line):
+    def is_excluded_line(line, *, return_computed=None):
         stripped = line.strip()
         if not stripped or stripped.startswith('#'):
+            return True
+        if return_computed is None and re.match(r'return\b', stripped):
+            return_computed = return_lines(stripped).get(0, False)
+        if return_computed is False:
             return True
         for pattern in EXCLUSION_PATTERNS:
             if re.search(pattern, stripped):
@@ -119,9 +159,9 @@ class ClozeGenerator:
         return False
 
     @classmethod
-    def score_line(cls, line):
+    def score_line(cls, line, *, return_computed=None):
         """Calculate DSA pedagogical score for a line of code."""
-        if cls.is_excluded_line(line):
+        if cls.is_excluded_line(line, return_computed=return_computed):
             return 0, None
 
         stripped = line.strip()
@@ -138,22 +178,39 @@ class ClozeGenerator:
 
     @classmethod
     def select_blanks(cls, code, min_score=80, max_blanks=4, *, protected_lines=()):
-        """Select top 1~3 critical DSA lines from code as cloze blanks."""
+        """Select top critical lines from code as cloze blanks (at most half of code lines)."""
         lines = code.splitlines()
+        code_lines = sum(1 for line in lines if line.strip() and not line.strip().startswith('#'))
+        effective_max = max(1, min(max_blanks, code_lines // 2)) if code_lines else max_blanks
         candidates = []
+        returns = return_lines(code)
         for idx, line in enumerate(lines):
-            if idx in protected_lines or cls.is_excluded_line(line):
+            computed = returns.get(idx)
+            if idx in protected_lines or cls.is_excluded_line(line, return_computed=computed):
                 continue
-            score, category = cls.score_line(line)
+            score, category = cls.score_line(line, return_computed=computed)
+            if not score and computed and re.match(r'return\b', line.lstrip()):
+                score, category = 65, "return_expression"
             if not score:
+                stripped = line.strip()
+                parse_target = stripped + "\n    pass" if stripped.endswith(":") else stripped
                 try:
-                    stmt = ast.parse(line.strip()).body[0]
+                    stmt = ast.parse(parse_target).body[0]
                 except (SyntaxError, IndexError, ValueError):
                     continue
-                if not (isinstance(stmt, (ast.Assign, ast.AugAssign, ast.AnnAssign))
-                        and isinstance(stmt.value, (ast.BinOp, ast.Call, ast.Compare, ast.BoolOp))):
+                if isinstance(stmt, ast.Return) and is_blankable_return(stmt):
+                    score, category = 65, "return_expression"
+                elif isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
+                    score, category = 65, "loop_control"
+                elif isinstance(stmt, ast.AugAssign):
+                    score, category = 60, "calculation"
+                elif (isinstance(stmt, (ast.Assign, ast.AnnAssign))
+                      and isinstance(stmt.value, (ast.BinOp, ast.Call, ast.Compare, ast.BoolOp, ast.IfExp, ast.Subscript))):
+                    score, category = 60, "calculation"
+                elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+                    score, category = 60, "function_call"
+                else:
                     continue
-                score, category = 60, "calculation"
             candidates.append({"line_index": idx, "line_no": idx + 1, "raw_line": line,
                                "answer": line.strip(), "indentation": line[:len(line) - len(line.lstrip())],
                                "score": score, "category": category})
@@ -172,19 +229,19 @@ class ClozeGenerator:
         chosen_line_indices = set()
         for cand in candidates:
             idx = cand['line_index']
-            # Allow at most max_blanks
-            if len(chosen) >= max_blanks:
+            # Allow at most effective_max (never blank more than half the code lines)
+            if len(chosen) >= effective_max:
                 break
             # Prefer non-adjacent lines for readability
-            if len(candidates) > max_blanks and any(abs(idx - c_idx) <= 1 for c_idx in chosen_line_indices):
+            if len(candidates) > effective_max and any(abs(idx - c_idx) <= 1 for c_idx in chosen_line_indices):
                 continue
             chosen.append(cand)
             chosen_line_indices.add(idx)
 
         # If not enough non-adjacent candidates, take next highest
-        if len(chosen) < min(max_blanks, len(candidates)):
+        if len(chosen) < min(effective_max, len(candidates)):
             for cand in candidates:
-                if len(chosen) >= max_blanks:
+                if len(chosen) >= effective_max:
                     break
                 if cand['line_index'] not in chosen_line_indices:
                     chosen.append(cand)

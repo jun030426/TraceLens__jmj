@@ -230,12 +230,13 @@ def prepare(session, job):
     held = []
     if language == "python":
         from lerny.practice_inputs import adapted_programs, input_program_identity
-        adapted = adapted_programs(ordinary, model_json, versions, discarded=discarded, held=held)
+        adapted_inputs = set()
+        adapted = adapted_programs(ordinary, model_json, versions, discarded=discarded, held=held,
+                                   proposed_inputs=adapted_inputs)
         for program, quote in adapted:
             original_quotes[(program.source_id, program.code)] = quote
         # A direct model proposal can repeat the stdin original using LF or
-        # omitting initial comments. Only its source-bound adaptation is runnable.
-        adapted_inputs = {input_program_identity(p.source_id, quote) for p, quote in adapted}
+        # omitting initial comments. A held adaptation must not re-enter via this route.
         found = [p for p, _ in adapted] + [
             p for p in found if input_program_identity(p.source_id, p.code) not in adapted_inputs]
     created = []

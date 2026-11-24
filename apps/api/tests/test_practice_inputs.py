@@ -35,6 +35,31 @@ def test_adaptation_preserves_source_and_calculation_suffix():
     assert '\n'.join(item.code.splitlines()).count(item.input_statement) == 1
 
 
+def test_bad_and_duplicate_proposals_hold_only_the_affected_examples():
+    chunks = [SimpleNamespace(id=key, content='```python\n'+CODE+'\n```') for key in ('first', 'second', 'third', 'fourth')]
+    responses = [proposal(source_id='first'), proposal(source_id='unknown'), proposal(source_id='second'),
+                 proposal(source_id='third', code='print(99)'), proposal(source_id='first', cases=[[9, 9]]),
+                 proposal(source_id='fourth', title='')]
+    held = []
+    result = adapted_programs(chunks, lambda *_: {'programs': responses}, held=held)
+    (item, quote), = result
+    assert item.source_id == 'second' and quote == CODE and item.code.endswith(CODE[CODE.index('\n\n'):])
+    assert len(held) == 4 and all(issue['reason'] == 'INVALID_PRACTICE_SOURCE' for issue in held)
+    assert {issue.get('source_id') for issue in held} == {None, 'first', 'third', 'fourth'}
+    assert next(issue for issue in held if 'source_id' not in issue)['proposal_index'] == 2
+    with pytest.raises(ValueError, match='INVALID_PRACTICE_SOURCE'):
+        adapted_programs(chunks, lambda *_: {'programs': responses})
+
+
+@pytest.mark.parametrize('response', [None, {}, {'programs': None}, {'programs': {}}])
+def test_malformed_proposal_envelope_still_fails_the_job(response):
+    chunk = SimpleNamespace(id='numeric', content='```python\n'+CODE+'\n```')
+    held = []
+    with pytest.raises(ValueError, match='INVALID_PRACTICE_SOURCE'):
+        adapted_programs([chunk], lambda *_: response, held=held)
+    assert held == []
+
+
 @pytest.mark.parametrize('combined', [True, False])
 def test_verified_ppt_shape_preserves_numeric_example(combined):
     digest = hashlib.sha256(CODE.encode()).hexdigest()
@@ -163,6 +188,32 @@ def test_adapted_source_prevents_duplicate_stdin_hold(weekly,monkeypatch,origina
     assert len(result['exercise_ids'])==2 and result['held']==[]
     rows = list(session.scalars(select(PracticeExercise).where(PracticeExercise.generation_id == gid)))
     assert all(row.sources == [{'chunk_id':'numeric','quote':original}] for row in rows)
+
+
+@pytest.mark.parametrize('changed_code', [False, True])
+def test_held_duplicate_cannot_reenter_via_direct_proposal(weekly, monkeypatch, changed_code):
+    client, session, _ = weekly
+    session.add(Chunk(id='numeric', version_id='version', content='```python\n'+CODE+'\n```', locator={}))
+    session.commit()
+    gid = start(client)
+    job = Job(owner_id='teacher', course_id='course', kind='practice_prepare',
+              payload={'source_version_id':'version', 'generation_id':gid})
+    direct = {'source_id':'numeric', 'code':CODE.replace('a + b', 'a - b') if changed_code else CODE,
+              'title':'합과 평균', 'prompt':'입력한 두 값으로 계산한 결과를 출력하세요.',
+              'input_statement':'\n'.join(CODE.splitlines()[:2]), 'variants':['a = 1\nb = 2.0'] * 3,
+              'blank_lines':[4], 'full_template':'# implement'}
+    def model(prompt, schema):
+        return {'programs': [proposal(), proposal()] if 'cases' in str(schema) else [direct]}
+
+    monkeypatch.setattr(worker, 'model_json', model)
+    monkeypatch.setattr(practice, 'output_of', lambda *args, **kw: pytest.fail('Unexpected sandbox call'))
+    if changed_code:
+        with pytest.raises(ValueError, match='INVALID_PRACTICE_SOURCE'):
+            practice.prepare(session, job)
+    else:
+        result = practice.prepare(session, job)
+        assert result['exercise_ids'] == []
+        assert result['held'] == [{'source_id':'numeric', 'reason':'INVALID_PRACTICE_SOURCE'}]
 
 
 def test_input_identity_preserves_source_and_logic():

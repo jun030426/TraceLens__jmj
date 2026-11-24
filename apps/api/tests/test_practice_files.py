@@ -197,33 +197,65 @@ def test_same_program_uses_the_starter_from_its_source(weekly, tmp_path, monkeyp
     variants = ["amount=4", "amount=5"] if decl == "amount = 3" else ["amount=3", "amount=4", "amount=5"]
     proposal = {"variants": variants, "full_template": starter}
     job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, [code], {"variants": variants})
+    requests = []
     if extension == "pptx":
         db.get(MaterialVersion, "version").filename = "synthetic.pptx"
-        monkeypatch.setattr(worker, "model_json", lambda *args: {"programs": [{
-            "source_id": "piece-1", "code": code, "title": "출력 연습", "prompt": "예제의 결과를 계산하고 출력하세요.",
-            "input_statement": decl, "blank_lines": [2], **proposal,
-        }]})
+        def model(prompt, schema):
+            fields = schema["properties"]["programs"]["items"]
+            source, = json.loads(prompt.rsplit("\n", 1)[1])["sources"]
+            meta = {"source_id": source["source_id"], "title": "출력 연습",
+                    "prompt": "예제의 결과를 계산하고 출력하세요.", "blank_lines": [2]}
+            if "cases" in fields.get("properties", {}):
+                requests.append("cases")
+                assert source["code"] == code and source["inputs"] == [{"name": "amount", "type": "int", "line": 3}]
+                return {"programs": [{**meta, "cases": [[3], [4], [5]]}]}
+            requests.append("direct")
+            return {"programs": [{**meta, "code": code, "input_statement": decl, **proposal}]}
+        monkeypatch.setattr(worker, "model_json", model)
     result = practice.prepare(db, job)
     rows = [db.get(PracticeExercise, eid) for eid in result["exercise_ids"]]
-    assert len(runs) == 3 and {row.kind for row in rows} == kinds
-    assert all(row.template == starter.replace(decl, row.tests[0]["statement"]) for row in rows if row.kind == "full")
+    assert result["held"] == [] and len(runs) == 3 and {row.kind for row in rows} == kinds
+    if extension == "pptx":
+        full, = [row for row in rows if row.kind == "full"]
+        blank, = [row for row in rows if row.kind == "blank"]
+        assert blank.blanks == {"1": "return value * 2"}
+        assert all(row.sources == [{"chunk_id": "piece-1", "quote": code}] for row in rows)
+        if "input(" in decl:
+            assert requests == ["direct", "cases"]
+            assert runs == [code.replace(decl, f"amount = {n}") for n in (3, 4, 5)]
+            assert full.template == "amount = 3\n\n# 구현하세요.\n"
+            assert "def scale" not in full.template and "return value" not in full.template
+        else:
+            assert requests == ["direct"] and full.template == starter
 
 
-@pytest.mark.parametrize("invalid", ["missing", "repeated", "entire_program"])
+@pytest.mark.parametrize("invalid", ["missing", "repeated", "entire_program", "valid"])
 def test_ppt_starter_is_checked_before_substituting_stdin(weekly, tmp_path, monkeypatch, invalid):
     _, db, _ = weekly
     decl = "amount = int(input())"
-    code = f"def scale(value):\n    return value * 2\n{decl}\nprint(scale(amount))"
+    code = f"factor = sum([1, 2])\n{decl}\nresult = amount * factor\nprint(result)"
     job, _, _, runs = setup_file(weekly, tmp_path, monkeypatch, [code], {})
     db.get(MaterialVersion, "version").filename = "synthetic.pptx"
-    starter = {"missing": "# implement", "repeated": decl + "\n" + decl, "entire_program": code}[invalid]
-    monkeypatch.setattr(worker, "model_json", lambda *args: {"programs": [{
-        "source_id": "piece-1", "code": code, "title": "출력 연습", "prompt": "예제의 결과를 계산하고 출력하세요.",
-        "input_statement": decl, "variants": ["amount=3", "amount=4", "amount=5"],
-        "blank_lines": [2], "full_template": starter,
-    }]})
+    starter = {"missing": "# implement", "repeated": decl + "\n" + decl,
+               "entire_program": code, "valid": decl + "\n# implement"}[invalid]
+    def direct_model(prompt, schema):
+        assert "$ref" in schema["properties"]["programs"]["items"]
+        return {"programs": [{
+            "source_id": "piece-1", "code": code, "title": "출력 연습", "prompt": "예제의 결과를 계산하고 출력하세요.",
+            "input_statement": decl, "variants": ["amount=3", "amount=4", "amount=5"],
+            "blank_lines": [3], "full_template": starter,
+        }]}
+    monkeypatch.setattr(worker, "model_json", direct_model)
     result = practice.prepare(db, job)
-    assert not runs and result["held"] == [{"source_id": "piece-1", "reason": "INVALID_PRACTICE_TEMPLATE"}]
+    if invalid == "valid":
+        rows = [db.get(PracticeExercise, eid) for eid in result["exercise_ids"]]
+        assert not result["held"] and {r.kind for r in rows} == {"blank", "full"}
+        assert len(runs) == 3
+        full, = [r for r in rows if r.kind == "full"]
+        assert full.template == full.tests[0]["statement"] + "\n# implement"
+    else:
+        assert not runs and not result["exercise_ids"]
+        assert result["held"] == [{"source_id": "piece-1", "reason": "INVALID_PRACTICE_TEMPLATE"}]
 
 
 @pytest.mark.parametrize("language,decl,variants", [

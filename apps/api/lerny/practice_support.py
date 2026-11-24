@@ -301,11 +301,13 @@ def input_lines(reference, statement):
 
 def python_blank_template(reference, selected, statement):
     """Keep valid proposed lines. Repair forbidden selections using the verified source."""
-    from rag_mvp.cloze_generator import ClozeGenerator
+    from rag_mvp.cloze_generator import ClozeGenerator, return_lines
 
     lines = reference.splitlines()
     protected = input_lines(reference, statement)
-    chosen = sorted(i for i in set(selected) if i not in protected and not ClozeGenerator.is_excluded_line(lines[i]))
+    returns = return_lines(reference)
+    chosen = sorted(i for i in set(selected) if i not in protected
+                    and not ClozeGenerator.is_excluded_line(lines[i], return_computed=returns.get(i)))
     if not chosen:
         chosen = [b["line_index"] for b in ClozeGenerator.select_blanks(reference, protected_lines=protected)]
     blanks = {}
@@ -317,7 +319,7 @@ def python_blank_template(reference, selected, statement):
         # Output-only examples can still ask for the printed expression.
         # AST columns are UTF-8 byte offsets; preserve labels, quotes and indentation.
         for i, line in enumerate(lines):
-            if i in protected:
+            if i in protected or i in returns:
                 continue
             code = line.lstrip()
             try:
