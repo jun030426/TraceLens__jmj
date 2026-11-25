@@ -7,7 +7,7 @@
 <p align="center">
   <img src="docs/assets/ai-lecturer.gif" width="720" alt="AI 강사가 칠판 슬라이드 옆에서 알고리즘 개념을 설명하는 장면">
   <br>
-  <sub>Lerny AI 강사의 개념 강의 앞부분 · <a href="apps/web/public/lecture-algorithm.mp4">소리와 함께 전체 영상 보기 (30초)</a></sub>
+  <sub>Lerny AI 강사의 개념 강의 앞부분 · <a href="https://lerny-ten.vercel.app/lecture-algorithm.mp4">소리와 함께 전체 영상 보기 (30초)</a></sub>
 </p>
 
 > 2026-2학기 SW캡스톤디자인 · 팀 **알고보자**
