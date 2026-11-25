@@ -235,22 +235,25 @@ function PageHead({
 /* ───────── 자료 — AI 강의 ─────────
  * 11/25: 실제 AI 강의 화면(Instructor.tsx)과 같은 배치로 맞췄어요 —
  *   왼쪽 큰 영상(16:9) · 그 아래 개념 제목과 버튼 · 관련 자료, 오른쪽 'AI 강의 자료' 목록.
- * 화면 속 마우스가 재생 버튼을 누르면 재생 막대가 차오르고 아래 자막이 써져요.
- * 표지는 실제 강의 표지(public/lecture-posters)예요. 실제 강의 영상 파일을 넣으려면 LECTURE_VIDEO_SRC 에 주소를 적으면 돼요
- * (비워 두면 표지가 천천히 움직이며 재생되는 것처럼 보여요). */
-const LECTURE_POSTER = "/lecture-posters/len-warm-6b47d698b62f.webp";
-const LECTURE_VIDEO_SRC = "";
-const LECTURE_CAPTION = "파이썬으로 이메일 주소의 전체 길이를 확인하는 방법을 아시나요?";
+ * 화면 속 마우스가 재생 버튼을 누르면 실제 강의 영상이 재생돼요 (소리 없이, 자막은 영상에 들어 있어요).
+ * 11/25 (2): 실제 서비스의 2주차 강의 '자료구조와 알고리즘을 라면으로 이해하기'(30초)에 맞췄어요.
+ *   표지는 실제 화면과 같은 기본 강의 표지(public/lecture-posters/default-lecture.webp).
+ *   영상은 원본(1080p)을 랜딩용으로 줄인 것이에요 — 1280 × 720, 소리 없음, 약 1.2MB (public/lecture-algorithm.mp4).
+ *   재생 시간과 재생 막대는 영상의 실제 재생 위치를 따라가요. LECTURE_VIDEO_SRC 를 비우면 영상 없이 표지만 보여요. */
+const LECTURE_POSTER = "/lecture-posters/default-lecture.webp";
+const LECTURE_VIDEO_SRC = "/lecture-algorithm.mp4";
+const LECTURE_SEC = 30; // 영상 길이 (초)
+const LECTURE_PLAY_SEC = 5.4; // 영상 파일이 없을 때 재생 막대가 가는 길이 (초)
 
 const WEEKS = [2, 3, 4, 5, 6, 7];
 
 function LecturePage({ p }: { p: number }) {
   const playing = p >= 0.2; // 재생 버튼을 눌러 재생 시작
   const played = seg(p, 0.2, 1);
-  const sec = Math.floor(played * 16); // 49초 영상의 앞부분만 보여줘요
-  const time = `0:${String(sec).padStart(2, "0")}`;
-  const caption = typed(LECTURE_CAPTION, p, 0.3, 0.72);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoAt, setVideoAt] = useState(0); // 영상의 실제 재생 위치 (초)
+  const at = !playing ? 0 : LECTURE_VIDEO_SRC ? videoAt : played * LECTURE_PLAY_SEC;
+  const time = `0:${String(Math.floor(at)).padStart(2, "0")}`;
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -278,18 +281,20 @@ function LecturePage({ p }: { p: number }) {
                 muted
                 playsInline
                 loop
-                preload="auto"
+                preload="metadata"
+                onTimeUpdate={(e) => setVideoAt(e.currentTarget.currentTime)}
                 style={{ opacity: playing ? 1 : 0 }}
               />
             )}
-            {caption && <p className="sp-caption">{caption}</p>}
             {/* 브라우저 기본 재생 막대 모양 */}
             <div className="sp-ctrl">
               <b
                 className={`${playing ? "sp-ic-pause" : "sp-ic-play"}${p >= 0.17 && p < 0.21 ? " pressed" : ""}`}
                 data-cur="play"
               />
-              <small>{time} / 0:49</small>
+              <small>
+                {time} / 0:{LECTURE_SEC}
+              </small>
               <span className="sp-ctrl-gap" />
               <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
                 <path d="M4 9v6h4l5 5V4L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z" />
@@ -303,15 +308,15 @@ function LecturePage({ p }: { p: number }) {
                 <circle cx="12" cy="19" r="2" />
               </svg>
               <span className="sp-ctrl-line">
-                <i style={{ width: `${Math.max(0.01, played * 0.34) * 100}%` }} />
+                <i style={{ width: `${Math.max(0.01, at / LECTURE_SEC) * 100}%` }} />
               </span>
             </div>
           </div>
-          <div className="sp-lec-label">2주차 · 개념 1</div>
-          <h5 className="sp-lec-title">문자열 길이, 한눈에</h5>
+          <div className="sp-lec-label">2주차 · 개념 2</div>
+          <h5 className="sp-lec-title">자료구조와 알고리즘을 라면으로 이해하기</h5>
           <div className="sp-lec-actions">
             <span className="sp-btn">오늘의 문제 풀기 ↗</span>
-            <span className="sp-btn gray">다음 개념: 대문자와 소문자로 바꾸기 →</span>
+            <span className="sp-btn gray">다음 개념: 100과 "100"은 같은 걸까? →</span>
           </div>
           <div className="sp-lec-details">
             <div className="sp-lec-tabs">
@@ -320,7 +325,7 @@ function LecturePage({ p }: { p: number }) {
             </div>
             <h6>교수님이 공개한 원본 자료</h6>
             <div className="sp-lec-file">
-              <span>제2장_파이썬 문자열.pptx</span>
+              <span>제1장_자료구조의 이해.pptx</span>
               <em>자료 열기 ↗</em>
             </div>
           </div>
@@ -350,20 +355,20 @@ function LecturePage({ p }: { p: number }) {
                 </div>
                 {isOpen && (
                   <div className="sp-week-videos">
-                    <div className="sp-video-item on">
+                    <div className="sp-video-item">
                       <b>01</b>
                       <span>
-                        문자열 길이, 한눈에
+                        도서관 책은 왜 분류해서 꽂을까?
                         <small>재생 가능 · 49초</small>
                       </span>
-                      <i className="sp-now" />
                     </div>
-                    <div className="sp-video-item">
+                    <div className="sp-video-item on">
                       <b>02</b>
                       <span>
-                        대문자와 소문자로 바꾸기
+                        자료구조와 알고리즘을 라면으로 이해하기
                         <small>재생 가능 · 30초</small>
                       </span>
+                      <i className="sp-now" />
                     </div>
                   </div>
                 )}
