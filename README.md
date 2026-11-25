@@ -4,6 +4,12 @@
 
 🔗 서비스: **https://lerny-ten.vercel.app**
 
+<p align="center">
+  <img src="docs/assets/ai-lecturer.gif" width="720" alt="AI 강사가 칠판 슬라이드 옆에서 알고리즘 개념을 설명하는 장면">
+  <br>
+  <sub>Lerny AI 강사의 개념 강의 앞부분 · <a href="apps/web/public/lecture-algorithm.mp4">소리와 함께 전체 영상 보기 (30초)</a></sub>
+</p>
+
 > 2026-2학기 SW캡스톤디자인 · 팀 **알고보자**
 > 과제명: 알고리즘과 자료구조를 AI 코스웨어와 튜터를 결합한 교육 모델링 설계
 
@@ -26,6 +32,14 @@ flowchart LR
     E --> F["아바타 렌더링<br/>1080p · 자막"]
     F --> G["공개<br/>학생 강의 목록"]
 ```
+
+<p align="center">
+  <img src="apps/web/public/lecture-posters/len-warm-6b47d698b62f.webp" width="32%" alt="문자열 길이 개념 강의 포스터">
+  <img src="apps/web/public/lecture-posters/lower-warm-f097f30d9357.webp" width="32%" alt="소문자로 바꾸기 개념 강의 포스터">
+  <img src="apps/web/public/lecture-posters/upper-warm-dea3700a6a74.webp" width="32%" alt="대문자로 바꾸기 개념 강의 포스터">
+  <br>
+  <sub>학생 강의 목록에 보이는 개념 강의 포스터 (자료구조 2주차 · 파이썬 문자열)</sub>
+</p>
 
 - **근거 있는 대본**: 해당 주차의 공개 자료에서 근거를 최대 12개까지 찾아 도입·본문·정리 구조의 50초 분량 대본을 씁니다. 모든 문장과 핵심 사실은 허용된 출처를 인용해야 합니다.
 - **문장 단위 검증**: 각 주장을 원문 문장과 대조해 검토합니다. 통과하지 못하면 최대 두 번 고쳐 쓰고, 교수자 참고 자료와 다시 맞춰 봅니다. 검토를 통과한 대본만 다음 단계로 넘어갑니다.
