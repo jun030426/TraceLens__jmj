@@ -4,6 +4,12 @@
 
 🔗 서비스: **https://lerny-ten.vercel.app**
 
+<p align="center">
+  <img src="docs/assets/ai-lecturer.gif" width="720" alt="AI 강사가 칠판 슬라이드 옆에서 알고리즘 개념을 설명하는 장면">
+  <br>
+  <sub>Lerny AI 강사의 개념 강의 앞부분 · <a href="https://lerny-ten.vercel.app/lecture-algorithm.mp4">소리와 함께 전체 영상 보기 (30초)</a></sub>
+</p>
+
 > 2026-2학기 SW캡스톤디자인 · 팀 **알고보자**
 > 과제명: 알고리즘과 자료구조를 AI 코스웨어와 튜터를 결합한 교육 모델링 설계
 
@@ -26,6 +32,14 @@ flowchart LR
     E --> F["아바타 렌더링<br/>1080p · 자막"]
     F --> G["공개<br/>학생 강의 목록"]
 ```
+
+<p align="center">
+  <img src="apps/web/public/lecture-posters/len-warm-6b47d698b62f.webp" width="32%" alt="문자열 길이 개념 강의 포스터">
+  <img src="apps/web/public/lecture-posters/lower-warm-f097f30d9357.webp" width="32%" alt="소문자로 바꾸기 개념 강의 포스터">
+  <img src="apps/web/public/lecture-posters/upper-warm-dea3700a6a74.webp" width="32%" alt="대문자로 바꾸기 개념 강의 포스터">
+  <br>
+  <sub>학생 강의 목록에 보이는 개념 강의 포스터 (자료구조 2주차 · 파이썬 문자열)</sub>
+</p>
 
 - **근거 있는 대본**: 해당 주차의 공개 자료에서 근거를 최대 12개까지 찾아 도입·본문·정리 구조의 50초 분량 대본을 씁니다. 모든 문장과 핵심 사실은 허용된 출처를 인용해야 합니다.
 - **문장 단위 검증**: 각 주장을 원문 문장과 대조해 검토합니다. 통과하지 못하면 최대 두 번 고쳐 쓰고, 교수자 참고 자료와 다시 맞춰 봅니다. 검토를 통과한 대본만 다음 단계로 넘어갑니다.
@@ -58,6 +72,12 @@ flowchart TB
     V --> H
 ```
 
+<p align="center">
+  <img src="docs/assets/ai-tutor-citations.webp" width="640" alt="AI 튜터가 해시 충돌과 스택·큐 질문에 답하고, 답변마다 강의 자료 파일과 슬라이드 번호를 출처로 붙인 화면">
+  <br>
+  <sub>답변마다 근거가 된 강의 자료와 슬라이드가 붙습니다 (서비스 소개 페이지의 체험 화면, 예시 데이터)</sub>
+</p>
+
 **색인**
 
 - **슬라이드 판독**: PPT의 도형을 하나씩 잘라 Gemini로 읽고, PPT 원본 텍스트와 일치할 때만 채택합니다. 그림 속 글자는 독립된 두 번의 판독이 서로 일치해야 채택합니다. 확인하지 못한 슬라이드는 보류되어 교수자 검토로 넘어갑니다.
@@ -86,6 +106,12 @@ flowchart LR
     JC --> T
     T --> UI["3D 무대<br/>+ 단계별 설명"]
 ```
+
+<p align="center">
+  <img src="docs/assets/code-visualization.webp" width="820" alt="왼쪽에 find_max 실습 코드와 단계별 힌트, 오른쪽에 배열 원소는 젤리, 변수 n과 best는 로봇으로 나타난 3D 실행 시각화와 재생 버튼">
+  <br>
+  <sub>배열은 젤리, 변수는 로봇으로 나타나는 3D 무대와 재생 조작 (서비스 소개 페이지의 체험 화면, 예시 데이터)</sub>
+</p>
 
 - **3D 무대**: 변수는 로봇, 배열 원소는 젤리, 스택은 펭귄, 연결 리스트는 기차로 나타납니다. 큐와 덱도 줄로 보여주고, 변수가 가리키는 배열은 관으로 이어집니다. 교환·대입·삽입·삭제가 일어나면 그 변화를 보여줍니다.
 - **재생 조작**: 처음·이전·재생·다음 버튼, 탐색 슬라이더, 3단계 속도, 단축키, 오류 위치로 바로 가기를 제공합니다. 코드 창에는 방금 실행한 줄, 다음 줄, 오류 난 줄이 표시되고, 호출 스택·프레임별 변수표·출력이 함께 나옵니다.
