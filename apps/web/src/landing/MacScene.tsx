@@ -127,7 +127,9 @@ export default function MacScene({ embedded = false, trackRef, range = [0, 1] }:
       const zoom = ease(seg(pm, S.zoom))
 
       // 맥북 화면 = 네모 크기 (16:10). 돌아도 화면 안에 들어오도록 대각선 기준으로 정해요
-      const LW = mobile ? vw * 0.62 : Math.min(vw * 0.68, vh * 0.84) // 11/18: 네모 · 맥북 화면 크게 (예전 0.56 / 0.6 · 0.74)
+      // 11/25: 휴대폰에서는 맥북이 너무 작아 보여서, 네모가 맥북으로 바뀌는 동안 0.62 → 0.8 로 커져요
+      //   (도는 네모는 모서리 이름표가 화면 밖으로 나가지 않게 0.62 그대로)
+      const LW = mobile ? vw * lerp(0.62, 0.8, mac) : Math.min(vw * 0.68, vh * 0.84) // 11/18: 네모 · 맥북 화면 크게 (예전 0.56 / 0.6 · 0.74)
       const LH = LW / 1.6
       const cx = vw / 2
       const cySq = vh * 0.5
