@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import "./landing/lerny-landing.css";
 import "./landing/lerny-landing-new.css";
 import "./landing/lerny-landing-lilac.css"; // 랜딩 전체 색: 바이올렛 블러시 (이 줄을 지우면 예전 색으로 돌아가요)
+import "./landing/lerny-landing-fit.css"; // 11/25: 화면 크기별 맞춤 (첫 화면 글자 가독성 · 하루의 학습 가운데 정렬 · 휴대폰 배치)
 import LandingNew from "./landing/LandingNew";
 import ScrollDots from "./landing/ScrollDots";
 import { BackgroundGradientAnimation } from "./landing/BackgroundGradientAnimation";

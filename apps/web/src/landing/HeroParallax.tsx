@@ -136,7 +136,7 @@ export const HeroParallax = ({ products = LECTURE_SLIDES }: { products?: Lecture
   return (
     <div ref={ref} className={`hp-root ${reduce ? 'is-still' : ''}`}>
       <motion.div className="hp-stage" style={{ opacity: stageOpacity, pointerEvents: stageEvents }}>
-        <motion.div style={{ opacity: headOpacity, y: headY }}>
+        <motion.div className="hp-head" style={{ opacity: headOpacity, y: headY }}>
           <Header />
         </motion.div>
         {/* 네모 → 맥북 → 화면 속으로 (MacScene.tsx 를 embedded 로) — 모인 강의자료가 이 네모 속으로 들어가요 */}
