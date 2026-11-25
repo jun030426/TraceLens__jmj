@@ -7,6 +7,8 @@
  *     실습   — 오늘의 실습: 빈칸 두 개를 채우고 '코드 실행' → 실행 결과가 나와요
  *     AI 질문 — 질문이 올라가고, 답변이 써지고, 강의 자료 근거가 붙어요
  *     학습 기록 — 취약도: 점수 고리와 막대가 차올라요
+ *   11/25: 자료 · 이론 · 실습 · AI 질문 화면을 배포된 실제 학생 화면의 배치 · 문구 · 글꼴(Pretendard)에 맞춰 다시 그렸어요.
+ *     실제 화면이 바뀌면 여기도 같이 맞춰야 해요 (맞춤 스타일은 lerny-student-preview-real.css).
  * - 화면은 1120 × 700 크기로 그린 뒤, 받침 크기에 맞춰 통째로 줄여요 (글자 비율이 그대로 유지돼요)
  * - 스타일: landing/lerny-student-preview.css (모든 클래스는 sp- 로 시작)
  * - 되돌리기: LandingNew.tsx 의 USE_STUDENT_PREVIEW 를 false 로 바꾸면 예전 데모로 돌아가요
@@ -21,6 +23,7 @@ import {
   Suspense,
 } from "react";
 import "./lerny-student-preview.css";
+import "./lerny-student-preview-real.css"; // 11/25: 실제 학생 화면의 글꼴 · 색 · 배치에 맞춘 스타일
 import type { Stage3DVar } from "./Stage3DPreview";
 
 // 11/18: 실습 시각화는 실제 앱 3D 무대로 — three.js 가 커서 미리보기가 그 단계에 닿을 때 따로 불러와요
@@ -230,57 +233,24 @@ function PageHead({
 }
 
 /* ───────── 자료 — AI 강의 ─────────
- * 화면 속 마우스가 1주차를 눌러 펼치고 → 영상을 누르면 → 왼쪽 플레이어에서 자동 재생돼요.
- * 영상은 public/lecture-demo.mp4 (바꾸려면 아래 LECTURE_VIDEO_SRC 의 주소만 바꾸면 돼요). */
-const LECTURE_VIDEO_SRC = "/lecture-demo.mp4"; // AI 강사가 len() 을 설명하는 5초 영상 (소리 없이, 반복 재생)
+ * 11/25: 실제 AI 강의 화면(Instructor.tsx)과 같은 배치로 맞췄어요 —
+ *   왼쪽 큰 영상(16:9) · 그 아래 개념 제목과 버튼 · 관련 자료, 오른쪽 'AI 강의 자료' 목록.
+ * 화면 속 마우스가 재생 버튼을 누르면 재생 막대가 차오르고 아래 자막이 써져요.
+ * 표지는 실제 강의 표지(public/lecture-posters)예요. 실제 강의 영상 파일을 넣으려면 LECTURE_VIDEO_SRC 에 주소를 적으면 돼요
+ * (비워 두면 표지가 천천히 움직이며 재생되는 것처럼 보여요). */
+const LECTURE_POSTER = "/lecture-posters/len-warm-6b47d698b62f.webp";
+const LECTURE_VIDEO_SRC = "";
+const LECTURE_CAPTION = "파이썬으로 이메일 주소의 전체 길이를 확인하는 방법을 아시나요?";
 
-const WEEKS = [
-  { w: 1, t: "파이썬 문자열", n: "영상 2개" },
-  { w: 2, t: "배열과 리스트", n: "영상 2개" },
-  { w: 3, t: "연결 리스트", n: "영상 1개" },
-  { w: 4, t: "스택", n: "영상 2개" },
-  { w: 5, t: "큐와 덱", n: "영상 3개" },
-];
-
-// 11/18 밤: 영상 소리 — 브라우저는 소리 있는 자동 재생을 막아서 처음엔 꺼 두고, 스피커 아이콘을 누르면 켜져요 (단계가 바뀌어도 기억해요)
-let lectureSoundOn = false;
-
-function SoundIcon({ on }: { on: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5" />
-      {on ? (
-        <>
-          <path d="M15 8a5 5 0 0 1 0 8" />
-          <path d="M17.7 5a9 9 0 0 1 0 14" />
-        </>
-      ) : (
-        <path d="M16 10l4 4m0 -4l-4 4" />
-      )}
-    </svg>
-  );
-}
+const WEEKS = [2, 3, 4, 5, 6, 7];
 
 function LecturePage({ p }: { p: number }) {
-  const open = p >= 0.14; // 1주차를 눌러 펼침
-  const picked = p >= 0.3; // 영상을 골라요 (첫 장면 + 가운데 재생 버튼)
-  const playing = p >= 0.44; // 재생 버튼을 눌러 재생 시작
-  const full = p >= 0.46; // 누르자마자 영상만 화면 가득 (11/18)
-  const played = seg(p, 0.44, 1);
-  const sec = Math.min(5, Math.floor(played * 5.5)); // 5초 영상
+  const playing = p >= 0.2; // 재생 버튼을 눌러 재생 시작
+  const played = seg(p, 0.2, 1);
+  const sec = Math.floor(played * 16); // 49초 영상의 앞부분만 보여줘요
   const time = `0:${String(sec).padStart(2, "0")}`;
+  const caption = typed(LECTURE_CAPTION, p, 0.3, 0.72);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [soundOn, setSoundOn] = useState(lectureSoundOn);
-  const toggleSound = () => {
-    const next = !soundOn;
-    lectureSoundOn = next;
-    setSoundOn(next);
-    const v = videoRef.current;
-    if (v) {
-      v.muted = !next;
-      if (next && playing) v.play().catch(() => {});
-    }
-  };
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -291,106 +261,108 @@ function LecturePage({ p }: { p: number }) {
     }
   }, [playing]);
   return (
-    <div className={`sp-lecture${full ? " is-full" : ""}`}>
+    <div className="sp-lecture">
       <PageHead
         title="AI 강의"
         sub="개념을 보고, 직접 풀어보세요."
-        right="자료구조 · 2026학년도 2학기 · 01분반"
+        right="자료구조 · 화·목 13:00–15:00 · 01분반"
       />
       <div className="sp-lecture-grid">
-        <div className={`sp-player${playing ? " is-playing" : ""}${full ? " is-full" : ""}`}>
-          <div className="sp-player-top">
-            <span>Lerny 강의실</span>
-            <b>
-              {playing
-                ? "1주차 · len()으로 문자열 길이 세기"
-                : "강의를 선택해 주세요"}
-            </b>
-          </div>
-          {/* 영상 칸 — 비어 있어요 (LECTURE_VIDEO_SRC) */}
-          <div className="sp-video">
+        <div className="sp-lec-main">
+          <div className={`sp-stagebox${playing ? " is-playing" : ""}`}>
+            <img src={LECTURE_POSTER} alt="" />
             {LECTURE_VIDEO_SRC && (
               <video
                 ref={videoRef}
                 src={LECTURE_VIDEO_SRC}
-                muted={!soundOn}
+                muted
                 playsInline
                 loop
                 preload="auto"
-                style={{ opacity: picked ? 1 : 0 }}
+                style={{ opacity: playing ? 1 : 0 }}
               />
             )}
-            {picked && LECTURE_VIDEO_SRC && (
-              <button
-                type="button"
-                className={`sp-sound${soundOn ? " on" : ""}`}
-                onClick={toggleSound}
-                aria-label={soundOn ? "소리 끄기" : "소리 켜기"}
-                title={soundOn ? "소리 끄기" : "소리 켜기"}
-              >
-                <SoundIcon on={soundOn} />
-                <span>{soundOn ? "소리 끄기" : "소리 켜기"}</span>
-              </button>
-            )}
-            {!picked && (
-              <div className="sp-video-idle">
-                <b className="sp-play big" />
-                <span>왼쪽 목록에서 주차와 영상을 골라 주세요</span>
-              </div>
-            )}
-            {picked && !playing && (
-              <div className="sp-video-ready">
-                <b
-                  className={`sp-play big${p >= 0.42 ? " pressed" : ""}`}
-                  data-cur="play"
-                />
-              </div>
-            )}
+            {caption && <p className="sp-caption">{caption}</p>}
+            {/* 브라우저 기본 재생 막대 모양 */}
+            <div className="sp-ctrl">
+              <b
+                className={`${playing ? "sp-ic-pause" : "sp-ic-play"}${p >= 0.17 && p < 0.21 ? " pressed" : ""}`}
+                data-cur="play"
+              />
+              <small>{time} / 0:49</small>
+              <span className="sp-ctrl-gap" />
+              <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+                <path d="M4 9v6h4l5 5V4L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z" />
+              </svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" aria-hidden="true">
+                <path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4" />
+              </svg>
+              <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+                <circle cx="12" cy="5" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="12" cy="19" r="2" />
+              </svg>
+              <span className="sp-ctrl-line">
+                <i style={{ width: `${Math.max(0.01, played * 0.34) * 100}%` }} />
+              </span>
+            </div>
           </div>
-          <div className="sp-player-bar">
-            <b className={playing ? "sp-pause" : "sp-play"} />
-            <span className="sp-time">
-              <i style={{ width: `${Math.min(1, played * 1.1) * 100}%` }} />
-            </span>
-            <small>{playing ? `${time} / 0:05` : "0:00 / 0:05"}</small>
+          <div className="sp-lec-label">2주차 · 개념 1</div>
+          <h5 className="sp-lec-title">문자열 길이, 한눈에</h5>
+          <div className="sp-lec-actions">
+            <span className="sp-btn">오늘의 문제 풀기 ↗</span>
+            <span className="sp-btn gray">다음 개념: 대문자와 소문자로 바꾸기 →</span>
+          </div>
+          <div className="sp-lec-details">
+            <div className="sp-lec-tabs">
+              <span className="on">관련 자료</span>
+              <span>강의 안내</span>
+            </div>
+            <h6>교수님이 공개한 원본 자료</h6>
+            <div className="sp-lec-file">
+              <span>제2장_파이썬 문자열.pptx</span>
+              <em>자료 열기 ↗</em>
+            </div>
           </div>
         </div>
         <aside className="sp-weeks">
-          <h5>
-            AI 강의 자료 <small>16개 주차</small>
-          </h5>
-          {WEEKS.map((wk) => {
-            const isOpen = wk.w === 1 && open;
+          <div className="sp-weeks-head">
+            <span>
+              <h5>AI 강의 자료</h5>
+              <small>12개 영상 · 6개 주차</small>
+            </span>
+            <em>목록 새로고침</em>
+          </div>
+          <p className="sp-weeks-note">
+            강의자료의 개념 순서로 표시돼요. 준비 중인 영상은 완료 후 재생할 수 있어요.
+          </p>
+          <div className="sp-weeks-search">
+            <i>⌕</i>주차·개념·자료 이름 검색
+          </div>
+          {WEEKS.map((w) => {
+            const isOpen = w === 2;
             return (
-              <div
-                key={wk.w}
-                className={`sp-week-wrap${isOpen ? " open" : ""}`}
-              >
-                <div className="sp-week" data-cur={`week${wk.w}`}>
-                  <small>0{wk.w}</small>
-                  <span>
-                    {wk.w}주차 <b>{wk.t}</b>
-                  </span>
-                  <em>
-                    {wk.n} {isOpen ? "−" : "+"}
-                  </em>
+              <div key={w} className={`sp-week-wrap${isOpen ? " open" : ""}`}>
+                <div className="sp-week">
+                  <small>0{w}</small>
+                  <span>{w}주차</span>
+                  <em>영상 2개 {isOpen ? "−" : "+"}</em>
                 </div>
-                {wk.w === 1 && (
+                {isOpen && (
                   <div className="sp-week-videos">
-                    <div
-                      className={`sp-video-item${picked ? " on" : ""}`}
-                      data-cur="video1"
-                    >
+                    <div className="sp-video-item on">
                       <b>01</b>
                       <span>
-                        len()으로 문자열 길이 세기
-                        <small>{playing ? "재생 중" : "0:05"}</small>
+                        문자열 길이, 한눈에
+                        <small>재생 가능 · 49초</small>
                       </span>
+                      <i className="sp-now" />
                     </div>
                     <div className="sp-video-item">
                       <b>02</b>
                       <span>
-                        인덱스로 글자 꺼내기<small>3:20</small>
+                        대문자와 소문자로 바꾸기
+                        <small>재생 가능 · 30초</small>
                       </span>
                     </div>
                   </div>
@@ -403,12 +375,10 @@ function LecturePage({ p }: { p: number }) {
       <Cursor
         p={p}
         path={[
-          { at: 0, x: 560, y: 600 },
-          { at: 0.12, to: "week1", click: true },
-          { at: 0.28, to: "video1", click: true },
-          { at: 0.41, to: "play", click: true },
-          { at: 0.7, x: 860, y: 560 },
-          { at: 1, x: 900, y: 590 },
+          { at: 0, x: 520, y: 640 },
+          { at: 0.17, to: "play", click: true },
+          { at: 0.5, x: 420, y: 520 },
+          { at: 1, x: 470, y: 560 },
         ]}
       />
     </div>
@@ -416,12 +386,14 @@ function LecturePage({ p }: { p: number }) {
 }
 
 /* ───────── 이론 — 오늘의 이론 ─────────
- * 마우스가 '힌트 보기' → 힌트가 펼쳐지고 → 보기 3을 고르고 → '정답 확인' → 정답 표시와 해설까지 보여줘요. */
+ * 11/25: 실제 이론 퀴즈 화면(Flow.tsx)과 같은 구성 — 제목 · 안내 문구 · 문항 탭 5개(하루 5문항) · 보기 · 힌트 카드 ·
+ *   아래 한 자리 버튼(답을 고르기 전 [다음 문항] → 고르면 [정답 확인] → 확인하면 정답 · 해설 칸).
+ * 마우스가 '힌트 보기' → 힌트가 열리고 → 보기 3을 고르고 → '정답 확인' → 정답 확인 칸(내 답안 · 정답, 해설, AI에게 물어보기)이 나와요. */
 function QuizPage({ p }: { p: number }) {
-  const hint = ease(seg(p, 0.14, 0.24));
+  const hint = p >= 0.16;
   const picked = p >= 0.42;
   const checked = p >= 0.6;
-  const reveal = ease(seg(p, 0.6, 0.74));
+  const reveal = ease(seg(p, 0.6, 0.72));
   const opts = [
     "1이 나온다",
     "2가 나온다",
@@ -430,86 +402,122 @@ function QuizPage({ p }: { p: number }) {
   ];
   return (
     <div className="sp-quiz">
-      <PageHead
-        title="오늘의 이론"
-        sub="한 문항씩 풀고 '정답 확인'을 누르면 바로 정답과 해설이 나와요."
-        right={`${checked ? 1 : 0} / 3문항 확인`}
-      />
+      <div className="sp-quiz-head">
+        <div className="sp-head">
+          <h4>오늘의 이론</h4>
+          <em>{checked ? 1 : 0} / 5문항 확인</em>
+        </div>
+        <p>
+          문항마다 한 번만 제출할 수 있어요. '정답 확인'을 누르면 내 답안이 저장돼요. 모두 풀면 전체 문항의
+          답과 해설을 한 번에 볼 수 있어요.
+        </p>
+      </div>
       <div className="sp-tabs">
-        {["1번", "2번", "3번"].map((t, i) => (
+        {["1번", "2번", "3번", "4번", "5번"].map((t, i) => (
           <span key={t} className={i === 0 ? "on" : undefined}>
             {i === 0 && checked ? "1번 정답" : t}
           </span>
         ))}
       </div>
       <div className="sp-card sp-quiz-card">
-        <small>1 / 3 · 객관식 · 4주차 스택</small>
+        <small>1 / 5 · 객관식 · 이해</small>
         <h5>
           스택에 1, 2, 3을 차례로 push 한 뒤 pop 을 한 번 하면 나오는 값은?
         </h5>
-        <div className="sp-opts">
-          {opts.map((o, i) => (
-            <div
-              key={o}
-              className={`sp-opt${picked && i === 2 ? " on" : ""}${checked && i === 2 ? " ok" : ""}`}
-              data-cur={`opt${i + 1}`}
-            >
-              <i />
-              <b>{i + 1}</b>
-              {o}
-              {checked && i === 2 && <em>정답</em>}
+        {!checked ? (
+          <>
+            <p className="sp-legend">정답이라고 생각하는 보기 하나를 선택해 주세요.</p>
+            <div className="sp-opts">
+              {opts.map((o, i) => (
+                <div
+                  key={o}
+                  className={`sp-opt${picked && i === 2 ? " on" : ""}`}
+                  data-cur={`opt${i + 1}`}
+                >
+                  <i />
+                  <b>{i + 1}</b>
+                  {o}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className={`sp-hint${hint > 0 ? " open" : ""}`}>
-          <div className="sp-hint-row">
-            <b>힌트</b>
-            <span className="sp-hint-pill">
-              <i style={{ width: `${hint * 100}%` }} />
-            </span>
-            <small>남은 힌트 {hint >= 1 ? 0 : 1}</small>
-            <span
-              className={`sp-btn small line${p >= 0.12 && p < 0.16 ? " pressed" : ""}`}
-              data-cur="hint"
-            >
-              {hint > 0 ? "힌트 닫기" : "힌트 보기"}
-            </span>
-          </div>
+            <div className={`sp-hint${hint ? " open" : ""}`}>
+              <div className="sp-hint-row">
+                <b>힌트</b>
+                <span className="sp-hint-pill">
+                  <i className={hint ? "on" : undefined} />
+                </span>
+                <small>
+                  {hint ? (
+                    "힌트를 모두 열었어요"
+                  ) : (
+                    <>
+                      남은 힌트 <b>1</b>
+                    </>
+                  )}
+                </small>
+                <span
+                  className={`sp-btn small line${p >= 0.13 && p < 0.17 ? " pressed" : ""}`}
+                  data-cur="hint"
+                >
+                  {hint ? "힌트 접기" : "힌트 보기"}
+                </span>
+              </div>
+              {hint && (
+                <div className="sp-hint-list">
+                  <b>힌트</b>
+                  <span>스택은 가장 나중에 넣은 값이 맨 위에 있어요. pop 은 맨 위에서 꺼내요.</span>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
           <div
-            className="sp-hint-body"
-            style={{ maxHeight: hint * 60, opacity: hint }}
+            className="sp-result"
+            style={{ opacity: reveal, transform: `translateY(${(1 - reveal) * 10}px)` }}
           >
-            스택은 <b>가장 나중에 넣은 값</b>이 맨 위에 있어요. pop 은 맨 위에서
-            꺼내요.
+            <div className="sp-result-meta">
+              <small>정답 확인</small>
+              <em>정답</em>
+            </div>
+            <div className="sp-result-answer">
+              <b>내 답안 · 정답</b>
+              <span>3이 나온다</span>
+            </div>
+            <div className="sp-result-exp">
+              <b>해설</b>
+              <p>
+                스택은 마지막에 넣은 값을 가장 먼저 꺼내는 LIFO 구조예요. 1, 2, 3 순서로 넣었으니 pop 하면
+                3이 나와요.
+              </p>
+            </div>
+            <div className="sp-ask">
+              <i>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff" aria-hidden="true">
+                  <path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7l-4.5 3.5V17H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+                </svg>
+              </i>
+              <span>
+                <b>해설이 아직 헷갈리나요? AI에게 물어보기 →</b>
+                <small>이 문제와 내 답안을 함께 보내 바로 질문할 수 있어요.</small>
+              </span>
+            </div>
           </div>
-        </div>
-        <div
-          className="sp-explain"
-          style={{
-            opacity: reveal,
-            transform: `translateY(${(1 - reveal) * 10}px)`,
-            maxHeight: reveal * 120,
-          }}
-        >
-          <b>정답 3번 · 해설</b> 스택은 마지막에 넣은 값을 가장 먼저 꺼내는 LIFO
-          구조예요. 1, 2, 3 순서로 넣었으니 pop 하면 3이 나와요.
-          <span className="sp-src">근거 · 4주차 스택 3쪽</span>
-        </div>
+        )}
         <div className="sp-quiz-foot">
-          <span className="sp-btn ghost">이전 문항</span>
+          <span className="sp-btn flat">이전 문항</span>
           <span
-            className={`sp-btn${p >= 0.58 && p < 0.62 ? " pressed" : ""}`}
+            className={`sp-btn${picked ? "" : " outline"}${p >= 0.58 && p < 0.62 ? " pressed" : ""}`}
             data-cur="check"
           >
-            {checked ? "다음 문항 →" : "정답 확인"}
+            {picked && !checked ? "정답 확인" : "다음 문항 →"}
           </span>
         </div>
       </div>
       <Cursor
         p={p}
         path={[
-          { at: 0, x: 760, y: 640 },
-          { at: 0.12, to: "hint", click: true },
+          { at: 0, x: 760, y: 700 },
+          { at: 0.13, to: "hint", click: true },
           { at: 0.4, to: "opt3", click: true },
           { at: 0.58, to: "check", click: true },
           { at: 1, to: "check" },
@@ -542,7 +550,7 @@ function PracticePage({ p }: { p: number }) {
       <PageHead
         title="오늘의 실습"
         sub="자료구조 · 01분반 · 수업 언어 Python"
-        right={second ? "2 / 2" : "1 / 2"}
+        right="수업에 지정된 언어로 실습을 진행해요."
       />
       {second ? (
         <FullCoding r={seg(p, 0.5, 1)} />
@@ -553,12 +561,49 @@ function PracticePage({ p }: { p: number }) {
   );
 }
 
-function PracticeTabs({ second, kind }: { second: boolean; kind: string }) {
+/** 왼쪽 칸 맨 위 — 실제 화면처럼 문제 탭 · '하루 2문제' · [빈칸 채우기 | 전체 구현] 전환 */
+function PracticeTabs({ second, kind }: { second: boolean; kind: "blank" | "full" }) {
   return (
-    <div className="sp-code-tabs">
+    <div className="sp-code-tabs sp-ptabs">
       <span className={second ? undefined : "on"}>문제 1</span>
       <span className={second ? "on" : undefined}>문제 2</span>
-      <em>{kind}</em>
+      <small>하루 2문제</small>
+      <div className="sp-seg">
+        <b className={kind === "blank" ? "on" : undefined}>빈칸 채우기</b>
+        <b className={kind === "full" ? "on" : undefined}>전체 구현</b>
+      </div>
+    </div>
+  );
+}
+
+/** 오른쪽 칸 — 실제 화면처럼 위에 [← 이전 문제 · 1 / 2 · 다음 문제 →], 아래 [실행 결과 | 시각화] 탭과 단계 조절 버튼 */
+function RunPanel({ second, step, children }: { second: boolean; step: string; children: ReactNode }) {
+  return (
+    <div className="sp-run-col">
+      <div className="sp-qnav">
+        <span className={second ? undefined : "off"}>← 이전 문제</span>
+        <b>{second ? "2 / 2" : "1 / 2"}</b>
+        <span className={second ? "off" : "go"}>다음 문제 →</span>
+      </div>
+      <div className="sp-card sp-run">
+        <div className="sp-code-tabs">
+          <span>실행 결과</span>
+          <span className="on">시각화</span>
+        </div>
+        <div className="sp-viz">
+          {children}
+          <div className="sp-viz-ctrl">
+            <b>⟲</b>
+            <b>‹</b>
+            <b className="play">▶</b>
+            <b>›</b>
+            <small>{step}</small>
+            <span>느리게</span>
+            <span className="on">보통</span>
+            <span>빠르게</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -583,7 +628,8 @@ const FULL_CMT = [
   "find_max([3, 8, 2, 12])을(를) 화면에 출력해요",
 ];
 
-/** 힌트 칸 — 실제 앱의 힌트 카드처럼 '힌트' 제목 · 연 힌트/남은 힌트 칸 · [힌트 n 보기] 버튼. 누르면 첫 힌트가 열려요 */
+/** 힌트 칸 — 실제 화면의 '막힐 때 단계별 힌트 보기' 안 힌트 카드(StepHints.tsx)처럼
+ *  '힌트' 제목 · 연 힌트/남은 힌트 칸 · [힌트 n 보기] 버튼. 누르면 첫 힌트가 한 줄로 열려요 */
 function HintBox({
   open,
   total,
@@ -598,6 +644,7 @@ function HintBox({
   const used = open ? 1 : 0;
   return (
     <div className={`sp-phint${open ? " open" : ""}`}>
+      <div className="sp-phint-sum">▾ 막힐 때 단계별 힌트 보기</div>
       <div className="sp-phint-head">
         <b>힌트</b>
         <span className="sp-phint-meter">
@@ -608,10 +655,7 @@ function HintBox({
         <small>
           남은 힌트 <b>{total - used}</b>
         </small>
-        <span
-          className={`sp-btn small soft${open ? "" : " glow"}`}
-          data-cur="hint"
-        >
+        <span className="sp-btn small line" data-cur="hint">
           {name(used + 1)} 보기
         </span>
       </div>
@@ -651,7 +695,7 @@ function BlankCoding({ q }: { q: number }) {
   return (
     <div className="sp-practice-grid">
       <div className="sp-card sp-code-card">
-        <PracticeTabs second={false} kind="빈칸 채우기" />
+        <PracticeTabs second={false} kind="blank" />
         <div className="sp-code-q">
           <h5>문제1. 점수 평균 구하기</h5>
           <p>점수를 모두 더한 뒤 개수로 나눠 평균을 구해요. 두 빈칸을 채워 보세요.</p>
@@ -663,9 +707,11 @@ function BlankCoding({ q }: { q: number }) {
           text="강의 4주차 9쪽 · 합계는 아무것도 더하지 않은 값에서 시작해, 반복마다 지금 값을 더해요."
         />
         <div className="sp-code-bar">
-          <b>빈칸 채우기</b>
+          <b>
+            빈칸 채우기 <i className="sp-help">?</i>
+          </b>
           <span
-            className={`sp-btn small${q >= 0.4 && q < 0.45 ? " pressed" : ""}`}
+            className={`sp-btn small flat${q >= 0.4 && q < 0.45 ? " pressed" : ""}`}
             data-cur="run"
           >
             코드 실행
@@ -674,7 +720,7 @@ function BlankCoding({ q }: { q: number }) {
         </div>
         <div className="sp-code-file">
           <span>main.py</span>
-          <span>{ran ? "실행했어요 · 줄마다 설명이 붙었어요" : `빈칸 ${filled}/2 채움`}</span>
+          <span>빈칸 {filled}/2 채움</span>
         </div>
         <pre className={`sp-code${ran ? " has-cmt" : ""}`}>
           <code>
@@ -699,14 +745,9 @@ function BlankCoding({ q }: { q: number }) {
             </CodeLine>
           </code>
         </pre>
+        <p className="sp-code-note">빈칸을 채우고 Enter를 누르면 다음 빈칸 앞까지 바로 실행돼요.</p>
       </div>
-      <div className="sp-card sp-run">
-        <div className="sp-code-tabs">
-          <span>실행 결과</span>
-          <span className="on">시각화</span>
-          <em className="soft">① 빈칸 앞에서 멈춤</em>
-        </div>
-        <div className="sp-viz">
+      <RunPanel second={false} step={`${!ran ? 0 : done ? 6 : idx + 2}/6`}>
           <VizStage
             name="scores"
             arr={SCORES}
@@ -729,8 +770,7 @@ function BlankCoding({ q }: { q: number }) {
             ]}
           />
           <p className="sp-viz-cap">{caption}</p>
-        </div>
-      </div>
+      </RunPanel>
       <Cursor
         p={q}
         path={[
@@ -775,7 +815,7 @@ function FullCoding({ r }: { r: number }) {
   return (
     <div className="sp-practice-grid">
       <div className="sp-card sp-code-card">
-        <PracticeTabs second kind="직접 작성" />
+        <PracticeTabs second kind="full" />
         <div className="sp-code-q">
           <h5>문제2. 가장 큰 값 찾기</h5>
           <p>리스트에서 가장 큰 값을 돌려주는 함수 find_max 를 처음부터 작성해 보세요.</p>
@@ -787,9 +827,11 @@ function FullCoding({ r }: { r: number }) {
           text="첫 값을 best 에 넣어 두고, 나머지 값과 하나씩 비교해 더 크면 바꿔요."
         />
         <div className="sp-code-bar">
-          <b>코드 작성</b>
+          <b>
+            전체 구현 <i className="sp-help">?</i>
+          </b>
           <span
-            className={`sp-btn small${r >= 0.37 && r < 0.42 ? " pressed" : ""}`}
+            className={`sp-btn small flat${r >= 0.37 && r < 0.42 ? " pressed" : ""}`}
             data-cur="run"
           >
             코드 실행
@@ -798,7 +840,7 @@ function FullCoding({ r }: { r: number }) {
         </div>
         <div className="sp-code-file">
           <span>main.py</span>
-          <span>{ran ? "실행했어요 · 줄마다 설명이 붙었어요" : `${lines.length}줄`}</span>
+          <span>{lines.length}줄</span>
         </div>
         <pre className={`sp-code${ran ? " has-cmt" : ""}`}>
           <code>
@@ -817,13 +859,7 @@ function FullCoding({ r }: { r: number }) {
           </code>
         </pre>
       </div>
-      <div className="sp-card sp-run">
-        <div className="sp-code-tabs">
-          <span>실행 결과</span>
-          <span className="on">시각화</span>
-          <em className="soft">② 한 줄씩 실행</em>
-        </div>
-        <div className="sp-viz">
+      <RunPanel second step={`${!ran ? 0 : done ? 6 : k + 2}/6`}>
           <VizStage
             name="nums"
             arr={NUMS}
@@ -852,8 +888,7 @@ function FullCoding({ r }: { r: number }) {
                 ? "출력 12 — 반복이 끝나고 best 가 가장 큰 값이에요."
                 : `${line}번 줄 · n = ${NUMS[k]}${line === 4 ? ` · ${NUMS[k]} > ${prevBest ?? NUMS[0]} → ${bigger ? "참" : "거짓"}` : `, best = ${shownBest}`}`}
           </p>
-        </div>
-      </div>
+      </RunPanel>
       <Cursor
         p={r}
         path={[
@@ -1008,7 +1043,10 @@ function Blank({
   );
 }
 
-/* ───────── AI 질문 ───────── */
+/* ───────── AI 질문 — 학습 챗봇 ─────────
+ * 11/25: 실제 화면(Learning.tsx 의 학습 챗봇)과 같은 구성 — 왼쪽 '내 강의' · '이전 질문 찾아보기', 오른쪽 '학습 챗봇' 대화 칸.
+ *   답변 위에 'AI 강사', 답변 안에 강의 자료 파일 · 슬라이드 근거, 답변 아래 시간과 [이해했어요 · 헷갈려요 · 모르겠어요].
+ *   하나를 고르면 선택지는 사라지고 답변 모서리에 이모티콘이 달려요. */
 function ChatPage({ p }: { p: number }) {
   const q = p >= 0.04;
   const thinking = p >= 0.14 && p < 0.26;
@@ -1019,73 +1057,84 @@ function ChatPage({ p }: { p: number }) {
     0.68,
   );
   const src = p >= 0.7;
-  const picked = p >= 0.86; // 마우스가 '이해했어요' 상태를 눌러요
+  const picked = p >= 0.86; // 마우스가 '이해했어요'를 눌러요
+  const typing = p < 0.04 ? typed("스택이랑 큐는 언제 다르게 써요?", p, 0, 0.035) : "";
   return (
     <div className="sp-chat">
-      <aside className="sp-card sp-side">
-        <h5>내 강의</h5>
-        <div className="sp-course">
-          <b>자료구조</b>
-          <small>테스트 교수 · 01분반</small>
+      <aside className="sp-side-col">
+        <div className="sp-card sp-side">
+          <div className="sp-side-head">
+            <h5>내 강의</h5>
+            <small>강의·수강 관리 →</small>
+          </div>
+          <div className="sp-course">
+            <b>
+              자료구조 <small>김교수</small>
+            </b>
+            <small>화·목 13:00–15:00 · 01분반</small>
+          </div>
         </div>
-        <div className="sp-prev">이전 질문 찾아보기</div>
-        <ul>
-          <li>해시 테이블은 왜 빨라요?</li>
-          <li>연결 리스트 삽입이 O(1)인 이유</li>
-        </ul>
+        <div className="sp-card sp-prev">
+          이전 질문 찾아보기 <i>⌄</i>
+        </div>
       </aside>
       <div className="sp-card sp-chat-main">
         <div className="sp-chat-head">
-          <h5>AI 질문</h5>
-          <span>수업 자료에서 답변의 근거를 함께 확인해요.</span>
+          <h5>학습 챗봇</h5>
+          <span>수업 자료에서 답변의 근거를 함께 확인하세요.</span>
+          <em>새 대화</em>
         </div>
         <div className="sp-msgs">
           <div className="sp-msg me">충돌이 나면 어떻게 해요?</div>
-          <div className="sp-msg ai">
+          <div className="sp-ai">
             <small>AI 강사</small>
-            해시 충돌이 나면 같은 칸에 연결 리스트로 이어 붙이거나, 비어 있는
-            다음 칸을 찾아 넣어요.
-            <span className="sp-src">6주차 · 해시 테이블 · 7쪽 →</span>
+            <div className="sp-msg ai">
+              해시 충돌이 나면 같은 칸에 연결 리스트로 이어 붙이거나, 비어 있는 다음 칸을 찾아 넣어요.
+              <span className="sp-src">제6장_해시 테이블.pptx · 슬라이드 7 →</span>
+            </div>
           </div>
           <div className={`sp-msg me${q ? " in" : " hide"}`}>
             스택이랑 큐는 언제 다르게 써요?
           </div>
           {thinking && (
-            <div className="sp-msg ai sp-dots">
-              <i />
-              <i />
-              <i />
+            <div className="sp-ai">
+              <small>AI 강사</small>
+              <div className="sp-msg ai sp-dots">
+                <i />
+                <i />
+                <i />
+              </div>
             </div>
           )}
           {p >= 0.26 && (
-            <div className="sp-msg ai in">
+            <div className="sp-ai in">
               <small>AI 강사</small>
-              {answer}
-              <span className={`sp-src${src ? "" : " off"}`}>
-                4주차 · 스택과 큐 · 3쪽 →
-              </span>
+              <div className="sp-msg ai">
+                {answer}
+                <span className={`sp-src${src ? "" : " off"}`}>
+                  제4장_스택과 큐.pptx · 슬라이드 3 →
+                </span>
+                {picked && <i className="sp-reacted">💡</i>}
+              </div>
+              <div className="sp-ai-foot">
+                <time>{src ? "오후 6:02" : ""}</time>
+                <div className={`sp-react${src ? " on" : ""}${p >= 0.9 ? " done" : ""}`}>
+                  <span
+                    className={`sp-state is-understood${picked ? " picked" : ""}`}
+                    data-cur="state"
+                  >
+                    💡 이해했어요
+                  </span>
+                  <span className="sp-state is-confused">❓ 헷갈려요</span>
+                  <span className="sp-state is-stop">🤯 모르겠어요</span>
+                </div>
+              </div>
             </div>
           )}
-          <div className={`sp-react${src ? " on" : ""}`}>
-            <span
-              className={`sp-state is-understood${picked ? " picked" : ""}`}
-              data-cur="state"
-            >
-              💡 이해했어요
-            </span>
-            <span className="sp-state is-confused">❓ 헷갈려요</span>
-            <span className="sp-state is-stop">🤯 모르겠어요</span>
-          </div>
-          <div className={`sp-toast${picked ? " on" : ""}`}>
-            이해했어요로 기록했어요 · 학습 기록에 반영돼요
-          </div>
         </div>
         <div className="sp-input">
-          <span>
-            {p < 0.04
-              ? typed("스택이랑 큐는 언제 다르게 써요?", p, 0, 0.035) ||
-                "궁금한 점을 적거나 마이크를 눌러 말해 보세요."
-              : "궁금한 점을 적거나 마이크를 눌러 말해 보세요."}
+          <span className={typing ? "typing" : undefined}>
+            {typing || "예: 리스트와 튜플은 뭐가 다른가요?"}
           </span>
           <b>↵</b>
         </div>
@@ -1093,8 +1142,8 @@ function ChatPage({ p }: { p: number }) {
       <Cursor
         p={p}
         path={[
-          { at: 0, x: 900, y: 650 },
-          { at: 0.7, x: 860, y: 600 },
+          { at: 0, x: 900, y: 700 },
+          { at: 0.7, x: 820, y: 640 },
           { at: 0.84, to: "state", click: true },
           { at: 1, to: "state" },
         ]}

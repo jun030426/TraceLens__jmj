@@ -1,0 +1,210 @@
+/* [랜딩 · 하루의 학습] 미리보기를 실제 학생 화면에 맞춤 (11/25) — StudentPreview.tsx 가 lerny-student-preview.css 바로 뒤에 불러와요.
+   배포 사이트의 AI 강의 · 이론 퀴즈 · 실습 · 학습 챗봇 화면에서 치수 · 색 · 문구를 가져왔어요.
+   - 글꼴: 랜딩 전체에 걸린 고운돋움 대신, 미리보기 안쪽만 실제 앱 글꼴(Pretendard)로
+   - 색: 실제 앱의 자두색(#85639f / #7b4a80) · 먹색(#2b2029) · 바탕(#f7f0f8)
+   이 파일을 불러오는 줄을 지우면 예전 미리보기 모양으로 돌아가요 (구성은 StudentPreview.tsx 가 정해요). */
+#root .lerny-landing .sp-scale,
+#root .lerny-landing .sp-scale *:not(code, pre, kbd, samp, code *, pre *) {
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, Inter, system-ui, "Malgun Gothic", sans-serif !important;
+}
+.sp-box {
+  --sp-plum: #85639f;
+  --sp-plum-d: #6b3f78;
+  --sp-plum-w: #f6eef8;
+  --sp-bg: #f7f0f8;
+  --sp-ink: #2b2029;
+  --sp-ink2: #656668;
+  --sp-ink3: #8a7d90;
+  --sp-line: #e8e3ea;
+}
+.sp-head h4 { font-size: 34px; font-weight: 600; letter-spacing: -0.03em; }
+.sp-head span { font-size: 14px; }
+.sp-card { border-color: #e3e4e5; border-radius: 20px; }
+.sp-btn.flat { border: 1px solid #e0e0e0; border-radius: 11px; background: #faf4fa; color: #4f424d; }
+.sp-btn.outline { border: 1px solid #dfe0e2; background: #fff; color: #7e8083; font-weight: 400; }
+.sp-btn.gray { border: 1px solid #d8dadd; background: #f0f1f2; color: #5a5c64; font-weight: 400; }
+.sp-btn.ghost { border: 1px solid #dededf; background: #efeff0; color: #818283; }
+.sp-btn.line { border: 1px solid #c9a6cc; background: #fff; color: #5a2a60; }
+
+/* ───── AI 강의: 왼쪽 큰 영상 · 아래 제목과 버튼 · 관련 자료, 오른쪽 목록 ───── */
+.sp-lecture-grid { grid-template-columns: minmax(0, 1fr) 286px; gap: 20px; }
+.sp-lecture-grid > .sp-weeks { order: 0; }
+.sp-lec-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.sp-stagebox { position: relative; flex: none; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 18px; background: #3a2438; }
+.sp-stagebox img,
+.sp-stagebox video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.sp-stagebox video { transition: opacity 0.4s; }
+.sp-stagebox.is-playing img { animation: sp-drift 9s ease-in-out infinite alternate; }
+@keyframes sp-drift { from { transform: scale(1); } to { transform: scale(1.035); } }
+.sp-caption { position: absolute; left: 50%; bottom: 44px; margin: 0; padding: 3px 10px; transform: translateX(-50%); background: rgba(20, 14, 22, 0.62); color: #fff; font-size: 15px; white-space: nowrap; }
+.sp-ctrl { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 14px; padding: 26px 18px 20px; background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.58)); color: #fff; }
+.sp-ctrl small { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.sp-ctrl-gap { flex: 1; }
+.sp-ctrl svg { flex: none; width: 18px; height: 18px; }
+.sp-ctrl-line { position: absolute; left: 18px; right: 18px; bottom: 9px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.3); overflow: hidden; }
+.sp-ctrl-line i { position: absolute; inset: 0 auto 0 0; background: #fff; }
+.sp-ic-play { flex: none; width: 0; height: 0; margin: 0 2px 0 4px; border-left: 13px solid #fff; border-top: 8px solid transparent; border-bottom: 8px solid transparent; transition: transform 0.15s; }
+.sp-ic-pause { flex: none; width: 13px; height: 15px; margin: 0 2px 0 4px; border-left: 4px solid #fff; border-right: 4px solid #fff; transition: transform 0.15s; }
+.sp-ic-play.pressed, .sp-ic-pause.pressed { transform: scale(0.8); }
+.sp-lec-label { margin-top: 16px; color: #6b6d70; font-size: 12px; }
+.sp-lec-title { margin-top: 2px; font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+.sp-lec-actions { display: flex; gap: 12px; margin-top: 14px; }
+.sp-lec-actions .sp-btn { min-height: 42px; padding: 0 20px; }
+.sp-lec-actions .sp-btn.gray { border-radius: 24px; font-size: 13px; }
+.sp-lec-details { flex: 1; min-height: 0; margin-top: 18px; padding: 0 24px 18px; overflow: hidden; border-radius: 22px; background: #fffafc; }
+.sp-lec-tabs { display: flex; gap: 26px; border-bottom: 1px solid #efe9f1; color: rgba(43, 32, 41, 0.55); font-size: 14px; font-weight: 500; }
+.sp-lec-tabs span { padding: 15px 0 12px; }
+.sp-lec-tabs span.on { color: #2b2029; font-weight: 700; box-shadow: inset 0 -2px 0 #2b2029; }
+.sp-lec-details h6 { margin: 16px 0 8px; font-size: 16px; font-weight: 600; }
+.sp-lec-file { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid #ece6ee; border-radius: 12px; background: #fff; font-size: 13.5px; }
+.sp-lec-file em { color: var(--sp-plum-d); font-size: 12.5px; font-style: normal; font-weight: 600; }
+
+.sp-weeks { padding: 20px 14px 14px; border: 0; border-radius: 22px; }
+.sp-weeks-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin: 0 6px; }
+.sp-weeks .sp-weeks-head h5 { display: block; margin: 0; font-size: 21px; font-weight: 600; }
+.sp-weeks-head small { color: #6f606b; font-size: 12px; }
+.sp-weeks-head em { margin-top: 4px; padding: 6px 9px; border: 1px solid #d8dadd; border-radius: 7px; background: #f0f1f2; color: #5a5c64; font-size: 11.5px; font-style: normal; white-space: nowrap; }
+.sp-weeks-note { margin: 12px 6px 14px; color: #6b6d6f; font-size: 12.5px; line-height: 1.55; }
+.sp-weeks-search { display: flex; align-items: center; gap: 8px; height: 40px; margin: 0 4px 10px; padding: 0 14px; border: 1px solid #d9d9de; border-radius: 999px; background: #fffafc; color: #9a9aa0; font-size: 13px; }
+.sp-weeks-search i { color: var(--sp-plum); font-size: 15px; font-style: normal; }
+.sp-week-wrap { border: 0; border-top: 1px solid #edeeef; border-radius: 0; }
+.sp-week-wrap + .sp-week-wrap { margin-top: 0; }
+.sp-week-wrap.open,
+.sp-week-wrap.open + .sp-week-wrap { border-top-color: transparent; background: none; }
+.sp-week { padding: 16px 8px; color: #6f606b; font-weight: 500; }
+.sp-week small { color: #a89fae; }
+.open .sp-week-videos { max-height: 220px; padding: 0 2px 8px; }
+.sp-video-item { padding: 13px 10px; background: rgba(133, 99, 159, 0.07); color: #6f606b; }
+.sp-video-item b { width: auto; min-width: 28px; height: 22px; padding: 0 6px; border-radius: 999px; background: rgba(133, 99, 159, 0.1); font-size: 12px; font-weight: 600; }
+.sp-video-item small { margin-top: 3px; font-size: 12px; font-weight: 400; }
+.sp-video-item.on { background: var(--sp-plum); }
+.sp-video-item.on b { background: rgba(255, 255, 255, 0.22); color: #fff; }
+.sp-now { flex: none; width: 5px; height: 5px; margin-left: auto; border-radius: 50%; background: #fff; }
+
+/* ───── 이론 퀴즈 ───── */
+.sp-quiz-head { flex: none; margin-bottom: 12px; }
+.sp-quiz-head .sp-head { margin-bottom: 4px; }
+.sp-quiz-head p { color: #656668; font-size: 13px; }
+.sp-tabs { align-items: flex-end; gap: 4px; }
+.sp-tabs span { padding: 8px 16px; border-color: #e3e4e5; background: #faf4fa; color: #6f606b; font-weight: 500; }
+.sp-tabs span.on { padding-bottom: 12px; background: #fff; color: #7b4a80; font-weight: 700; }
+.sp-quiz-card { padding: 18px 24px 14px; border-color: #e3e4e5; border-radius: 20px; }
+.sp-quiz-card > :not(.sp-quiz-foot) { zoom: 1.14; }
+.sp-quiz-foot { zoom: 1.04; border-top-color: #ededee; }
+.sp-quiz-card > small { color: #656668; font-size: 12px; }
+.sp-quiz-card h5 { margin: 6px 0 10px; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.sp-legend { margin-bottom: 10px; color: #656668; font-size: 12.5px; }
+.sp-quiz-card .sp-opts { gap: 9px; }
+.sp-opt { height: 46px; border-color: #e6e6e7; background: #fdfcfe; color: #4f4a52; }
+.sp-opt > b { width: 25px; height: 25px; border-color: #dedee0; border-radius: 7px; color: #898c8f; font-size: 12px; font-weight: 400; }
+.sp-opt.on { border-color: #b69ccb; background: #f6eef8; color: #2b2029; }
+.sp-hint { margin-top: 14px; padding: 14px 18px; border-radius: 16px; background: #fffafc; box-shadow: 0 1px 2px rgba(43, 32, 41, 0.05), 0 4px 16px rgba(43, 32, 41, 0.06); }
+.sp-hint-row > b { font-size: 17px; font-weight: 700; }
+.sp-hint-pill { width: 30px; height: 15px; border: 0; border-radius: 999px; background: #f6eef7; overflow: visible; }
+.sp-hint-pill i { position: static; display: block; width: 18px; height: 7px; margin: 4px 6px; border-radius: 999px; background: #fff; }
+.sp-hint-pill i.on { background: #d9a85a; }
+.sp-hint-row small { color: #8a7590; font-size: 12.5px; font-weight: 500; }
+.sp-hint-row small b { color: var(--sp-plum); font-size: 14px; }
+.sp-hint-list { display: flex; align-items: baseline; gap: 10px; margin-top: 12px; padding: 8px 12px; border-radius: 8px; background: #fdf5e6; color: #2b2029; font-size: 14px; line-height: 1.6; animation: sp-fade-up 0.35s ease both; }
+.sp-hint-list b { flex: none; color: #b5762a; font-weight: 700; }
+/* 정답 확인 칸 */
+.sp-result { margin-top: 6px; padding: 18px 20px; border: 1px solid #cfe2d4; border-radius: 14px; background: #fdfcfe; }
+.sp-result-meta { display: flex; align-items: center; justify-content: space-between; }
+.sp-result-meta small { color: #656668; font-size: 12px; }
+.sp-result-meta em { padding: 5px 10px; border-radius: 100px; background: #edf4ef; color: #43634e; font-size: 11px; font-style: normal; }
+.sp-result-answer { margin-top: 12px; padding: 12px 16px; border: 1px solid #cfe2d4; border-radius: 10px; background: #f6fbf7; }
+.sp-result-answer b { display: block; color: #6c6e71; font-size: 12px; font-weight: 700; }
+.sp-result-answer span { display: block; margin-top: 4px; color: #4f4a52; font-size: 14px; }
+.sp-result-exp { margin-top: 14px; padding-top: 12px; border-top: 1px solid #ecedee; }
+.sp-result-exp b { color: #7a7c80; font-size: 13px; font-weight: 600; }
+.sp-result-exp p { margin-top: 6px; color: #4f4a52; font-size: 14px; line-height: 1.6; }
+.sp-ask { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; border: 1px solid #e6d6ec; border-radius: 14px; background: #faf5fb; }
+.sp-ask > i { display: grid; flex: none; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #7b4a80; }
+.sp-ask b { display: block; color: #5b2f63; font-size: 13.5px; font-weight: 700; }
+.sp-ask small { color: #8b8592; font-size: 12px; }
+
+/* ───── 실습 ───── */
+.sp-practice > .sp-head { display: flex; }
+.sp-practice > .sp-head h4 { font-size: 30px; font-weight: 500; }
+.sp-code-card { border-color: #ece3f0; border-radius: 18px; }
+.sp-ptabs { gap: 4px; padding: 0 12px; }
+.sp-ptabs > span { padding: 0 10px; color: #8b7f92; font-weight: 600; }
+.sp-ptabs > span.on { color: #63346f; font-weight: 700; }
+.sp-ptabs > span.on::after { left: 10px; right: 10px; }
+.sp-ptabs > small { margin-left: auto; margin-right: 6px; color: #5b2f63; font-size: 12px; font-weight: 700; }
+.sp-seg { display: flex; padding: 3px; border-radius: 999px; background: rgba(133, 99, 159, 0.1); }
+.sp-seg b { padding: 5px 10px; border-radius: 999px; color: #656668; font-size: 12.5px; font-weight: 600; }
+.sp-seg b.on { background: #6b3f78; color: #fff; }
+.sp-code-q h5 { font-size: 17px; font-weight: 600; }
+.sp-phint { margin: 0 18px 8px; padding: 8px 0 0; border: 0; border-top: 1px solid #deded5; border-radius: 0; background: none; }
+.sp-phint-sum { margin-bottom: 8px; font-size: 14.5px; font-weight: 700; }
+.sp-phint-head > b { font-size: 15px; font-weight: 600; }
+.sp-phint-meter { gap: 4px; padding: 4px 6px; border-radius: 999px; background: #f6eef7; }
+.sp-phint-meter i { width: 18px; height: 7px; border: 0; background: #fff; }
+.sp-phint-meter i.on { background: #d9a85a; }
+.sp-phint-head small { color: #8a7590; font-size: 12px; font-weight: 500; }
+.sp-phint-head small b { color: var(--sp-plum); }
+.sp-phint-head .sp-btn { padding: 6px 14px; font-size: 12.5px; }
+.sp-phint-body { margin-top: 8px; padding: 8px 12px; border-radius: 8px; background: #fdf5e6; color: #2b2029; font-size: 13px; }
+.sp-phint-body em { margin-right: 10px; padding: 0; background: none; color: #b5762a; font-size: 13px; font-weight: 700; }
+.sp-code-bar { border-top-color: #e4d6ee; }
+.sp-code-bar b { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
+.sp-help { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid #d9c6e0; border-radius: 50%; background: #f6eef8; color: #6a3d6f; font-size: 11.5px; font-style: normal; font-weight: 800; }
+.sp-code-bar .sp-btn { min-height: 32px; }
+.sp-code-file { border-color: #ecedee; background: #faf9fd; color: #656668; }
+.sp-code { background: #fdfcfe; color: #3b3640; }
+.sp-code .ln { width: 30px; color: #b1aeb8; font-size: 12px; }
+.sp-blank-mark { margin-right: 3px; color: #7b4a80; font-size: 13px; font-weight: 800; }
+.sp-blank { border: 1.5px dashed #b78fbf; background: #fbf6fc; color: #2b2530; font-weight: 400; }
+.sp-blank.on { border-style: solid; border-color: #9fdcbf; background: #f1faf5; }
+.sp-code-note { flex: none; padding: 7px 18px 10px; border-top: 1px solid #f0eaf2; color: #8b8592; font-size: 12px; }
+.sp-run-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.sp-qnav { display: flex; flex: none; align-items: center; justify-content: space-between; padding: 0 4px 6px; color: #7a6a82; font-size: 13px; font-weight: 700; }
+.sp-qnav b { font-weight: 600; }
+.sp-qnav .go { color: #6b3a75; }
+.sp-qnav .off { opacity: 0.45; }
+.sp-run { flex: 1; min-height: 0; border: 0; border-radius: 22px; }
+.sp-run .sp-code-tabs { padding: 0 22px; color: #4f424d; }
+.sp-run .sp-code-tabs span.on { color: #2b2029; }
+.sp-viz-cap { margin-top: 0; }
+.sp-viz-ctrl { display: flex; flex: none; align-items: center; gap: 8px; margin-top: 10px; color: #7a7480; font-size: 12.5px; }
+.sp-viz-ctrl b { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #e6dfea; border-radius: 50%; background: #fff; color: #5b2f63; font-size: 13px; font-weight: 400; }
+.sp-viz-ctrl b.play { border-color: transparent; background: #7b4a80; color: #fff; font-size: 11px; }
+.sp-viz-ctrl small { margin: 0 auto 0 4px; font-variant-numeric: tabular-nums; }
+.sp-viz-ctrl span { padding: 4px 10px; border-radius: 999px; }
+.sp-viz-ctrl span.on { background: #f1e6f3; color: #5b2f63; font-weight: 600; }
+
+/* ───── 학습 챗봇 ───── */
+.sp-chat { grid-template-columns: 228px minmax(0, 1fr) !important; }
+.sp-side-col { display: flex; flex-direction: column; gap: 14px; align-self: start; }
+.sp-side { align-self: stretch; padding: 20px; border: 0; border-radius: 22px; background: #fffafc; }
+.sp-side-head { display: flex; align-items: baseline; justify-content: space-between; }
+.sp-side h5 { font-size: 18px; font-weight: 600; }
+.sp-side-head small { color: #656668; font-size: 11.5px; font-weight: 600; }
+.sp-course { margin: 16px 0 0; padding: 14px; border-radius: 14px; background: #f2e6ef; }
+.sp-course b { font-size: 14px; font-weight: 600; }
+.sp-course b small { display: inline; margin-left: 6px; color: #8a8c8f; font-size: 12px; font-weight: 400; }
+.sp-course > small { display: block; margin-top: 4px; color: #656668; font-size: 12px; }
+.sp-card.sp-prev { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border: 1px solid #e3e4e6; border-radius: 15px; background: #fffafc; font-size: 16px; font-weight: 600; }
+.sp-prev i { color: #8a7d90; font-style: normal; }
+.sp-chat-main { border-color: #e3e4e6; border-radius: 18px; }
+.sp-chat-head { align-items: center; padding: 16px 20px 12px; }
+.sp-chat-head h5 { font-size: 26px; font-weight: 600; }
+.sp-chat-head span { color: #76787a; font-size: 13.5px; }
+.sp-chat-head em { margin-left: auto; padding: 6px 14px; border: 1px solid #dededf; border-radius: 999px; background: #efeff0; color: #818283; font-size: 13px; font-style: normal; }
+.sp-msgs { gap: 12px; }
+.sp-msg { max-width: 70%; line-height: 1.6; }
+.sp-msg.me { border-radius: 16px 16px 4px 16px; background: #7b4a80; }
+.sp-ai { display: flex; flex-direction: column; align-items: flex-start; align-self: flex-start; max-width: 74%; }
+.sp-ai.in { animation: sp-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.sp-ai > small { margin: 0 0 4px 4px; color: #7b4a80; font-size: 12.5px; font-weight: 600; }
+.sp-ai .sp-msg.ai { position: relative; max-width: none; border-color: #e4d6ee; border-radius: 16px 16px 16px 4px; background: #faf4fa; color: #2b2029; }
+.sp-ai .sp-src { color: #656668; font-size: 12.5px; font-weight: 400; }
+.sp-ai-foot { display: flex; align-items: center; align-self: stretch; gap: 12px; min-height: 30px; margin-top: 6px; }
+.sp-ai-foot time { margin-left: 6px; color: #8a8c8f; font-size: 11px; }
+.sp-ai-foot .sp-react { margin-left: auto; }
+.sp-react.done { opacity: 0; }
+.sp-state { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px 0 8px; border-color: #e6e1ea; color: #4f5154; font-size: 12px; font-weight: 500; }
+.sp-reacted { position: absolute; right: -6px; bottom: -14px; display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #ece8ef; border-radius: 50%; background: #fff; font-size: 15px; font-style: normal; animation: sp-pop 0.3s ease both; }
+.sp-input { margin: 8px 20px 14px; padding: 12px 14px; border-color: #d9d9de; border-radius: 10px; background: #fffafc; color: #8a8a90; font-size: 15px; font-weight: 600; }
+.sp-input span.typing { color: #2b2029; font-weight: 400; }
