@@ -5,9 +5,9 @@
 🔗 서비스: **https://lerny-ten.vercel.app**
 
 <p align="center">
-  <img src="docs/assets/ai-lecturer.gif" width="720" alt="AI 강사가 칠판 슬라이드 옆에서 알고리즘 개념을 설명하는 장면">
+  <img src="docs/assets/ai-lecturer.gif" width="720" alt="AI 강사가 stack.append로 우유, 과자, 음료수를 차례로 쌓고 pop으로 꺼내는 과정을 설명하는 장면">
   <br>
-  <sub>Lerny AI 강사의 개념 강의 앞부분 · <a href="https://lerny-ten.vercel.app/lecture-algorithm.mp4">소리와 함께 전체 영상 보기 (30초)</a></sub>
+  <sub>7주차 AI 강의 「파이썬 스택, 한 번에 이해하기」 중 append와 pop 설명</sub>
 </p>
 
 > 2026-2학기 SW캡스톤디자인 · 팀 **알고보자**
@@ -34,11 +34,11 @@ flowchart LR
 ```
 
 <p align="center">
-  <img src="apps/web/public/lecture-posters/len-warm-6b47d698b62f.webp" width="32%" alt="문자열 길이 개념 강의 포스터">
-  <img src="apps/web/public/lecture-posters/lower-warm-f097f30d9357.webp" width="32%" alt="소문자로 바꾸기 개념 강의 포스터">
-  <img src="apps/web/public/lecture-posters/upper-warm-dea3700a6a74.webp" width="32%" alt="대문자로 바꾸기 개념 강의 포스터">
+  <img src="docs/assets/lecture-week6-search.webp" width="32%" alt="6주차 순차 탐색 강의에서 AI 강사가 최악의 시간 복잡도 O(n)을 설명하는 장면">
+  <img src="docs/assets/lecture-week7-plates.webp" width="32%" alt="7주차 스택 강의에서 AI 강사가 쌓아 둔 접시를 어디서부터 꺼낼지 묻는 장면">
+  <img src="docs/assets/lecture-week7-peek.webp" width="32%" alt="7주차 파이썬 스택 강의에서 AI 강사가 stack[-1]로 맨 위 항목을 확인하는 peek을 설명하는 장면">
   <br>
-  <sub>학생 강의 목록에 보이는 개념 강의 포스터 (자료구조 2주차 · 파이썬 문자열)</sub>
+  <sub>실제 AI 강의 장면 · 6주차 「순차 탐색은 언제까지 찾아야 할까?」, 7주차 「쌓아 둔 접시는 어디서부터 꺼낼까?」, 「파이썬 스택, 한 번에 이해하기」</sub>
 </p>
 
 - **근거 있는 대본**: 해당 주차의 공개 자료에서 근거를 최대 12개까지 찾아 도입·본문·정리 구조의 50초 분량 대본을 씁니다. 모든 문장과 핵심 사실은 허용된 출처를 인용해야 합니다.
